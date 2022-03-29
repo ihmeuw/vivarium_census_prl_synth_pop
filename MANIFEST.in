@@ -1,0 +1,5 @@
+include LICENSE
+include README.rst
+
+recursive-include src/vivarium_census_prl_synth_pop *.py *.yaml *.ipynb
+recursive-include tests *.py *txt *.yaml
