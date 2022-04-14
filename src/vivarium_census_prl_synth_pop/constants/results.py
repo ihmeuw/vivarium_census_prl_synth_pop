@@ -9,8 +9,6 @@ from vivarium_census_prl_synth_pop.constants import models
 #################################
 
 TOTAL_POPULATION_COLUMN = 'total_population'
-TOTAL_YLDS_COLUMN = 'years_lived_with_disability'
-TOTAL_YLLS_COLUMN = 'years_of_life_lost'
 
 # Columns from parallel runs
 INPUT_DRAW_COLUMN = 'input_draw'
@@ -22,28 +20,13 @@ OUTPUT_SCENARIO_COLUMN = 'screening_algorithm.scenario'
 
 STANDARD_COLUMNS = {
     'total_population': TOTAL_POPULATION_COLUMN,
-    'total_ylls': TOTAL_YLLS_COLUMN,
-    'total_ylds': TOTAL_YLDS_COLUMN,
 }
 
-THROWAWAY_COLUMNS = [f'{state}_event_count' for state in models.STATES]
 
 TOTAL_POPULATION_COLUMN_TEMPLATE = 'total_population_{POP_STATE}'
-PERSON_TIME_COLUMN_TEMPLATE = 'person_time_in_{YEAR}_among_{SEX}_in_age_group_{AGE_GROUP}'
-DEATH_COLUMN_TEMPLATE = 'death_due_to_{CAUSE_OF_DEATH}_in_{YEAR}_among_{SEX}_in_age_group_{AGE_GROUP}'
-YLLS_COLUMN_TEMPLATE = 'ylls_due_to_{CAUSE_OF_DEATH}_in_{YEAR}_among_{SEX}_in_age_group_{AGE_GROUP}'
-YLDS_COLUMN_TEMPLATE = 'ylds_due_to_{CAUSE_OF_DISABILITY}_in_{YEAR}_among_{SEX}_in_age_group_{AGE_GROUP}'
-STATE_PERSON_TIME_COLUMN_TEMPLATE = '{STATE}_person_time_in_{YEAR}_among_{SEX}_in_age_group_{AGE_GROUP}'
-TRANSITION_COUNT_COLUMN_TEMPLATE = '{TRANSITION}_event_count_in_{YEAR}_among_{SEX}_in_age_group_{AGE_GROUP}'
 
 COLUMN_TEMPLATES = {
     'population': TOTAL_POPULATION_COLUMN_TEMPLATE,
-    'person_time': PERSON_TIME_COLUMN_TEMPLATE,
-    'deaths': DEATH_COLUMN_TEMPLATE,
-    'ylls': YLLS_COLUMN_TEMPLATE,
-    'ylds': YLDS_COLUMN_TEMPLATE,
-    'state_person_time': STATE_PERSON_TIME_COLUMN_TEMPLATE,
-    'transition_count': TRANSITION_COUNT_COLUMN_TEMPLATE,
 }
 
 NON_COUNT_TEMPLATES = [
@@ -70,11 +53,6 @@ TEMPLATE_FIELD_MAP = {
     'POP_STATE': POP_STATES,
     'YEAR': YEARS,
     'SEX': SEXES,
-    'AGE_GROUP': AGE_GROUPS,
-    'CAUSE_OF_DEATH': CAUSES_OF_DEATH,
-    'CAUSE_OF_DISABILITY': CAUSES_OF_DISABILITY,
-    'STATE': models.STATES,
-    'TRANSITION': models.TRANSITIONS,
 }
 
 

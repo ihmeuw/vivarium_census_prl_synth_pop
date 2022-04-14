@@ -20,7 +20,7 @@ from vivarium_gbd_access import gbd
 from vivarium_inputs import globals as vi_globals, interface, utilities as vi_utils, utility_data
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 
-from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.constants import data_keys, paths, metadata
 
 
 def get_data(lookup_key: str, location: str) -> pd.DataFrame:
@@ -40,117 +40,73 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
 
     """
     mapping = {
-        data_keys.POPULATION.LOCATION: load_population_location,
-        data_keys.POPULATION.STRUCTURE: load_population_structure,
-        data_keys.POPULATION.AGE_BINS: load_age_bins,
-        data_keys.POPULATION.DEMOGRAPHY: load_demographic_dimensions,
-        data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
-        data_keys.POPULATION.ACMR: load_standard_data,
-
-        # TODO - add appropriate mappings
-        # data_keys.DIARRHEA_PREVALENCE: load_standard_data,
-        # data_keys.DIARRHEA_INCIDENCE_RATE: load_standard_data,
-        # data_keys.DIARRHEA_REMISSION_RATE: load_standard_data,
-        # data_keys.DIARRHEA_CAUSE_SPECIFIC_MORTALITY_RATE: load_standard_data,
-        # data_keys.DIARRHEA_EXCESS_MORTALITY_RATE: load_standard_data,
-        # data_keys.DIARRHEA_DISABILITY_WEIGHT: load_standard_data,
-        # data_keys.DIARRHEA_RESTRICTIONS: load_metadata,
+        data_keys.POPULATION.HOUSEHOLDS: load_households,
+        data_keys.POPULATION.PERSONS: load_persons,
     }
     return mapping[lookup_key](lookup_key, location)
 
 
-def load_population_location(key: str, location: str) -> str:
-    if key != data_keys.POPULATION.LOCATION:
+def load_households(key: str, location: str) -> pd.DataFrame:
+    if key != data_keys.POPULATION.HOUSEHOLDS:
         raise ValueError(f'Unrecognized key {key}')
+    # read in data
+    data_dir = paths.HOUSEHOLDS_DATA_DIR
+    data = pd.concat(
+        [
+            pd.read_csv(
+                data_dir / file,
+                usecols=metadata.HOUSEHOLDS_COLUMN_MAP.keys(),
+            ) for file in paths.HOUSEHOLDS_FNAMES
+        ])
+    data.SERIALNO = data.SERIALNO.astype(str)
 
-    return location
+    # reshape
+    data = data.rename(columns=metadata.HOUSEHOLDS_COLUMN_MAP)
+    data = data.set_index(['state', 'puma', 'hh_id'])
 
+    if location != "United States":
+        data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
 
-def load_population_structure(key: str, location: str) -> pd.DataFrame:
-    return interface.get_population_structure(location)
-
-
-def load_age_bins(key: str, location: str) -> pd.DataFrame:
-    return interface.get_age_bins()
-
-
-def load_demographic_dimensions(key: str, location: str) -> pd.DataFrame:
-    return interface.get_demographic_dimensions(location)
-
-
-def load_theoretical_minimum_risk_life_expectancy(key: str, location: str) -> pd.DataFrame:
-    return interface.get_theoretical_minimum_risk_life_expectancy()
-
-
-def load_standard_data(key: str, location: str) -> pd.DataFrame:
-    key = EntityKey(key)
-    entity = get_entity(key)
-    return interface.get_measure(entity, key.measure, location).droplevel('location')
+    # return data
+    return data
 
 
-def load_metadata(key: str, location: str):
-    key = EntityKey(key)
-    entity = get_entity(key)
-    entity_metadata = entity[key.measure]
-    if hasattr(entity_metadata, 'to_dict'):
-        entity_metadata = entity_metadata.to_dict()
-    return entity_metadata
-
-
-def load_categorical_paf(key: str, location: str) -> pd.DataFrame:
-    try:
-        risk = {
-            # todo add keys as needed
-            data_keys.KEYGROUP.PAF: data_keys.KEYGROUP,
-        }[key]
-    except KeyError:
+def load_persons(key: str, location: str) -> pd.DataFrame:
+    if key != data_keys.POPULATION.PERSONS:
         raise ValueError(f'Unrecognized key {key}')
-
-    distribution_type = get_data(risk.DISTRIBUTION, location)
-
-    if distribution_type != 'dichotomous' and 'polytomous' not in distribution_type:
-        raise NotImplementedError(
-            f"Unrecognized distribution {distribution_type} for {risk.name}. Only dichotomous and "
-            f"polytomous are recognized categorical distributions."
-        )
-
-    exp = get_data(risk.EXPOSURE, location)
-    rr = get_data(risk.RELATIVE_RISK, location)
-
-    # paf = (sum_categories(exp * rr) - 1) / sum_categories(exp * rr)
-    sum_exp_x_rr = (
-        (exp * rr)
-        .groupby(list(set(rr.index.names) - {'parameter'})).sum()
-        .reset_index()
-        .set_index(rr.index.names[:-1])
+    # read in data
+    location = str.replace(location, ' ', '_')
+    data_dir = paths.PERSONS_DATA_DIR / location
+    data = pd.read_csv(
+        data_dir / paths.PERSONS_FNAME,
+        usecols=metadata.PERSONS_COLUMNS_MAP.keys()
     )
-    paf = (sum_exp_x_rr - 1) / sum_exp_x_rr
-    return paf
+    data.SERIALNO = data.SERIALNO.astype(str)
+
+    ## map ACS vars to human-readable ##
+    data = data.rename(columns=metadata.PERSONS_COLUMNS_MAP)
+
+    # map race and ethnicity to one var
+    data["race_eth"] = data.latino.map(metadata.LATINO_VAR_MAP)
+    data.loc[data.race_eth == 1, 'race_eth'] = data.loc[data.race_eth == 1].race
+
+    # label each race/eth
+    data.race_eth = data.race_eth.map(metadata.RACE_ETH_VAR_MAP)
+    data = data.drop(columns=['latino', 'race'])
+
+    # map sexes
+    data.sex = data.sex.map(metadata.SEX_VAR_MAP)
+
+    # map relationship to hh head
+    data.relation_to_hh_head = data.relation_to_hh_head.map(metadata.RELSHIP_TO_HH_HEAD_MAP)
+
+    # create person id
+    data['person_id'] = range(data.shape[0])
+
+    # reshape
+    data = data.set_index(['hh_id', 'person_id'])
+
+    # return data
+    return data
 
 
-def _load_em_from_meid(location, meid, measure):
-    location_id = utility_data.get_location_id(location)
-    data = gbd.get_modelable_entity_draws(meid, location_id)
-    data = data[data.measure_id == vi_globals.MEASURES[measure]]
-    data = vi_utils.normalize(data, fill_value=0)
-    data = data.filter(vi_globals.DEMOGRAPHIC_COLUMNS + vi_globals.DRAW_COLUMNS)
-    data = vi_utils.reshape(data)
-    data = vi_utils.scrub_gbd_conventions(data, location)
-    data = vi_utils.split_interval(data, interval_column='age', split_column_prefix='age')
-    data = vi_utils.split_interval(data, interval_column='year', split_column_prefix='year')
-    return vi_utils.sort_hierarchical_data(data)
-
-
-# TODO - add project-specific data functions here
-
-
-def get_entity(key: str):
-    # Map of entity types to their gbd mappings.
-    type_map = {
-        'cause': causes,
-        'covariate': covariates,
-        'risk_factor': risk_factors,
-        'alternative_risk_factor': alternative_risk_factors
-    }
-    key = EntityKey(key)
-    return type_map[key.type][key.name]
