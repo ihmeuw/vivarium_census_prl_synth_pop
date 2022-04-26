@@ -36,9 +36,9 @@ ARTIFACT_COLUMNS = pd.Index([f'draw_{i}' for i in range(DRAW_COUNT)])
 
 HOUSEHOLDS_COLUMN_MAP = {
     'ST': 'state',
-    'SERIALNO': 'hh_id',
+    'SERIALNO': 'census_household_id',
     'PUMA': 'puma',
-    'WGTP': 'hh_weight',
+    'WGTP': 'household_weight',
 }
 
 CENSUS_STATE_IDS = {
@@ -97,9 +97,9 @@ CENSUS_STATE_IDS = {
 }
 
 PERSONS_COLUMNS_MAP = {
-    'SERIALNO': 'hh_id',
+    'SERIALNO': 'census_household_id',
     'AGEP': 'age',
-    'RELSHIPP': 'relation_to_hh_head',
+    'RELSHIPP': 'relation_to_household_head',
     'SEX': 'sex',
     'HISP': 'latino',
     'RAC1P': 'race',
@@ -109,7 +109,7 @@ LATINO_VAR_MAP = {
     i: (1 if i == 1 else 0) for i in range(1, 25)
 }
 
-RACE_ETH_VAR_MAP = {
+RACE_ETHNICITY_VAR_MAP = {
     0: 'Latino',
     1: 'White',
     2: 'Black',
@@ -124,7 +124,7 @@ RACE_ETH_VAR_MAP = {
 
 SEX_VAR_MAP = {1: 'Male', 2: 'Female'}
 
-RELSHIP_TO_HH_HEAD_MAP = {
+RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     20: 'Reference person',
     21: 'Opp-sex spouse',
     22: 'Opp-sex partner',
