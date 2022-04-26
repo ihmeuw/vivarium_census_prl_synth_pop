@@ -62,7 +62,7 @@ def load_households(key: str, location: str) -> pd.DataFrame:
 
     # reshape
     data = data.rename(columns=metadata.HOUSEHOLDS_COLUMN_MAP)
-    data = data.set_index(['state', 'puma', 'hh_id', 'hh_weight'])
+    data = data.set_index(['state', 'puma', 'census_household_id', 'household_weight'])
 
     if location != "United States":
         data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
@@ -87,24 +87,21 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     data = data.rename(columns=metadata.PERSONS_COLUMNS_MAP)
 
     # map race and ethnicity to one var
-    data["race_eth"] = data.latino.map(metadata.LATINO_VAR_MAP)
-    data.loc[data.race_eth == 1, 'race_eth'] = data.loc[data.race_eth == 1].race
+    data["race_ethnicity"] = data.latino.map(metadata.LATINO_VAR_MAP)
+    data.loc[data.race_ethnicity == 1, 'race_ethnicity'] = data.loc[data.race_ethnicity == 1].race
 
     # label each race/eth
-    data.race_eth = data.race_eth.map(metadata.RACE_ETH_VAR_MAP)
+    data.race_ethnicity = data.race_ethnicity.map(metadata.RACE_ETHNICITY_VAR_MAP)
     data = data.drop(columns=['latino', 'race'])
 
     # map sexes
     data.sex = data.sex.map(metadata.SEX_VAR_MAP)
 
-    # map relationship to hh head
-    data.relation_to_hh_head = data.relation_to_hh_head.map(metadata.RELSHIP_TO_HH_HEAD_MAP)
-
-    # create person id
-    data['person_id'] = range(data.shape[0])
+    # map relationship to household head
+    data.relation_to_household_head = data.relation_to_household_head.map(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP)
 
     # reshape
-    data = data.set_index(['hh_id', 'person_id', 'age', 'relation_to_hh_head', 'sex', 'race_eth'])
+    data = data.set_index(['census_household_id', 'age', 'relation_to_household_head', 'sex', 'race_ethnicity'])
 
     # return data
     return data
