@@ -109,7 +109,7 @@ LATINO_VAR_MAP = {
     i: (1 if i == 1 else 0) for i in range(1, 25)
 }
 
-RACE_ETH_VAR_MAP = {
+RACE_ETHNICITY_VAR_MAP = {
     0: 'Latino',
     1: 'White',
     2: 'Black',
@@ -124,7 +124,7 @@ RACE_ETH_VAR_MAP = {
 
 SEX_VAR_MAP = {1: 'Male', 2: 'Female'}
 
-RELSHIP_TO_HH_HEAD_MAP = {
+RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     20: 'Reference person',
     21: 'Opp-sex spouse',
     22: 'Opp-sex partner',

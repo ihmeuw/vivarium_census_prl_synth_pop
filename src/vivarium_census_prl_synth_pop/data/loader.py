@@ -88,17 +88,17 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
 
     # map race and ethnicity to one var
     data["race_ethnicity"] = data.latino.map(metadata.LATINO_VAR_MAP)
-    data.loc[data.race_eth == 1, 'race_ethnicity'] = data.loc[data.race_eth == 1].race
+    data.loc[data.race_ethnicity == 1, 'race_ethnicity'] = data.loc[data.race_ethnicity == 1].race
 
     # label each race/eth
-    data.race_eth = data.race_eth.map(metadata.RACE_ETH_VAR_MAP)
+    data.race_ethnicity = data.race_ethnicity.map(metadata.RACE_ETHNICITY_VAR_MAP)
     data = data.drop(columns=['latino', 'race'])
 
     # map sexes
     data.sex = data.sex.map(metadata.SEX_VAR_MAP)
 
     # map relationship to hh head
-    data.relation_to_hh_head = data.relation_to_hh_head.map(metadata.RELSHIP_TO_HH_HEAD_MAP)
+    data.relation_to_hh_head = data.relation_to_hh_head.map(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP)
 
     # reshape
     data = data.set_index(['census_household_id', 'age', 'relation_to_household_head', 'sex', 'race_ethnicity'])
