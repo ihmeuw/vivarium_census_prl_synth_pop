@@ -36,9 +36,9 @@ ARTIFACT_COLUMNS = pd.Index([f'draw_{i}' for i in range(DRAW_COUNT)])
 
 HOUSEHOLDS_COLUMN_MAP = {
     'ST': 'state',
-    'SERIALNO': 'hh_id',
+    'SERIALNO': 'census_household_id',
     'PUMA': 'puma',
-    'WGTP': 'hh_weight',
+    'WGTP': 'household_weight',
 }
 
 CENSUS_STATE_IDS = {
@@ -97,9 +97,9 @@ CENSUS_STATE_IDS = {
 }
 
 PERSONS_COLUMNS_MAP = {
-    'SERIALNO': 'hh_id',
+    'SERIALNO': 'census_household_id',
     'AGEP': 'age',
-    'RELSHIPP': 'relation_to_hh_head',
+    'RELSHIPP': 'relation_to_household_head',
     'SEX': 'sex',
     'HISP': 'latino',
     'RAC1P': 'race',
