@@ -146,8 +146,6 @@ RELSHIP_TO_HH_HEAD_MAP = {
     38: 'Noninstitutionalized GQ pop',
 }
 
-MAX_HH_SIZE = 17
-
 
 class __Scenarios(NamedTuple):
     baseline: str = 'baseline'
