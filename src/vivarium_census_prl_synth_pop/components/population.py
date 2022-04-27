@@ -50,7 +50,7 @@ class Population:
 
     def generate_base_population(self, pop_data: SimulantData) -> None:
         # oversample households
-        overshoot_idx = pd.Index(range(int(self.config.population_size / 1.5))) #TODO: update this number?
+        overshoot_idx = pd.Index(range(self.config.population_size))
         chosen_households = self.randomness.choice(
             index=overshoot_idx,
             choices=self.population_data['households']['census_household_id'],
