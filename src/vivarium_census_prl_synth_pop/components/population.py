@@ -17,10 +17,15 @@ class Population:
         self.config = builder.configuration.population
         self.randomness = builder.randomness.get_stream("household_sampling", for_initialization=True)
 
-
-        # TODO: figure out when register_simulants is called in std vph model
         self.columns_created = [
-            'hh_id', 'relation_to_hh_head', 'sex', 'age', 'race_eth', 'alive', 'entrance_time', 'exit_time'
+            'household_id',
+            'relation_to_household_head',
+            'sex', 
+            'age',
+            'race_ethnicity',
+            'alive',
+            'entrance_time',
+            'exit_time'
         ]
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = self._get_population_view(builder)
@@ -41,31 +46,37 @@ class Population:
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
         persons = builder.data.load(data_keys.POPULATION.PERSONS)
-        return {'hhs': households, 'persons': persons}
+        return {'households': households, 'persons': persons}
 
     def generate_base_population(self, pop_data: SimulantData) -> None:
         # oversample households
         overshoot_idx = pd.Index(range(int(self.config.population_size / 1.5))) #TODO: update this number?
-        chosen_hhs = self.randomness.choice(
+        chosen_households = self.randomness.choice(
             index=overshoot_idx,
-            choices=self.population_data['hhs']['hh_id'],
-            p=self.population_data['hhs']['hh_weight']
+            choices=self.population_data['households']['census_household_id'],
+            p=self.population_data['households']['household_weight']
         )
         # create unique id for resampled households
-        chosen_hhs = pd.DataFrame({
-            'hh_id': chosen_hhs,
-            'unique_hh_id': [idn + str(num) for (idn, num) in zip(chosen_hhs, range(len(chosen_hhs)))]
+        chosen_households = pd.DataFrame({
+            'census_household_id': chosen_households,
+            'household_id': [
+                idn + str(num) for (idn, num) in zip(chosen_households, range(len(chosen_households)))
+            ]
         })
         # get all simulants per household
-        chosen_persons = pd.merge(chosen_hhs, self.population_data['persons'], on='hh_id', how='left')
+        chosen_persons = pd.merge(
+            chosen_households,
+            self.population_data['persons'],
+            on='census_household_id',
+            how='left'
+        )
 
         # get rid simulants in excess of desired pop size
-        hhs_to_discard = chosen_persons.loc[self.config.population_size:, 'unique_hh_id'].unique()
-        chosen_persons = chosen_persons.query(f"unique_hh_id not in {list(hhs_to_discard)}")
+        households_to_discard = chosen_persons.loc[self.config.population_size:, 'household_id'].unique()
+        chosen_persons = chosen_persons.query(f"household_id not in {list(households_to_discard)}")
 
-        # drop non-unique hh_id
-        chosen_persons = chosen_persons.drop(columns='hh_id')
-        chosen_persons = chosen_persons.rename(columns={'unique_hh_id': 'hh_id'})
+        # drop non-unique household_id
+        chosen_persons = chosen_persons.drop(columns='census_household_id')
 
         # format
         n_chosen = chosen_persons.shape[0]
@@ -73,18 +84,17 @@ class Population:
         chosen_persons['exit_time'] = pd.NaT
         chosen_persons['alive'] = 'alive'
         chosen_persons['tracked'] = True
-        chosen_persons = chosen_persons.drop(columns=['person_id']) #TODO: remove from artifact. doesnt make sense when sampling w/replacement
 
         # add back in extra simulants to reach desired pop size
         remainder = self.config.population_size - n_chosen
         if remainder > 0:
             extras = pd.DataFrame(
                 data={
-                    'hh_id': ['NA'],
+                    'household_id': ['NA'],
                     'age': [np.NaN],
-                    'relation_to_hh_head': ['NA'],
+                    'relation_to_household_head': ['NA'],
                     'sex': ['NA'],
-                    'race_eth': ['NA'],
+                    'race_ethnicity': ['NA'],
                     'entrance_time': [pd.NaT],
                     'exit_time': [pd.NaT],
                     'alive': ['alive'],
