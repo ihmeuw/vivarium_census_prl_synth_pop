@@ -1,0 +1,31 @@
+components:
+    vivarium_census_prl_synth_pop:
+        components:
+            - Population()
+
+    # Causes an error if left empty. Uncomment when you have components.
+    # {{cookiecutter.package_name}}.components:
+
+configuration:
+    input_data:
+        artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/florida.hdf'
+        input_draw_number: 0
+    interpolation:
+        order: 0
+        extrapolate: False
+    randomness:
+        map_size: 1_000_000
+        key_columns: ['entrance_time', 'age']
+        random_seed: 0
+    time:
+        start:
+            year: 2019
+            month: 1
+            day: 1
+        end:
+            year: 2038
+            month: 12
+            day: 31
+        step_size: 28 # Days
+    population:
+        population_size: 2_000

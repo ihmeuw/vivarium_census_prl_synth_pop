@@ -146,6 +146,7 @@ RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     38: 'Noninstitutionalized GQ pop',
 }
 
+
 class __Scenarios(NamedTuple):
     baseline: str = 'baseline'
     # TODO - add scenarios here
