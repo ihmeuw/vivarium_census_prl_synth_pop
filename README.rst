@@ -58,6 +58,11 @@ are installing and running things in an isolated programming environment
 so it doesn't conflict with other source code and libraries on your
 system.
 
+To use this kernel in a Jupyter Notebook and plot results, it helps to have a few more packages::
+
+  pip install ipykernel matplotlib
+  python -m ipykernel install --user --name vivarium_census_prl_synth_pop
+
 
 Usage
 -----
