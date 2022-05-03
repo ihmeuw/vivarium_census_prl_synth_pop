@@ -58,6 +58,11 @@ are installing and running things in an isolated programming environment
 so it doesn't conflict with other source code and libraries on your
 system.
 
+To use this kernel in a Jupyter Notebook and plot results, it helps to have a few more packages::
+
+  pip install ipykernel matplotlib
+  python -m ipykernel install --user --name vivarium_census_prl_synth_pop
+
 
 Usage
 -----
@@ -102,20 +107,9 @@ You'll find six directories inside the main
 Running Simulations
 -------------------
 
-With your conda environment active, the first step to running simulations
-is making the model specification files.  A model specification is a
-complete description of a vivarium model. The command to generate model
-specifications is installed with this repository and it can be run
-from any directory.::
+You can then run simulations by, e.g.::
 
-  (vivarium_census_prl_synth_pop) :~$ make_specs -v
-  2020-06-18 18:18:28.311 | 0:00:00.679701 | build_model_specifications:48 - Writing model spec(s) to "/REPO_INSTALLATION_DIRECTORY/vivarium_census_prl_synth_pop/src/vivarium_census_prl_synth_pop/model_specifications"
-
-As the log message indicates, the model specifications will be written to
-the ``model_specifications`` subdirectory in this repository. You can then
-run simulations by, e.g.::
-
-   (vivarium_census_prl_synth_pop) :~$ simulate run -v /<REPO_INSTALLATION_DIRECTORY>/vivarium_census_prl_synth_pop/src/vivarium_census_prl_synth_pop/model_specifications/china.yaml
+   (vivarium_census_prl_synth_pop) :~$ simulate run -v src/vivarium_census_prl_synth_pop/model_specifications/model_spec.yaml
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
 step. For more ways to run simulations, see the tutorials at
