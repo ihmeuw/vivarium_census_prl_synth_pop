@@ -4,6 +4,7 @@ from vivarium import Artifact
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
 
+from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
 
 
@@ -32,12 +33,13 @@ class Population:
         self.population_data = self._load_population_data(builder)
         self._register_simulant_initializer(builder)
 
+        builder.event.register_listener("time_step", self.on_time_step)  # TODO: is this the correct priority?
+
     def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
             self.generate_base_population,
             creates_columns=self.columns_created,
             requires_columns=['tracked'],
-            requires_streams=['household_sampling'],
             )
 
     def _get_population_view(self, builder: Builder) -> PopulationView:
@@ -108,3 +110,15 @@ class Population:
         self.population_view.update(
             chosen_persons
         )
+
+    def on_time_step(self, event):
+        """Ages simulants each time step.
+
+        Parameters
+        ----------
+        event : vivarium.framework.event.Event
+
+        """
+        population = self.population_view.get(event.index, query="alive == 'alive'")
+        population["age"] += utilities.to_years(event.step_size)
+        self.population_view.update(population)
