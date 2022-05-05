@@ -20,6 +20,7 @@ class Population:
 
         self.columns_created = [
             'household_id',
+            'address',  # TODO: ask rajan / james about adding a zipcode
             'relation_to_household_head',
             'sex', 
             'age',
@@ -82,6 +83,7 @@ class Population:
 
         # format
         n_chosen = chosen_persons.shape[0]
+        chosen_persons['address'] = 'NA'
         chosen_persons['entrance_time'] = pop_data.creation_time
         chosen_persons['exit_time'] = pd.NaT
         chosen_persons['alive'] = 'alive'
@@ -93,6 +95,7 @@ class Population:
             extras = pd.DataFrame(
                 data={
                     'household_id': ['NA'],
+                    'address': ['NA'],
                     'age': [np.NaN],
                     'relation_to_household_head': ['NA'],
                     'sex': ['NA'],

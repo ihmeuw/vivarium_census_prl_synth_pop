@@ -17,15 +17,6 @@ class HouseholdMigration:
     ASSUMPTION:
     - households will always move to new addresses
     """
-    """
-    - creates a datastructure with household_id as index that holds address (maybe other things)
-    - create pipeline that takes in a household_id and outputs a corresponding address <<<
-    - on init_simulants, need to initialize addresses for each household in pop table
-    - need a way to update new addresses on_time_step
-
-    ASSUMPTIONS:
-    - households will always move to a new address
-    """
 
     def __repr__(self) -> str:
         return 'HouseholdMigration()'
