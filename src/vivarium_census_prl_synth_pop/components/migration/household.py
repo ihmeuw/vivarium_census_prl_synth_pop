@@ -121,4 +121,3 @@ class HouseholdMigration:
             probability_moving_per_household,
         )
         return list(households_that_move)
-
