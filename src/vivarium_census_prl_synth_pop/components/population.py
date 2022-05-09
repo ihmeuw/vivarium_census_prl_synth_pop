@@ -109,6 +109,7 @@ class Population:
             )
             chosen_persons = pd.concat([chosen_persons, extras])
 
+        chosen_persons['age'] = chosen_persons['age'].astype('float64')
         chosen_persons = chosen_persons.set_index(pop_data.index)
         self.population_view.update(
             chosen_persons

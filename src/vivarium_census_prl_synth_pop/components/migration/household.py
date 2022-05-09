@@ -41,9 +41,9 @@ class HouseholdMigration:
         self.fake = faker.Faker()  # TODO: need to add seeds
         self.provider = faker.providers.address.en_US.Provider(faker.Generator())
 
-        self.columns_needed = ['household_id']
+        self.columns_needed = ['household_id', 'address']
         self.population_view = self._get_population_view(builder)
-        self.households = None
+        self.household_ids = None
         self.get_address_book_pipeline_name = 'get_address_book'
         self.address_book = self._get_address_book_pipeline(builder)
 
@@ -68,17 +68,28 @@ class HouseholdMigration:
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         # initialize datastructure holding addresses for each household in pop table
-        household_ids = self.population_view.subview(['household_id']).get(pop_data.index).squeeze()
-        households = pd.DataFrame({
-            'address': [self._generate_single_fake_address() for _ in household_ids],
-            'household_id': household_ids,
-        }).set_index('household_id')
-        self.households = households
+        households = self.population_view.subview(['household_id']).get(pop_data.index)
+        unique_household_ids = households.squeeze().drop_duplicates()
+        self.household_ids = unique_household_ids
+        address_map = {
+            household_id: self._generate_single_fake_address() for household_id in unique_household_ids
+        }
+        households['address'] = households['household_id'].map(address_map)
+        self.population_view.update(
+            households
+        )
 
     def on_time_step(self, event: Event):
+        households = self.population_view.subview(['household_id','address']).get(event.index)
         households_that_move = self._determine_if_moving()
-        for household in households_that_move:
-            self._modify_address(household, self._generate_single_fake_address())
+        households = households.query(f'household_id in {households_that_move}')
+        new_address_map = {
+            old_address: self._generate_single_fake_address() for old_address in households['address'].unique()
+        }
+        households['address'].map(new_address_map)
+        self.population_view.update(
+            households
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -101,19 +112,15 @@ class HouseholdMigration:
         address += ', ' + orig_address.split('\n')[1].split(',')[0] + ', FL ' + self.provider.postcode_in_state('FL')
         return address
 
-    def _modify_address(self, household_id, address) -> None:
-        # TODO: check format of inputs is correct
-        self.households.query(f'household_id in {list(household_id)}')['address'] = address
-
-    def _determine_if_moving(self) -> pd.DataFrame:
-        households = pd.Series(self.households.index)
+    def _determine_if_moving(self) -> list:
+        households = pd.Series(self.household_ids)
         probability_moving = 0.15 * (self.config.time.step_size / DAYS_PER_YEAR)  # TODO: wrap in lookup table
         probability_moving_per_household = len(households)*[probability_moving]
         households_that_move = self.randomness.filter_for_probability(
             households,
             probability_moving_per_household,
         )
-        return households_that_move
+        return list(households_that_move)
 
     def _get_probability_of_moving(self, builder: Builder) -> LookupTable:
         # TODO: figure out how to construct this
