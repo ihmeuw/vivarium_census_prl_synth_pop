@@ -114,17 +114,11 @@ class HouseholdMigration:
 
     def _determine_if_moving(self) -> list:
         households = pd.Series(self.household_ids)
-        probability_moving = 0.15 * (self.config.time.step_size / DAYS_PER_YEAR)  # TODO: wrap in lookup table
+        probability_moving = 0.15 * (self.config.time.step_size / DAYS_PER_YEAR)  # TODO: wrap '15' in lookup table
         probability_moving_per_household = len(households)*[probability_moving]
         households_that_move = self.randomness.filter_for_probability(
             households,
             probability_moving_per_household,
         )
         return list(households_that_move)
-
-    def _get_probability_of_moving(self, builder: Builder) -> LookupTable:
-        # TODO: figure out how to construct this
-        prob = pd.DataFrame({
-            'probability_per_year': [0.15]
-        })
-        return builder.build_table(prob, value_columns='probability_per_year')
+    
