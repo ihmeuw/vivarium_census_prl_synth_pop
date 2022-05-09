@@ -86,7 +86,7 @@ class HouseholdMigration:
         new_address_map = {
             old_address: self._generate_single_fake_address() for old_address in households['address'].unique()
         }
-        households['address'].map(new_address_map)
+        households['address'] = households['address'].map(new_address_map)
         self.population_view.update(
             households
         )
