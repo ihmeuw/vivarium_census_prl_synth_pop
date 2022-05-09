@@ -8,7 +8,6 @@ from vivarium.framework.values import Pipeline
 from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 
-# TODO: look at examples for how to organize these methods
 class HouseholdMigration:
     """
     - on simulant_initialization, adds address to population table per household_id
@@ -38,7 +37,8 @@ class HouseholdMigration:
     def setup(self, builder: Builder):
         self.config = builder.configuration
         self.randomness = builder.randomness.get_stream(self._randomness_stream_name)
-        self.fake = faker.Faker()  # TODO: need to add seeds
+        self.fake = faker.Faker()
+        faker.Faker.seed(self.config.randomness.faker_seed)
         self.provider = faker.providers.address.en_US.Provider(faker.Generator())
 
         self.columns_needed = ['household_id', 'address']
@@ -55,7 +55,7 @@ class HouseholdMigration:
 
     def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
-            self.on_initialize_simulants,  # TODO: need to add randomness / give faker a seed
+            self.on_initialize_simulants,
             requires_columns=self.columns_needed,
         )
 
@@ -121,4 +121,4 @@ class HouseholdMigration:
             probability_moving_per_household,
         )
         return list(households_that_move)
-    
+
