@@ -41,6 +41,7 @@ class HouseholdMigration:
         faker.Faker.seed(self.config.randomness.faker_seed)
         self.provider = faker.providers.address.en_US.Provider(faker.Generator())
 
+        self.probability_household_moving_pipeline_name = "probability_of_household_moving"
         self.columns_needed = ['household_id', 'address']
         self.population_view = self._get_population_view(builder)
         self.household_ids = None
@@ -99,6 +100,16 @@ class HouseholdMigration:
     ##################
     # Helper methods #
     ##################
+
+    def _get_probability_household_moving_source(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.probability_household_moving_pipeline_name,
+            source=self._get_probability_household_moving,
+        )
+
+    def _get_probability_household_moving(self):
+        probability_a_household_moves = 15 * (self.config.time.step_size / DAYS_PER_YEAR)
+        return [probability_a_household_moves]*len(self.household_ids)
 
     def _generate_single_fake_address(self):
         orig_address = self.fake.unique.address()
