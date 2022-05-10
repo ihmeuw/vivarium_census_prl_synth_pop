@@ -14,7 +14,7 @@ class HouseholdMigration:
     - on time_step, updates some households to new addresses
 
     ASSUMPTION:
-    - households will always move to new addresses
+    - households will always move to brand-new addresses (as opposed to vacated addresses)
     """
 
     def __repr__(self) -> str:
@@ -44,8 +44,6 @@ class HouseholdMigration:
         self.columns_needed = ['household_id', 'address']
         self.population_view = self._get_population_view(builder)
         self.household_ids = None
-        self.get_address_book_pipeline_name = 'get_address_book'
-        self.address_book = self._get_address_book_pipeline(builder)
 
         self._register_simulant_initializer(builder)
         self._register_on_time_step_listener(builder)
@@ -67,7 +65,10 @@ class HouseholdMigration:
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        # initialize datastructure holding addresses for each household in pop table
+        """
+        add addresses to each household in the population table
+        create a datastructure holding all household ids
+        """
         households = self.population_view.subview(['household_id']).get(pop_data.index)
         unique_household_ids = households.squeeze().drop_duplicates()
         self.household_ids = unique_household_ids
@@ -80,6 +81,10 @@ class HouseholdMigration:
         )
 
     def on_time_step(self, event: Event):
+        """
+        choose which households move
+        move those households to a new address
+        """
         households = self.population_view.subview(['household_id','address']).get(event.index)
         households_that_move = self._determine_if_moving()
         households = households.query(f'household_id in {households_that_move}')
@@ -89,17 +94,6 @@ class HouseholdMigration:
         households['address'] = households['address'].map(new_address_map)
         self.population_view.update(
             households
-        )
-
-    ##################################
-    # Pipeline sources and modifiers #
-    ##################################
-
-    def _get_address_book_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
-            self.get_address_book_pipeline_name,
-            source=lambda household_id: self.households.query(f'household_id in {list(household_id)}')['address'],
-            requires_columns=self.columns_needed
         )
 
     ##################
