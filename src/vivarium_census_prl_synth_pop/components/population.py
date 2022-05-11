@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
-from vivarium import Artifact
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium_public_health.utilities import to_years
 
-from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_keys, metadata
+from vivarium_census_prl_synth_pop.constants import data_keys
 
 
 class Population:
@@ -35,7 +33,7 @@ class Population:
         self.population_data = self._load_population_data(builder)
         self._register_simulant_initializer(builder)
 
-        builder.event.register_listener("time_step", self.on_time_step)  # TODO: is this the correct priority?
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
