@@ -2,10 +2,7 @@ import pandas as pd
 import faker
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.lookup import LookupTable
-from vivarium.framework.population import PopulationView, SimulantData
-from vivarium.framework.values import Pipeline
-from vivarium_public_health.utilities import DAYS_PER_YEAR
+from vivarium.framework.population import SimulantData
 
 
 class HouseholdMigration:
@@ -19,8 +16,6 @@ class HouseholdMigration:
 
     def __repr__(self) -> str:
         return 'HouseholdMigration()'
-
-    _randomness_stream_name = 'household_migration'
 
     ##############
     # Properties #
@@ -36,29 +31,21 @@ class HouseholdMigration:
 
     def setup(self, builder: Builder):
         self.config = builder.configuration
-        self.randomness = builder.randomness.get_stream(self._randomness_stream_name)
+        self.randomness = builder.randomness.get_stream(self.name)
         self.fake = faker.Faker()
-        faker.Faker.seed(self.config.randomness.faker_seed)
+        faker.Faker.seed(self.config.randomness.random_seed)
         self.provider = faker.providers.address.en_US.Provider(faker.Generator())
 
         self.probability_household_moving_pipeline_name = "probability_of_household_moving"
         self.columns_needed = ['household_id', 'address']
-        self.population_view = self._get_population_view(builder)
-        self.household_ids = None
+        self.population_view = builder.population.get_view(self.columns_needed)
+        move_rate_data = builder.lookup.build_table(.15)
+        self.household_move_rate = builder.value.register_rate_producer(f'{self.name}.move_rate', source=move_rate_data)
 
-        self._register_simulant_initializer(builder)
-        self._register_on_time_step_listener(builder)
-
-    def _get_population_view(self, builder: Builder) -> PopulationView:
-        return builder.population.get_view(self.columns_needed)
-
-    def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             requires_columns=self.columns_needed,
         )
-
-    def _register_on_time_step_listener(self, builder: Builder) -> None:
         builder.event.register_listener("time_step", self.on_time_step)
 
     ########################
@@ -68,15 +55,10 @@ class HouseholdMigration:
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """
         add addresses to each household in the population table
-        create a datastructure holding all household ids
         """
         households = self.population_view.subview(['household_id']).get(pop_data.index)
-        unique_household_ids = households.squeeze().drop_duplicates()
-        self.household_ids = unique_household_ids
-        address_map = {
-            household_id: self._generate_single_fake_address() for household_id in unique_household_ids
-        }
-        households['address'] = households['household_id'].map(address_map)
+        address_assignments = self._generate_addresses(list(households.drop_duplicates().squeeze()))
+        households['address'] = households['household_id'].map(address_assignments)
         self.population_view.update(
             households
         )
@@ -86,13 +68,11 @@ class HouseholdMigration:
         choose which households move
         move those households to a new address
         """
-        households = self.population_view.subview(['household_id','address']).get(event.index)
-        households_that_move = self._determine_if_moving()
-        households = households.query(f'household_id in {households_that_move}')
-        new_address_map = {
-            old_address: self._generate_single_fake_address() for old_address in households['address'].unique()
-        }
-        households['address'] = households['address'].map(new_address_map)
+        households = self.population_view.subview(['household_id', 'address']).get(event.index)
+        households_that_move = self._determine_if_moving(households['household_id'])
+        ids_to_old_addresses = households.drop_duplicates().set_index('household_id').squeeze()
+        ids_to_new_addresses = self._generate_addresses(households_that_move)
+        households['address'] = households['household_id'].replace(ids_to_new_addresses).replace(ids_to_old_addresses)
         self.population_view.update(
             households
         )
@@ -101,28 +81,20 @@ class HouseholdMigration:
     # Helper methods #
     ##################
 
-    def _get_probability_household_moving_source(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
-            self.probability_household_moving_pipeline_name,
-            source=self._get_probability_household_moving,
-        )
-
-    def _get_probability_household_moving(self):
-        probability_a_household_moves = 15 * (self.config.time.step_size / DAYS_PER_YEAR)
-        return [probability_a_household_moves]*len(self.household_ids)
-
     def _generate_single_fake_address(self):
         orig_address = self.fake.unique.address()
         address = orig_address.split('\n')[0]
         address += ', ' + orig_address.split('\n')[1].split(',')[0] + ', FL ' + self.provider.postcode_in_state('FL')
         return address
 
-    def _determine_if_moving(self) -> list:
-        households = pd.Series(self.household_ids)
-        probability_moving = 0.15 * (self.config.time.step_size / DAYS_PER_YEAR)  # TODO: wrap '15' in lookup table
-        probability_moving_per_household = len(households)*[probability_moving]
-        households_that_move = self.randomness.filter_for_probability(
+    def _generate_addresses(self, households: list):
+        addresses = [self._generate_single_fake_address() for i in range(len(households))]
+        return pd.Series(addresses, index=households)
+
+    def _determine_if_moving(self, households: pd.Series) -> list:
+        households = households.drop_duplicates()
+        households_that_move = self.randomness.filter_for_rate(
             households,
-            probability_moving_per_household,
+            self.household_move_rate(households.index),
         )
         return list(households_that_move)

@@ -166,8 +166,3 @@ def get_random_variable(draw: int, seeded_distribution: SeededDistribution) -> f
     seed, distribution = seeded_distribution
     np.random.seed(get_hash(f'{seed}_draw_{draw}'))
     return distribution.rvs()
-
-
-def to_years(time: pd.Timedelta) -> float:
-    """Converts a time delta to a float for years."""
-    return time / pd.Timedelta(days=DAYS_PER_YEAR)

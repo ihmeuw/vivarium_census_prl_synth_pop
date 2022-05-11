@@ -3,6 +3,7 @@ import pandas as pd
 from vivarium import Artifact
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
+from vivarium_public_health.utilities import to_years
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
@@ -124,5 +125,5 @@ class Population:
 
         """
         population = self.population_view.get(event.index, query="alive == 'alive'")
-        population["age"] += utilities.to_years(event.step_size)
+        population["age"] += to_years(event.step_size)
         self.population_view.update(population)
