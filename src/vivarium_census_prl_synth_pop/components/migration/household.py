@@ -70,9 +70,9 @@ class HouseholdMigration:
         """
         households = self.population_view.subview(['household_id', 'address']).get(event.index)
         households_that_move = self._determine_if_moving(households['household_id'])
-        ids_to_old_addresses = households.drop_duplicates().set_index('household_id').squeeze()
-        ids_to_new_addresses = self._generate_addresses(households_that_move)
-        households['address'] = households['household_id'].replace(ids_to_new_addresses).replace(ids_to_old_addresses)
+        old_addresses = list(households.query(f'household_id in {households_that_move}')['address'].drop_duplicates())
+        old_addresses_to_new = self._generate_addresses(old_addresses)
+        households['address'] = households['address'].replace(old_addresses_to_new)
         self.population_view.update(
             households
         )
