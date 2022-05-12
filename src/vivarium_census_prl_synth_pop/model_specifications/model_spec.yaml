@@ -3,6 +3,7 @@ components:
         components:
             - Population()
             - HouseholdMigration()
+            - PersonMigration()
 
 configuration:
     input_data:
