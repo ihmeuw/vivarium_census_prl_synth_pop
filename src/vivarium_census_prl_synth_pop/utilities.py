@@ -9,6 +9,7 @@ from loguru import logger
 
 from vivarium.framework.randomness import get_hash
 from vivarium_public_health.risks.data_transformations import pivot_categorical
+from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop.constants import metadata
 

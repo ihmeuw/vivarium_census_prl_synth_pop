@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-from vivarium import Artifact
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
+from vivarium_public_health.utilities import to_years
 
-from vivarium_census_prl_synth_pop.constants import data_keys, metadata
+from vivarium_census_prl_synth_pop.constants import data_keys
 
 
 class Population:
@@ -19,6 +19,7 @@ class Population:
 
         self.columns_created = [
             'household_id',
+            'address',  # TODO: ask rajan / james about adding a zipcode
             'relation_to_household_head',
             'sex', 
             'age',
@@ -32,12 +33,13 @@ class Population:
         self.population_data = self._load_population_data(builder)
         self._register_simulant_initializer(builder)
 
+        builder.event.register_listener("time_step", self.on_time_step)
+
     def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
             self.generate_base_population,
             creates_columns=self.columns_created,
             requires_columns=['tracked'],
-            requires_streams=['household_sampling'],
             )
 
     def _get_population_view(self, builder: Builder) -> PopulationView:
@@ -80,6 +82,7 @@ class Population:
 
         # format
         n_chosen = chosen_persons.shape[0]
+        chosen_persons['address'] = 'NA'
         chosen_persons['entrance_time'] = pop_data.creation_time
         chosen_persons['exit_time'] = pd.NaT
         chosen_persons['alive'] = 'alive'
@@ -91,6 +94,7 @@ class Population:
             extras = pd.DataFrame(
                 data={
                     'household_id': ['NA'],
+                    'address': ['NA'],
                     'age': [np.NaN],
                     'relation_to_household_head': ['NA'],
                     'sex': ['NA'],
@@ -104,7 +108,20 @@ class Population:
             )
             chosen_persons = pd.concat([chosen_persons, extras])
 
+        chosen_persons['age'] = chosen_persons['age'].astype('float64')
         chosen_persons = chosen_persons.set_index(pop_data.index)
         self.population_view.update(
             chosen_persons
         )
+
+    def on_time_step(self, event):
+        """Ages simulants each time step.
+
+        Parameters
+        ----------
+        event : vivarium.framework.event.Event
+
+        """
+        population = self.population_view.get(event.index, query="alive == 'alive'")
+        population["age"] += to_years(event.step_size)
+        self.population_view.update(population)

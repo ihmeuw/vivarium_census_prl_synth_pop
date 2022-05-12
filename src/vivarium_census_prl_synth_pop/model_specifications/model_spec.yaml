@@ -2,9 +2,7 @@ components:
     vivarium_census_prl_synth_pop:
         components:
             - Population()
-
-    # Causes an error if left empty. Uncomment when you have components.
-    # {{cookiecutter.package_name}}.components:
+            - HouseholdMigration()
 
 configuration:
     input_data:

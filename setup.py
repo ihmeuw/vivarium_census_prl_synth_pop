@@ -29,6 +29,7 @@ if __name__ == "__main__":
         'scipy',
         'tables',
         'pyyaml',
+        'faker==13.6.0',
     ]
 
     # use "pip install -e .[dev]" to install required components + extra components
