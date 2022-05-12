@@ -36,7 +36,6 @@ class HouseholdMigration:
         faker.Faker.seed(self.config.randomness.random_seed)
         self.provider = faker.providers.address.en_US.Provider(faker.Generator())
 
-        self.probability_household_moving_pipeline_name = "probability_of_household_moving"
         self.columns_needed = ['household_id', 'address']
         self.population_view = builder.population.get_view(self.columns_needed)
         move_rate_data = builder.lookup.build_table(.15)

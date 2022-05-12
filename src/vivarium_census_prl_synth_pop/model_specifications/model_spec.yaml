@@ -4,9 +4,6 @@ components:
             - Population()
             - HouseholdMigration()
 
-    # Causes an error if left empty. Uncomment when you have components.
-    # {{cookiecutter.package_name}}.components:
-
 configuration:
     input_data:
         artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/florida.hdf'
