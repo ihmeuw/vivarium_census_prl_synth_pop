@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium_public_health.utilities import to_years
 
@@ -95,7 +96,7 @@ class Population:
         # format
         n_chosen = chosen_persons.shape[0]
         chosen_persons['address'] = 'NA'
-        chosen_persons['zipcode'] = np.NaN
+        chosen_persons['zipcode'] = 'NA'
         chosen_persons['entrance_time'] = pop_data.creation_time
         chosen_persons['exit_time'] = pd.NaT
         chosen_persons['alive'] = 'alive'
@@ -108,6 +109,7 @@ class Population:
                 data={
                     'household_id': ['NA'],
                     'address': ['NA'],
+                    'zipcode': ['NA'],
                     'state': ['NA'],
                     'puma': ['NA'],
                     'age': [np.NaN],
@@ -129,7 +131,7 @@ class Population:
             chosen_persons
         )
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event):
         """Ages simulants each time step.
 
         Parameters

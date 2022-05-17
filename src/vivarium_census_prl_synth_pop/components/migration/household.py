@@ -1,9 +1,12 @@
+from typing import List
+
 import pandas as pd
 import faker
-from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+
+from vivarium_census_prl_synth_pop.constants import metadata
 
 
 class HouseholdMigration:
@@ -60,7 +63,7 @@ class HouseholdMigration:
         households = self.population_view.subview(['household_id']).get(pop_data.index)
         address_assignments = self._generate_addresses(list(households.drop_duplicates().squeeze()))
         households['address'] = households['household_id'].map(address_assignments['address'])
-        households['zipcode'] = households['household_id'].map(address_assignments['zipcode']).astype(int)
+        households['zipcode'] = households['household_id'].map(address_assignments['zipcode'])
         self.population_view.update(
             households
         )
@@ -71,7 +74,6 @@ class HouseholdMigration:
         move those households to a new address
         """
         households = self.population_view.subview(['household_id', 'address', 'zipcode']).get(event.index)
-        test = households.copy()
         households_that_move = self._determine_if_moving(households['household_id'])
         new_addresses = self._generate_addresses(households_that_move)
 
@@ -89,14 +91,14 @@ class HouseholdMigration:
     # Helper methods #
     ##################
 
-    def _generate_single_fake_address(self, state):
+    def _generate_single_fake_address(self, state: str):
         orig_address = self.fake.unique.address()
         address = orig_address.split('\n')[0]
         address += ', ' + orig_address.split('\n')[1].split(',')[0] + ', ' + state
         return address
 
-    def _generate_addresses(self, households: list):
-        state = metadata.US_STATE_ABBRV_MAP['Florida']  # TODO: how do I access the location we're running?
+    def _generate_addresses(self, households: List[str]):
+        state = metadata.US_STATE_ABBRV_MAP['Florida']  # TODO: add location to artifact (created ticket)
         addresses = [self._generate_single_fake_address(state) for i in range(len(households))]
         zipcodes = [self.provider.postcode_in_state(state) for i in range(len(households))]
         return pd.DataFrame({
