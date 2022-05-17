@@ -2,6 +2,7 @@ from typing import List
 
 import pandas as pd
 import faker
+from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
