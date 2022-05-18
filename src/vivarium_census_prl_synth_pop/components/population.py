@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium_public_health.utilities import to_years
 
@@ -19,7 +20,10 @@ class Population:
 
         self.columns_created = [
             'household_id',
-            'address',  # TODO: ask rajan / james about adding a zipcode
+            'address',
+            'zipcode',
+            'state',
+            'puma',
             'relation_to_household_head',
             'sex', 
             'age',
@@ -65,6 +69,15 @@ class Population:
                 idn + str(num) for (idn, num) in zip(chosen_households, range(len(chosen_households)))
             ]
         })
+
+        # pull back on state and puma
+        chosen_households = pd.merge(
+            chosen_households,
+            self.population_data['households'][['state', 'puma', 'census_household_id']],
+            on='census_household_id',
+            how='left'
+        )
+
         # get all simulants per household
         chosen_persons = pd.merge(
             chosen_households,
@@ -83,6 +96,7 @@ class Population:
         # format
         n_chosen = chosen_persons.shape[0]
         chosen_persons['address'] = 'NA'
+        chosen_persons['zipcode'] = 'NA'
         chosen_persons['entrance_time'] = pop_data.creation_time
         chosen_persons['exit_time'] = pd.NaT
         chosen_persons['alive'] = 'alive'
@@ -95,6 +109,9 @@ class Population:
                 data={
                     'household_id': ['NA'],
                     'address': ['NA'],
+                    'zipcode': ['NA'],
+                    'state': ['NA'],
+                    'puma': ['NA'],
                     'age': [np.NaN],
                     'relation_to_household_head': ['NA'],
                     'sex': ['NA'],
@@ -114,7 +131,7 @@ class Population:
             chosen_persons
         )
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event):
         """Ages simulants each time step.
 
         Parameters
