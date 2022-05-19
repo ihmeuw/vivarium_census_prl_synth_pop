@@ -7,6 +7,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
 from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop.constants import data_values
 
 
 class HouseholdMigration:
@@ -43,7 +44,7 @@ class HouseholdMigration:
 
         self.columns_needed = ['household_id', 'address', 'zipcode']
         self.population_view = builder.population.get_view(self.columns_needed)
-        move_rate_data = builder.lookup.build_table(.15)
+        move_rate_data = builder.lookup.build_table(data_values.HOUSEHOLD_MOVE_RATE_YEARLY)
         self.household_move_rate = builder.value.register_rate_producer(f'{self.name}.move_rate', source=move_rate_data)
 
         builder.population.initializes_simulants(
