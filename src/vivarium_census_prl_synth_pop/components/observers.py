@@ -37,23 +37,9 @@ class Observers:
         self.end_date = builder.configuration.time.end
         self.counter = 0
         self.output_path = self._build_output_path(builder)
+        self.population_view = builder.population.get_view(columns=[])
 
-        self.columns_needed = [
-            'household_id',
-            'state',
-            'puma',
-            'address',
-            'relation_to_household_head',
-            'sex',
-            'age',
-            'race_ethnicity',
-            'alive',
-            'entrance_time',
-            'exit_time'
-        ]
-        self.population_view = builder.population.get_view(self.columns_needed)
-
-        builder.event.register_listener("time_step", self.on_time_step)
+        builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
         builder.event.register_listener("simulation_end", self.on_simulation_end)
 
     def on_time_step__prepare(self, event: Event) -> None:
@@ -77,7 +63,7 @@ class Observers:
         results_root = builder.configuration.output_data.results_directory
         output_root = Path(results_root) / 'population_table'
 
-        mkdir(output_root, umask=775, exists_ok=True)
+        mkdir(output_root, exists_ok=True)
 
         input_draw = builder.configuration.input_data.input_draw_number
         seed = builder.configuration.randomness.random_seed
