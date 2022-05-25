@@ -8,16 +8,16 @@ class generic_generator:
     def __init__(self, seed : int):
         self._rng = np.random.default_rng(seed)
 
-    def generate(self, index : list) -> pd.DataFrame:
-        return pd.DataFrame(index=index)
+    def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(index=df_in.index)
 
     def noise(self, df : pd.DataFrame) -> pd.DataFrame:
         return df
 
 
 class ssn_generator(generic_generator):
-    def generate(self, index : list) -> pd.DataFrame:
-        df = pd.DataFrame(index=index)
+    def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame(index=df_in.index)
         
         n = len(df)
 
@@ -36,7 +36,7 @@ class ssn_generator(generic_generator):
         df['ssn'] += '-'
         df['ssn'] += df.ssn_group.astype(str).str.zfill(2)
         df['ssn'] += '-'
-        df['ssn'] += df.ssn_serial.astype(str).str.zfill(2)
+        df['ssn'] += df.ssn_serial.astype(str).str.zfill(4)
         return df
 
     def noise(self, df):
