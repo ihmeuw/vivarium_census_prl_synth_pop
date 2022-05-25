@@ -1,14 +1,11 @@
 components:
-    vivarium_public_health:
-        population:
-            - Mortality()
-
     vivarium_census_prl_synth_pop:
         components:
             - Population()
             - HouseholdMigration()
             - PersonMigration()
             - Observers()
+            - Mortality()
 
 configuration:
     input_data:
