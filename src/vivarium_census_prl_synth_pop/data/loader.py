@@ -41,7 +41,8 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
     mapping = {
         data_keys.POPULATION.HOUSEHOLDS: load_households,
         data_keys.POPULATION.PERSONS: load_persons,
-        data_keys.POPULATION.ACMR: load_standard_data, #TODO: replace
+        data_keys.POPULATION.ACMR: load_standard_data,
+        data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -51,6 +52,11 @@ def load_standard_data(key: str, location: str) -> pd.DataFrame:
     entity = utilities.get_entity(key)
     data = interface.get_measure(entity, key.measure, location).droplevel('location')
     return data
+
+
+# noinspection PyUnusedLocal
+def load_theoretical_minimum_risk_life_expectancy(key: str, location: str) -> pd.DataFrame:
+    return interface.get_theoretical_minimum_risk_life_expectancy()
 
 
 def load_households(key: str, location: str) -> pd.DataFrame:
