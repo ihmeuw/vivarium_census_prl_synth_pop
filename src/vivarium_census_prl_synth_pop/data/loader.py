@@ -14,12 +14,11 @@ for an example.
 """
 import pandas as pd
 
-from gbd_mapping import causes, covariates, risk_factors
+from gbd_mapping import causes
 from vivarium.framework.artifact import EntityKey
-from vivarium_gbd_access import gbd
-from vivarium_inputs import globals as vi_globals, interface, utilities as vi_utils, utility_data
-from vivarium_inputs.mapping_extension import alternative_risk_factors
+from vivarium_inputs import interface
 
+from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_keys, paths, metadata
 
 
@@ -42,8 +41,16 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
     mapping = {
         data_keys.POPULATION.HOUSEHOLDS: load_households,
         data_keys.POPULATION.PERSONS: load_persons,
+        data_keys.POPULATION.ACMR: load_standard_data, #TODO: replace
     }
     return mapping[lookup_key](lookup_key, location)
+
+
+def load_standard_data(key: str, location: str) -> pd.DataFrame:
+    key = EntityKey(key)
+    entity = utilities.get_entity(key)
+    data = interface.get_measure(entity, key.measure, location).droplevel('location')
+    return data
 
 
 def load_households(key: str, location: str) -> pd.DataFrame:
