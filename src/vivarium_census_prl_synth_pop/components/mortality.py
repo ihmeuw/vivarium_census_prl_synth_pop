@@ -56,13 +56,3 @@ class Mortality(_Mortality):
         return builder.lookup.build_table(
             acmr_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-
-    ##################################
-    # Pipeline sources and modifiers #
-    ##################################
-
-    def _calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
-        acmr = self.all_cause_mortality_rate(index)
-        csmr = self.cause_specific_mortality_rate(index, skip_post_processor=True)
-        cause_deleted_mortality_rate = acmr - csmr
-        return pd.DataFrame({"other_causes": cause_deleted_mortality_rate})
