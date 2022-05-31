@@ -76,7 +76,7 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
         raise ValueError(f'Unrecognized key {key}')
     # read in data
     location = str.replace(location, ' ', '_')
-    data_dir = paths.PERSONS_DATA_DIR / location
+    data_dir = paths.PERSONS_DATA_DIR
     data = pd.concat(
         [
             pd.read_csv(
