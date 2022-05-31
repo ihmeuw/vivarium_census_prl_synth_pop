@@ -15,7 +15,7 @@ configuration:
         results_directory: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/results/'
     interpolation:
         order: 0
-        extrapolate: False
+        extrapolate: True
     randomness:
         map_size: 1_000_000
         key_columns: ['entrance_time', 'age']
