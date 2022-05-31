@@ -52,6 +52,9 @@ class Population:
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
         persons = builder.data.load(data_keys.POPULATION.PERSONS)
+
+        # drop all households not represented in the person table
+        households = households.query(f"census_household_id in {list(persons.census_household_id.unique())}")
         return {'households': households, 'persons': persons}
 
     def generate_base_population(self, pop_data: SimulantData) -> None:
