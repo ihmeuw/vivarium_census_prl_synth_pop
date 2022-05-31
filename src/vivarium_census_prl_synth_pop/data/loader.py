@@ -91,6 +91,7 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
 
     if location != "United States":
         data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
+    data = data.drop(columns=['state'])
 
     # map race and ethnicity to one var
     data["race_ethnicity"] = data.latino.map(metadata.LATINO_VAR_MAP)
