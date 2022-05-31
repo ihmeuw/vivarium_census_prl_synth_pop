@@ -77,14 +77,20 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     # read in data
     location = str.replace(location, ' ', '_')
     data_dir = paths.PERSONS_DATA_DIR / location
-    data = pd.read_csv(
-        data_dir / paths.PERSONS_FNAME,
-        usecols=metadata.PERSONS_COLUMNS_MAP.keys()
-    )
+    data = pd.concat(
+        [
+            pd.read_csv(
+                data_dir / file,
+                usecols=metadata.PERSONS_COLUMNS_MAP.keys(),
+            ) for file in paths.PERSONS_FNAMES
+        ])
     data.SERIALNO = data.SERIALNO.astype(str)
 
     ## map ACS vars to human-readable ##
     data = data.rename(columns=metadata.PERSONS_COLUMNS_MAP)
+
+    if location != "United States":
+        data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
 
     # map race and ethnicity to one var
     data["race_ethnicity"] = data.latino.map(metadata.LATINO_VAR_MAP)
