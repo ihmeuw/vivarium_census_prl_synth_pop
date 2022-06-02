@@ -102,6 +102,8 @@ def load_last_name_data():
 
     _df_census_names = pd.read_csv('/home/j/Project/simulation_science/prl/data/Names_2010Census.csv', na_values=['(S)'])
 
+    _df_census_names.name = _df_census_names.name.str.capitalize()
+
     # fill missing values with equal amounts of what is left
     n_missing = _df_census_names.filter(like='pct').isnull().sum(axis=1)
     pct_total = _df_census_names.filter(like='pct').sum(axis=1)
@@ -133,7 +135,26 @@ def random_last_names(rng, race_eth, size):
     if _df_census_names is None:
         load_last_name_data()
 
-    return rng.choice(_df_census_names.name, p=_df_census_names[race_eth], size=size)  # TODO: include spaces and hyphens
+    s_last = rng.choice(_df_census_names.name, p=_df_census_names[race_eth], size=size)
+
+    # add hyphens to some names
+    if race_eth == 'Latino':  # TODO: use empirical probabilities
+        p_hyphen = 0.1
+    else:
+        p_hyphen = 0.01
+    hyphen_rows = (rng.uniform(0, 1, size=len(s_last)) < p_hyphen)
+    s_last[hyphen_rows] += '-' + rng.choice(_df_census_names.name,
+                                            p=_df_census_names[race_eth],
+                                            size=hyphen_rows.sum())
+
+    # add spaces to some names
+    p_space = p_hyphen  # TODO: use empirical probabilities
+    space_rows = (rng.uniform(0, 1, size=len(s_last)) < p_space*(1-hyphen_rows))  # HACK: don't put spaces in names that are already hyphenated
+    s_last[space_rows] += ' ' + rng.choice(_df_census_names.name,
+                                           p=_df_census_names[race_eth],
+                                           size=space_rows.sum())
+
+    return s_last
 
 
 class name_generator(generic_generator):
@@ -172,7 +193,7 @@ class name_generator(generic_generator):
         s = pd.Series(index=df_in.index, dtype=str)
         for race_eth, df_race_eth in df_in.groupby('race_ethnicity'):
             s.loc[df_race_eth.index] = random_last_names(self._rng, race_eth, len(df_race_eth))
-
+        # TODO: include household structure
         return s
 
     def noise(self, df):
