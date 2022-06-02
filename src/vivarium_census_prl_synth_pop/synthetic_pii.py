@@ -15,6 +15,40 @@ class generic_generator:
         return df
 
 
+class dob_generator(generic_generator):
+    def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
+        """Generate synthetic Date of Birth
+
+        Parameters
+        ----------
+        df_in : pd.DataFrame, containing column `age`
+
+        Results
+        -------
+        returns pd.DataFrame with date-of-birth information, encoded in three
+        numeric columns `year`, `month`, `day`, and one
+        pd.Timestamp column that puts these together with dashes called `dob`
+
+        """
+        df = pd.DataFrame(index=df_in.index)
+
+        data_date = pd.Timestamp('2019-06-01')  # TODO: decide if this is the right date
+
+        age = 365.25 * df_in.age
+        age += self._rng.uniform(low=0, high=365, size=len(df))
+        dob = data_date - pd.to_timedelta(np.round(age), unit='days')
+
+        df['dob'] = dob
+        df['year'] = dob.dt.year
+        df['month'] = dob.dt.month
+        df['day'] = dob.dt.day
+
+        return df
+
+    def noise(self, df):
+        return df
+
+
 class ssn_generator(generic_generator):
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic Social Security Numbers

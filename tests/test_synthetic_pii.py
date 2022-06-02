@@ -16,6 +16,21 @@ def test_generic():
     df2 = g.noise(df)
     assert np.all(df.index == df2.index) and np.all(df.columns == df2.columns), "expect noise to leave dataframe index and columns unchanged"
 
+def test_dob():
+    g = synthetic_pii.dob_generator(1234)
+
+    index = range(10)
+    df_in = pd.DataFrame(index=index)
+    df_in['age'] = np.arange(0, 50, 5)
+    df = g.generate(df_in)
+
+    assert np.all(df.month <= 12)
+    assert np.all(df.day <= 31)
+    assert np.all(df.year >= 1950)
+
+    df2 = g.noise(df)
+    assert np.all(df.index == df2.index) and np.all(df.columns == df2.columns), "expect noise to leave dataframe index and columns unchanged"
+
 def test_ssn():
     g = synthetic_pii.ssn_generator(1234)
 
