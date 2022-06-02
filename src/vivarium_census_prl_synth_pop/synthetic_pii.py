@@ -138,17 +138,30 @@ def random_last_names(rng, race_eth, size):
     s_last = rng.choice(_df_census_names.name, p=_df_census_names[race_eth], size=size)
 
     # add hyphens to some names
-    if race_eth == 'Latino':  # TODO: use empirical probabilities
-        p_hyphen = 0.1
-    else:
-        p_hyphen = 0.01
+    p_hyphen = {
+             'AIAN': 0.00685,
+             'Asian': 0.00682,
+             'Black': 0.01326,
+             'Latino': 0.06842,
+             'Multiracial or Other': 0.01791,
+             'NHOPI': 0.02064,
+             'White': 0.00474}[race_eth]
+
     hyphen_rows = (rng.uniform(0, 1, size=len(s_last)) < p_hyphen)
     s_last[hyphen_rows] += '-' + rng.choice(_df_census_names.name,
                                             p=_df_census_names[race_eth],
                                             size=hyphen_rows.sum())
 
     # add spaces to some names
-    p_space = p_hyphen  # TODO: use empirical probabilities
+    p_space = {
+             'AIAN': 0.00408,
+             'Asian': 0.0086,
+             'Black': 0.0041,
+             'Latino': 0.12807,
+             'Multiracial or Other': 0.02004,
+             'NHOPI': 0.02064,
+             'White': 0.00347}[race_eth]
+
     space_rows = (rng.uniform(0, 1, size=len(s_last)) < p_space*(1-hyphen_rows))  # HACK: don't put spaces in names that are already hyphenated
     s_last[space_rows] += ' ' + rng.choice(_df_census_names.name,
                                            p=_df_census_names[race_eth],
