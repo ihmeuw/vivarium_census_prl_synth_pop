@@ -261,3 +261,47 @@ class NameGenerator(GenericGenerator):
 
 
         return df
+
+
+class AddressGenerator(GenericGenerator):
+    def load_address_data(self):
+        if not hasattr(self, '_df_deepparse_address_data'):
+            self._df_deepparse_address_data = pd.read_csv('/home/j/Project/simulation_science/prl/data/deepparse_address_data_usa.csv.bz2')
+        return self._df_deepparse_address_data
+
+    def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
+        """Generate synthetic addresses for individuals
+
+        Parameters
+        ----------
+
+        df_in : pd.DataFrame
+
+        Results
+        -------
+        returns pd.DataFrame with address data, stored in two
+        string columns `address` and `zip_code`
+
+        """
+        df_address = self.load_address_data()
+        
+        df = pd.DataFrame(index=df_in.index)
+        N = len(df)
+
+        s_address = pd.Series('', index=df.index, name='address')
+
+        for col in ['StreetNumber', 'StreetName', 'Unit']:
+            i = self._rng.choice(df_address.index, size=(N,))
+            s_address += df_address.loc[i, col].fillna('').values
+            s_address += ' '
+
+        # handle Municipality, Province, PostalCode separately
+        # to keep them perfectly correlated
+        i = self._rng.choice(df_address.index, size=(N,))
+        s_address += df_address.loc[i, 'Municipality'].fillna('').values
+        s_address += ' '
+        s_address += df_address.loc[i, 'Province'].fillna('').values
+
+        df['address'] = s_address
+        df['zip_code'] = df_address.loc[i, 'PostalCode'].fillna('').values
+        return df
