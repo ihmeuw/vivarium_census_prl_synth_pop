@@ -4,7 +4,7 @@ import numpy as np, pandas as pd
 from vivarium_census_prl_synth_pop import synthetic_pii
 
 def test_generic():
-    g = synthetic_pii.generic_generator(1234)
+    g = synthetic_pii.GenericGenerator(1234)
 
     index = [1, 2, 4, 8]
     df_in = pd.DataFrame(index=index)
@@ -17,7 +17,7 @@ def test_generic():
     assert np.all(df.index == df2.index) and np.all(df.columns == df2.columns), "expect noise to leave dataframe index and columns unchanged"
 
 def test_dob():
-    g = synthetic_pii.dob_generator(1234)
+    g = synthetic_pii.DOBGenerator(1234)
 
     index = range(10)
     df_in = pd.DataFrame(index=index)
@@ -32,7 +32,7 @@ def test_dob():
     assert np.all(df.index == df2.index) and np.all(df.columns == df2.columns), "expect noise to leave dataframe index and columns unchanged"
 
 def test_ssn():
-    g = synthetic_pii.ssn_generator(1234)
+    g = synthetic_pii.SSNGenerator(1234)
 
     index = range(10)
     df_in = pd.DataFrame(index=index)
@@ -51,7 +51,7 @@ def test_ssn():
 
 
 def test_name():
-    g = synthetic_pii.name_generator(1234)
+    g = synthetic_pii.NameGenerator(1234)
 
     all_race_eth_values = ['White', 'Latino', 'Black', 'Asian', 'Multiracial or Other', 'AIAN', 'NHOPI']
     index = range(len(all_race_eth_values))

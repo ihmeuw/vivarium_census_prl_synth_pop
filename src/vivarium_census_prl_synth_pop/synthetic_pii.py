@@ -4,7 +4,7 @@ synthetically, e.g. name, address, social-security number
 import pandas as pd
 import numpy as np
 
-class generic_generator:
+class GenericGenerator:
     def __init__(self, seed : int):
         self._rng = np.random.default_rng(seed)
 
@@ -15,7 +15,7 @@ class generic_generator:
         return df
 
 
-class dob_generator(generic_generator):
+class DOBGenerator(GenericGenerator):
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic Date of Birth
 
@@ -49,7 +49,7 @@ class dob_generator(generic_generator):
         return df
 
 
-class ssn_generator(generic_generator):
+class SSNGenerator(GenericGenerator):
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic Social Security Numbers
 
@@ -204,7 +204,7 @@ def random_last_names(rng, race_eth, size):
     return s_last
 
 
-class name_generator(generic_generator):
+class NameGenerator(GenericGenerator):
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic names for individuals
 
