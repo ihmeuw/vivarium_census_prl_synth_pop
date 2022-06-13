@@ -19,9 +19,7 @@ from vivarium_inputs import interface
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_keys, paths, metadata
-from vivarium_census_prl_synth_pop.data import builder
 
-household_ids = None
 
 def get_data(lookup_key: str, location: str) -> pd.DataFrame:
     """Retrieves data from an appropriate source.
@@ -40,8 +38,8 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
 
     """
     mapping = {
-        data_keys.POPULATION.PERSONS: load_persons,
         data_keys.POPULATION.HOUSEHOLDS: load_households,
+        data_keys.POPULATION.PERSONS: load_persons,
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
     }
