@@ -2,3 +2,4 @@ from vivarium_census_prl_synth_pop.components.population import Population
 from vivarium_census_prl_synth_pop.components.observers import Observers
 from vivarium_census_prl_synth_pop.components.migration.household import HouseholdMigration
 from vivarium_census_prl_synth_pop.components.migration.person import PersonMigration
+from vivarium_census_prl_synth_pop.components.mortality import Mortality
