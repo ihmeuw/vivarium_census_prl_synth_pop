@@ -65,9 +65,7 @@ class Population:
         # create unique id for resampled households
         chosen_households = pd.DataFrame({
             'census_household_id': chosen_households,
-            'household_id': [
-                idn + str(num) for (idn, num) in zip(chosen_households, range(len(chosen_households)))
-            ]
+            'household_id': np.arange(len(chosen_households))
         })
 
         # pull back on state and puma
