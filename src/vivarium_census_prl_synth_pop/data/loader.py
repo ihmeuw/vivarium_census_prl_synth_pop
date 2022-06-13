@@ -12,6 +12,9 @@ for an example.
 
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
+from pathlib import Path
+from typing import Dict
+
 import pandas as pd
 
 from vivarium.framework.artifact import EntityKey
@@ -58,48 +61,24 @@ def load_theoretical_minimum_risk_life_expectancy(key: str, location: str) -> pd
     return interface.get_theoretical_minimum_risk_life_expectancy()
 
 
-def load_households(key: str, location: str) -> pd.DataFrame:
-    if key != data_keys.POPULATION.HOUSEHOLDS:
-        raise ValueError(f'Unrecognized key {key}')
-    # read in data
-    data_dir = paths.HOUSEHOLDS_DATA_DIR
+def load_raw_persons_data(column_map: Dict[str, str], location):
+    data_dir = paths.PERSONS_DATA_DIR
     data = pd.concat(
         [
             pd.read_csv(
                 data_dir / file,
-                usecols=metadata.HOUSEHOLDS_COLUMN_MAP.keys(),
-            ) for file in paths.HOUSEHOLDS_FILENAMES
+                usecols=column_map.keys(),
+            ) for file in paths.PERSONS_FILENAMES
         ])
     data.SERIALNO = data.SERIALNO.astype(str)
 
-    # reshape
-    data = data.rename(columns=metadata.HOUSEHOLDS_COLUMN_MAP)
-    data = data.set_index(['state', 'puma', 'census_household_id', 'household_weight'])
+    # map ACS vars to human-readable
+    data = data.rename(columns=column_map)
 
     if location != "United States":
         data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
+    data = data.drop(columns=['state'])
 
-    # read in persons file to find which household_ids it contains
-    person_data_dir = paths.PERSONS_DATA_DIR
-    persons = pd.concat(
-        [
-            pd.read_csv(
-                person_data_dir / file,
-                usecols=metadata.SUBSET_PERSONS_COLUMNS_MAP.keys(),
-            ) for file in paths.PERSONS_FILENAMES
-        ])
-    persons.SERIALNO = persons.SERIALNO.astype(str)
-
-    # map ACS vars to human-readable #
-    persons = persons.rename(columns=metadata.SUBSET_PERSONS_COLUMNS_MAP)
-
-    if location != "United States":
-        persons = persons.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
-
-    # subset data to household ids in person file
-    data = data.query(f"census_household_id in {list(persons.census_household_id.unique())}")
-
-    # return data
     return data
 
 
@@ -108,22 +87,7 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
         raise ValueError(f'Unrecognized key {key}')
     # read in data
     location = str.replace(location, ' ', '_')
-    data_dir = paths.PERSONS_DATA_DIR
-    data = pd.concat(
-        [
-            pd.read_csv(
-                data_dir / file,
-                usecols=metadata.PERSONS_COLUMNS_MAP.keys(),
-            ) for file in paths.PERSONS_FILENAMES
-        ])
-    data.SERIALNO = data.SERIALNO.astype(str)
-
-    ## map ACS vars to human-readable ##
-    data = data.rename(columns=metadata.PERSONS_COLUMNS_MAP)
-
-    if location != "United States":
-        data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
-    data = data.drop(columns=['state'])
+    data = load_raw_persons_data(metadata.PERSONS_COLUMNS_MAP, location)
 
     # map race and ethnicity to one var
     data["race_ethnicity"] = data.latino.map(metadata.LATINO_VAR_MAP)
@@ -146,3 +110,32 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     return data
 
 
+def load_households(key: str, location: str) -> pd.DataFrame:
+    if key != data_keys.POPULATION.HOUSEHOLDS:
+        raise ValueError(f'Unrecognized key {key}')
+    # read in data
+    data_dir = paths.HOUSEHOLDS_DATA_DIR
+    data = pd.concat(
+        [
+            pd.read_csv(
+                data_dir / file,
+                usecols=metadata.HOUSEHOLDS_COLUMN_MAP.keys(),
+            ) for file in paths.HOUSEHOLDS_FILENAMES
+        ])
+    data.SERIALNO = data.SERIALNO.astype(str)
+
+    # reshape
+    data = data.rename(columns=metadata.HOUSEHOLDS_COLUMN_MAP)
+    data = data.set_index(['state', 'puma', 'census_household_id', 'household_weight'])
+
+    if location != "United States":
+        data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
+
+    # read in persons file to find which household_ids it contains
+    persons = load_raw_persons_data(metadata.SUBSET_PERSONS_COLUMNS_MAP, location)
+
+    # subset data to household ids in person file
+    data = data.query(f"census_household_id in {list(persons.census_household_id.unique())}")
+
+    # return data
+    return data
