@@ -14,13 +14,14 @@ for an example.
 """
 import pandas as pd
 
-from gbd_mapping import causes
 from vivarium.framework.artifact import EntityKey
 from vivarium_inputs import interface
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_keys, paths, metadata
+from vivarium_census_prl_synth_pop.data import builder
 
+household_ids = None
 
 def get_data(lookup_key: str, location: str) -> pd.DataFrame:
     """Retrieves data from an appropriate source.
@@ -39,8 +40,8 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
 
     """
     mapping = {
-        data_keys.POPULATION.HOUSEHOLDS: load_households,
         data_keys.POPULATION.PERSONS: load_persons,
+        data_keys.POPULATION.HOUSEHOLDS: load_households,
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
     }
@@ -79,6 +80,26 @@ def load_households(key: str, location: str) -> pd.DataFrame:
 
     if location != "United States":
         data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
+
+    # read in persons file to find which household_ids it contains
+    person_data_dir = paths.PERSONS_DATA_DIR
+    persons = pd.concat(
+        [
+            pd.read_csv(
+                person_data_dir / file,
+                usecols=metadata.SUBSET_PERSONS_COLUMNS_MAP.keys(),
+            ) for file in paths.PERSONS_FILENAMES
+        ])
+    persons.SERIALNO = persons.SERIALNO.astype(str)
+
+    # map ACS vars to human-readable #
+    persons = persons.rename(columns=metadata.SUBSET_PERSONS_COLUMNS_MAP)
+
+    if location != "United States":
+        persons = persons.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
+
+    # subset data to household ids in person file
+    data = data.query(f"census_household_id in {list(persons.census_household_id.unique())}")
 
     # return data
     return data
