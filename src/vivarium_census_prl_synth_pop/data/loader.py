@@ -56,7 +56,7 @@ def load_households(key: str, location: str) -> pd.DataFrame:
             pd.read_csv(
                 data_dir / file,
                 usecols=metadata.HOUSEHOLDS_COLUMN_MAP.keys(),
-            ) for file in paths.HOUSEHOLDS_FNAMES
+            ) for file in paths.HOUSEHOLDS_FILENAMES
         ])
     data.SERIALNO = data.SERIALNO.astype(str)
 
@@ -82,7 +82,7 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
             pd.read_csv(
                 data_dir / file,
                 usecols=metadata.PERSONS_COLUMNS_MAP.keys(),
-            ) for file in paths.PERSONS_FNAMES
+            ) for file in paths.PERSONS_FILENAMES
         ])
     data.SERIALNO = data.SERIALNO.astype(str)
 
