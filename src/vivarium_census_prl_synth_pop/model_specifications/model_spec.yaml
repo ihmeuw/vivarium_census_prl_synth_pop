@@ -32,4 +32,3 @@ configuration:
         step_size: 28 # Days
     population:
         population_size: 2_000
-
