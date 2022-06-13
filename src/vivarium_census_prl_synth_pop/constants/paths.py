@@ -11,7 +11,7 @@ MODEL_SPEC_DIR = BASE_DIR / 'model_specifications'
 RESULTS_ROOT = PROJECT_ROOT / 'results/'
 
 HOUSEHOLDS_DATA_DIR = PROJECT_ROOT / 'data/raw_data/current/United_States/'
-PERSONS_DATA_DIR = PROJECT_ROOT / 'data/raw_data/current/'
+PERSONS_DATA_DIR = PROJECT_ROOT / 'data/raw_data/current/United_States/'
 
-HOUSEHOLDS_FNAMES = [f'psam_hus{x}.csv' for x in ['a', 'b', 'c', 'd']]  # TODO: update this once abie gives us new data
-PERSONS_FNAME = 'psam_p12.csv' # TODO: this is the name of the florida persons file we downloaded. # will need to be updated / made more general once we have more/new data form abie
+HOUSEHOLDS_FILENAMES = [f'psam_hus{x}.csv' for x in ['a', 'b', 'c', 'd']]
+PERSONS_FILENAMES = [f'psam_pus{x}.csv' for x in ['a', 'b', 'c', 'd']]

@@ -69,7 +69,7 @@ def load_households(key: str, location: str) -> pd.DataFrame:
             pd.read_csv(
                 data_dir / file,
                 usecols=metadata.HOUSEHOLDS_COLUMN_MAP.keys(),
-            ) for file in paths.HOUSEHOLDS_FNAMES
+            ) for file in paths.HOUSEHOLDS_FILENAMES
         ])
     data.SERIALNO = data.SERIALNO.astype(str)
 
@@ -89,15 +89,22 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
         raise ValueError(f'Unrecognized key {key}')
     # read in data
     location = str.replace(location, ' ', '_')
-    data_dir = paths.PERSONS_DATA_DIR / location
-    data = pd.read_csv(
-        data_dir / paths.PERSONS_FNAME,
-        usecols=metadata.PERSONS_COLUMNS_MAP.keys()
-    )
+    data_dir = paths.PERSONS_DATA_DIR
+    data = pd.concat(
+        [
+            pd.read_csv(
+                data_dir / file,
+                usecols=metadata.PERSONS_COLUMNS_MAP.keys(),
+            ) for file in paths.PERSONS_FILENAMES
+        ])
     data.SERIALNO = data.SERIALNO.astype(str)
 
     ## map ACS vars to human-readable ##
     data = data.rename(columns=metadata.PERSONS_COLUMNS_MAP)
+
+    if location != "United States":
+        data = data.query(f'state == {metadata.CENSUS_STATE_IDS[location]}')
+    data = data.drop(columns=['state'])
 
     # map race and ethnicity to one var
     data["race_ethnicity"] = data.latino.map(metadata.LATINO_VAR_MAP)

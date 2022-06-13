@@ -95,6 +95,7 @@ CENSUS_STATE_IDS = {
 }
 
 PERSONS_COLUMNS_MAP = {
+    'ST': 'state',
     'SERIALNO': 'census_household_id',
     'AGEP': 'age',
     'RELSHIPP': 'relation_to_household_head',
