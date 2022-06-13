@@ -68,3 +68,20 @@ def test_name():
     assert 'middle_name' in df.columns
     assert 'last_name' in df.columns
     assert 'AIAN' not in df.last_name.values # FIXME: come up with a more robust test of the synthetic content
+
+
+def test_address():
+    g = synthetic_pii.AddressGenerator(1234)
+
+    index = range(10)
+    df_in = pd.DataFrame(index=index)
+
+    df = g.generate(df_in)
+
+    assert len(df) == len(index), "expect result to be a dataframe with rows corresponding to `index`"
+
+    assert 'zip_code' in df.columns
+    assert 'address' in df.columns
+    assert not np.any(df.address.isnull())
+    assert not np.any(df.zip_code.isnull())
+    # FIXME: come up with a more robust test of the synthetic content
