@@ -297,9 +297,9 @@ class AddressGenerator(GenericGenerator):
 
         # handle Municipality, Province, PostalCode separately
         # to keep them perfectly correlated
-        i = self._rng.choice(df_address.index, size=(N,))
+        i = self._rng.choice(df_address[df_address.Province == 'tx'].index, size=(N,))
         s_address += df_address.loc[i, 'Municipality'].fillna('').values
-        s_address += ' '
+        s_address += ', '
         s_address += df_address.loc[i, 'Province'].fillna('').values
 
         df['address'] = s_address
