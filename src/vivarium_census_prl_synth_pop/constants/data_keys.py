@@ -14,6 +14,7 @@ class __Population(NamedTuple):
     ACMR: str = 'cause.all_causes.cause_specific_mortality_rate'
     TMRLE: str = 'population.theoretical_minimum_risk_life_expectancy'
     LOCATION: str = 'population.location'
+    ASFR: str = 'covariate.age_specific_fertility_rate.estimate'
 
     @property
     def name(self):

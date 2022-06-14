@@ -178,3 +178,14 @@ def get_random_variable(draw: int, seeded_distribution: SeededDistribution) -> f
     seed, distribution = seeded_distribution
     np.random.seed(get_hash(f'{seed}_draw_{draw}'))
     return distribution.rvs()
+
+
+def get_random_variable_draws_for_location(columns: pd.Index, location: str, seed: str, distribution) -> np.array:
+    return get_random_variable_draws(columns, f"{seed}_{location}", distribution)
+
+
+def get_norm_from_quantiles(mean: float, lower: float, upper: float,
+                            quantiles: Tuple[float, float] = (0.025, 0.975)) -> stats.norm:
+    stdnorm_quantiles = stats.norm.ppf(quantiles)
+    sd = (upper - lower) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
+    return stats.norm(loc=mean, scale=sd)
