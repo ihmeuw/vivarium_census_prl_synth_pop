@@ -108,7 +108,7 @@ class Population:
                     'household_id': ['NA'],
                     'address': ['NA'],
                     'zipcode': ['NA'],
-                    'state': [np.NaN],
+                    'state': [-1],
                     'puma': ['NA'],
                     'age': [np.NaN],
                     'relation_to_household_head': ['NA'],
