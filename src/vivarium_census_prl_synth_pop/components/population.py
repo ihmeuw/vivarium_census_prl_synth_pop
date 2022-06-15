@@ -123,7 +123,12 @@ class Population:
             )
             chosen_persons = pd.concat([chosen_persons, extras])
 
+        # add typing
         chosen_persons['age'] = chosen_persons['age'].astype('float64')
+        # chosen_persons['alive'] = pd.Categorical(chosen_persons['alive'], categories=['alive', 'dead'])
+        for col in ['relation_to_household_head', 'sex', 'race_ethnicity']:
+            chosen_persons[col] = chosen_persons[col].astype('category')
+
         chosen_persons = chosen_persons.set_index(pop_data.index)
         self.population_view.update(
             chosen_persons

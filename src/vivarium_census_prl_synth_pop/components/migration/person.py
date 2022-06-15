@@ -81,4 +81,4 @@ class PersonMigration:
             )
             additional_seed += 1
 
-        return list(new_household_ids)
+        return pd.Series(new_household_ids)
