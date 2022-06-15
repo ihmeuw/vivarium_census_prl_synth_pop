@@ -125,7 +125,7 @@ class Population:
 
         # add typing
         chosen_persons['age'] = chosen_persons['age'].astype('float64')
-        chosen_persons['state'] = chosen_persons['age'].astype('int64')
+        chosen_persons['state'] = chosen_persons['state'].astype('int64')
         # chosen_persons['alive'] = pd.Categorical(chosen_persons['alive'], categories=['alive', 'dead'])
         for col in ['relation_to_household_head', 'sex', 'race_ethnicity']:
             chosen_persons[col] = chosen_persons[col].astype('category')
