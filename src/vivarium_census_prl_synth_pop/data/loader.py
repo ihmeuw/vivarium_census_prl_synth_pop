@@ -45,6 +45,7 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.POPULATION.PERSONS: load_persons,
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
+        data_keys.POPULATION.LOCATION: load_location,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -139,3 +140,6 @@ def load_households(key: str, location: str) -> pd.DataFrame:
 
     # return data
     return data
+
+def load_location(key: str, location: str) -> str:
+    return location
