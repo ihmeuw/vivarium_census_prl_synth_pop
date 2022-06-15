@@ -6,7 +6,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
-from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop.constants import metadata, data_keys
 from vivarium_census_prl_synth_pop.constants import data_values
 
 
@@ -37,6 +37,7 @@ class HouseholdMigration:
 
     def setup(self, builder: Builder):
         self.config = builder.configuration
+        self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.randomness = builder.randomness.get_stream(self.name)
         self.fake = faker.Faker()
         faker.Faker.seed(self.config.randomness.random_seed)
@@ -99,7 +100,7 @@ class HouseholdMigration:
         return address
 
     def _generate_addresses(self, households: List[str]):
-        state = metadata.US_STATE_ABBRV_MAP['Florida']  # TODO: add location to artifact (created ticket)
+        state = metadata.US_STATE_ABBRV_MAP[self.location]
         addresses = [self._generate_single_fake_address(state) for i in range(len(households))]
         zipcodes = [self.provider.postcode_in_state(state) for i in range(len(households))]
         return pd.DataFrame({

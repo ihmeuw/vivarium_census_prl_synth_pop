@@ -13,6 +13,7 @@ class __Population(NamedTuple):
     PERSONS: str = 'population.persons'
     ACMR: str = 'cause.all_causes.cause_specific_mortality_rate'
     TMRLE: str = 'population.theoretical_minimum_risk_life_expectancy'
+    LOCATION: str = 'population.location'
 
     @property
     def name(self):
