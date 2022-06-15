@@ -138,7 +138,6 @@ def load_households(key: str, location: str) -> pd.DataFrame:
     # subset data to household ids in person file
     data = data.query(f"census_household_id in {list(persons.census_household_id.unique())}")
 
-    # return data
     return data
 
 
