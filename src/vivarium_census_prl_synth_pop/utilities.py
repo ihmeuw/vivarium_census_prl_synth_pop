@@ -9,7 +9,7 @@ from pathlib import Path
 from loguru import logger
 from vivarium.framework.artifact import EntityKey
 
-from vivarium.framework.randomness import get_hash
+from vivarium.framework.randomness import get_hash, RandomnessStream
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
@@ -189,7 +189,7 @@ def get_norm_from_quantiles(mean: float, lower: float, upper: float,
     sd = (upper - lower) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
     return stats.norm(loc=mean, scale=sd)
 
-def vectorized_choice(options, weights, n_to_choose, randomness_stream):
+def vectorized_choice(options: np.array, weights: np.array, n_to_choose: int, randomness_stream: RandomnessStream):
     # for each of n_to_choose, sample uniformly between 0 and 1
     probs = randomness_stream.get_draw(np.arange(n_to_choose))
 
