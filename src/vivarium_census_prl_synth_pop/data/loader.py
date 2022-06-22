@@ -22,6 +22,7 @@ from vivarium_inputs import interface
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_keys, paths, metadata
+from vivarium_census_prl_synth_pop.utilities import get_norm_from_quantiles, get_random_variable_draws_for_location
 
 
 def get_data(lookup_key: str, location: str) -> pd.DataFrame:
@@ -46,6 +47,7 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.POPULATION.ACMR: load_standard_data,
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.LOCATION: load_location,
+        data_keys.POPULATION.ASFR: load_asfr,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -107,7 +109,6 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     # reshape
     data = data.set_index(['census_household_id', 'age', 'relation_to_household_head', 'sex', 'race_ethnicity'])
 
-    # return data
     return data
 
 
@@ -143,3 +144,40 @@ def load_households(key: str, location: str) -> pd.DataFrame:
 
 def load_location(key: str, location: str) -> str:
     return location
+
+
+def load_asfr(key: str, location: str):
+    asfr = load_standard_data(key, location)
+
+    # pivot
+    asfr = asfr.reset_index()
+    asfr = asfr[(asfr.year_start == 2019)]  #NOTE: this is the latest year available from GBD
+    asfr_pivot = asfr.pivot(index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
+                            columns='parameter', values='value')
+    asfr_draws = asfr_pivot.apply(create_draws, args=(key, location), axis=1)
+
+    return asfr_draws
+
+
+def create_draws(df: pd.DataFrame, key: str, location: str):
+    """
+    Parameters
+    ----------
+    df: Multi-index dataframe with mean, lower, and upper values columns.
+    location
+    key:
+    Returns
+    -------
+    """
+    # location defined in namespace outside of function
+    mean = df['mean_value']
+    lower = df['lower_value']
+    upper = df['upper_value']
+
+    distribution = get_norm_from_quantiles(mean=mean, lower=lower, upper=upper)
+    # pull index from constants
+    draws = get_random_variable_draws_for_location(
+        pd.Index([f'draw_{i}' for i in range(0, 1000)]), location, key, distribution
+    )
+
+    return draws
