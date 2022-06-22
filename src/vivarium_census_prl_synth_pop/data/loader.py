@@ -174,8 +174,10 @@ def create_draws(df: pd.DataFrame, key: str, location: str):
     lower = df['lower_value']
     upper = df['upper_value']
 
-    Tuple = (key, get_norm_from_quantiles(mean=mean, lower=lower, upper=upper))
+    distribution = get_norm_from_quantiles(mean=mean, lower=lower, upper=upper)
     # pull index from constants
-    draws = get_random_variable_draws_for_location(pd.Index([f'draw_{i}' for i in range(0, 1000)]), location, *Tuple)
+    draws = get_random_variable_draws_for_location(
+        pd.Index([f'draw_{i}' for i in range(0, 1000)]), location, key, distribution
+    )
 
     return draws
