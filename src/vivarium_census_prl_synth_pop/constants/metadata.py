@@ -40,6 +40,7 @@ HOUSEHOLDS_COLUMN_MAP = {
 }
 
 CENSUS_STATE_IDS = {
+    'NA': -1,
     'Alabama': 1,
     'Alaska': 2,
     'Arizona': 4,
