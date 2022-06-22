@@ -55,7 +55,6 @@ class Population:
         persons = builder.data.load(data_keys.POPULATION.PERSONS)
         return {'households': households, 'persons': persons}
 
-
     def generate_base_population(self, pop_data: SimulantData) -> None:
         # oversample households
         chosen_households = vectorized_choice(
