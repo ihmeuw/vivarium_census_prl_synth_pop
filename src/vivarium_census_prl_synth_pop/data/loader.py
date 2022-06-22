@@ -152,10 +152,7 @@ def load_asfr(key: str, location: str):
 
     # pivot
     asfr = asfr.reset_index()
-    asfr = asfr[(asfr.sex == 'Female')
-                & (asfr.age_start >= 7)
-                & (asfr.age_end <= 57)
-                & (asfr.year_start == 2019)]
+    asfr = asfr[(asfr.year_start == 2019)]  #NOTE: this is the latest year available from GBD
     asfr_pivot = asfr.pivot(index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
                             columns='parameter', values='value')
     asfr_draws = asfr_pivot.apply(create_draws, args=(key, location), axis=1)
