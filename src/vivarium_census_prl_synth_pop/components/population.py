@@ -6,6 +6,7 @@ from vivarium.framework.population import PopulationView, SimulantData
 from vivarium_public_health.utilities import to_years
 
 from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 
 class Population:
@@ -54,14 +55,16 @@ class Population:
         persons = builder.data.load(data_keys.POPULATION.PERSONS)
         return {'households': households, 'persons': persons}
 
+
     def generate_base_population(self, pop_data: SimulantData) -> None:
         # oversample households
-        overshoot_idx = pd.Index(range(self.config.population_size))
-        chosen_households = self.randomness.choice(
-            index=overshoot_idx,
-            choices=self.population_data['households']['census_household_id'],
-            p=self.population_data['households']['household_weight']
+        chosen_households = vectorized_choice(
+            options=self.population_data['households']['census_household_id'].to_numpy(copy=True),
+            weights=self.population_data['households']['household_weight'].to_numpy(copy=True),
+            n_to_choose=self.config.population_size,
+            randomness_stream=self.randomness
         )
+
         # create unique id for resampled households
         chosen_households = pd.DataFrame({
             'census_household_id': chosen_households,
@@ -145,3 +148,4 @@ class Population:
         population = self.population_view.get(event.index, query="alive == 'alive'")
         population["age"] += to_years(event.step_size)
         self.population_view.update(population)
+
