@@ -22,11 +22,11 @@ configuration:
         random_seed: 0
     time:
         start:
-            year: 2010
+            year: 2020
             month: 4
             day: 1
         end:
-            year: 2015
+            year: 2030
             month: 4
             day: 1
         step_size: 28 # Days

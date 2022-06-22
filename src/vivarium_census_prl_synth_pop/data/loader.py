@@ -109,7 +109,6 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     # reshape
     data = data.set_index(['census_household_id', 'age', 'relation_to_household_head', 'sex', 'race_ethnicity'])
 
-    # return data
     return data
 
 
