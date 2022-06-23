@@ -191,7 +191,7 @@ def get_norm_from_quantiles(mean: float, lower: float, upper: float,
 
 def vectorized_choice(options: np.array, weights: np.array, n_to_choose: int, randomness_stream: RandomnessStream):
     # for each of n_to_choose, sample uniformly between 0 and 1
-    probs = 1 - randomness_stream.get_draw(np.arange(n_to_choose))
+    probs = randomness_stream.get_draw(np.arange(n_to_choose))
 
     # build cdf based on weights
     pmf = weights/weights.sum()
