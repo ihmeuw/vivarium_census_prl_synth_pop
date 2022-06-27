@@ -36,16 +36,14 @@ class Population:
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = self._get_population_view(builder)
         self.population_data = self._load_population_data(builder)
-        self._register_simulant_initializer(builder)
 
-        builder.event.register_listener("time_step", self.on_time_step)
-
-    def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
             self.generate_base_population,
             creates_columns=self.columns_created,
             requires_columns=['tracked'],
-            )
+        )
+
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def _get_population_view(self, builder: Builder) -> PopulationView:
         return builder.population.get_view(self.columns_created + ['tracked'])

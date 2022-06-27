@@ -50,6 +50,7 @@ class Observers:
             no_categories_state_table.to_hdf(self.output_path, start_date_str)
         self.counter += 1
 
+
     def on_simulation_end(self, event: Event) -> None:
         end_date_str = f"ymd_{self.end_date.year}_{self.end_date.month}_{self.end_date.day}"
         state_table = self.population_view.get(event.index)
