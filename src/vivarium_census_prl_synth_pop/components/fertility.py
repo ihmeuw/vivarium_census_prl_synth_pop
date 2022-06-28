@@ -27,6 +27,39 @@ class Fertility(FertilityAgeSpecificRates):
     def name(self):
         return "fertility"
 
+
+    def setup(self, builder):
+        """Setup the common randomness stream and
+        age-specific fertility lookup tables.
+        Parameters
+        ----------
+        builder : vivarium.engine.Builder
+            Framework coordination object.
+        """
+        self.probability_of_twins = 0.4
+        age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
+        fertility_rate = builder.lookup.build_table(
+            age_specific_fertility_rate, parameter_columns=["age", "year"]
+        )
+        self.fertility_rate = builder.value.register_rate_producer(
+            "fertility rate", source=fertility_rate, requires_columns=["age"]
+        )
+
+        self.randomness = builder.randomness.get_stream("fertility")
+
+        self.population_view = builder.population.get_view(
+            ["last_birth_time", "sex", "parent_id"]
+        )
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=["last_birth_time", "parent_id"],
+            requires_columns=["sex"],
+        )
+
+        builder.event.register_listener("time_step", self.on_time_step)
+
     ##############
     ##############
 
@@ -71,18 +104,18 @@ class Fertility(FertilityAgeSpecificRates):
         rate_series = self.fertility_rate(eligible_women.index)
         had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
 
-        # decide which births twins
-        twins_probability = [self.probability_of_twins]*len(had_children)
-        if len(had_children) > 0:
-            had_twins = self.randomness.filter_for_probability(had_children, twins_probability)
-            had_children_incl_twins = pd.concat([had_children, had_twins])
-
         had_children.loc[:, "last_birth_time"] = event.time
         self.population_view.update(had_children["last_birth_time"])
 
+        # decide which births are twins
+        twins_probability = [self.probability_of_twins]*len(had_children)
+        if len(had_children) > 0:
+            had_twins = self.randomness.filter_for_probability(had_children, twins_probability)
+            had_children = pd.concat([had_children, had_twins])
+
         # If children were born, add them to the state table and record
         # who their mother was.
-        num_babies = len(had_children_incl_twins)
+        num_babies = len(had_children)
         if num_babies:
             self.simulant_creator(
                 num_babies,
@@ -90,7 +123,7 @@ class Fertility(FertilityAgeSpecificRates):
                     "age_start": 0,
                     "age_end": 0,
                     "sim_state": "time_step",
-                    "parent_ids": had_children_incl_twins.index,
+                    "parent_ids": had_children.index,
                 },
             )
 
