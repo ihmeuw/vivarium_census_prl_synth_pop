@@ -111,7 +111,9 @@ class Fertility(FertilityAgeSpecificRates):
         # decide which births are twins
         twins_probability = [data_values.PROBABILITY_OF_TWINS]*len(had_children)
         if len(had_children) > 0:
-            had_twins = self.randomness.filter_for_probability(had_children, twins_probability)
+            had_twins = self.randomness.filter_for_probability(
+                had_children, twins_probability, additional_key=event.time
+            )
             had_children = pd.concat([had_children, had_twins])
 
         # If children were born, add them to the state table and record
