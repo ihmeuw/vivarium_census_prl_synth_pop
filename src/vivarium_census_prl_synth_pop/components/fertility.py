@@ -3,6 +3,8 @@ from vivarium.framework.engine import Builder
 from vivarium_public_health import utilities
 from vivarium_public_health.population.add_new_birth_cohorts import FertilityAgeSpecificRates, PREGNANCY_DURATION
 
+from vivarium_census_prl_synth_pop.constants import data_values
+
 
 class Fertility(FertilityAgeSpecificRates):
     """
@@ -36,7 +38,6 @@ class Fertility(FertilityAgeSpecificRates):
         builder : vivarium.engine.Builder
             Framework coordination object.
         """
-        self.probability_of_twins = 0.4
         age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
         fertility_rate = builder.lookup.build_table(
             age_specific_fertility_rate, parameter_columns=["age", "year"]
@@ -108,7 +109,7 @@ class Fertility(FertilityAgeSpecificRates):
         self.population_view.update(had_children["last_birth_time"])
 
         # decide which births are twins
-        twins_probability = [self.probability_of_twins]*len(had_children)
+        twins_probability = [data_values.PROBABILITY_OF_TWINS]*len(had_children)
         if len(had_children) > 0:
             had_twins = self.randomness.filter_for_probability(had_children, twins_probability)
             had_children = pd.concat([had_children, had_twins])
