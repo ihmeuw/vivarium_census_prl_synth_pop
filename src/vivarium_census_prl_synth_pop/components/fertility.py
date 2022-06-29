@@ -29,62 +29,9 @@ class Fertility(FertilityAgeSpecificRates):
     def name(self):
         return "fertility"
 
-
-    def setup(self, builder):
-        """Setup the common randomness stream and
-        age-specific fertility lookup tables.
-        Parameters
-        ----------
-        builder : vivarium.engine.Builder
-            Framework coordination object.
-        """
-        age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
-        fertility_rate = builder.lookup.build_table(
-            age_specific_fertility_rate, parameter_columns=["age", "year"]
-        )
-        self.fertility_rate = builder.value.register_rate_producer(
-            "fertility rate", source=fertility_rate, requires_columns=["age"]
-        )
-
-        self.randomness = builder.randomness.get_stream("fertility")
-
-        self.population_view = builder.population.get_view(
-            ["last_birth_time", "sex", "parent_id"]
-        )
-        self.simulant_creator = builder.population.get_simulant_creator()
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=["last_birth_time", "parent_id"],
-            requires_columns=["sex"],
-        )
-
-        builder.event.register_listener("time_step", self.on_time_step)
-
-    ##############
-    ##############
-
-    def on_initialize_simulants(self, pop_data):
-        """Adds 'last_birth_time' and 'parent' columns to the state table."""
-        pop = self.population_view.subview(["sex"]).get(pop_data.index)
-        women = pop.loc[pop.sex == "Female"].index
-
-        if pop_data.user_data["sim_state"] == "setup":
-            parent_id = -1
-        else:  # 'sim_state' == 'time_step'
-            parent_id = pop_data.user_data["parent_ids"]
-        pop_update = pd.DataFrame(
-            {"last_birth_time": pd.NaT, "parent_id": parent_id}, index=pop_data.index
-        )
-        # FIXME: This is a misuse of the column and makes it invalid for
-        #    tracking metrics.
-        # Do the naive thing, set so all women can have children
-        # and none of them have had a child in the last year.
-        pop_update.loc[women, "last_birth_time"] = pop_data.creation_time - pd.Timedelta(
-            days=utilities.DAYS_PER_YEAR
-        )
-
-        self.population_view.update(pop_update)
+    ########################
+    # Event-driven methods #
+    ########################
 
     def on_time_step(self, event):
         """Produces new children and updates parent status on time steps.
@@ -129,6 +76,10 @@ class Fertility(FertilityAgeSpecificRates):
                     "parent_ids": had_children.index,
                 },
             )
+
+    ###########
+    # Helpers #
+    ###########
 
     def load_age_specific_fertility_rate_data(self, builder):
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
