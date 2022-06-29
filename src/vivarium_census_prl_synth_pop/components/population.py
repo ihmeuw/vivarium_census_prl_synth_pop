@@ -46,7 +46,7 @@ class Population:
             requires_columns=['tracked'],
         )
 
-        builder.event.register_listener("time_step", self.on_time_step, priority=9)
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
@@ -54,124 +54,131 @@ class Population:
         return {'households': households, 'persons': persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
-        # generate base population
+        # at start of sim, generate base population
         if pop_data.creation_time < self.start_time:
-            # oversample households
-            chosen_households = vectorized_choice(
-                options=self.population_data['households']['census_household_id'].to_numpy(copy=True),
-                weights=self.population_data['households']['household_weight'].to_numpy(copy=True),
-                n_to_choose=self.config.population_size,
-                randomness_stream=self.randomness
+            self.generate_base_population(pop_data)
+
+        # if new simulants are born into the sim
+        else:
+            self.initialize_newborns(pop_data)
+
+    def generate_base_population(self, pop_data: SimulantData) -> None:
+        # oversample households
+        chosen_households = vectorized_choice(
+            options=self.population_data['households']['census_household_id'].to_numpy(copy=True),
+            weights=self.population_data['households']['household_weight'].to_numpy(copy=True),
+            n_to_choose=self.config.population_size,
+            randomness_stream=self.randomness
+        )
+
+        # create unique id for resampled households
+        chosen_households = pd.DataFrame({
+            'census_household_id': chosen_households,
+            'household_id': np.arange(len(chosen_households))
+        })
+
+        # pull back on state and puma
+        chosen_households = pd.merge(
+            chosen_households,
+            self.population_data['households'][['state', 'puma', 'census_household_id']],
+            on='census_household_id',
+            how='left'
+        )
+
+        # get all simulants per household
+        chosen_persons = pd.merge(
+            chosen_households,
+            self.population_data['persons'],
+            on='census_household_id',
+            how='left'
+        )
+
+        # get rid simulants in excess of desired pop size
+        households_to_discard = chosen_persons.loc[self.config.population_size:, 'household_id'].unique()
+        chosen_persons = chosen_persons.query(f"household_id not in {list(households_to_discard)}")
+
+        # drop non-unique household_id
+        chosen_persons = chosen_persons.drop(columns='census_household_id')
+
+        # format
+        n_chosen = chosen_persons.shape[0]
+        chosen_persons['address'] = 'NA'
+        chosen_persons['zipcode'] = 'NA'
+        chosen_persons['entrance_time'] = pop_data.creation_time
+        chosen_persons['exit_time'] = pd.NaT
+        chosen_persons['alive'] = 'alive'
+        chosen_persons['tracked'] = True
+
+        # add back in extra simulants to reach desired pop size
+        remainder = self.config.population_size - n_chosen
+        if remainder > 0:
+            extras = pd.DataFrame(
+                data={
+                    'household_id': ['NA'],
+                    'address': ['NA'],
+                    'zipcode': ['NA'],
+                    'state': [-1],
+                    'puma': ['NA'],
+                    'age': [np.NaN],
+                    'relation_to_household_head': ['NA'],
+                    'sex': ['NA'],
+                    'race_ethnicity': ['NA'],
+                    'entrance_time': [pd.NaT],
+                    'exit_time': [pd.NaT],
+                    'alive': ['alive'],
+                    'tracked': [False],
+                },
+                index=range(remainder)
             )
+            chosen_persons = pd.concat([chosen_persons, extras])
 
-            # create unique id for resampled households
-            chosen_households = pd.DataFrame({
-                'census_household_id': chosen_households,
-                'household_id': np.arange(len(chosen_households))
-            })
+        # add typing
+        chosen_persons['age'] = chosen_persons['age'].astype('float64')
+        chosen_persons['state'] = chosen_persons['state'].astype('int64')
+        for col in ['relation_to_household_head', 'sex', 'race_ethnicity']:
+            chosen_persons[col] = chosen_persons[col].astype('category')
 
-            # pull back on state and puma
-            chosen_households = pd.merge(
-                chosen_households,
-                self.population_data['households'][['state', 'puma', 'census_household_id']],
-                on='census_household_id',
-                how='left'
-            )
+        chosen_persons = chosen_persons.set_index(pop_data.index)
+        self.population_view.update(
+            chosen_persons
+        )
 
-            # get all simulants per household
-            chosen_persons = pd.merge(
-                chosen_households,
-                self.population_data['persons'],
-                on='census_household_id',
-                how='left'
-            )
+    def initialize_newborns(self, pop_data: SimulantData) -> None:
+        parent_ids = pop_data.user_data['parent_ids']
+        mothers = self.population_view.get(parent_ids.unique())
+        new_births = pd.DataFrame(data={
+            'parent_id': parent_ids
+        }, index=pop_data.index)
 
-            # get rid simulants in excess of desired pop size
-            households_to_discard = chosen_persons.loc[self.config.population_size:, 'household_id'].unique()
-            chosen_persons = chosen_persons.query(f"household_id not in {list(households_to_discard)}")
+        inherited_traits = ['household_id',
+                            'address',
+                            'zipcode',
+                            'state',
+                            'puma',
+                            'race_ethnicity',
+                            'relation_to_household_head',
+                            'alive',
+                            'tracked']
 
-            # drop non-unique household_id
-            chosen_persons = chosen_persons.drop(columns='census_household_id')
+        # assign babies inherited traits
+        new_births = new_births.merge(
+            mothers[inherited_traits], left_on='parent_id', right_index=True
+        )
+        new_births['relation_to_household_head'] = new_births['relation_to_household_head'].map(
+            metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP
+        )
 
-            # format
-            n_chosen = chosen_persons.shape[0]
-            chosen_persons['address'] = 'NA'
-            chosen_persons['zipcode'] = 'NA'
-            chosen_persons['entrance_time'] = pop_data.creation_time
-            chosen_persons['exit_time'] = pd.NaT
-            chosen_persons['alive'] = 'alive'
-            chosen_persons['tracked'] = True
+        # assign babies uninherited traits
+        new_births['age'] = 0.0
+        new_births['sex'] = self.randomness.choice(
+            new_births.index, choices=['Female', 'Male'], p=[0.5, 0.5], additional_key='sex_of_child'
+        )
+        new_births['alive'] = 'alive'
+        new_births['entrance_time'] = pop_data.creation_time
+        new_births['exit_time'] = pd.NaT
+        new_births['tracked'] = True
 
-            # add back in extra simulants to reach desired pop size
-            remainder = self.config.population_size - n_chosen
-            if remainder > 0:
-                extras = pd.DataFrame(
-                    data={
-                        'household_id': ['NA'],
-                        'address': ['NA'],
-                        'zipcode': ['NA'],
-                        'state': [-1],
-                        'puma': ['NA'],
-                        'age': [np.NaN],
-                        'relation_to_household_head': ['NA'],
-                        'sex': ['NA'],
-                        'race_ethnicity': ['NA'],
-                        'entrance_time': [pd.NaT],
-                        'exit_time': [pd.NaT],
-                        'alive': ['alive'],
-                        'tracked': [False],
-                    },
-                    index=range(remainder)
-                )
-                chosen_persons = pd.concat([chosen_persons, extras])
-
-            # add typing
-            chosen_persons['age'] = chosen_persons['age'].astype('float64')
-            chosen_persons['state'] = chosen_persons['state'].astype('int64')
-            for col in ['relation_to_household_head', 'sex', 'race_ethnicity']:
-                chosen_persons[col] = chosen_persons[col].astype('category')
-
-            chosen_persons = chosen_persons.set_index(pop_data.index)
-            self.population_view.update(
-                chosen_persons
-            )
-        # if new simulants enter sim
-        elif pop_data.creation_time >= self.start_time:
-            parent_ids = pop_data.user_data['parent_ids']
-            mothers = self.population_view.get(parent_ids.unique())
-            new_births = pd.DataFrame(data={
-                'parent_id': parent_ids
-            }, index=pop_data.index)
-
-            inherited_traits = ['household_id',
-                                'address',
-                                'zipcode',
-                                'state',
-                                'puma',
-                                'race_ethnicity',
-                                'relation_to_household_head',
-                                'alive',
-                                'tracked']
-
-            # assign babies inherited traits
-            new_births = new_births.merge(
-                mothers[inherited_traits], left_on='parent_id', right_index=True
-            )
-            new_births['relation_to_household_head'] = new_births['relation_to_household_head'].map(
-                metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP
-            )
-
-            # assign babies uninherited traits
-            new_births['age'] = 0.0
-            new_births['sex'] = self.randomness.choice(
-                new_births.index, choices=['Female', 'Male'], p=[0.5, 0.5], additional_key='sex_of_child'
-            )
-            new_births['alive'] = 'alive'
-            new_births['entrance_time'] = pop_data.creation_time
-            new_births['exit_time'] = pd.NaT
-            new_births['tracked'] = True
-
-            self.population_view.update(new_births[self.columns_created])
+        self.population_view.update(new_births[self.columns_created])
 
     def on_time_step(self, event: Event):
         """Ages simulants each time step.

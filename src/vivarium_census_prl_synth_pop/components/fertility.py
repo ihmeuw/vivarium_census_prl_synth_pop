@@ -1,6 +1,6 @@
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium_public_health import utilities
+from vivarium.framework.event import Event
 from vivarium_public_health.population.add_new_birth_cohorts import FertilityAgeSpecificRates, PREGNANCY_DURATION
 
 from vivarium_census_prl_synth_pop.constants import data_values
@@ -33,7 +33,7 @@ class Fertility(FertilityAgeSpecificRates):
     # Event-driven methods #
     ########################
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event):
         """Produces new children and updates parent status on time steps.
         Parameters
         ----------
@@ -46,8 +46,7 @@ class Fertility(FertilityAgeSpecificRates):
         population = self.population_view.get(
             event.index, query='alive == "alive" and sex =="Female"'
         )
-        can_have_children = population.last_birth_time < nine_months_ago
-        eligible_women = population[can_have_children]
+        eligible_women = population[population.last_birth_time < nine_months_ago]
 
         rate_series = self.fertility_rate(eligible_women.index)
         had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
@@ -56,12 +55,11 @@ class Fertility(FertilityAgeSpecificRates):
         self.population_view.update(had_children["last_birth_time"])
 
         # decide which births are twins
-        twins_probability = [data_values.PROBABILITY_OF_TWINS]*len(had_children)
-        if len(had_children) > 0:
-            had_twins = self.randomness.filter_for_probability(
-                had_children, twins_probability, additional_key=event.time
-            )
-            had_children = pd.concat([had_children, had_twins])
+        twins_probability = [data_values.PROBABILITY_OF_TWINS] * len(had_children)
+        had_twins = self.randomness.filter_for_probability(
+            had_children, twins_probability, additional_key=event.time
+        )
+        had_children = pd.concat([had_children, had_twins])
 
         # If children were born, add them to the state table and record
         # who their mother was.
@@ -81,7 +79,7 @@ class Fertility(FertilityAgeSpecificRates):
     # Helpers #
     ###########
 
-    def load_age_specific_fertility_rate_data(self, builder):
+    def load_age_specific_fertility_rate_data(self, builder: Builder):
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
         columns = ["year_start", "year_end", "age_start", "age_end", "value"]
         asfr_data = asfr_data.loc[asfr_data.sex == "Female"][columns]
