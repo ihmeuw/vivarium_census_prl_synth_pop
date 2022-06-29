@@ -52,7 +52,7 @@ class HouseholdMigration:
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
-            requires_columns=['household_id'],
+            requires_columns=self.columns_needed,
         )
         builder.event.register_listener("time_step", self.on_time_step)
 

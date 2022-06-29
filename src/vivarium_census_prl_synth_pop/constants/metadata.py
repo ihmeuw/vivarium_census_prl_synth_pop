@@ -173,7 +173,6 @@ NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP = {
     'Noninstitutionalized GQ pop': 'Noninstitutionalized GQ pop'
 }
 
-
 US_STATE_ABBRV_MAP = {
     'Alabama': 'AL',
     'Alaska': 'AK',
