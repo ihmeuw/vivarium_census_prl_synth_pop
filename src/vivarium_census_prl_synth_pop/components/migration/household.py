@@ -64,19 +64,6 @@ class HouseholdMigration:
         """
         add addresses to each household in the population table
         """
-        # if pop_data.creation_time >= self.start_time:
-        #     parent_ids = pop_data.user_data['parent_ids']
-        #     mothers = self.population_view.subview(['household_id', 'address', 'zipcode']).get(parent_ids.unique())
-        #
-        #     # assign the same address to the same household id
-        #     new_births = pd.DataFrame(data={
-        #         'parent_id': parent_ids
-        #     }, index=pop_data.index)
-        #     new_births = new_births.merge(mothers, left_on='parent_id', right_index=True)
-        #
-        #     self.population_view.update(new_births[self.columns_created])
-        #
-        # else:
         if pop_data.creation_time < self.start_time:
             households = self.population_view.subview(['household_id']).get(pop_data.index)
             address_assignments = self._generate_addresses(list(households.drop_duplicates().squeeze()))

@@ -54,46 +54,8 @@ class Population:
         return {'households': households, 'persons': persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
-        # if new simulants enter sim
-        if pop_data.creation_time >= self.start_time:
-            parent_ids = pop_data.user_data['parent_ids']
-            mothers = self.population_view.get(parent_ids.unique())
-            new_births = pd.DataFrame(data={
-                'parent_id': parent_ids
-            }, index=pop_data.index)
-
-            inherited_traits = ['household_id',
-                                'address',
-                                'zipcode',
-                                'state',
-                                'puma',
-                                'race_ethnicity',
-                                'relation_to_household_head',
-                                'alive',
-                                'tracked']
-
-            # assign babies inherited traits
-            new_births = new_births.merge(
-                mothers[inherited_traits], left_on='parent_id', right_index=True
-            )
-            new_births['relation_to_household_head'] = new_births['relation_to_household_head'].map(
-                metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP
-            )
-
-            # assign babies uninherited traits
-            new_births['age'] = 0.0
-            new_births['sex'] = self.randomness.choice(
-                new_births.index, choices=['Female', 'Male'], p=[0.5, 0.5], additional_key='sex_of_child'
-            )
-            new_births['alive'] = 'alive'
-            new_births['entrance_time'] = pop_data.creation_time
-            new_births['exit_time'] = pd.NaT
-            new_births['tracked'] = True
-
-            self.population_view.update(new_births[self.columns_created])
-
         # generate base population
-        else:
+        if pop_data.creation_time < self.start_time:
             # oversample households
             chosen_households = vectorized_choice(
                 options=self.population_data['households']['census_household_id'].to_numpy(copy=True),
@@ -173,6 +135,43 @@ class Population:
             self.population_view.update(
                 chosen_persons
             )
+        # if new simulants enter sim
+        elif pop_data.creation_time >= self.start_time:
+            parent_ids = pop_data.user_data['parent_ids']
+            mothers = self.population_view.get(parent_ids.unique())
+            new_births = pd.DataFrame(data={
+                'parent_id': parent_ids
+            }, index=pop_data.index)
+
+            inherited_traits = ['household_id',
+                                'address',
+                                'zipcode',
+                                'state',
+                                'puma',
+                                'race_ethnicity',
+                                'relation_to_household_head',
+                                'alive',
+                                'tracked']
+
+            # assign babies inherited traits
+            new_births = new_births.merge(
+                mothers[inherited_traits], left_on='parent_id', right_index=True
+            )
+            new_births['relation_to_household_head'] = new_births['relation_to_household_head'].map(
+                metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP
+            )
+
+            # assign babies uninherited traits
+            new_births['age'] = 0.0
+            new_births['sex'] = self.randomness.choice(
+                new_births.index, choices=['Female', 'Male'], p=[0.5, 0.5], additional_key='sex_of_child'
+            )
+            new_births['alive'] = 'alive'
+            new_births['entrance_time'] = pop_data.creation_time
+            new_births['exit_time'] = pd.NaT
+            new_births['tracked'] = True
+
+            self.population_view.update(new_births[self.columns_created])
 
     def on_time_step(self, event: Event):
         """Ages simulants each time step.
