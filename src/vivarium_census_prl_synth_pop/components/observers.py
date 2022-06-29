@@ -56,7 +56,6 @@ class Observers:
         no_categories_state_table = self.type_category_to_object(state_table)
         no_categories_state_table.to_hdf(self.output_path, end_date_str)
 
-
     ###########
     # Helpers #
     ###########

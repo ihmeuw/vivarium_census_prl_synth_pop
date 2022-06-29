@@ -6,6 +6,7 @@ components:
             - PersonMigration()
             - Observers()
             - Mortality()
+            - Fertility()
 
 configuration:
     input_data:

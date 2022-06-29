@@ -5,6 +5,7 @@ import faker
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.constants import metadata, data_keys
 from vivarium_census_prl_synth_pop.constants import data_values
@@ -38,6 +39,7 @@ class HouseholdMigration:
     def setup(self, builder: Builder):
         self.config = builder.configuration
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
+        self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
         self.fake = faker.Faker()
         faker.Faker.seed(self.config.randomness.random_seed)
@@ -62,13 +64,14 @@ class HouseholdMigration:
         """
         add addresses to each household in the population table
         """
-        households = self.population_view.subview(['household_id']).get(pop_data.index)
-        address_assignments = self._generate_addresses(list(households.drop_duplicates().squeeze()))
-        households['address'] = households['household_id'].map(address_assignments['address'])
-        households['zipcode'] = households['household_id'].map(address_assignments['zipcode'])
-        self.population_view.update(
-            households
-        )
+        if pop_data.creation_time < self.start_time:
+            households = self.population_view.subview(['household_id']).get(pop_data.index)
+            address_assignments = self._generate_addresses(list(households.drop_duplicates().squeeze()))
+            households['address'] = households['household_id'].map(address_assignments['address'])
+            households['zipcode'] = households['household_id'].map(address_assignments['zipcode'])
+            self.population_view.update(
+                households
+            )
 
     def on_time_step(self, event: Event):
         """

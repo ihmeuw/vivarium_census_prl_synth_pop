@@ -151,6 +151,28 @@ RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     38: 'Noninstitutionalized GQ pop',
 }
 
+NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP = {
+    'Reference person': 'Biological child',
+    'Opp-sex spouse': 'Biological child',
+    'Opp-sex partner': 'Biological child',
+    'Same-sex spouse': 'Biological child',
+    'Same-sex partner': 'Biological child',
+    'Biological child': 'Grandchild',
+    'Adopted child': 'Grandchild',
+    'Stepchild': 'Grandchild',
+    'Sibling': 'Other relative',
+    'Parent': 'Sibling',
+    'Grandchild': 'Other relative',
+    'Parent-in-law': 'Other relative',
+    'Child-in-law': 'Grandchild',
+    'Other relative': 'Other relative',
+    'Roommate': 'Other nonrelative',
+    'Foster child': 'Grandchild',
+    'Other nonrelative': 'Other nonrelative',
+    'Institutionalized GQ pop': 'Institutionalized GQ pop',
+    'Noninstitutionalized GQ pop': 'Noninstitutionalized GQ pop'
+}
+
 US_STATE_ABBRV_MAP = {
     'Alabama': 'AL',
     'Alaska': 'AK',

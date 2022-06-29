@@ -3,9 +3,11 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView, SimulantData
+from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import to_years
 
 from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 
@@ -18,6 +20,7 @@ class Population:
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
         self.randomness = builder.randomness.get_stream("household_sampling", for_initialization=True)
+        self.start_time = get_time_stamp(builder.configuration.time.start)
 
         self.columns_created = [
             'household_id',
@@ -34,26 +37,30 @@ class Population:
             'exit_time'
         ]
         self.register_simulants = builder.randomness.register_simulants
-        self.population_view = self._get_population_view(builder)
+        self.population_view = builder.population.get_view(self.columns_created + ['tracked'])
         self.population_data = self._load_population_data(builder)
-        self._register_simulant_initializer(builder)
 
-        builder.event.register_listener("time_step", self.on_time_step)
-
-    def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
-            self.generate_base_population,
+            self.initialize_simulants,
             creates_columns=self.columns_created,
             requires_columns=['tracked'],
-            )
+        )
 
-    def _get_population_view(self, builder: Builder) -> PopulationView:
-        return builder.population.get_view(self.columns_created + ['tracked'])
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
         persons = builder.data.load(data_keys.POPULATION.PERSONS)
         return {'households': households, 'persons': persons}
+
+    def initialize_simulants(self, pop_data: SimulantData) -> None:
+        # at start of sim, generate base population
+        if pop_data.creation_time < self.start_time:
+            self.generate_base_population(pop_data)
+
+        # if new simulants are born into the sim
+        else:
+            self.initialize_newborns(pop_data)
 
     def generate_base_population(self, pop_data: SimulantData) -> None:
         # oversample households
@@ -135,6 +142,43 @@ class Population:
         self.population_view.update(
             chosen_persons
         )
+
+    def initialize_newborns(self, pop_data: SimulantData) -> None:
+        parent_ids = pop_data.user_data['parent_ids']
+        mothers = self.population_view.get(parent_ids.unique())
+        new_births = pd.DataFrame(data={
+            'parent_id': parent_ids
+        }, index=pop_data.index)
+
+        inherited_traits = ['household_id',
+                            'address',
+                            'zipcode',
+                            'state',
+                            'puma',
+                            'race_ethnicity',
+                            'relation_to_household_head',
+                            'alive',
+                            'tracked']
+
+        # assign babies inherited traits
+        new_births = new_births.merge(
+            mothers[inherited_traits], left_on='parent_id', right_index=True
+        )
+        new_births['relation_to_household_head'] = new_births['relation_to_household_head'].map(
+            metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP
+        )
+
+        # assign babies uninherited traits
+        new_births['age'] = 0.0
+        new_births['sex'] = self.randomness.choice(
+            new_births.index, choices=['Female', 'Male'], p=[0.5, 0.5], additional_key='sex_of_child'
+        )
+        new_births['alive'] = 'alive'
+        new_births['entrance_time'] = pop_data.creation_time
+        new_births['exit_time'] = pd.NaT
+        new_births['tracked'] = True
+
+        self.population_view.update(new_births[self.columns_created])
 
     def on_time_step(self, event: Event):
         """Ages simulants each time step.
