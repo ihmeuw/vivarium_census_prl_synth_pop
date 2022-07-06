@@ -24,8 +24,6 @@ class Population:
 
         self.columns_created = [
             'household_id',
-            'address',
-            'zipcode',
             'state',
             'puma',
             'relation_to_household_head',
@@ -102,8 +100,6 @@ class Population:
 
         # format
         n_chosen = chosen_persons.shape[0]
-        chosen_persons['address'] = 'NA'
-        chosen_persons['zipcode'] = 'NA'
         chosen_persons['entrance_time'] = pop_data.creation_time
         chosen_persons['exit_time'] = pd.NaT
         chosen_persons['alive'] = 'alive'
@@ -115,8 +111,6 @@ class Population:
             extras = pd.DataFrame(
                 data={
                     'household_id': ['NA'],
-                    'address': ['NA'],
-                    'zipcode': ['NA'],
                     'state': [-1],
                     'puma': ['NA'],
                     'age': [np.NaN],
@@ -151,8 +145,6 @@ class Population:
         }, index=pop_data.index)
 
         inherited_traits = ['household_id',
-                            'address',
-                            'zipcode',
                             'state',
                             'puma',
                             'race_ethnicity',
