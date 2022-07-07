@@ -1,4 +1,6 @@
 # Sample Test passing with nose and pytest
+import pytest
+
 import numpy as np, pandas as pd
 
 from vivarium_census_prl_synth_pop import synthetic_pii
@@ -19,17 +21,26 @@ def test_generic():
 def test_dob():
     g = synthetic_pii.DOBGenerator(1234)
 
-    index = range(10)
+    index = range(10_000)
     df_in = pd.DataFrame(index=index)
-    df_in['age'] = np.arange(0, 50, 5)
+    df_in['age'] = np.random.uniform(0, 125, len(index))
     df = g.generate(df_in)
 
     assert np.all(df.month <= 12)
     assert np.all(df.day <= 31)
-    assert np.all(df.year >= 1950)
+    assert np.all(df.year >= 2019 - 125 - 1)
 
     df2 = g.noise(df)
     assert np.all(df.index == df2.index) and np.all(df.columns == df2.columns), "expect noise to leave dataframe index and columns unchanged"
+
+    assert np.all(df2.month >= 1) and np.all((df2.month <= 12) | (df2.day <= 12)) # noise can swap day and month, resulting in a month > 12
+    assert np.all(df2.day >= 1) and np.all(df2.day <= 31)
+    assert np.all(df2.year >= 2019 - 150) and np.all(df2.year < 2022)
+    
+    assert not np.all(df.day == df2.day)
+    assert not np.all(df.month == df2.month)
+    assert not np.all(df.year == df2.year)
+    assert not np.all(df.dob == df2.dob)
 
 def test_ssn():
     g = synthetic_pii.SSNGenerator(1234)
@@ -69,7 +80,8 @@ def test_name():
     assert 'last_name' in df.columns
     assert 'AIAN' not in df.last_name.values # FIXME: come up with a more robust test of the synthetic content
 
-
+    
+@pytest.mark.slow
 def test_address():
     g = synthetic_pii.AddressGenerator(1234)
 

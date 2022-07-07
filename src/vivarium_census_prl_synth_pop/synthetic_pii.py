@@ -14,6 +14,12 @@ class GenericGenerator:
     def noise(self, df : pd.DataFrame) -> pd.DataFrame:
         return df
 
+def make_dob_col(df):
+    """Append year-month-day in a column called 'dob'
+    """
+    df['dob'] = (df.year.astype(str) + '-'
+                 + df.month.astype(str).str.zfill(2) + '-'
+                 + df.day.astype(str).str.zfill(2))
 
 class DOBGenerator(GenericGenerator):
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
@@ -38,14 +44,43 @@ class DOBGenerator(GenericGenerator):
         age += self._rng.uniform(low=0, high=365, size=len(df))
         dob = data_date - pd.to_timedelta(np.round(age), unit='days')
 
-        df['dob'] = dob
         df['year'] = dob.dt.year
         df['month'] = dob.dt.month
         df['day'] = dob.dt.day
+        make_dob_col(df)
 
         return df
 
     def noise(self, df):
+        """Add noise to synthetic Date of Birth
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+
+        Notes
+        -----
+        Based on Buzz's experience, match 2 of 3 fields on 3% of rows, transpose two fields on of 0.2% of rows
+        """
+
+        df = df.copy()
+
+        # make a small error in each column with probability 1%, that
+        # sums up to around 3% probability of a single field error
+        for col in ['year', 'month', 'day']:
+            rows = (self._rng.uniform(size=len(df)) < 0.01)
+            df.loc[rows, col] = df.loc[rows, col] + np.random.choice([-2, -1, 1, 2], size=np.sum(rows, dtype=int))
+        df.month = np.clip(df.month, 1, 12, dtype=int)
+        df.day = np.clip(df.day, 1, 31, dtype=int)
+
+        # transpose day and month occasionally
+        rows = (self._rng.uniform(size=len(df)) < 0.002)
+        s_day = df.loc[rows, 'day']
+        df.loc[rows, 'day'] = df.loc[rows, 'month'].values
+        df.loc[rows, 'month'] = s_day.values
+                    
+        make_dob_col(df)
+        
         return df
 
 
@@ -112,7 +147,7 @@ _g_ssn_names = None # global data on first names, to avoid loading repeatedly
 def load_first_name_data():
     global _g_ssn_names
 
-    df_ssn_names = pd.read_csv('/home/j/Project/simulation_science/prl/data/ssn_names/FL.TXT',
+    df_ssn_names = pd.read_csv('/snfs1/Project/simulation_science/prl/data/ssn_names/FL.TXT',
                                 names=['state', 'sex', 'yob', 'name', 'freq'])
     df_ssn_names['age'] = 2020 - df_ssn_names.yob
     df_ssn_names['sex'] = df_ssn_names.sex.map({'M':'Male', 'F':'Female'})
@@ -134,7 +169,7 @@ _df_census_names = None # global data on last names, to avoid loading repeatedly
 def load_last_name_data():
     global _df_census_names
 
-    _df_census_names = pd.read_csv('/home/j/Project/simulation_science/prl/data/Names_2010Census.csv', na_values=['(S)'])
+    _df_census_names = pd.read_csv('/snfs1/Project/simulation_science/prl/data/Names_2010Census.csv', na_values=['(S)'])
 
     _df_census_names.name = _df_census_names.name.str.capitalize()
 
@@ -266,7 +301,7 @@ class NameGenerator(GenericGenerator):
 class AddressGenerator(GenericGenerator):
     def load_address_data(self):
         if not hasattr(self, '_df_deepparse_address_data'):
-            self._df_deepparse_address_data = pd.read_csv('/home/j/Project/simulation_science/prl/data/deepparse_address_data_usa.csv.bz2')
+            self._df_deepparse_address_data = pd.read_csv('/snfs1/Project/simulation_science/prl/data/deepparse_address_data_usa.csv.bz2')
         return self._df_deepparse_address_data
 
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
