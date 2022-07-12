@@ -3,8 +3,8 @@ from typing import Dict
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
 
+from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium_census_prl_synth_pop.constants import data_values
 
 
@@ -58,27 +58,25 @@ class PersonMigration:
             non_household_heads,
             self.person_move_rate(non_household_heads.index)
         )
-        persons.loc[persons_who_move.index, 'household_id'] = self._get_new_household_ids(persons_who_move, event)
-        persons.loc[persons_who_move.index, 'relation_to_household_head'] = "Other nonrelative"
-        persons.loc[persons_who_move.index, 'address'] = persons.loc[persons_who_move.index, 'address'].map(
-            self._household_id_to_address(persons_who_move.index)
+        new_households = self._get_new_household_ids(persons_who_move, event)
+        new_household_data = self.population_view.subview(
+            ['household_id', 'address', 'zipcode']
+        ).get(index=event.index, query=f'household_id in {list(new_households)}').drop_duplicates()
+
+        persons_who_move['household_id'] = new_households
+        persons_who_move = persons_who_move[['household_id', 'relation_to_household_head']].merge(new_household_data, on='household_id')
+        persons_who_move['relation_to_household_head'] = pd.Categorical(
+            ["Other nonrelative"]*len(persons_who_move),
+            categories=list(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values()) + ['NA']
         )
-        persons.loc[persons_who_move.index, 'address'] = persons.loc[persons_who_move.index, 'address'].map(
-            self._household_id_to_zipcode(persons_who_move.index)
-        )
+
         self.population_view.update(
-            persons
+            persons_who_move
         )
 
     ##################
     # Helper methods #
     ##################
-
-    def _household_id_to_address(self, idx: pd.Index) -> Dict:
-        return self.population_view.subview(['household_id', 'address']).get(idx).to_dict()
-
-    def _household_id_to_zipcode(self, idx: pd.Index) -> Dict:
-        return self.population_view.subview(['household_id', 'zipcode']).get(idx).to_dict()
 
     def _get_new_household_ids(self, persons_who_move: pd.DataFrame, event: Event) -> pd.Series:
         households = self.population_view.subview(['household_id']).get(event.index)
