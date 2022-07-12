@@ -64,7 +64,10 @@ class PersonMigration:
         ).get(index=event.index, query=f'household_id in {list(new_households)}').drop_duplicates()
 
         persons_who_move['household_id'] = new_households
-        persons_who_move = persons_who_move[['household_id', 'relation_to_household_head']].merge(new_household_data, on='household_id')
+        persons_who_move = persons_who_move[['household_id', 'relation_to_household_head']].merge(
+            new_household_data,
+            on='household_id'
+        )
         persons_who_move['relation_to_household_head'] = pd.Categorical(
             ["Other nonrelative"]*len(persons_who_move),
             categories=list(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values()) + ['NA']
