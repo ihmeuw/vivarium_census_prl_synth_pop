@@ -9,6 +9,7 @@ from vivarium_public_health.utilities import to_years
 from vivarium_census_prl_synth_pop.constants import data_keys
 from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
+from vivarium_census_prl_synth_pop.synthetic_pii import SSNGenerator
 
 
 class Population:
@@ -19,8 +20,10 @@ class Population:
 
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
+        self.seed = builder.configuration.randomness.random_seed
         self.randomness = builder.randomness.get_stream("household_sampling", for_initialization=True)
         self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.ssn_gen = SSNGenerator(self.seed)
 
         self.columns_created = [
             'household_id',
@@ -30,6 +33,7 @@ class Population:
             'sex', 
             'age',
             'race_ethnicity',
+            'ssn',
             'alive',
             'entrance_time',
             'exit_time'
@@ -100,6 +104,9 @@ class Population:
 
         # format
         n_chosen = chosen_persons.shape[0]
+        chosen_persons['address'] = 'NA'
+        chosen_persons['zipcode'] = 'NA'
+        chosen_persons['ssn'] = self.ssn_gen.generate(chosen_persons).ssn
         chosen_persons['entrance_time'] = pop_data.creation_time
         chosen_persons['exit_time'] = pd.NaT
         chosen_persons['alive'] = 'alive'
@@ -117,6 +124,7 @@ class Population:
                     'relation_to_household_head': ['NA'],
                     'sex': ['NA'],
                     'race_ethnicity': ['NA'],
+                    'ssn': ['NA'],
                     'entrance_time': [pd.NaT],
                     'exit_time': [pd.NaT],
                     'alive': ['alive'],
@@ -166,6 +174,7 @@ class Population:
             new_births.index, choices=['Female', 'Male'], p=[0.5, 0.5], additional_key='sex_of_child'
         )
         new_births['alive'] = 'alive'
+        new_births['ssn'] = self.ssn_gen.generate(new_births).ssn
         new_births['entrance_time'] = pop_data.creation_time
         new_births['exit_time'] = pd.NaT
         new_births['tracked'] = True

@@ -48,6 +48,10 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.LOCATION: load_location,
         data_keys.POPULATION.ASFR: load_asfr,
+
+        data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
+        data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
+        data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -106,7 +110,7 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     # map relationship to household head
     data.relation_to_household_head = data.relation_to_household_head.map(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP)
 
-    # reshape
+    # put all non-draw columns in the index, else vivarium will drop them
     data = data.set_index(['census_household_id', 'age', 'relation_to_household_head', 'sex', 'race_ethnicity'])
 
     return data
@@ -157,6 +161,85 @@ def load_asfr(key: str, location: str):
     asfr_draws = asfr_pivot.apply(create_draws, args=(key, location), axis=1)
 
     return asfr_draws
+
+
+def _capitalize_names(name):
+    if type(name) == str:
+        for connector in [" ", "-"]:
+            name = connector.join([i[0].upper() + i[1:] for i in name.split(connector)])
+        return name
+    else:  # missing names
+        return name
+
+
+def load_last_name_data(key: str, location: str) -> pd.DataFrame:
+
+    df_census_names = pd.read_csv(paths.LAST_NAME_DATA_PATH, na_values=['(S)'])
+
+    df_census_names.name = df_census_names.name.str.lower().apply(_capitalize_names)
+
+    ## fill missing values with equal amounts of what is left ##
+    # per row, count N pct cols that are null
+    n_missing = df_census_names.filter(like='pct').isnull().sum(axis=1)
+
+    # per now, sum total pcts that are non-null
+    pct_total = df_census_names.filter(like='pct').sum(axis=1)
+
+    # calculate how much each pct to give to each null col
+    pct_fill = (100 - pct_total) / n_missing
+
+    for col in df_census_names.filter(like='pct').columns:
+        df_census_names[col] = df_census_names[col].fillna(pct_fill)
+
+    # drop non-name
+    df_census_names = df_census_names.loc[df_census_names.name != "All Other Names"]
+
+    all_race_name_count = df_census_names['count'].copy()
+    for race_eth, pct_specific_race in [
+        ['White', 'pctwhite'],
+        ['Latino', 'pcthispanic'],
+        ['Black', 'pctblack'],
+        ['Asian', 'pctapi'],
+        ['Multiracial or Other', 'pct2prace'],
+        ['AIAN', 'pctaian'],
+        ['NHOPI', 'pctapi']
+    ]:
+        race_specific_name_count = all_race_name_count * df_census_names[pct_specific_race] / 100
+        race_specific_name_pct = race_specific_name_count / race_specific_name_count.sum()
+        df_census_names[race_eth] = race_specific_name_pct
+
+    # put all non-draw columns in the index, else vivarium will drop them
+    df_census_names = df_census_names.set_index(
+        ['name', 'rank', 'count', 'prop100k', 'cum_prop100k', 'pctwhite',
+         'pctblack', 'pctapi', 'pctaian', 'pct2prace', 'pcthispanic', 'White',
+         'Latino', 'Black', 'Asian', 'Multiracial or Other', 'AIAN', 'NHOPI']
+    )
+    return df_census_names
+
+
+def load_first_name_data(key: str, location: str) -> pd.DataFrame:
+    STATE_CODE = metadata.US_STATE_ABBRV_MAP[location]
+    data_path = paths.SYNTHETIC_DATA_INPUTS_ROOT / 'ssn_names' / f'{STATE_CODE}.TXT'
+    df_ssn_names = pd.read_csv(data_path, names=['state', 'sex', 'yob', 'name', 'freq'])
+    df_ssn_names['sex'] = df_ssn_names['sex'].map({'M': 'Male', 'F': 'Female'})
+
+    # put all non-draw columns in the index, else vivarium will drop them
+    df_ssn_names = df_ssn_names.set_index(
+        ['state', 'sex', 'yob', 'name', 'freq']
+    )
+    return df_ssn_names
+
+
+def load_address_data(key: str, location: str) -> pd.DataFrame:
+    df_deepparse_address_data = pd.read_csv(paths.ADDRESS_DATA_PATH)
+    df_deepparse_address_data = df_deepparse_address_data.drop(columns='Unnamed: 0')
+
+    # put all non-draw columns in the index, else vivarium will drop them
+    df_deepparse_address_data = df_deepparse_address_data.set_index(
+        ['StreetNumber', 'StreetName', 'Municipality', 'Province', 'PostalCode',
+         'Unit']
+    )
+    return df_deepparse_address_data
 
 
 def create_draws(df: pd.DataFrame, key: str, location: str):
