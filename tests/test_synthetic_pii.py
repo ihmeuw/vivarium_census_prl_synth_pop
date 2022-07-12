@@ -33,9 +33,14 @@ def test_dob():
     df2 = g.noise(df)
     assert np.all(df.index == df2.index) and np.all(df.columns == df2.columns), "expect noise to leave dataframe index and columns unchanged"
 
-    assert np.all(df2.month >= 1) and np.all((df2.month <= 12) | (df2.day <= 12)) # noise can swap day and month, resulting in a month > 12
-    assert np.all(df2.day >= 1) and np.all(df2.day <= 31)
-    assert np.all(df2.year >= 2019 - 150) and np.all(df2.year < 2022)
+    assert (np.all((df2.month >= 1) | df2.month.isnull())
+            and np.all((df2.month <= 12)
+                       | (df2.day <= 12) # noise can swap day and month, resulting in a month > 12
+                       | df2.month.isnull()
+                      )
+           )
+    assert np.all((df2.day >= 1) | df2.day.isnull()) and np.all((df2.day <= 31) | df2.day.isnull())
+    assert np.all((df2.year >= 2019 - 150) | df2.year.isnull()) and np.all((df2.year < 2022) | df2.year.isnull())
     
     assert not np.all(df.day == df2.day)
     assert not np.all(df.month == df2.month)

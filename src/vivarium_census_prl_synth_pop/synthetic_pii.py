@@ -17,9 +17,9 @@ class GenericGenerator:
 def make_dob_col(df):
     """Append year-month-day in a column called 'dob'
     """
-    df['dob'] = (df.year.astype(str) + '-'
-                 + df.month.astype(str).str.zfill(2) + '-'
-                 + df.day.astype(str).str.zfill(2))
+    df['dob'] = (df.year.fillna('').astype(str) + '-'
+                 + df.month.fillna('').astype(str).str.zfill(2) + '-'
+                 + df.day.fillna('').astype(str).str.zfill(2))
 
 class DOBGenerator(GenericGenerator):
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
@@ -51,30 +51,48 @@ class DOBGenerator(GenericGenerator):
 
         return df
 
-    def noise(self, df):
+    def noise(self, df, pr_field_error=0.0106, pr_full_error=0.0026,
+              pr_missing=0.0024, pr_month_day_swap=0.0018):
         """Add noise to synthetic Date of Birth
 
         Parameters
         ----------
         df : pd.DataFrame
+        pr_field_error : float, optional
+        pr_full_error : float, optional
+        pr_missing : float, optional
+        pr_month_day_swap : float, optional
 
         Notes
         -----
-        Based on Buzz's experience, match 2 of 3 fields on 3% of rows, transpose two fields on of 0.2% of rows
+        Default values based on Buzz's experience.
         """
 
         df = df.copy()
 
-        # make a small error in each column with probability 1%, that
-        # sums up to around 3% probability of a single field error
+        # make a small error in each column with probability (around
+        # 1%), that sums up to probability of a single field error
         for col in ['year', 'month', 'day']:
-            rows = (self._rng.uniform(size=len(df)) < 0.01)
+            rows = (self._rng.uniform(size=len(df)) < pr_field_error)
             df.loc[rows, col] = df.loc[rows, col] + np.random.choice([-2, -1, 1, 2], size=np.sum(rows, dtype=int))
         df.month = np.clip(df.month, 1, 12, dtype=int)
         df.day = np.clip(df.day, 1, 31, dtype=int)
 
+        # get the whole thing wrong sometimes
+        rows = (self._rng.uniform(size=len(df)) < pr_full_error)
+        swap_rows = self._rng.choice(df.index, sum(rows))
+        df.loc[rows, 'day'] = df.loc[swap_rows, 'day']
+        df.loc[rows, 'month'] = df.loc[swap_rows, 'month']
+        df.loc[rows, 'year'] = df.loc[swap_rows, 'year']
+
+        # leave dob blank occasionally
+        rows = (self._rng.uniform(size=len(df)) < pr_missing)
+        df.loc[rows, 'day'] = np.nan
+        df.loc[rows, 'month'] = np.nan
+        df.loc[rows, 'year'] = np.nan
+
         # transpose day and month occasionally
-        rows = (self._rng.uniform(size=len(df)) < 0.002)
+        rows = (self._rng.uniform(size=len(df)) < pr_month_day_swap)
         s_day = df.loc[rows, 'day']
         df.loc[rows, 'day'] = df.loc[rows, 'month'].values
         df.loc[rows, 'month'] = s_day.values
