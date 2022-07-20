@@ -74,9 +74,9 @@ class DOBGenerator(GenericGenerator):
         # 1%), that sums up to probability of a single field error
         for col in ['year', 'month', 'day']:
             rows = (self._rng.uniform(size=len(df)) < pr_field_error)
-            df.loc[rows, col] = df.loc[rows, col] + np.random.choice([-2, -1, 1, 2], size=np.sum(rows, dtype=int))
+            df.loc[rows, col] = df.loc[rows, col] + np.random.choice([-2, -1, 1, 2], size=np.sum(rows, dtype=int))  # TODO: investigate error distribution for these errors (current approach is not evidence-based)
         df.month = np.clip(df.month, 1, 12, dtype=int)
-        df.day = np.clip(df.day, 1, 31, dtype=int)
+        df.day = np.clip(df.day, 1, 31, dtype=int)  # NOTE: it is acceptible to have an error that has a day of 31 in a month with less days (because it is an erroneous DOB)
 
         # get the whole thing wrong sometimes
         rows = (self._rng.uniform(size=len(df)) < pr_full_error)
