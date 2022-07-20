@@ -40,6 +40,7 @@ HOUSEHOLDS_COLUMN_MAP = {
 }
 
 CENSUS_STATE_IDS = {
+    'NA': -1,
     'Alabama': 1,
     'Alaska': 2,
     'Arizona': 4,
@@ -95,12 +96,18 @@ CENSUS_STATE_IDS = {
 }
 
 PERSONS_COLUMNS_MAP = {
+    'ST': 'state',
     'SERIALNO': 'census_household_id',
     'AGEP': 'age',
     'RELSHIPP': 'relation_to_household_head',
     'SEX': 'sex',
     'HISP': 'latino',
     'RAC1P': 'race',
+}
+
+SUBSET_PERSONS_COLUMNS_MAP = {
+    'ST': 'state',
+    'SERIALNO': 'census_household_id',
 }
 
 LATINO_VAR_MAP = {
@@ -142,6 +149,28 @@ RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     36: 'Other nonrelative',
     37: 'Institutionalized GQ pop',
     38: 'Noninstitutionalized GQ pop',
+}
+
+NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP = {
+    'Reference person': 'Biological child',
+    'Opp-sex spouse': 'Biological child',
+    'Opp-sex partner': 'Biological child',
+    'Same-sex spouse': 'Biological child',
+    'Same-sex partner': 'Biological child',
+    'Biological child': 'Grandchild',
+    'Adopted child': 'Grandchild',
+    'Stepchild': 'Grandchild',
+    'Sibling': 'Other relative',
+    'Parent': 'Sibling',
+    'Grandchild': 'Other relative',
+    'Parent-in-law': 'Other relative',
+    'Child-in-law': 'Grandchild',
+    'Other relative': 'Other relative',
+    'Roommate': 'Other nonrelative',
+    'Foster child': 'Grandchild',
+    'Other nonrelative': 'Other nonrelative',
+    'Institutionalized GQ pop': 'Institutionalized GQ pop',
+    'Noninstitutionalized GQ pop': 'Noninstitutionalized GQ pop'
 }
 
 US_STATE_ABBRV_MAP = {

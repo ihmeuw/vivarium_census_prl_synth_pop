@@ -5,8 +5,9 @@ import faker
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop.constants import metadata, data_keys
 from vivarium_census_prl_synth_pop.constants import data_values
 
 
@@ -37,19 +38,25 @@ class HouseholdMigration:
 
     def setup(self, builder: Builder):
         self.config = builder.configuration
+        self.location = builder.data.load(data_keys.POPULATION.LOCATION)
+        self.start_time = get_time_stamp(builder.configuration.time.start)
+
+        move_rate_data = builder.lookup.build_table(data_values.HOUSEHOLD_MOVE_RATE_YEARLY)
+        self.household_move_rate = builder.value.register_rate_producer(f'{self.name}.move_rate', source=move_rate_data)
+
         self.randomness = builder.randomness.get_stream(self.name)
         self.fake = faker.Faker()
         faker.Faker.seed(self.config.randomness.random_seed)
         self.provider = faker.providers.address.en_US.Provider(faker.Generator())
 
-        self.columns_needed = ['household_id', 'address', 'zipcode']
-        self.population_view = builder.population.get_view(self.columns_needed)
-        move_rate_data = builder.lookup.build_table(data_values.HOUSEHOLD_MOVE_RATE_YEARLY)
-        self.household_move_rate = builder.value.register_rate_producer(f'{self.name}.move_rate', source=move_rate_data)
+        self.columns_created = ['address', 'zipcode']
+        self.columns_used = ['household_id', 'address', 'zipcode', 'tracked']
+        self.population_view = builder.population.get_view(self.columns_used)
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
-            requires_columns=self.columns_needed,
+            requires_columns=['household_id'],
+            creates_columns=self.columns_created
         )
         builder.event.register_listener("time_step", self.on_time_step)
 
@@ -61,13 +68,33 @@ class HouseholdMigration:
         """
         add addresses to each household in the population table
         """
-        households = self.population_view.subview(['household_id']).get(pop_data.index)
-        address_assignments = self._generate_addresses(list(households.drop_duplicates().squeeze()))
-        households['address'] = households['household_id'].map(address_assignments['address'])
-        households['zipcode'] = households['household_id'].map(address_assignments['zipcode'])
-        self.population_view.update(
-            households
-        )
+        if pop_data.creation_time < self.start_time:
+            households = self.population_view.subview(['household_id', 'tracked']).get(pop_data.index)
+            address_assignments = self._generate_addresses(list(households['household_id'].drop_duplicates().squeeze()))
+            households['address'] = households['household_id'].map(address_assignments['address'])
+            households['zipcode'] = households['household_id'].map(address_assignments['zipcode'])
+
+            households.loc[households.household_id == 'NA', 'address'] = 'NA'
+            households.loc[households.household_id == 'NA', 'zipcode'] = 'NA'
+
+            self.population_view.update(
+                households
+            )
+        else:
+            parent_ids = pop_data.user_data['parent_ids']
+            mothers = self.population_view.get(parent_ids.unique())
+            new_births = pd.DataFrame(data={
+                'parent_id': parent_ids
+            }, index=pop_data.index)
+
+            # assign babies inherited traits
+            new_births = new_births.merge(
+                mothers[self.columns_created], left_on='parent_id', right_index=True
+            )
+            self.population_view.update(
+                new_births[self.columns_created]
+            )
+
 
     def on_time_step(self, event: Event):
         """
@@ -99,7 +126,7 @@ class HouseholdMigration:
         return address
 
     def _generate_addresses(self, households: List[str]):
-        state = metadata.US_STATE_ABBRV_MAP['Florida']  # TODO: add location to artifact (created ticket)
+        state = metadata.US_STATE_ABBRV_MAP[self.location]
         addresses = [self._generate_single_fake_address(state) for i in range(len(households))]
         zipcodes = [self.provider.postcode_in_state(state) for i in range(len(households))]
         return pd.DataFrame({

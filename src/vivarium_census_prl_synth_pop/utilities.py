@@ -1,21 +1,33 @@
 import click
 import numpy as np
 import pandas as pd
+from gbd_mapping import ModelableEntity, causes, covariates, risk_factors
 from scipy import stats
 
 from typing import List, Tuple, Union
 from pathlib import Path
 from loguru import logger
+from vivarium.framework.artifact import EntityKey
 
-from vivarium.framework.randomness import get_hash
+from vivarium.framework.randomness import get_hash, RandomnessStream
+from vivarium_inputs.mapping_extension import alternative_risk_factors
 from vivarium_public_health.risks.data_transformations import pivot_categorical
-from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop.constants import metadata
 
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
+
+def get_entity(key: EntityKey) -> ModelableEntity:
+    # Map of entity types to their gbd mappings.
+    type_map = {
+        'cause': causes,
+        'covariate': covariates,
+        'risk_factor': risk_factors,
+        'alternative_risk_factor': alternative_risk_factors
+    }
+    return type_map[key.type][key.name]
 
 def len_longest_location() -> int:
     """Returns the length of the longest location in the project.
@@ -158,11 +170,35 @@ def get_lognorm_from_quantiles(median: float, lower: float, upper: float,
     return stats.lognorm(s=sigma, scale=median)
 
 
-def get_random_variable_draws(number: int, seeded_distribution: SeededDistribution) -> np.array:
-    return np.array([get_random_variable(x, seeded_distribution) for x in range(number)])
+def get_random_variable_draws(columns: pd.Index, seed: str, distribution) -> pd.Series:
+    return pd.Series([get_random_variable(x, seed, distribution) for x in range(0, columns.size)], index=columns)
 
 
-def get_random_variable(draw: int, seeded_distribution: SeededDistribution) -> float:
-    seed, distribution = seeded_distribution
+def get_random_variable(draw: int, seed: str, distribution) -> pd.Series:
     np.random.seed(get_hash(f'{seed}_draw_{draw}'))
     return distribution.rvs()
+
+
+def get_random_variable_draws_for_location(columns: pd.Index, location: str, seed: str, distribution) -> np.array:
+    return get_random_variable_draws(columns, f"{seed}_{location}", distribution)
+
+
+def get_norm_from_quantiles(mean: float, lower: float, upper: float,
+                            quantiles: Tuple[float, float] = (0.025, 0.975)) -> stats.norm:
+    stdnorm_quantiles = stats.norm.ppf(quantiles)
+    sd = (upper - lower) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
+    return stats.norm(loc=mean, scale=sd)
+
+
+def vectorized_choice(options: np.array, weights: np.array, n_to_choose: int, randomness_stream: RandomnessStream):
+    # for each of n_to_choose, sample uniformly between 0 and 1
+    probs = randomness_stream.get_draw(np.arange(n_to_choose))
+
+    # build cdf based on weights
+    pmf = weights/weights.sum()
+    cdf = np.cumsum(pmf)
+
+    # for each p_i in probs, count how many elements of cdf for which p_i >= cdf_i
+    vect_find_index = np.vectorize(lambda p_i: (p_i >= cdf).sum())
+    chosen_indices = vect_find_index(probs)
+    return np.take(options, chosen_indices)

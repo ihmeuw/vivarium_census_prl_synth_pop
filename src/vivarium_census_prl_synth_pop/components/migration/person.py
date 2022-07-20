@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -33,7 +35,7 @@ class PersonMigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.columns_needed = ['household_id', 'relation_to_household_head']
+        self.columns_needed = ['household_id', 'relation_to_household_head', 'address', 'zipcode']
         self.population_view = builder.population.get_view(self.columns_needed)
         move_rate_data = builder.lookup.build_table(data_values.INDIVIDUAL_MOVE_RATE_YEARLY)
         self.person_move_rate = builder.value.register_rate_producer(f'{self.name}.move_rate', source=move_rate_data)
@@ -58,6 +60,12 @@ class PersonMigration:
         )
         persons.loc[persons_who_move.index, 'household_id'] = self._get_new_household_ids(persons_who_move, event)
         persons.loc[persons_who_move.index, 'relation_to_household_head'] = "Other nonrelative"
+        persons.loc[persons_who_move.index, 'address'] = persons.loc[persons_who_move.index, 'address'].map(
+            self._household_id_to_address(persons_who_move.index)
+        )
+        persons.loc[persons_who_move.index, 'address'] = persons.loc[persons_who_move.index, 'address'].map(
+            self._household_id_to_zipcode(persons_who_move.index)
+        )
         self.population_view.update(
             persons
         )
@@ -65,6 +73,12 @@ class PersonMigration:
     ##################
     # Helper methods #
     ##################
+
+    def _household_id_to_address(self, idx: pd.Index) -> Dict:
+        return self.population_view.subview(['household_id', 'address']).get(idx).to_dict()
+
+    def _household_id_to_zipcode(self, idx: pd.Index) -> Dict:
+        return self.population_view.subview(['household_id', 'zipcode']).get(idx).to_dict()
 
     def _get_new_household_ids(self, persons_who_move: pd.DataFrame, event: Event) -> pd.Series:
         households = self.population_view.subview(['household_id']).get(event.index)
@@ -81,4 +95,4 @@ class PersonMigration:
             )
             additional_seed += 1
 
-        return list(new_household_ids)
+        return pd.Series(new_household_ids)

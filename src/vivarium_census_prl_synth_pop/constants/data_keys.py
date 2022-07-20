@@ -11,6 +11,10 @@ METADATA_LOCATIONS = 'metadata.locations'
 class __Population(NamedTuple):
     HOUSEHOLDS: str = 'population.households'
     PERSONS: str = 'population.persons'
+    ACMR: str = 'cause.all_causes.cause_specific_mortality_rate'
+    TMRLE: str = 'population.theoretical_minimum_risk_life_expectancy'
+    LOCATION: str = 'population.location'
+    ASFR: str = 'covariate.age_specific_fertility_rate.estimate'
 
     @property
     def name(self):
