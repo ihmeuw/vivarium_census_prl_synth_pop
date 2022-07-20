@@ -224,6 +224,14 @@ def random_last_names(rng, race_eth, size):
 
     s_last = rng.choice(_df_census_names.name, p=_df_census_names[race_eth], size=size)
 
+    # Last names sometimes also include spaces or hyphens, and I have
+    # come up with race/ethnicity specific space and hyphen
+    # probabilities from an analysis of voter registration data (from
+    # publicly available data from North Carolina, filename
+    # VR_Snapshot_20220101.txt; see
+    # 2022_06_02b_prl_code_for_probs_of_spaces_and_hyphens_in_last_and_first_names.ipynb
+    # for computation details.)
+
     # add hyphens to some names
     p_hyphen = {
              'AIAN': 0.00685,
