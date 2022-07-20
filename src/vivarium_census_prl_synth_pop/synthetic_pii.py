@@ -14,6 +14,12 @@ class GenericGenerator:
     def noise(self, df : pd.DataFrame) -> pd.DataFrame:
         return df
 
+def make_dob_col(df):
+    """Append year-month-day in a column called 'dob'
+    """
+    df['dob'] = (df.year.fillna('').astype(str) + '-'
+                 + df.month.fillna('').astype(str).str.zfill(2) + '-'
+                 + df.day.fillna('').astype(str).str.zfill(2))
 
 class DOBGenerator(GenericGenerator):
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
@@ -38,14 +44,61 @@ class DOBGenerator(GenericGenerator):
         age += self._rng.uniform(low=0, high=365, size=len(df))
         dob = data_date - pd.to_timedelta(np.round(age), unit='days')
 
-        df['dob'] = dob
         df['year'] = dob.dt.year
         df['month'] = dob.dt.month
         df['day'] = dob.dt.day
+        make_dob_col(df)
 
         return df
 
-    def noise(self, df):
+    def noise(self, df, pr_field_error=0.0106, pr_full_error=0.0026,
+              pr_missing=0.0024, pr_month_day_swap=0.0018):
+        """Add noise to synthetic Date of Birth
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+        pr_field_error : float, optional
+        pr_full_error : float, optional
+        pr_missing : float, optional
+        pr_month_day_swap : float, optional
+
+        Notes
+        -----
+        Default values based on Buzz's experience.
+        """
+
+        df = df.copy()
+
+        # make a small error in each column with probability (around
+        # 1%), that sums up to probability of a single field error
+        for col in ['year', 'month', 'day']:
+            rows = (self._rng.uniform(size=len(df)) < pr_field_error)
+            df.loc[rows, col] = df.loc[rows, col] + np.random.choice([-2, -1, 1, 2], size=np.sum(rows, dtype=int))  # TODO: investigate error distribution for these errors (current approach is not evidence-based)
+        df.month = np.clip(df.month, 1, 12, dtype=int)
+        df.day = np.clip(df.day, 1, 31, dtype=int)  # NOTE: it is acceptible to have an error that has a day of 31 in a month with less days (because it is an erroneous DOB)
+
+        # get the whole thing wrong sometimes
+        rows = (self._rng.uniform(size=len(df)) < pr_full_error)
+        swap_rows = self._rng.choice(df.index, sum(rows))
+        df.loc[rows, 'day'] = df.loc[swap_rows, 'day']
+        df.loc[rows, 'month'] = df.loc[swap_rows, 'month']
+        df.loc[rows, 'year'] = df.loc[swap_rows, 'year']
+
+        # leave dob blank occasionally
+        rows = (self._rng.uniform(size=len(df)) < pr_missing)
+        df.loc[rows, 'day'] = np.nan
+        df.loc[rows, 'month'] = np.nan
+        df.loc[rows, 'year'] = np.nan
+
+        # transpose day and month occasionally
+        rows = (self._rng.uniform(size=len(df)) < pr_month_day_swap)
+        s_day = df.loc[rows, 'day']
+        df.loc[rows, 'day'] = df.loc[rows, 'month'].values
+        df.loc[rows, 'month'] = s_day.values
+                    
+        make_dob_col(df)
+        
         return df
 
 
@@ -112,7 +165,7 @@ _g_ssn_names = None # global data on first names, to avoid loading repeatedly
 def load_first_name_data():
     global _g_ssn_names
 
-    df_ssn_names = pd.read_csv('/home/j/Project/simulation_science/prl/data/ssn_names/FL.TXT',
+    df_ssn_names = pd.read_csv('/snfs1/Project/simulation_science/prl/data/ssn_names/FL.TXT',
                                 names=['state', 'sex', 'yob', 'name', 'freq'])
     df_ssn_names['age'] = 2020 - df_ssn_names.yob
     df_ssn_names['sex'] = df_ssn_names.sex.map({'M':'Male', 'F':'Female'})
@@ -134,7 +187,7 @@ _df_census_names = None # global data on last names, to avoid loading repeatedly
 def load_last_name_data():
     global _df_census_names
 
-    _df_census_names = pd.read_csv('/home/j/Project/simulation_science/prl/data/Names_2010Census.csv', na_values=['(S)'])
+    _df_census_names = pd.read_csv('/snfs1/Project/simulation_science/prl/data/Names_2010Census.csv', na_values=['(S)'])
 
     _df_census_names.name = _df_census_names.name.str.capitalize()
 
@@ -170,6 +223,14 @@ def random_last_names(rng, race_eth, size):
         load_last_name_data()
 
     s_last = rng.choice(_df_census_names.name, p=_df_census_names[race_eth], size=size)
+
+    # Last names sometimes also include spaces or hyphens, and I have
+    # come up with race/ethnicity specific space and hyphen
+    # probabilities from an analysis of voter registration data (from
+    # publicly available data from North Carolina, filename
+    # VR_Snapshot_20220101.txt; see
+    # 2022_06_02b_prl_code_for_probs_of_spaces_and_hyphens_in_last_and_first_names.ipynb
+    # for computation details.)
 
     # add hyphens to some names
     p_hyphen = {
@@ -266,7 +327,7 @@ class NameGenerator(GenericGenerator):
 class AddressGenerator(GenericGenerator):
     def load_address_data(self):
         if not hasattr(self, '_df_deepparse_address_data'):
-            self._df_deepparse_address_data = pd.read_csv('/home/j/Project/simulation_science/prl/data/deepparse_address_data_usa.csv.bz2')
+            self._df_deepparse_address_data = pd.read_csv('/snfs1/Project/simulation_science/prl/data/deepparse_address_data_usa.csv.bz2')
         return self._df_deepparse_address_data
 
     def generate(self, df_in : pd.DataFrame) -> pd.DataFrame:
