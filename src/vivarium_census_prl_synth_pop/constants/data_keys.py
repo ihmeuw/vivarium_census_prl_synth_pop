@@ -25,9 +25,25 @@ class __Population(NamedTuple):
         return 'population'
 
 
+class __SyntheticData(NamedTuple):
+    FIRST_NAMES: str = 'synthetic_data.first_names'
+    LAST_NAMES: str = 'synthetic_data.last_names'
+    ADDRESSES: str = 'synthetic_data.addresses'
+
+    @property
+    def name(self):
+        return 'synthetic_data'
+
+    @property
+    def log_name(self):
+        return 'synthetic_data'
+
+
 POPULATION = __Population()
+SYNTHETIC_DATA = __SyntheticData()
 
 
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
+    SYNTHETIC_DATA,
 ]

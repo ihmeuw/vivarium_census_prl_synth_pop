@@ -15,3 +15,7 @@ PERSONS_DATA_DIR = PROJECT_ROOT / 'data/raw_data/current/United_States/'
 
 HOUSEHOLDS_FILENAMES = [f'psam_hus{x}.csv' for x in ['a', 'b', 'c', 'd']]
 PERSONS_FILENAMES = [f'psam_pus{x}.csv' for x in ['a', 'b', 'c', 'd']]
+
+SYNTHETIC_DATA_INPUTS_ROOT = Path(f'/mnt/team/simulation_science/priv/engineering/{metadata.PROJECT_NAME}/data/raw_data/synthetic_pii')
+LAST_NAME_DATA_PATH = SYNTHETIC_DATA_INPUTS_ROOT / 'Names_2010Census.csv'
+ADDRESS_DATA_PATH = SYNTHETIC_DATA_INPUTS_ROOT / 'deepparse_address_data_usa.csv.bz2'
