@@ -26,7 +26,7 @@ class AddressGenerator(GenericGenerator):
         return "AddressGenerator"
 
     def setup(self, builder: Builder):
-        super().setup()
+        super().setup(builder)
         self.address_data = builder.data.load(data_keys.SYNTHETIC_DATA.ADDRESSES)
 
     def generate(self, idx: pd.Index, state: str) -> pd.DataFrame:

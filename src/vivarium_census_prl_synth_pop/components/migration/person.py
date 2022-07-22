@@ -53,7 +53,7 @@ class PersonMigration:
         Assigns those simulants relationship to head of household 'Other nonrelative'
         """
         persons = self.population_view.get(event.index)
-        non_household_heads = persons.query(f"relation_to_household_head != 'Reference person'")
+        non_household_heads = persons.loc[persons.relation_to_household_head != 'Reference person']
         persons_who_move = self.randomness.filter_for_rate(
             non_household_heads,
             self.person_move_rate(non_household_heads.index)
@@ -61,7 +61,8 @@ class PersonMigration:
         new_households = self._get_new_household_ids(persons_who_move, event)
         new_household_data = self.population_view.subview(
             ['household_id', 'address', 'zipcode']
-        ).get(index=event.index, query=f'household_id in {list(new_households)}').drop_duplicates()
+        ).get(index=event.index).drop_duplicates()
+        new_household_data = new_household_data.loc[new_household_data.household_id.isin(new_households)]
 
         persons_who_move['household_id'] = new_households
         persons_who_move = persons_who_move[['household_id', 'relation_to_household_head']].merge(
