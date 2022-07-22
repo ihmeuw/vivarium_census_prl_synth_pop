@@ -165,6 +165,7 @@ def load_asfr(key: str, location: str):
 
 def _capitalize_names(name):
     if type(name) == str:
+        name = name.lower()
         for connector in [" ", "-"]:
             name = connector.join([i[0].upper() + i[1:] for i in name.split(connector)])
         return name
@@ -176,7 +177,8 @@ def load_last_name_data(key: str, location: str) -> pd.DataFrame:
 
     df_census_names = pd.read_csv(paths.LAST_NAME_DATA_PATH, na_values=['(S)'])
 
-    df_census_names.name = df_census_names.name.str.lower().apply(_capitalize_names)
+
+    df_census_names['name'] = df_census_names['name'].apply(_capitalize_names)
 
     ## fill missing values with equal amounts of what is left ##
     # per row, count N pct cols that are null
