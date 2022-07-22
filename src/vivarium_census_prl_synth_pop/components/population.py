@@ -104,8 +104,6 @@ class Population:
 
         # format
         n_chosen = chosen_persons.shape[0]
-        chosen_persons['address'] = 'NA'
-        chosen_persons['zipcode'] = 'NA'
         chosen_persons['ssn'] = self.ssn_gen.generate(chosen_persons).ssn
         chosen_persons['entrance_time'] = pop_data.creation_time
         chosen_persons['exit_time'] = pd.NaT
@@ -137,8 +135,13 @@ class Population:
         # add typing
         chosen_persons['age'] = chosen_persons['age'].astype('float64')
         chosen_persons['state'] = chosen_persons['state'].astype('int64')
-        for col in ['relation_to_household_head', 'sex', 'race_ethnicity']:
+        for col in ['sex', 'race_ethnicity']:
             chosen_persons[col] = chosen_persons[col].astype('category')
+
+        chosen_persons['relation_to_household_head'] = pd.Categorical(
+            chosen_persons['relation_to_household_head'],
+            categories=list(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values()) + ['NA']
+        )
 
         chosen_persons = chosen_persons.set_index(pop_data.index)
         self.population_view.update(
@@ -164,8 +167,9 @@ class Population:
         new_births = new_births.merge(
             mothers[inherited_traits], left_on='parent_id', right_index=True
         )
-        new_births['relation_to_household_head'] = new_births['relation_to_household_head'].map(
-            metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP
+        new_births['relation_to_household_head'] = pd.Categorical(
+            new_births['relation_to_household_head'].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP),
+            categories=list(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values()) + ['NA']
         )
 
         # assign babies uninherited traits
