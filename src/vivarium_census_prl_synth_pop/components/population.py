@@ -155,12 +155,6 @@ class Population:
         chosen_persons['state'] = chosen_persons['state'].astype('int64')
         for col in ['sex', 'race_ethnicity']:
             chosen_persons[col] = chosen_persons[col].astype('category')
-
-        chosen_persons['relation_to_household_head'] = pd.Categorical(
-            chosen_persons['relation_to_household_head'],
-            categories=list(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values()) + ['NA']
-        )
-
         chosen_persons = chosen_persons.set_index(pop_data.index)
         self.population_view.update(
             chosen_persons
@@ -186,9 +180,8 @@ class Population:
         new_births = new_births.merge(
             mothers[inherited_traits], left_on='parent_id', right_index=True
         )
-        new_births['relation_to_household_head'] = pd.Categorical(
-            new_births['relation_to_household_head'].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP),
-            categories=list(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values()) + ['NA']
+        new_births['relation_to_household_head'] = new_births['relation_to_household_head'].map(
+            metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP
         )
 
         # assign babies uninherited traits
