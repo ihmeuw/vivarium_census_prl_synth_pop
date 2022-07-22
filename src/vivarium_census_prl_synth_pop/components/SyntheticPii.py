@@ -26,7 +26,7 @@ class AddressGenerator(GenericGenerator):
         return "AddressGenerator"
 
     def setup(self, builder: Builder):
-        self._rng = np.random.default_rng(builder.configuration.randomness.random_seed)
+        super().setup()
         self.address_data = builder.data.load(data_keys.SYNTHETIC_DATA.ADDRESSES)
 
     def generate(self, idx: pd.Index, state: str) -> pd.DataFrame:
@@ -34,13 +34,23 @@ class AddressGenerator(GenericGenerator):
 
         Parameters
         ----------
-
         idx : pd.Index
 
         Results
         -------
         returns pd.DataFrame with address data, stored in two
         string columns `address` and `zip_code`
+
+        Caution
+        -------
+        there is a (likely very small) chance this function could return two non-unique addresses:
+        for example, by sampling:
+        212 E 18th St, Seattle, WA 98765
+        536 Garfield Pl, Brooklyn, NY 11215
+        212 Prospect Park West, Brooklyn, NY 11215
+
+        we could, in two different ways, get the address:
+        212 Garfield Pl, Seattle, WA 98765
 
         """
         df = pd.DataFrame(index=idx)
