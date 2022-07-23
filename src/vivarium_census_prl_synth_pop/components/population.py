@@ -153,8 +153,6 @@ class Population:
         # add typing
         chosen_persons['age'] = chosen_persons['age'].astype('float64')
         chosen_persons['state'] = chosen_persons['state'].astype('int64')
-        for col in ['sex', 'race_ethnicity']:
-            chosen_persons[col] = chosen_persons[col].astype('category')
         chosen_persons = chosen_persons.set_index(pop_data.index)
         self.population_view.update(
             chosen_persons

@@ -27,16 +27,16 @@ class NameGenerator(GenericGenerator):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
-        #TODO: maybe update artifact
+        # TODO: update such that age updates each year
         self.first_name_data['age'] = 2020 - self.first_name_data['yob']
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
     def random_first_names(self, rng, age, sex, size):
-        g_ssn_names = self.first_name_data.groupby(['age', 'sex'])
+        grouped_name_data = self.first_name_data.groupby(['age', 'sex'])
         # TODO: UNDERSTAND / RENAME
-        t = g_ssn_names.get_group((age, sex))
-        p = t.freq / t.freq.sum()
-        return rng.choice(t.name, size=size, replace=True, p=p)  # TODO: include spaces and hyphens
+        age_sex_specific_names = grouped_name_data.get_group((age, sex))
+        name_probabilities = age_sex_specific_names.freq / age_sex_specific_names.freq.sum()
+        return rng.choice(age_sex_specific_names.name, size=size, replace=True, p=name_probabilities)  # TODO: include spaces and hyphens
 
     def random_last_names(self, rng, race_eth, size):
         df_census_names = self.last_name_data
