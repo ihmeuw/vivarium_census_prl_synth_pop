@@ -26,14 +26,16 @@ class NameGenerator(GenericGenerator):
 
     def setup(self, builder: Builder):
         super().setup(builder)
+        self.clock = builder.time.clock()
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
-        # TODO: update such that age updates each year
-        self.first_name_data['age'] = 2020 - self.first_name_data['yob']
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
-    def random_first_names(self, rng, age, sex, size):
-        grouped_name_data = self.first_name_data.groupby(['age', 'sex'])
-        age_sex_specific_names = grouped_name_data.get_group((age, sex))
+    def random_first_names(self, rng, yob, sex, size):
+        # we only have data up to 2020; for younger children, sample from 2020 names.
+        if yob > 2020:
+            yob = 2020
+        grouped_name_data = self.first_name_data.groupby(['yob', 'sex'])
+        age_sex_specific_names = grouped_name_data.get_group((yob, sex))
         name_probabilities = age_sex_specific_names.freq / age_sex_specific_names.freq.sum()
         return rng.choice(age_sex_specific_names.name, size=size, replace=True, p=name_probabilities)  # TODO: include spaces and hyphens
 
@@ -60,43 +62,52 @@ class NameGenerator(GenericGenerator):
 
         return last_names
 
-    def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
+    def generate_first_and_middle_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
+        """Generate synthetic names for individuals
+
+        Parameters
+        ----------
+        df_in : pd.DataFrame, with columns sex, age
+
+        Results
+        -------
+        returns pd.DataFrame with name data, stored in
+        string columns `first_name`, `middle_name`,
+
+        """
+        # first and middle names
+        # strategy: calculate year of birth based on age, use it with sex and state to find a representative name
+        first_and_middle = pd.DataFrame(index=df_in.index)
+        current_year = self.clock().year
+        for (age, sex), df_age in df_in.groupby(['age', 'sex']):
+            first_and_middle.loc[df_age.index, 'first_name'] = self.random_first_names(
+                self._rng, current_year - age, sex, len(df_age)
+            )
+            first_and_middle.loc[df_age.index, 'middle_name'] = self.random_first_names(
+                self._rng, current_year - age, sex, len(df_age)
+            )
+
+        return first_and_middle
+
+    def generate_last_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic names for individuals
 
         Parameters
         ----------
 
-        df_in : pd.DataFrame, with columns race_ethnicity, sex, age,
-        relationship_to_household_head, and household_id
+        df_in : pd.DataFrame, with column race_ethnicity
 
         Results
         -------
-        returns pd.DataFrame with name data, stored in three
-        string columns `first_name`, `middle_name`, `last_name`
+        returns pd.DataFrame with name data, stored in
+        string column `last_name`
 
         """
-
-        df = self._generate_first_and_middle_names(df_in)
-        df['last_name'] = self._generate_last_names(df_in)
-        return df
-
-    def _generate_first_and_middle_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
-        # first and middle names
-        # strategy: calculate year of birth based on age, use it with sex and state to find a representative name
-        first_and_middle = pd.DataFrame(index=df_in.index)
-
-        for (age, sex), df_age in df_in.groupby(['age', 'sex']):
-            first_and_middle.loc[df_age.index, 'first_name'] = self.random_first_names(self._rng, age, sex, len(df_age))
-            first_and_middle.loc[df_age.index, 'middle_name'] = self.random_first_names(self._rng, age, sex, len(df_age))
-
-        return first_and_middle
-
-    def _generate_last_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
         last_names = pd.Series(index=df_in.index, dtype=str)
         for race_eth, df_race_eth in df_in.groupby('race_ethnicity'):
             last_names.loc[df_race_eth.index] = self.random_last_names(self._rng, race_eth, len(df_race_eth))
         # TODO: include household structure
-        return last_names
+        return pd.DataFrame(last_names, columns=['last_name'])
 
     def noise(self, df):
         df = df.copy()

@@ -114,8 +114,9 @@ class Population:
         chosen_persons = chosen_persons.drop(columns='census_household_id')
 
         # give names
-        names = self.name_generator.generate(chosen_persons)
-        chosen_persons = pd.concat([chosen_persons, names], axis=1)
+        first_and_middle = self.name_generator.generate_first_and_middle_names(chosen_persons)
+        last_names = self.name_generator.generate_last_names(chosen_persons)
+        chosen_persons = pd.concat([chosen_persons, first_and_middle, last_names], axis=1)
 
         # format
         n_chosen = chosen_persons.shape[0]
@@ -194,8 +195,8 @@ class Population:
         new_births['tracked'] = True
 
         # add first and middle names
-        names = self.name_generator.generate(new_births)
-        new_births = pd.concat([new_births, names[['first_name', 'middle_name']]], axis=1)
+        names = self.name_generator.generate_first_and_middle_names(new_births)
+        new_births = pd.concat([new_births, names], axis=1)
 
         self.population_view.update(new_births[self.columns_created])
 
