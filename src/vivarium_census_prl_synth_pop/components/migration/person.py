@@ -69,10 +69,7 @@ class PersonMigration:
             new_household_data,
             on='household_id'
         )
-        persons_who_move['relation_to_household_head'] = pd.Categorical(
-            ["Other nonrelative"]*len(persons_who_move),
-            categories=list(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values()) + ['NA']
-        )
+        persons_who_move['relation_to_household_head'] = "Other nonrelative"
 
         self.population_view.update(
             persons_who_move
