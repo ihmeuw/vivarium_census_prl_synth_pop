@@ -33,7 +33,6 @@ class NameGenerator(GenericGenerator):
 
     def random_first_names(self, rng, age, sex, size):
         grouped_name_data = self.first_name_data.groupby(['age', 'sex'])
-        # TODO: UNDERSTAND / RENAME
         age_sex_specific_names = grouped_name_data.get_group((age, sex))
         name_probabilities = age_sex_specific_names.freq / age_sex_specific_names.freq.sum()
         return rng.choice(age_sex_specific_names.name, size=size, replace=True, p=name_probabilities)  # TODO: include spaces and hyphens
@@ -41,28 +40,25 @@ class NameGenerator(GenericGenerator):
     def random_last_names(self, rng, race_eth, size):
         df_census_names = self.last_name_data
 
-        # TODO: UNDERSTAND, MAYBE CLARIFY
-        s_last = rng.choice(df_census_names.name, p=df_census_names[race_eth], size=size)
+        # randomly sample last names
+        last_names = rng.choice(df_census_names.name, p=df_census_names[race_eth], size=size)
 
-        # TODO: MOVE THIS INTO CONSTANTS
-        # add hyphens to some names
-        p_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
-
-        hyphen_rows = (rng.uniform(0, 1, size=len(s_last)) < p_hyphen)
-        s_last[hyphen_rows] += '-' + rng.choice(df_census_names.name,
-                                                p=df_census_names[race_eth],
-                                                size=hyphen_rows.sum())
+        # for some names, add a hyphen between two randomly samples last names
+        probability_of_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
+        hyphen_rows = (rng.uniform(0, 1, size=len(last_names)) < probability_of_hyphen)
+        last_names[hyphen_rows] += '-' + rng.choice(df_census_names.name,
+                                                    p=df_census_names[race_eth],
+                                                    size=hyphen_rows.sum())
 
         # add spaces to some names
-        p_space = data_values.PROBABILITY_OF_SPACE_IN_NAME[race_eth]
-
-        space_rows = (rng.uniform(0, 1, size=len(s_last)) < p_space * (
+        probability_of_space = data_values.PROBABILITY_OF_SPACE_IN_NAME[race_eth]
+        space_rows = (rng.uniform(0, 1, size=len(last_names)) < probability_of_space * (
                     1 - hyphen_rows))  # HACK: don't put spaces in names that are already hyphenated
-        s_last[space_rows] += ' ' + rng.choice(df_census_names.name,
-                                               p=df_census_names[race_eth],
-                                               size=space_rows.sum())
+        last_names[space_rows] += ' ' + rng.choice(df_census_names.name,
+                                                   p=df_census_names[race_eth],
+                                                   size=space_rows.sum())
 
-        return s_last
+        return last_names
 
     def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic names for individuals
@@ -87,28 +83,28 @@ class NameGenerator(GenericGenerator):
     def _generate_first_and_middle_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
         # first and middle names
         # strategy: calculate year of birth based on age, use it with sex and state to find a representative name
-        df = pd.DataFrame(index=df_in.index)
+        first_and_middle = pd.DataFrame(index=df_in.index)
 
         for (age, sex), df_age in df_in.groupby(['age', 'sex']):
-            df.loc[df_age.index, 'first_name'] = self.random_first_names(self._rng, age, sex, len(df_age))
-            df.loc[df_age.index, 'middle_name'] = self.random_first_names(self._rng, age, sex, len(df_age))
+            first_and_middle.loc[df_age.index, 'first_name'] = self.random_first_names(self._rng, age, sex, len(df_age))
+            first_and_middle.loc[df_age.index, 'middle_name'] = self.random_first_names(self._rng, age, sex, len(df_age))
 
-        return df
+        return first_and_middle
 
     def _generate_last_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
-        s = pd.Series(index=df_in.index, dtype=str)
+        last_names = pd.Series(index=df_in.index, dtype=str)
         for race_eth, df_race_eth in df_in.groupby('race_ethnicity'):
-            s.loc[df_race_eth.index] = self.random_last_names(self._rng, race_eth, len(df_race_eth))
+            last_names.loc[df_race_eth.index] = self.random_last_names(self._rng, race_eth, len(df_race_eth))
         # TODO: include household structure
-        return s
+        return last_names
 
     def noise(self, df):
         df = df.copy()
 
         # TODO: add some errors
 
-        n_to_blank = len(
-            df.index) // 10  # TODO: make this an optional parameter to this method and/or inform it with some evidence
+        n_to_blank = len(df.index) // 10  # TODO: make this an optional parameter to this method
+                                          #       and/or inform it with some evidence
         if n_to_blank > 0:
             blank_rows = self._rng.choice(df.index,
                                           size=n_to_blank,
