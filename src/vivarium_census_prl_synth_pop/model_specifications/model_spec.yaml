@@ -10,7 +10,7 @@ components:
 
 configuration:
     input_data:
-        artifact_path: '/home/beatrixh/projects/prl/data/artifacts/mini/florida.hdf'
+        artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/florida.hdf'
         input_draw_number: 0
     output_data:
         results_directory: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/results/'
