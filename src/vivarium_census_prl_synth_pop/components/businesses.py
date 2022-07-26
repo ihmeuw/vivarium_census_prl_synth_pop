@@ -1,6 +1,9 @@
+import numpy as np
+import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.time import get_time_stamp
 
 
 class Businesses:
@@ -38,6 +41,9 @@ class Businesses:
 
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.columns_used = ['age'] # we'll use more as we increaes complexity
+        self.population_view = builder.population.get_view(self.columns_used)
+        self.employers = self.generate_employers()
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             creates_columns=['business_id']
@@ -53,8 +59,13 @@ class Businesses:
         Assign everyone 18 and older an employer
         """
         if pop_data.creation_time < self.start_time:
-            pop_data['employer_id'] = -1
-            adults = pop_data.loc[pop_data.age > 17]
+            all_sims = self.population_view.get(pop_data.index)
+            all_sims['employer_id'] = -1
+            adults = all_sims.loc[all_sims.age > 17].index
+            all_sims.loc[adults, 'employer_id'] = self.assign_new_employer(adults)
+            self.population_view.update(
+                all_sims
+            )
 
     def on_time_step(self, event: Event):
         """
@@ -66,3 +77,10 @@ class Businesses:
     ##################
     # Helper methods #
     ##################
+
+    def generate_employers(self) -> pd.DataFrame():
+        test = np.random.lognormal(4, 1)
+        pass
+
+    def assign_new_employer(self, sim_index) -> pd.Series:
+        pass
