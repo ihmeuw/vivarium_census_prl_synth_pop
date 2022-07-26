@@ -46,25 +46,16 @@ class Observers:
         if self.counter == 0:
             start_date_str = f"ymd_{self.start_date.year}_{self.start_date.month}_{self.start_date.day}"
             state_table = self.population_view.get(event.index)
-            no_categories_state_table = self.type_category_to_object(state_table)
-            no_categories_state_table.to_hdf(self.output_path, start_date_str)
+            state_table.to_hdf(self.output_path, start_date_str)
         self.counter += 1
 
     def on_simulation_end(self, event: Event) -> None:
         end_date_str = f"ymd_{self.end_date.year}_{self.end_date.month}_{self.end_date.day}"
         state_table = self.population_view.get(event.index)
-        no_categories_state_table = self.type_category_to_object(state_table)
-        no_categories_state_table.to_hdf(self.output_path, end_date_str)
-
+        state_table.to_hdf(self.output_path, end_date_str)
     ###########
     # Helpers #
     ###########
-
-    def type_category_to_object(self, state_table):
-        category_vars = state_table.columns[state_table.dtypes == 'category']
-        for col in category_vars:
-            state_table[col] = state_table[col].astype(object)
-        return state_table
 
     @staticmethod
     def _build_output_path(builder: Builder) -> Path:

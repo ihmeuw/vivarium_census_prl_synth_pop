@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView, SimulantData
+from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import to_years
 
+from vivarium_census_prl_synth_pop.components.SyntheticPii import NameGenerator
 from vivarium_census_prl_synth_pop.constants import data_keys
 from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
@@ -14,9 +15,16 @@ from vivarium_census_prl_synth_pop.synthetic_pii import SSNGenerator
 
 class Population:
 
+    def __init__(self):
+        self.name_generator = NameGenerator()
+
     @property
     def name(self):
         return "population"
+
+    @property
+    def sub_components(self):
+        return [self.name_generator]
 
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
@@ -33,6 +41,9 @@ class Population:
             'sex', 
             'age',
             'race_ethnicity',
+            'first_name',
+            'middle_name',
+            'last_name',
             'ssn',
             'alive',
             'entrance_time',
@@ -102,6 +113,11 @@ class Population:
         # drop non-unique household_id
         chosen_persons = chosen_persons.drop(columns='census_household_id')
 
+        # give names
+        first_and_middle = self.name_generator.generate_first_and_middle_names(chosen_persons)
+        last_names = self.name_generator.generate_last_names(chosen_persons)
+        chosen_persons = pd.concat([chosen_persons, first_and_middle, last_names], axis=1)
+
         # format
         n_chosen = chosen_persons.shape[0]
         chosen_persons['ssn'] = self.ssn_gen.generate(chosen_persons).ssn
@@ -122,6 +138,9 @@ class Population:
                     'relation_to_household_head': ['NA'],
                     'sex': ['NA'],
                     'race_ethnicity': ['NA'],
+                    'first_name': ['NA'],
+                    'middle_name': ['NA'],
+                    'last_name': ['NA'],
                     'ssn': ['NA'],
                     'entrance_time': [pd.NaT],
                     'exit_time': [pd.NaT],
@@ -135,8 +154,6 @@ class Population:
         # add typing
         chosen_persons['age'] = chosen_persons['age'].astype('float64')
         chosen_persons['state'] = chosen_persons['state'].astype('int64')
-        for col in ['sex', 'race_ethnicity']:
-            chosen_persons[col] = chosen_persons[col].astype('category')
         chosen_persons = chosen_persons.set_index(pop_data.index)
         self.population_view.update(
             chosen_persons
@@ -154,6 +171,7 @@ class Population:
                             'puma',
                             'race_ethnicity',
                             'relation_to_household_head',
+                            'last_name',
                             'alive',
                             'tracked']
 
@@ -175,6 +193,10 @@ class Population:
         new_births['entrance_time'] = pop_data.creation_time
         new_births['exit_time'] = pd.NaT
         new_births['tracked'] = True
+
+        # add first and middle names
+        names = self.name_generator.generate_first_and_middle_names(new_births)
+        new_births = pd.concat([new_births, names], axis=1)
 
         self.population_view.update(new_births[self.columns_created])
 
