@@ -36,7 +36,7 @@ class NameGenerator(GenericGenerator):
             yob = 2020
         grouped_name_data = self.first_name_data.groupby(['yob', 'sex'])
         age_sex_specific_names = grouped_name_data.get_group((yob, sex))
-        name_probabilities = age_sex_specific_names.freq / age_sex_specific_names.freq.sum()
+        name_probabilities = age_sex_specific_names['freq'] / age_sex_specific_names['freq'].sum()
         return rng.choice(age_sex_specific_names.name, size=size, replace=True, p=name_probabilities)  # TODO: include spaces and hyphens
 
     def random_last_names(self, rng, race_eth, size):
