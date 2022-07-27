@@ -66,24 +66,24 @@ class Businesses:
         if pop_data.creation_time < self.start_time:
             self.businesses = self.generate_businesses(pop_data)
 
-            all_sims = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
-            all_sims['employer_id'] = -1
-            over_17 = all_sims.loc[all_sims.age > 17].index
-            all_sims.loc[over_17, 'employer_id'] = self.assign_new_employer(over_17)
+            pop = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
+            pop['employer_id'] = -1
+            over_17 = pop.loc[pop.age > 17].index
+            pop.loc[over_17, 'employer_id'] = self.assign_random_employer(over_17)
 
             # merge on employer addresses and names
-            all_sims = all_sims.merge(
+            pop = pop.merge(
                 self.businesses[self.columns_created],
                 on='employer_id',
                 how='left'
             )
 
             # handle untracked sims
-            all_sims.loc[all_sims.tracked == False, 'employer_id'] = np.nan
-            all_sims.loc[all_sims.tracked == False, 'employer_name'] = 'NA'
-            all_sims.loc[all_sims.tracked == False, 'employer_address'] = 'NA'
+            pop.loc[pop.tracked == False, 'employer_id'] = pd.NA
+            pop.loc[pop.tracked == False, 'employer_name'] = 'NA'
+            pop.loc[pop.tracked == False, 'employer_address'] = 'NA'
             self.population_view.update(
-                all_sims
+                pop
             )
 
     def on_time_step(self, event: Event):
@@ -91,15 +91,45 @@ class Businesses:
         assign job if turning 18
         change jobs at rate of 50 changes / 100 person-years
         """
-        pass
+
+        # change jobs
+        pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
+        employed = pop.loc[pop.employer_id != -1].index
+        changing_jobs = self.randomness.filter_for_rate(
+            employed,
+            np.ones(len(employed))*(data_values.JOB_CHANGE_RATE * event.step_size.days / 365)
+        )
+        pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
+
+        # merge on employer addresses and names
+        pop.loc[changing_jobs] = pop.loc[changing_jobs, ['employer_id', 'age']].merge(
+            self.businesses[self.columns_created],
+            on='employer_id',
+            how='left'
+        )
+
+        # assign job if just turned 18
+        turned_18 = pop.loc[(pop.age >= 18) & (pop.age < 18 + event.step_size.days / 365)].index
+        pop.loc[turned_18, 'employer_id'] = self.assign_random_employer(turned_18)
+
+        # merge on employer addresses and names
+        pop.loc[turned_18] = pop.loc[turned_18, ['employer_id', 'age']].merge(
+            self.businesses[self.columns_created],
+            on='employer_id',
+            how='left'
+        )
+
+        self.population_view.update(
+            pop
+        )
 
     ##################
     # Helper methods #
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        all_sims = self.population_view.subview(['age']).get(pop_data.index)
-        over_17 = all_sims.loc[all_sims.age > 17]
+        pop = self.population_view.subview(['age']).get(pop_data.index)
+        over_17 = pop.loc[pop.age > 17]
 
         n_employed = len(over_17)
         employee_counts = np.random.lognormal(
@@ -123,10 +153,25 @@ class Businesses:
         businesses = pd.concat([businesses, unemployed])
         return businesses
 
-    def assign_new_employer(self, sim_index) -> pd.Series:
+    def assign_random_employer(self, sim_index: pd.Index) -> pd.Series:
         return self.randomness.choice(
             index=sim_index,
             choices=self.businesses['employer_id'],
             p=self.businesses['probability']
         )
 
+    def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
+        current_employers = self.population_view.subview(['employer_id']).get(changing_jobs).squeeze()
+
+        new_employers = current_employers.copy()
+        additional_seed = 0
+        while (current_employers == new_employers).any():
+            unchanged_employers = (current_employers == new_employers)
+            new_employers[unchanged_employers] = self.randomness.choice(
+                new_employers[unchanged_employers].index,
+                self.businesses['employer_id'].to_numpy(),
+                additional_key=additional_seed
+            )
+            additional_seed += 1
+
+        return new_employers

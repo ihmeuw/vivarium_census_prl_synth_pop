@@ -59,7 +59,7 @@ class Population:
             requires_columns=['tracked'],
         )
 
-        builder.event.register_listener("time_step", self.on_time_step)
+        builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
@@ -200,7 +200,7 @@ class Population:
 
         self.population_view.update(new_births[self.columns_created])
 
-    def on_time_step(self, event: Event):
+    def on_time_step__prepare(self, event: Event):
         """Ages simulants each time step.
 
         Parameters
