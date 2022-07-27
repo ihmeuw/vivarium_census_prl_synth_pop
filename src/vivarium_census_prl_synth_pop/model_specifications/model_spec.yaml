@@ -7,7 +7,7 @@ components:
             - Observers()
             - Mortality()
             - Fertility()
-            - Businesses
+            - Businesses()
 
 configuration:
     input_data:

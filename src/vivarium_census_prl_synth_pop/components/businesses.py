@@ -5,6 +5,8 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
+from vivarium_census_prl_synth_pop.constants import data_values
+
 
 class Businesses:
     """
@@ -41,12 +43,15 @@ class Businesses:
 
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
-        self.columns_used = ['age'] # we'll use more as we increaes complexity
+        self.randomness = builder.randomness.get_stream(self.name)
+        self.columns_created = ['employer_id', 'employer_name', 'employer_address']
+        self.columns_used = ['age', 'tracked'] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
-        self.employers = self.generate_employers()
+        self.businesses = None
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
-            creates_columns=['business_id']
+            requires_columns=['age'],
+            creates_columns=self.columns_created
         )
         builder.event.register_listener("time_step", self.on_time_step)
 
@@ -59,10 +64,24 @@ class Businesses:
         Assign everyone 18 and older an employer
         """
         if pop_data.creation_time < self.start_time:
-            all_sims = self.population_view.get(pop_data.index)
+            self.businesses = self.generate_businesses(pop_data)
+
+            all_sims = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
             all_sims['employer_id'] = -1
-            adults = all_sims.loc[all_sims.age > 17].index
-            all_sims.loc[adults, 'employer_id'] = self.assign_new_employer(adults)
+            over_17 = all_sims.loc[all_sims.age > 17].index
+            all_sims.loc[over_17, 'employer_id'] = self.assign_new_employer(over_17)
+
+            # merge on employer addresses and names
+            all_sims = all_sims.merge(
+                self.businesses[self.columns_created],
+                on='employer_id',
+                how='left'
+            )
+
+            # handle untracked sims
+            all_sims.loc[all_sims.tracked == False, 'employer_id'] = np.nan
+            all_sims.loc[all_sims.tracked == False, 'employer_name'] = 'NA'
+            all_sims.loc[all_sims.tracked == False, 'employer_address'] = 'NA'
             self.population_view.update(
                 all_sims
             )
@@ -78,9 +97,36 @@ class Businesses:
     # Helper methods #
     ##################
 
-    def generate_employers(self) -> pd.DataFrame():
-        test = np.random.lognormal(4, 1)
-        pass
+    def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
+        all_sims = self.population_view.subview(['age']).get(pop_data.index)
+        over_17 = all_sims.loc[all_sims.age > 17]
+
+        n_employed = len(over_17)
+        employee_counts = np.random.lognormal(
+            4, 1, size=int(n_employed // data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
+        ).round()
+        n_businesses = len(employee_counts)
+        businesses = pd.DataFrame({
+            'employer_id': np.arange(n_businesses),
+            'employer_name': ['not implemented']*n_businesses,
+            'employer_address': ['not implemented']*n_businesses,
+            'probability': employee_counts / employee_counts.sum(),
+        })
+
+        unemployed = pd.DataFrame({
+            'employer_id': [-1],
+            'employer_name': ['unemployed'],
+            'employer_address': ['NA'],
+            'probability': 0, #TODO: implement unemployment
+        })
+
+        businesses = pd.concat([businesses, unemployed])
+        return businesses
 
     def assign_new_employer(self, sim_index) -> pd.Series:
-        pass
+        return self.randomness.choice(
+            index=sim_index,
+            choices=self.businesses['employer_id'],
+            p=self.businesses['probability']
+        )
+
