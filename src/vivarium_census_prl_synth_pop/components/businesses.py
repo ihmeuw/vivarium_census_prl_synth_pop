@@ -79,19 +79,18 @@ class Businesses:
             )
 
             # handle untracked sims
-            pop.loc[pop.tracked == False, 'employer_id'] = pd.NA
+            pop.loc[pop.tracked == False, 'employer_id'] = -2
             pop.loc[pop.tracked == False, 'employer_name'] = 'NA'
             pop.loc[pop.tracked == False, 'employer_address'] = 'NA'
             self.population_view.update(
                 pop
             )
         else:
-            newborn_count = len(pop_data.index)
-            new_births = pd.DataFrame(data={
-                'employer_id': [-1]*newborn_count,
-                'employer_name': ['unemployed']*newborn_count,
-                'employer_address': ['NA']*newborn_count,
-            })
+            new_births = self.population_view.get(pop_data.index)
+
+            new_births["employer_id"] = -1
+            new_births["employer_name"] = 'unemployed'
+            new_births["employer_address"] = 'NA'
 
             self.population_view.update(new_births)
 
@@ -103,7 +102,7 @@ class Businesses:
 
         # change jobs
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
-        employed = pop.loc[pop.employer_id != -1].index
+        employed = pop.loc[pop.employer_id > -1].index
         changing_jobs = self.randomness.filter_for_rate(
             employed,
             np.ones(len(employed))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / 365)
@@ -111,11 +110,12 @@ class Businesses:
         if len(changing_jobs) > 0:
             pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
 
-            # merge on employer addresses and names
-            pop.loc[changing_jobs] = pop.loc[changing_jobs, ['employer_id', 'age']].merge(
-                self.businesses[self.columns_created],
-                on='employer_id',
-                how='left'
+            # add employer addresses and names
+            pop.loc[changing_jobs, "employer_address"] = pop.loc[changing_jobs, "employer_id"].map(
+                self.businesses.set_index("employer_id")['employer_address'].to_dict()
+            )
+            pop.loc[changing_jobs, "employer_name"] = pop.loc[changing_jobs, "employer_id"].map(
+                self.businesses.set_index("employer_id")['employer_name'].to_dict()
             )
 
         # assign job if turning 18
@@ -123,11 +123,12 @@ class Businesses:
         if len(turned_18) > 0:
             pop.loc[turned_18, 'employer_id'] = self.assign_random_employer(turned_18)
 
-            # merge on employer addresses and names
-            pop.loc[turned_18] = pop.loc[turned_18, ['employer_id', 'age']].merge(
-                self.businesses[self.columns_created],
-                on='employer_id',
-                how='left'
+            # add employer addresses and names
+            pop.loc[turned_18, "employer_address"] = pop.loc[turned_18, "employer_id"].map(
+                self.businesses.set_index("employer_id")['employer_address'].to_dict()
+            )
+            pop.loc[turned_18, "employer_name"] = pop.loc[turned_18, "employer_id"].map(
+                self.businesses.set_index("employer_id")['employer_name'].to_dict()
             )
 
         self.population_view.update(
