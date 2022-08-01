@@ -68,7 +68,7 @@ class Businesses:
 
             pop = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
             pop['employer_id'] = -1
-            over_17 = pop.loc[pop.age > 17].index
+            over_17 = pop.loc[pop.age >= 18].index
             pop.loc[over_17, 'employer_id'] = self.assign_random_employer(over_17)
 
             # merge on employer addresses and names
@@ -131,7 +131,7 @@ class Businesses:
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
         pop = self.population_view.subview(['age']).get(pop_data.index)
-        over_17 = pop.loc[pop.age > 17]
+        over_17 = pop.loc[pop.age >= 18]
 
         n_employed = len(over_17)
         employee_counts = np.random.lognormal(
