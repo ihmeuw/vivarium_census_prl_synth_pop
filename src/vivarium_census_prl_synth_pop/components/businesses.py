@@ -85,6 +85,15 @@ class Businesses:
             self.population_view.update(
                 pop
             )
+        else:
+            newborn_count = len(pop_data.index)
+            new_births = pd.DataFrame(data={
+                'employer_id': [-1]*newborn_count,
+                'employer_name': ['unemployed']*newborn_count,
+                'employer_address': ['NA']*newborn_count,
+            })
+
+            self.population_view.update(new_births)
 
     def on_time_step(self, event: Event):
         """
