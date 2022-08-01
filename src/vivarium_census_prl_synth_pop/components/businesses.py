@@ -162,7 +162,14 @@ class Businesses:
             'probability': 0, #TODO: implement unemployment
         })
 
-        businesses = pd.concat([businesses, unemployed])
+        untracked = pd.DataFrame({
+            'employer_id': [-2],
+            'employer_name': ['NA'],
+            'employer_address': ['NA'],
+            'probability': 0,
+        })
+
+        businesses = pd.concat([businesses, unemployed, untracked])
         return businesses
 
     def assign_random_employer(self, sim_index: pd.Index) -> pd.Series:
