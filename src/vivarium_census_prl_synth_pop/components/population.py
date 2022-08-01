@@ -59,7 +59,7 @@ class Population:
             requires_columns=['tracked'],
         )
 
-        builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
+        builder.event.register_listener("time_step__cleanup", self.on_time_step__prepare)
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)

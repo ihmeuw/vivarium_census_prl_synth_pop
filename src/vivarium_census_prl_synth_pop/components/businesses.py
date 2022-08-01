@@ -97,7 +97,7 @@ class Businesses:
         employed = pop.loc[pop.employer_id != -1].index
         changing_jobs = self.randomness.filter_for_rate(
             employed,
-            np.ones(len(employed))*(data_values.JOB_CHANGE_RATE * event.step_size.days / 365) #TODO: this is likely incorrect. fix.
+            np.ones(len(employed))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / 365)
         )
         if len(changing_jobs) > 0:
             pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
@@ -109,8 +109,8 @@ class Businesses:
                 how='left'
             )
 
-        # assign job if just turned 18
-        turned_18 = pop.loc[(pop.age >= 18) & (pop.age < 18 + event.step_size.days / 365)].index
+        # assign job if turning 18
+        turned_18 = pop.loc[(pop.age >= 18 - event.step_size.days / 365) & (pop.age < 18)].index
         if len(turned_18) > 0:
             pop.loc[turned_18, 'employer_id'] = self.assign_random_employer(turned_18)
 
