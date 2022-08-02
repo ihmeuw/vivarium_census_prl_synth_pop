@@ -4,6 +4,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
+from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values
 
@@ -105,7 +106,7 @@ class Businesses:
         employed = pop.loc[pop.employer_id > -1].index
         changing_jobs = self.randomness.filter_for_rate(
             employed,
-            np.ones(len(employed))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / 365)
+            np.ones(len(employed))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
         )
         if len(changing_jobs) > 0:
             pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
@@ -119,7 +120,7 @@ class Businesses:
             )
 
         # assign job if turning 18
-        turned_18 = pop.loc[(pop.age >= 18 - event.step_size.days / 365) & (pop.age < 18)].index
+        turned_18 = pop.loc[(pop.age >= 18 - event.step_size.days / utilities.DAYS_PER_YEAR) & (pop.age < 18)].index
         if len(turned_18) > 0:
             pop.loc[turned_18, 'employer_id'] = self.assign_random_employer(turned_18)
 
