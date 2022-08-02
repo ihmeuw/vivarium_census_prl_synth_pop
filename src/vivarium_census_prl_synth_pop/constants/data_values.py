@@ -32,6 +32,10 @@ PROBABILITY_OF_SPACE_IN_NAME = {
     'White': 0.00347
 }
 
+#####################
+# Employment Values #
+#####################
+
 # data from https://www.jec.senate.gov/public/index.cfm/republicans/fl/
 PROPORTION_WORKFORCE_EMPLOYED = {
     'Florida': .576
@@ -40,4 +44,4 @@ PROPORTION_WORKFORCE_EMPLOYED = {
 WORKING_AGE = 18
 EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
 
-YEARLY_JOB_CHANGE_RATE = .5  # 50 changes per 100 py?
+YEARLY_JOB_CHANGE_RATE = .5  # 50 changes per 100 py
