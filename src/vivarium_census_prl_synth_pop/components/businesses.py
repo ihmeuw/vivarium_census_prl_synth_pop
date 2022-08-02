@@ -153,10 +153,10 @@ class Businesses:
             'employer_id': [-1],
             'employer_name': ['unemployed'],
             'employer_address': ['NA'],
-            'probability': [1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location]],
+            'prevalence': [1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location]],
         })
 
-        pct_adults_needing_employers = 1 - known_employers['probability'].sum()
+        pct_adults_needing_employers = 1 - known_employers['prevalence'].sum()
         n_need_employers = np.round(n_over_17 * pct_adults_needing_employers)
 
         employee_counts = np.random.lognormal(
@@ -167,15 +167,21 @@ class Businesses:
             'employer_id': np.arange(n_businesses),
             'employer_name': ['not implemented']*n_businesses,
             'employer_address': ['not implemented']*n_businesses,
-            'probability': employee_counts / employee_counts.sum() * pct_adults_needing_employers,
+            'prevalence': employee_counts / employee_counts.sum() * pct_adults_needing_employers,
         })
 
         untracked = pd.DataFrame({
             'employer_id': [-2],
             'employer_name': ['NA'],
             'employer_address': ['NA'],
-            'probability': 0,
+            'prevalence': 0,
         })
+
+        # add naive (uniform random) incidence of new employers
+        n_employers = len(n_businesses) + 1  # +1 for unemployed
+        known_employers['incidence'] = 1/n_employers
+        random_employers['incidence'] = 1/n_employers
+        untracked['incidence'] = 0
 
         businesses = pd.concat([known_employers, random_employers, untracked])
         return businesses
@@ -184,7 +190,7 @@ class Businesses:
         return self.randomness.choice(
             index=sim_index,
             choices=self.businesses['employer_id'],
-            p=self.businesses['probability']
+            p=self.businesses['prevalence']
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
@@ -197,7 +203,7 @@ class Businesses:
             new_employers[unchanged_employers] = self.randomness.choice(
                 index=new_employers[unchanged_employers].index,
                 choices=self.businesses['employer_id'].to_numpy(),
-                p=self.businesses['probability'].to_numpy(),
+                p=self.businesses['incidence'].to_numpy(),
                 additional_key=additional_seed
             )
             additional_seed += 1
