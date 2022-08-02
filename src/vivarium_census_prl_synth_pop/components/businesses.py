@@ -195,8 +195,9 @@ class Businesses:
         while (current_employers == new_employers).any():
             unchanged_employers = (current_employers == new_employers)
             new_employers[unchanged_employers] = self.randomness.choice(
-                new_employers[unchanged_employers].index,
-                self.businesses['employer_id'].to_numpy(),
+                index=new_employers[unchanged_employers].index,
+                choices=self.businesses['employer_id'].to_numpy(),
+                p=self.businesses['probability'].to_numpy(),
                 additional_key=additional_seed
             )
             additional_seed += 1
