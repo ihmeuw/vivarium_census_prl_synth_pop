@@ -188,7 +188,7 @@ class Businesses:
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
-        current_employers = self.population_view.subview(['employer_id']).get(changing_jobs).squeeze()
+        current_employers = self.population_view.subview(['employer_id']).get(changing_jobs)['employer_id']
 
         new_employers = current_employers.copy()
         additional_seed = 0
