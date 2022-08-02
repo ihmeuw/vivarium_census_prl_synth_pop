@@ -69,7 +69,7 @@ class Businesses:
 
             pop = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
             pop['employer_id'] = -1
-            over_17 = pop.loc[pop.age >= 18].index
+            over_17 = pop.loc[pop.age >= data_values.WORKING_AGE].index
             pop.loc[over_17, 'employer_id'] = self.assign_random_employer(over_17)
 
             # merge on employer addresses and names
@@ -120,7 +120,10 @@ class Businesses:
             )
 
         # assign job if turning 18
-        turned_18 = pop.loc[(pop.age >= 18 - event.step_size.days / utilities.DAYS_PER_YEAR) & (pop.age < 18)].index
+        turned_18 = pop.loc[
+            (pop.age >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR) &
+            (pop.age < data_values.WORKING_AGE)
+            ].index
         if len(turned_18) > 0:
             pop.loc[turned_18, 'employer_id'] = self.assign_random_employer(turned_18)
 
@@ -142,7 +145,7 @@ class Businesses:
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
         pop = self.population_view.subview(['age']).get(pop_data.index)
-        over_17 = pop.loc[pop.age >= 18]
+        over_17 = pop.loc[pop.age >= data_values.WORKING_AGE]
 
         n_employed = len(over_17)
         employee_counts = np.random.lognormal(

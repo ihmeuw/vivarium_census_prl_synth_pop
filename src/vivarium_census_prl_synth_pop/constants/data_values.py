@@ -1,10 +1,3 @@
-##################
-# General Values #
-##################
-
-
-
-
 ########################
 # Migration Parameters #
 ########################
@@ -51,4 +44,6 @@ PROPORTION_WORKFORCE_EMPLOYED = {
 EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
 
 YEARLY_JOB_CHANGE_RATE = .5  # 50 changes per 100 py
+
+WORKING_AGE = 18
 
