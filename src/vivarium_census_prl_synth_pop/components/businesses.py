@@ -178,9 +178,9 @@ class Businesses:
         })
 
         # add naive (uniform random) incidence of new employers
-        n_employers = len(n_businesses) + 1  # +1 for unemployed
-        known_employers['incidence'] = 1/n_employers
-        random_employers['incidence'] = 1/n_employers
+        n_employer_options = n_businesses + 1  # +1 for unemployed
+        known_employers['incidence'] = 1/n_employer_options
+        random_employers['incidence'] = 1/n_employer_options
         untracked['incidence'] = 0
 
         businesses = pd.concat([known_employers, random_employers, untracked])
