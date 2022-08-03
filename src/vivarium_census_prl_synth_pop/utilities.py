@@ -9,7 +9,7 @@ from pathlib import Path
 from loguru import logger
 from vivarium.framework.artifact import EntityKey
 
-from vivarium.framework.randomness import get_hash, RandomnessStream
+from vivarium.framework.randomness import get_hash, RandomnessStream, Array
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
@@ -190,7 +190,13 @@ def get_norm_from_quantiles(mean: float, lower: float, upper: float,
     return stats.norm(loc=mean, scale=sd)
 
 
-def vectorized_choice(options: np.array, weights: np.array, n_to_choose: int, randomness_stream: RandomnessStream):
+def vectorized_choice(options: Array,
+                      n_to_choose: int,
+                      randomness_stream: RandomnessStream,
+                      weights: Array = None):
+    if weights is None:
+        n = len(options)
+        weights = np.ones(n)/n
     # for each of n_to_choose, sample uniformly between 0 and 1
     probs = randomness_stream.get_draw(np.arange(n_to_choose))
 
@@ -202,3 +208,26 @@ def vectorized_choice(options: np.array, weights: np.array, n_to_choose: int, ra
     vect_find_index = np.vectorize(lambda p_i: (p_i >= cdf).sum())
     chosen_indices = vect_find_index(probs)
     return np.take(options, chosen_indices)
+
+
+def random_integers(min_val: int, max_val: int, index: pd.Index, randomness: RandomnessStream) -> pd.Series:
+    """
+
+            Parameters
+            ----------
+            min_val
+                inclusive
+            max_val
+                exclusive
+            index
+                an index whose length is the number of random draws made
+                and which indexes the returned `pandas.Series`.
+            randomness:
+                RandomnessStream
+
+            Returns
+            -------
+            pandas.Series
+                An indexed set of integers in the interval [a,b)
+            """
+    return (randomness.get_draw(index=index) * max_val + min_val).round().astype(int)

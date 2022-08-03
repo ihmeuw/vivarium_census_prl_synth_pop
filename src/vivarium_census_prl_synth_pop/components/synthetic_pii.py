@@ -4,13 +4,16 @@ synthetically, e.g. name, address, social-security number
 import pandas as pd
 import numpy as np
 from vivarium.framework.engine import Builder
+from vivarium_census_prl_synth_pop.utilities import random_integers
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values
+from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 
 class GenericGenerator:
     def setup(self, builder: Builder):
-        self._rng = np.random.default_rng(builder.configuration.randomness.random_seed)
+        self.randomness = builder.randomness.get_stream(self.name)
+        self.dummy = np.random.default_rng(builder.configuration.randomness.random_seed)
 
     def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(index=df_in.index)
@@ -24,6 +27,7 @@ class SSNGenerator(GenericGenerator):
     @property
     def name(self):
         return "SSNGenerator"
+
     def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic Social Security Numbers
 
@@ -48,14 +52,18 @@ class SSNGenerator(GenericGenerator):
 
         n = len(df)
 
-        area = self._rng.integers(1, 899, size=n)
+        # area = self.randomness.choice(index=df.index, choices=np.arange(1, 900))
+        # area = (self.randomness.get_draw(index=df.index) * 898 + 1).round().astype(int)
+        area = random_integers(min_val=1, max_val=899, index=df.index, randomness=self.randomness)
         area = np.where(area == 666, 667, area)
         df['ssn_area'] = area
 
-        group = self._rng.integers(1, 99, size=n)
+        # group = self.randomness.choice(index=df.index, choices=np.arange(1, 100))
+        group = random_integers(min_val=1, max_val=99, index=df.index, randomness=self.randomness)
         df['ssn_group'] = group
 
-        serial = self._rng.integers(1, 9999, size=n)
+        # serial = self.randomness.choice(index=df.index, choices=np.arange(1, 10000))
+        serial = random_integers(min_val=1, max_val=9999, index=df.index, randomness=self.randomness)
         df['ssn_serial'] = serial
 
         df['ssn'] = ''
@@ -75,9 +83,11 @@ class SSNGenerator(GenericGenerator):
         n_to_blank = len(
             df.index) // 10  # TODO: make this an optional parameter to this method and/or inform it with some evidence
         if n_to_blank > 0:
-            blank_rows = self._rng.choice(df.index,
-                                          size=n_to_blank,
-                                          replace=False)
+            blank_rows = vectorized_choice(
+                options=df.index,
+                n_to_choose=n_to_blank,
+                randomness_stream=self.randomness
+            )
             df.loc[blank_rows, 'ssn'] = ''
 
         return df
@@ -94,20 +104,30 @@ class NameGenerator(GenericGenerator):
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
-    def random_first_names(self, rng, yob, sex, size):
+    def random_first_names(self, randomness, yob, sex, size) -> np.ndarray:
         # we only have data up to 2020; for younger children, sample from 2020 names.
         if yob > 2020:
             yob = 2020
         grouped_name_data = self.first_name_data.groupby(['yob', 'sex'])
         age_sex_specific_names = grouped_name_data.get_group((yob, sex))
         name_probabilities = age_sex_specific_names['freq'] / age_sex_specific_names['freq'].sum()
-        return rng.choice(age_sex_specific_names.name, size=size, replace=True, p=name_probabilities)  # TODO: include spaces and hyphens
+        return vectorized_choice(
+            options=age_sex_specific_names.name,
+            n_to_choose=size,
+            randomness_stream=self.randomness,
+            weights=name_probabilities
+        ).to_numpy()  # TODO: include spaces and hyphens
 
-    def random_last_names(self, rng, race_eth, size):
+    def random_last_names(self, randomness, race_eth, size) -> np.ndarray:
         df_census_names = self.last_name_data
 
         # randomly sample last names
-        last_names = rng.choice(df_census_names.name, p=df_census_names[race_eth], size=size)
+        last_names = vectorized_choice(
+            options=df_census_names.name,
+            n_to_choose=size,
+            randomness_stream=self.randomness,
+            weights=df_census_names[race_eth]
+        )
 
         # Last names sometimes also include spaces or hyphens, and abie has
         # come up with race/ethnicity specific space and hyphen
@@ -119,20 +139,24 @@ class NameGenerator(GenericGenerator):
 
         # for some names, add a hyphen between two randomly samples last names
         probability_of_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
-        hyphen_rows = (rng.uniform(0, 1, size=len(last_names)) < probability_of_hyphen)
-        last_names[hyphen_rows] += '-' + rng.choice(df_census_names.name,
-                                                    p=df_census_names[race_eth],
-                                                    size=hyphen_rows.sum())
+        hyphen_rows = (randomness.get_draw(last_names.index) < probability_of_hyphen)
+        if hyphen_rows.sum() > 0:
+            last_names[hyphen_rows] += '-' + vectorized_choice(options=df_census_names.name,
+                                                              n_to_choose=hyphen_rows.sum(),
+                                                              randomness_stream=self.randomness,
+                                                              weights=df_census_names[race_eth]).to_numpy()
 
         # add spaces to some names
         probability_of_space = data_values.PROBABILITY_OF_SPACE_IN_NAME[race_eth]
-        space_rows = (rng.uniform(0, 1, size=len(last_names)) < probability_of_space * (
+        space_rows = (randomness.get_draw(last_names.index) < probability_of_space * (
                     1 - hyphen_rows))  # HACK: don't put spaces in names that are already hyphenated
-        last_names[space_rows] += ' ' + rng.choice(df_census_names.name,
-                                                   p=df_census_names[race_eth],
-                                                   size=space_rows.sum())
+        if space_rows.sum() > 0:
+            last_names[space_rows] += ' ' + vectorized_choice(options=df_census_names.name,
+                                                              n_to_choose=space_rows.sum(),
+                                                              randomness_stream=self.randomness,
+                                                              weights=df_census_names[race_eth]).to_numpy()
 
-        return last_names
+        return last_names.to_numpy()
 
     def generate_first_and_middle_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic names for individuals
@@ -152,11 +176,12 @@ class NameGenerator(GenericGenerator):
         first_and_middle = pd.DataFrame(index=df_in.index)
         current_year = self.clock().year
         for (age, sex), df_age in df_in.groupby(['age', 'sex']):
+            n = len(df_age)
             first_and_middle.loc[df_age.index, 'first_name'] = self.random_first_names(
-                self._rng, current_year - age, sex, len(df_age)
+                self.randomness, current_year - age, sex, n
             )
             first_and_middle.loc[df_age.index, 'middle_name'] = self.random_first_names(
-                self._rng, current_year - age, sex, len(df_age)
+                self.randomness, current_year - age, sex, n
             )
 
         return first_and_middle
@@ -177,7 +202,7 @@ class NameGenerator(GenericGenerator):
         """
         last_names = pd.Series(index=df_in.index, dtype=str)
         for race_eth, df_race_eth in df_in.groupby('race_ethnicity'):
-            last_names.loc[df_race_eth.index] = self.random_last_names(self._rng, race_eth, len(df_race_eth))
+            last_names.loc[df_race_eth.index] = self.random_last_names(self.randomness, race_eth, len(df_race_eth))
         # TODO: include household structure
         return pd.DataFrame(last_names, columns=['last_name'])
 
@@ -188,9 +213,11 @@ class NameGenerator(GenericGenerator):
 
         n_to_blank = len(df.index) // 10  # TODO: make this an optional parameter to this method and/or inform it with some evidence
         if n_to_blank > 0:
-            blank_rows = self._rng.choice(df.index,
-                                          size=n_to_blank,
-                                          replace=False)
+            blank_rows = vectorized_choice(
+                options=df.index,
+                n_to_choose=n_to_blank,
+                randomness_stream=self.randomness
+            )
             df.loc[blank_rows, 'first_name'] = ''
             df.loc[blank_rows, 'middle_name'] = ''
             # TODO: include common substitutes for first names
@@ -240,13 +267,21 @@ class AddressGenerator(GenericGenerator):
         synthetic_address = pd.Series('', index=df.index, name='address')
 
         for col in ['StreetNumber', 'StreetName', 'Unit']:
-            chosen_indices = self._rng.choice(self.address_data.index, size=(N,))
+            chosen_indices = vectorized_choice(
+                options=self.address_data.index,
+                n_to_choose=N,
+                randomness_stream=self.randomness
+            )
             synthetic_address += self.address_data.loc[chosen_indices, col].fillna('').values
             synthetic_address += ' '
 
         # handle Municipality, Province, PostalCode separately
         # to keep them perfectly correlated
-        chosen_indices = self._rng.choice(self.address_data[self.address_data.Province == state].index, size=(N,))
+        chosen_indices = vectorized_choice(
+            options=self.address_data[self.address_data.Province == state].index,
+            n_to_choose=N,
+            randomness_stream=self.randomness
+        )
         synthetic_address += self.address_data.loc[chosen_indices, 'Municipality'].fillna('').values
         synthetic_address += ', '
         synthetic_address += self.address_data.loc[chosen_indices, 'Province'].fillna('').values
