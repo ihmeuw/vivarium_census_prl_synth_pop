@@ -110,7 +110,9 @@ class Businesses:
         """
         assign job if turning 18
         change jobs at rate of 50 changes / 100 person-years
+        businesses change addresses at rate of 10 changes / 100 person-years
         """
+        # TODO: employers change addresses at a rate of 10 changes per 100 person years
 
         # change jobs
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
