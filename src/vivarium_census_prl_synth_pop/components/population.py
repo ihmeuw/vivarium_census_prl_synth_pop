@@ -79,10 +79,10 @@ class Population:
     def generate_base_population(self, pop_data: SimulantData) -> None:
         # oversample households
         chosen_households = vectorized_choice(
-            options=self.population_data['households']['census_household_id'].to_numpy(copy=True),
-            weights=self.population_data['households']['household_weight'].to_numpy(copy=True),
+            options=self.population_data['households']['census_household_id'],
             n_to_choose=self.config.population_size,
-            randomness_stream=self.randomness
+            randomness_stream=self.randomness,
+            weights=self.population_data['households']['household_weight']
         )
 
         # create unique id for resampled households
