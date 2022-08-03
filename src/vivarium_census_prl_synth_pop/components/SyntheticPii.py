@@ -112,9 +112,12 @@ class NameGenerator(GenericGenerator):
 
 class AddressGenerator(GenericGenerator):
 
+    def __init__(self, label: str):
+        self.label = label
+
     @property
     def name(self):
-        return "AddressGenerator"
+        return "AddressGenerator" + self.label
 
     def setup(self, builder: Builder):
         super().setup(builder)

@@ -23,7 +23,7 @@ class HouseholdMigration:
     """
 
     def __init__(self):
-        self.address_generator = AddressGenerator()
+        self.address_generator = AddressGenerator('household')
 
     def __repr__(self) -> str:
         return 'HouseholdMigration()'
@@ -45,6 +45,7 @@ class HouseholdMigration:
     #################
 
     def setup(self, builder: Builder):
+        # self.address_generator = builder.components.get_component('AddressGenerator')
         self.config = builder.configuration
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)

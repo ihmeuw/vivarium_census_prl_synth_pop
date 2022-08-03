@@ -6,7 +6,8 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.constants import data_values, data_keys
+from vivarium_census_prl_synth_pop.components.SyntheticPii import AddressGenerator
+from vivarium_census_prl_synth_pop.constants import data_values, data_keys, metadata
 
 
 class Businesses:
@@ -27,6 +28,9 @@ class Businesses:
     their addresses will not change in this ticket.
     """
 
+    def __init__(self):
+        self.address_generator = AddressGenerator('businesses')
+
     def __repr__(self) -> str:
         return 'Businesses()'
 
@@ -38,6 +42,10 @@ class Businesses:
     def name(self):
         return "businesses"
 
+    @property
+    def sub_components(self):
+        return [self.address_generator]
+
     #################
     # Setup methods #
     #################
@@ -46,7 +54,7 @@ class Businesses:
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.randomness = builder.randomness.get_stream(self.name)
-        self.columns_created = ['employer_id', 'employer_name', 'employer_address']
+        self.columns_created = ['employer_id', 'employer_name', 'employer_address', 'employer_zipcode']
         self.columns_used = ['age', 'tracked'] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
@@ -84,6 +92,7 @@ class Businesses:
             pop.loc[pop.tracked == False, 'employer_id'] = -2
             pop.loc[pop.tracked == False, 'employer_name'] = 'NA'
             pop.loc[pop.tracked == False, 'employer_address'] = 'NA'
+            pop.loc[pop.tracked == False, 'employer_zipcode'] = 'NA'
             self.population_view.update(
                 pop
             )
@@ -93,6 +102,7 @@ class Businesses:
             new_births["employer_id"] = -1
             new_births["employer_name"] = 'unemployed'
             new_births["employer_address"] = 'NA'
+            new_births["employer_zipcode"] = 'NA'
 
             self.population_view.update(new_births)
 
@@ -116,6 +126,9 @@ class Businesses:
             pop.loc[changing_jobs, "employer_address"] = pop.loc[changing_jobs, "employer_id"].map(
                 self.businesses.set_index("employer_id")['employer_address'].to_dict()
             )
+            pop.loc[changing_jobs, "employer_zipcode"] = pop.loc[changing_jobs, "employer_id"].map(
+                self.businesses.set_index("employer_id")['employer_zipcode'].to_dict()
+            )
             pop.loc[changing_jobs, "employer_name"] = pop.loc[changing_jobs, "employer_id"].map(
                 self.businesses.set_index("employer_id")['employer_name'].to_dict()
             )
@@ -131,6 +144,9 @@ class Businesses:
             # add employer addresses and names
             pop.loc[turned_18, "employer_address"] = pop.loc[turned_18, "employer_id"].map(
                 self.businesses.set_index("employer_id")['employer_address'].to_dict()
+            )
+            pop.loc[turned_18, "employer_zipcode"] = pop.loc[turned_18, "employer_id"].map(
+                self.businesses.set_index("employer_id")['employer_zipcode'].to_dict()
             )
             pop.loc[turned_18, "employer_name"] = pop.loc[turned_18, "employer_id"].map(
                 self.businesses.set_index("employer_id")['employer_name'].to_dict()
@@ -153,6 +169,7 @@ class Businesses:
             'employer_id': [-1],
             'employer_name': ['unemployed'],
             'employer_address': ['NA'],
+            'employer_zipcode': ['NA'],
             'prevalence': [1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location]],
         })
 
@@ -166,14 +183,20 @@ class Businesses:
         random_employers = pd.DataFrame({
             'employer_id': np.arange(n_businesses),
             'employer_name': ['not implemented']*n_businesses,
-            'employer_address': ['not implemented']*n_businesses,
             'prevalence': employee_counts / employee_counts.sum() * pct_adults_needing_employers,
         })
+        address_assignments = self.address_generator.generate(
+                random_employers.index,
+                state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+        )
+        random_employers['address'] = random_employers.index.map(address_assignments['address'])
+        random_employers['zipcode'] = random_employers.index.map(address_assignments['zipcode'])
 
         untracked = pd.DataFrame({
             'employer_id': [-2],
             'employer_name': ['NA'],
             'employer_address': ['NA'],
+            'employer_zipcode': ['NA'],
             'prevalence': 0,
         })
 
