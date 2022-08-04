@@ -80,8 +80,7 @@ class SSNGenerator(GenericGenerator):
         # TODO: add some errors in digits
         # typically just getting one digit wrong
 
-        n_to_blank = len(
-            df.index) // 10  # TODO: make this an optional parameter to this method and/or inform it with some evidence
+        n_to_blank = len(df.index) // 10  # TODO: make this an optional parameter to this method and/or inform it with some evidence
         if n_to_blank > 0:
             blank_rows = vectorized_choice(
                 options=df.index,
