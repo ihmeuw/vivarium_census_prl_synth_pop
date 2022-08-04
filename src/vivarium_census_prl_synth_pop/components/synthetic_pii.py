@@ -13,7 +13,6 @@ from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 class GenericGenerator:
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.dummy = np.random.default_rng(builder.configuration.randomness.random_seed)
 
     def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(index=df_in.index)
@@ -49,20 +48,14 @@ class SSNGenerator(GenericGenerator):
         """
 
         df = pd.DataFrame(index=df_in.index)
-
-        n = len(df)
-
-        # area = self.randomness.choice(index=df.index, choices=np.arange(1, 900))
-        # area = (self.randomness.get_draw(index=df.index) * 898 + 1).round().astype(int)
+        
         area = random_integers(min_val=1, max_val=899, index=df.index, randomness=self.randomness)
         area = np.where(area == 666, 667, area)
         df['ssn_area'] = area
 
-        # group = self.randomness.choice(index=df.index, choices=np.arange(1, 100))
         group = random_integers(min_val=1, max_val=99, index=df.index, randomness=self.randomness)
         df['ssn_group'] = group
 
-        # serial = self.randomness.choice(index=df.index, choices=np.arange(1, 10000))
         serial = random_integers(min_val=1, max_val=9999, index=df.index, randomness=self.randomness)
         df['ssn_serial'] = serial
 
