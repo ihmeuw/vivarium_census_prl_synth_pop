@@ -19,6 +19,70 @@ class GenericGenerator:
         return df
 
 
+class SSNGenerator(GenericGenerator):
+
+    @property
+    def name(self):
+        return "SSNGenerator"
+    def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
+        """Generate synthetic Social Security Numbers
+
+        Parameters
+        ----------
+        df_in : pd.DataFrame
+
+        Results
+        -------
+        returns pd.DataFrame with SSN information, encoded in three
+        numeric columns `ssn_area`, `ssn_group`, `ssn_serial`, and one
+        str column that puts these together with dashes called `ssn`
+
+        Notes
+        -----
+        See https://www.ssa.gov/kc/SSAFactSheet--IssuingSSNs.pdf for
+        details on the format of SSNs.
+
+        """
+
+        df = pd.DataFrame(index=df_in.index)
+
+        n = len(df)
+
+        area = self._rng.integers(1, 899, size=n)
+        area = np.where(area == 666, 667, area)
+        df['ssn_area'] = area
+
+        group = self._rng.integers(1, 99, size=n)
+        df['ssn_group'] = group
+
+        serial = self._rng.integers(1, 9999, size=n)
+        df['ssn_serial'] = serial
+
+        df['ssn'] = ''
+        df['ssn'] += df.ssn_area.astype(str).str.zfill(3)
+        df['ssn'] += '-'
+        df['ssn'] += df.ssn_group.astype(str).str.zfill(2)
+        df['ssn'] += '-'
+        df['ssn'] += df.ssn_serial.astype(str).str.zfill(4)
+        return df
+
+    def noise(self, df):
+        df = df.copy()
+
+        # TODO: add some errors in digits
+        # typically just getting one digit wrong
+
+        n_to_blank = len(
+            df.index) // 10  # TODO: make this an optional parameter to this method and/or inform it with some evidence
+        if n_to_blank > 0:
+            blank_rows = self._rng.choice(df.index,
+                                          size=n_to_blank,
+                                          replace=False)
+            df.loc[blank_rows, 'ssn'] = ''
+
+        return df
+
+
 class NameGenerator(GenericGenerator):
     @property
     def name(self):
@@ -44,6 +108,14 @@ class NameGenerator(GenericGenerator):
 
         # randomly sample last names
         last_names = rng.choice(df_census_names.name, p=df_census_names[race_eth], size=size)
+
+        # Last names sometimes also include spaces or hyphens, and abie has
+        # come up with race/ethnicity specific space and hyphen
+        # probabilities from an analysis of voter registration data (from
+        # publicly available data from North Carolina, filename
+        # VR_Snapshot_20220101.txt; see
+        # 2022_06_02b_prl_code_for_probs_of_spaces_and_hyphens_in_last_and_first_names.ipynb
+        # for computation details.)
 
         # for some names, add a hyphen between two randomly samples last names
         probability_of_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
@@ -108,6 +180,25 @@ class NameGenerator(GenericGenerator):
             last_names.loc[df_race_eth.index] = self.random_last_names(self._rng, race_eth, len(df_race_eth))
         # TODO: include household structure
         return pd.DataFrame(last_names, columns=['last_name'])
+
+    def noise(self, df):
+        df = df.copy()
+
+        # TODO: add some errors
+
+        n_to_blank = len(df.index) // 10  # TODO: make this an optional parameter to this method and/or inform it with some evidence
+        if n_to_blank > 0:
+            blank_rows = self._rng.choice(df.index,
+                                          size=n_to_blank,
+                                          replace=False)
+            df.loc[blank_rows, 'first_name'] = ''
+            df.loc[blank_rows, 'middle_name'] = ''
+            # TODO: include common substitutes for first names
+        substitute_first_name_list = 'Girl, Mom, A, Goh, Mother, Adult, Grandchild, Mr, Adult male, Granddaughter, Mrs, B, Grandson, Ms, Baby, H, N, Boy, Hija, Nephew, Brother, Hijo, Nino, C, House, O, Child, Husband, Oldest, Child f, Inmate, One, Coh, J, P, D, K, Person, Dad, Kid, R, Dau, L, Resident, Daughter, Lady, Respondent, Daughter of, Lady in the, S, Doh, Lady of, Senor, E, Lady of house, Senora, F, Lady of the, Sister, Father, Loh, Soh, Female, M, Son, Female child, Male, Son of, Friend, Male child, T, G, Man, V, Gent, Man in the, W, Gentelman, Man of, Wife, Gentle, Man of the, Woman, Gentleman, Minor, Youngest, Gentleman of, Miss, Gentlemen, Moh'.split(', ')
+        substitute_last_name_list = 'Hh, Of the house, A, Hhm, One, Adult, Home, Owner, Anon, House, P, Anonymous, Household, Parent, Apellido, Householder, Person, B, Husband, R, Boy, J, Ref, C, K, Refuse, Casa, L, Resident, Child, Lady, Resp, Coh, Lady of house, Respondant, D, Lady of the house, Respondent, Daughter, Last name, S, De casa, Loh, Soh, De la casa, M, Son, Declined, Male, T, Doe, Man, The house, Doh, Man of the house, Three, Dont know, Moh, Two, E, N, Unk, F, Na, Unknown, Female, No, W, Four, No last name, Wife, Friend, No name, X, G, None, Xxx, Girl, O, Y, Goh, Occupant, Younger, H, Of house, H age, Of the home'.split(', ')
+
+
+        return df
 
 
 class AddressGenerator(GenericGenerator):

@@ -3,7 +3,7 @@ import pytest
 
 import numpy as np, pandas as pd
 
-from vivarium_census_prl_synth_pop import synthetic_pii
+from vivarium_census_prl_synth_pop import synthetic_pii_deprecated
 
 def test_generic():
     g = synthetic_pii.GenericGenerator(1234)
