@@ -102,12 +102,12 @@ class Businesses:
         change jobs at rate of 50 changes / 100 person-years
         """
 
-        # change jobs
+        # change jobs if of working age already
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
-        employed = pop.loc[pop.employer_id > -1].index
+        working_age = pop.loc[pop.age >= 18].index
         changing_jobs = self.randomness.filter_for_rate(
-            employed,
-            np.ones(len(employed))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
+            working_age,
+            np.ones(len(working_age))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
         )
         if len(changing_jobs) > 0:
             pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
@@ -121,18 +121,18 @@ class Businesses:
             )
 
         # assign job if turning 18
-        turned_18 = pop.loc[
+        turning_working_age = pop.loc[
             (pop.age >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR) &
             (pop.age < data_values.WORKING_AGE)
             ].index
-        if len(turned_18) > 0:
-            pop.loc[turned_18, 'employer_id'] = self.assign_random_employer(turned_18)
+        if len(turning_working_age) > 0:
+            pop.loc[turning_working_age, 'employer_id'] = self.assign_random_employer(turning_working_age)
 
             # add employer addresses and names
-            pop.loc[turned_18, "employer_address"] = pop.loc[turned_18, "employer_id"].map(
+            pop.loc[turning_working_age, "employer_address"] = pop.loc[turning_working_age, "employer_id"].map(
                 self.businesses.set_index("employer_id")['employer_address'].to_dict()
             )
-            pop.loc[turned_18, "employer_name"] = pop.loc[turned_18, "employer_id"].map(
+            pop.loc[turning_working_age, "employer_name"] = pop.loc[turning_working_age, "employer_id"].map(
                 self.businesses.set_index("employer_id")['employer_name'].to_dict()
             )
 
