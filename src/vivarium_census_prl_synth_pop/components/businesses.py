@@ -177,21 +177,23 @@ class Businesses:
             'prevalence': 0,
         })
 
-        # add naive (uniform random) incidence of new employers
-        n_employer_options = n_businesses + 1  # +1 for unemployed
-        known_employers['incidence'] = 1/n_employer_options
-        random_employers['incidence'] = 1/n_employer_options
-        untracked['incidence'] = 0
-
         businesses = pd.concat([known_employers, random_employers, untracked])
         return businesses
 
-    def assign_random_employer(self, sim_index: pd.Index) -> pd.Series:
-        return self.randomness.choice(
-            index=sim_index,
-            choices=self.businesses['employer_id'],
-            p=self.businesses['prevalence']
-        )
+    def assign_random_employer(self, sim_index: pd.Index, additional_seed=None) -> pd.Series:
+        if additional_seed is None:
+            return self.randomness.choice(
+                index=sim_index,
+                choices=self.businesses['employer_id'],
+                p=self.businesses['prevalence']
+            )
+        else:
+            return self.randomness.choice(
+                index=sim_index,
+                choices=self.businesses['employer_id'],
+                p=self.businesses['prevalence'],
+                additional_key=additional_seed
+            )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
         current_employers = self.population_view.subview(['employer_id']).get(changing_jobs)['employer_id']
@@ -200,11 +202,9 @@ class Businesses:
         additional_seed = 0
         while (current_employers == new_employers).any():
             unchanged_employers = (current_employers == new_employers)
-            new_employers[unchanged_employers] = self.randomness.choice(
-                index=new_employers[unchanged_employers].index,
-                choices=self.businesses['employer_id'].to_numpy(),
-                p=self.businesses['prevalence'].to_numpy(),
-                additional_key=additional_seed
+            new_employers[unchanged_employers] = self.assign_random_employer(
+                sim_index=new_employers[unchanged_employers].index,
+                additional_seed=additional_seed
             )
             additional_seed += 1
 
