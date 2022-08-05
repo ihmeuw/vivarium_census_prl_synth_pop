@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -180,20 +182,13 @@ class Businesses:
         businesses = pd.concat([known_employers, random_employers, untracked])
         return businesses
 
-    def assign_random_employer(self, sim_index: pd.Index, additional_seed=None) -> pd.Series:
-        if additional_seed is None:
-            return self.randomness.choice(
-                index=sim_index,
-                choices=self.businesses['employer_id'],
-                p=self.businesses['prevalence']
-            )
-        else:
-            return self.randomness.choice(
-                index=sim_index,
-                choices=self.businesses['employer_id'],
-                p=self.businesses['prevalence'],
-                additional_key=additional_seed
-            )
+    def assign_random_employer(self, sim_index: pd.Index, additional_seed: Any = None) -> pd.Series:
+        return self.randomness.choice(
+            index=sim_index,
+            choices=self.businesses['employer_id'],
+            p=self.businesses['prevalence'],
+            additional_key=additional_seed
+        )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
         current_employers = self.population_view.subview(['employer_id']).get(changing_jobs)['employer_id']
