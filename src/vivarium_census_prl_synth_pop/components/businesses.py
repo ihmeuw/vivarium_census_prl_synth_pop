@@ -203,7 +203,7 @@ class Businesses:
             new_employers[unchanged_employers] = self.randomness.choice(
                 index=new_employers[unchanged_employers].index,
                 choices=self.businesses['employer_id'].to_numpy(),
-                p=self.businesses['incidence'].to_numpy(),
+                p=self.businesses['prevalence'].to_numpy(),
                 additional_key=additional_seed
             )
             additional_seed += 1
