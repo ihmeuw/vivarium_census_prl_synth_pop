@@ -31,3 +31,19 @@ PROBABILITY_OF_SPACE_IN_NAME = {
     'NHOPI': 0.02064,
     'White': 0.00347
 }
+
+#####################
+# Employment Values #
+#####################
+
+# data from https://www.jec.senate.gov/public/index.cfm/republicans/fl/
+PROPORTION_WORKFORCE_EMPLOYED = {
+    'Florida': .576
+}
+
+EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
+
+YEARLY_JOB_CHANGE_RATE = .5  # 50 changes per 100 py
+
+WORKING_AGE = 18
+

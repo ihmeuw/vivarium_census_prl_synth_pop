@@ -85,6 +85,7 @@ class HouseholdMigration:
             households['address'] = households['household_id'].map(address_assignments['address'])
             households['zipcode'] = households['household_id'].map(address_assignments['zipcode'])
 
+            # handle untracked sims
             households.loc[households.household_id == 'NA', 'address'] = 'NA'
             households.loc[households.household_id == 'NA', 'zipcode'] = 'NA'
 

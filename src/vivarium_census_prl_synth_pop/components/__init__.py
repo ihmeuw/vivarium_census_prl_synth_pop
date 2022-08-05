@@ -4,3 +4,4 @@ from vivarium_census_prl_synth_pop.components.migration.household import Househo
 from vivarium_census_prl_synth_pop.components.migration.person import PersonMigration
 from vivarium_census_prl_synth_pop.components.mortality import Mortality
 from vivarium_census_prl_synth_pop.components.fertility import Fertility
+from vivarium_census_prl_synth_pop.components.businesses import Businesses
