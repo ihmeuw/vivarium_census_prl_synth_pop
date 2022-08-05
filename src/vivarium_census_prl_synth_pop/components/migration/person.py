@@ -59,16 +59,21 @@ class PersonMigration:
             self.person_move_rate(non_household_heads.index)
         )
         new_households = self._get_new_household_ids(persons_who_move, event)
+
+        # get address and zipcode corresponding to selected households
         new_household_data = self.population_view.subview(
             ['household_id', 'address', 'zipcode']
         ).get(index=event.index).drop_duplicates()
         new_household_data = new_household_data.loc[new_household_data.household_id.isin(new_households)]
 
+        # create map from household_ids to addresses and zipcodes
+        new_household_data['household_id'] = new_household_data['household_id'].astype(int)
+        new_household_data_map = new_household_data.set_index('household_id').to_dict()
+
+        # update household data for persons who move
         persons_who_move['household_id'] = new_households
-        persons_who_move = persons_who_move[['household_id', 'relation_to_household_head']].merge(
-            new_household_data,
-            on='household_id'
-        )
+        persons_who_move['address'] = persons_who_move['household_id'].map(new_household_data_map['address'])
+        persons_who_move['zipcode'] = persons_who_move['household_id'].map(new_household_data_map['zipcode'])
         persons_who_move['relation_to_household_head'] = "Other nonrelative"
 
         self.population_view.update(

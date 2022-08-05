@@ -1,7 +1,8 @@
-from typing import Any
 
 import numpy as np
 import pandas as pd
+from typing import Any
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -16,10 +17,10 @@ class Businesses:
     IMPROVE DESCRIPTION
 
     on init:
-        assign everyone 18 and up an employer
+        assign everyone of working age an employer
 
     on timestep:
-        new job if turning 18
+        new job if turning working age
         change jobs at rate of 50 changes per 100 person years
 
     FROM ABIE:  please use a skewed distribution for the business sizes:
@@ -65,15 +66,15 @@ class Businesses:
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """
-        Assign everyone 18 and older an employer
+        Assign everyone working age and older an employer
         """
         if pop_data.creation_time < self.start_time:
             self.businesses = self.generate_businesses(pop_data)
 
             pop = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
-            pop['employer_id'] = -1
-            over_17 = pop.loc[pop.age >= data_values.WORKING_AGE].index
-            pop.loc[over_17, 'employer_id'] = self.assign_random_employer(over_17)
+            pop['employer_id'] = -1  # we're using -1 for employer_id of unemployed
+            working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
+            pop.loc[working_age, 'employer_id'] = self.assign_random_employer(working_age)
 
             # merge on employer addresses and names
             pop = pop.merge(
@@ -83,7 +84,7 @@ class Businesses:
             )
 
             # handle untracked sims
-            pop.loc[pop.tracked == False, 'employer_id'] = -2
+            pop.loc[pop.tracked == False, 'employer_id'] = -2  # using -2 for employer_id of untracked people
             pop.loc[pop.tracked == False, 'employer_name'] = 'NA'
             pop.loc[pop.tracked == False, 'employer_address'] = 'NA'
             self.population_view.update(
@@ -92,7 +93,7 @@ class Businesses:
         else:
             new_births = self.population_view.get(pop_data.index)
 
-            new_births["employer_id"] = -1
+            new_births["employer_id"] = -1  # we're using -1 for employer_id of unemployed
             new_births["employer_name"] = 'unemployed'
             new_births["employer_address"] = 'NA'
 
@@ -100,7 +101,8 @@ class Businesses:
 
     def on_time_step(self, event: Event):
         """
-        assign job if turning 18
+<<<<<<< HEAD
+        assign job if turning working age
         change jobs at rate of 50 changes / 100 person-years
         """
 
@@ -122,7 +124,7 @@ class Businesses:
                 self.businesses.set_index("employer_id")['employer_name'].to_dict()
             )
 
-        # assign job if turning 18
+        # assign job if turning working age
         turning_working_age = pop.loc[
             (pop.age >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR) &
             (pop.age < data_values.WORKING_AGE)
@@ -148,7 +150,7 @@ class Businesses:
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
         pop = self.population_view.subview(['age']).get(pop_data.index)
-        n_over_17 = len(pop.loc[pop.age >= data_values.WORKING_AGE])
+        n_working_age = len(pop.loc[pop.age >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
         known_employers = pd.DataFrame({
@@ -159,12 +161,15 @@ class Businesses:
         })
 
         pct_adults_needing_employers = 1 - known_employers['prevalence'].sum()
-        n_need_employers = np.round(n_over_17 * pct_adults_needing_employers)
+        n_need_employers = np.round(n_working_age * pct_adults_needing_employers)
 
         employee_counts = np.random.lognormal(
             4, 1, size=int(n_need_employers // data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
         ).round()
         n_businesses = len(employee_counts)
+        # TODO: note: this fixed number of employers based on population size is not adaptive.
+        #  we don't (necessarily?) expect the number of work-eligible people to stay constant over time.
+        #  Consider updating.
         random_employers = pd.DataFrame({
             'employer_id': np.arange(n_businesses),
             'employer_name': ['not implemented']*n_businesses,

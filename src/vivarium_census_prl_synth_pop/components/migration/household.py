@@ -7,7 +7,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.components.SyntheticPii import AddressGenerator
+from vivarium_census_prl_synth_pop.components.synthetic_pii import AddressGenerator
 from vivarium_census_prl_synth_pop.constants import metadata, data_keys
 from vivarium_census_prl_synth_pop.constants import data_values
 
