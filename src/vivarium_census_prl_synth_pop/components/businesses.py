@@ -86,10 +86,10 @@ class Businesses:
             )
 
             # handle untracked sims
-            pop.loc[pop.tracked == False, 'employer_id'] = UNTRACKED_ID
-            pop.loc[pop.tracked == False, 'employer_name'] = 'NA'
-            pop.loc[pop.tracked == False, 'employer_address'] = 'NA'
-            pop.loc[pop.tracked == False, 'employer_zipcode'] = 'NA'
+            pop.loc[~pop.tracked, 'employer_id'] = UNTRACKED_ID
+            pop.loc[~pop.tracked, 'employer_name'] = 'NA'
+            pop.loc[~pop.tracked, 'employer_address'] = 'NA'
+            pop.loc[~pop.tracked, 'employer_zipcode'] = 'NA'
             self.population_view.update(
                 pop
             )
@@ -109,10 +109,31 @@ class Businesses:
         change jobs at rate of 50 changes / 100 person-years
         businesses change addresses at rate of 10 changes / 100 person-years
         """
+        pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
+
         # TODO: employers change addresses at a rate of 10 changes per 100 person years
+        changing_addresses = self.randomness.filter_for_rate(
+            self.businesses.employer_id,
+            np.ones(len(self.businesses))*(data_values.YEARLY_ADDRESS_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
+        )
+        if len(changing_addresses) > 0:
+            # update the employer address and zipcode in self.businesses
+            address_assignments = self.address_generator.generate(
+                changing_addresses,
+                state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+            )
+            self.businesses.loc[self.businesses.employer_id.isin(changing_addresses), 'employer_address'] = changing_addresses.map(address_assignments['address'])
+            self.businesses.loc[self.businesses.employer_id.isin(changing_addresses), 'employer_zipcode'] = changing_addresses.map(
+                address_assignments['zipcode'])
+
+            # update employer address and zipcode in the pop table
+            rows_changing_addresses = pop.loc[pop.employer_id.isin(changing_addresses), 'employer_id']
+            pop.loc[pop.employer_id.isin(changing_addresses), 'employer_address'] = rows_changing_addresses.map(
+                address_assignments['address'])
+            pop.loc[pop.employer_id.isin(changing_addresses), 'employer_zipcode'] = rows_changing_addresses.map(
+                address_assignments['zipcode'])
 
         # change jobs if of working age already
-        pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
         working_age = pop.loc[pop.age >= WORKING_AGE].index
         changing_jobs = self.randomness.filter_for_rate(
             working_age,
@@ -197,7 +218,7 @@ class Businesses:
             'prevalence': 0,
         })
 
-        businesses = pd.concat([known_employers, random_employers, untracked])
+        businesses = pd.concat([known_employers, random_employers, untracked], ignore_index=True)
         return businesses
 
     def assign_random_employer(self, sim_index: pd.Index, additional_seed: Any = None) -> pd.Series:
