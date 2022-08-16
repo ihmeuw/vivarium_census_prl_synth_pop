@@ -31,10 +31,6 @@ class Businesses:
     their addresses will not change in this ticket.
     """
 
-
-    def __init__(self):
-        self.address_generator = AddressGenerator('businesses')
-
     def __repr__(self) -> str:
         return 'Businesses()'
 
@@ -45,10 +41,6 @@ class Businesses:
     @property
     def name(self):
         return "businesses"
-
-    @property
-    def sub_components(self):
-        return [self.address_generator]
 
     #################
     # Setup methods #
@@ -62,6 +54,7 @@ class Businesses:
         self.columns_used = ['age', 'tracked'] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
+        self.address_generator = builder.components.get_component('AddressGenerator')
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             requires_columns=['age'],

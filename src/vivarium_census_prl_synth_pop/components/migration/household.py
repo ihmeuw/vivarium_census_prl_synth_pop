@@ -1,13 +1,11 @@
 from typing import List
 
 import pandas as pd
-import faker
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import AddressGenerator
 from vivarium_census_prl_synth_pop.constants import metadata, data_keys
 from vivarium_census_prl_synth_pop.constants import data_values
 
@@ -22,9 +20,6 @@ class HouseholdMigration:
     - puma will not change (pumas and zip codes currently unrelated)
     """
 
-    def __init__(self):
-        self.address_generator = AddressGenerator('household')
-
     def __repr__(self) -> str:
         return "HouseholdMigration()"
 
@@ -36,16 +31,11 @@ class HouseholdMigration:
     def name(self):
         return "household_migration"
 
-    @property
-    def sub_components(self):
-        return [self.address_generator]
-
     #################
     # Setup methods #
     #################
 
     def setup(self, builder: Builder):
-        # self.address_generator = builder.components.get_component('AddressGenerator')
         self.config = builder.configuration
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
@@ -56,9 +46,7 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.fake = faker.Faker()
-        faker.Faker.seed(self.config.randomness.random_seed)
-        self.provider = faker.providers.address.en_US.Provider(faker.Generator())
+        self.address_generator = builder.components.get_component('AddressGenerator')
 
         self.columns_created = ["address", "zipcode"]
         self.columns_used = ["household_id", "address", "zipcode", "tracked"]
