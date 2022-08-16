@@ -9,7 +9,7 @@ from pathlib import Path
 from loguru import logger
 from vivarium.framework.artifact import EntityKey
 
-from vivarium.framework.randomness import get_hash, RandomnessStream
+from vivarium.framework.randomness import get_hash, RandomnessStream, Array
 from vivarium_inputs.mapping_extension import alternative_risk_factors
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
@@ -22,12 +22,13 @@ SeededDistribution = Tuple[str, stats.rv_continuous]
 def get_entity(key: EntityKey) -> ModelableEntity:
     # Map of entity types to their gbd mappings.
     type_map = {
-        'cause': causes,
-        'covariate': covariates,
-        'risk_factor': risk_factors,
-        'alternative_risk_factor': alternative_risk_factors
+        "cause": causes,
+        "covariate": covariates,
+        "risk_factor": risk_factors,
+        "alternative_risk_factor": alternative_risk_factors,
     }
     return type_map[key.type][key.name]
+
 
 def len_longest_location() -> int:
     """Returns the length of the longest location in the project.
@@ -65,14 +66,16 @@ def delete_if_exists(*paths: Union[Path, List[Path]], confirm=False):
             # Assumes all paths have the same root dir
             root = existing_paths[0].parent
             names = [p.name for p in existing_paths]
-            click.confirm(f"Existing files {names} found in directory {root}. Do you want to delete and replace?",
-                          abort=True)
+            click.confirm(
+                f"Existing files {names} found in directory {root}. Do you want to delete and replace?",
+                abort=True,
+            )
         for p in existing_paths:
-            logger.info(f'Deleting artifact at {str(p)}.')
+            logger.info(f"Deleting artifact at {str(p)}.")
             p.unlink()
 
 
-def read_data_by_draw(artifact_path: str, key : str, draw: int) -> pd.DataFrame:
+def read_data_by_draw(artifact_path: str, key: str, draw: int) -> pd.DataFrame:
     """Reads data from the artifact on a per-draw basis. This
     is necessary for Low Birthweight Short Gestation (LBWSG) data.
 
@@ -87,32 +90,34 @@ def read_data_by_draw(artifact_path: str, key : str, draw: int) -> pd.DataFrame:
 
     """
     key = key.replace(".", "/")
-    with pd.HDFStore(artifact_path, mode='r') as store:
-        index = store.get(f'{key}/index')
-        draw = store.get(f'{key}/draw_{draw}')
+    with pd.HDFStore(artifact_path, mode="r") as store:
+        index = store.get(f"{key}/index")
+        draw = store.get(f"{key}/draw_{draw}")
     draw = draw.rename("value")
     data = pd.concat([index, draw], axis=1)
-    data = data.drop(columns='location')
+    data = data.drop(columns="location")
     data = pivot_categorical(data)
-    data[project_globals.LBWSG_MISSING_CATEGORY.CAT] = project_globals.LBWSG_MISSING_CATEGORY.EXPOSURE
+    data[
+        project_globals.LBWSG_MISSING_CATEGORY.CAT
+    ] = project_globals.LBWSG_MISSING_CATEGORY.EXPOSURE
     return data
 
 
 def get_norm(
-        mean: float,
-        sd: float = None,
-        ninety_five_pct_confidence_interval: Tuple[float, float] = None
+    mean: float,
+    sd: float = None,
+    ninety_five_pct_confidence_interval: Tuple[float, float] = None,
 ) -> stats.norm:
     sd = _get_standard_deviation(mean, sd, ninety_five_pct_confidence_interval)
     return stats.norm(loc=mean, scale=sd)
 
 
 def get_truncnorm(
-        mean: float,
-        sd: float = None,
-        ninety_five_pct_confidence_interval: Tuple[float, float] = None,
-        lower_clip: float = 0.0,
-        upper_clip: float = 1.0
+    mean: float,
+    sd: float = None,
+    ninety_five_pct_confidence_interval: Tuple[float, float] = None,
+    lower_clip: float = 0.0,
+    upper_clip: float = 1.0,
 ) -> stats.norm:
     sd = _get_standard_deviation(mean, sd, ninety_five_pct_confidence_interval)
     a = (lower_clip - mean) / sd if sd else mean - 1e-03
@@ -121,12 +126,16 @@ def get_truncnorm(
 
 
 def _get_standard_deviation(
-        mean: float, sd: float, ninety_five_pct_confidence_interval: Tuple[float, float]
+    mean: float, sd: float, ninety_five_pct_confidence_interval: Tuple[float, float]
 ) -> float:
     if sd is None and ninety_five_pct_confidence_interval is None:
-        raise ValueError("Must provide either a standard deviation or a 95% confidence interval.")
+        raise ValueError(
+            "Must provide either a standard deviation or a 95% confidence interval."
+        )
     if sd is not None and ninety_five_pct_confidence_interval is not None:
-        raise ValueError("Cannot provide both a standard deviation and a 95% confidence interval.")
+        raise ValueError(
+            "Cannot provide both a standard deviation and a 95% confidence interval."
+        )
     if ninety_five_pct_confidence_interval is not None:
         lower = ninety_five_pct_confidence_interval[0]
         upper = ninety_five_pct_confidence_interval[1]
@@ -141,8 +150,9 @@ def _get_standard_deviation(
     return sd
 
 
-def get_lognorm_from_quantiles(median: float, lower: float, upper: float,
-                               quantiles: Tuple[float, float] = (0.025, 0.975)) -> stats.lognorm:
+def get_lognorm_from_quantiles(
+    median: float, lower: float, upper: float, quantiles: Tuple[float, float] = (0.025, 0.975)
+) -> stats.lognorm:
     """Returns a frozen lognormal distribution with the specified median, such that
     (lower, upper) are approximately equal to the quantiles with ranks
     (quantile_ranks[0], quantile_ranks[1]).
@@ -164,41 +174,82 @@ def get_lognorm_from_quantiles(median: float, lower: float, upper: float,
     norm_quantiles = np.log([lower, upper])
     # standard deviation of Y = log(X) computed from the above quantiles for Y
     # and the corresponding standard normal quantiles
-    sigma = (norm_quantiles[1] - norm_quantiles[0]) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
+    sigma = (norm_quantiles[1] - norm_quantiles[0]) / (
+        stdnorm_quantiles[1] - stdnorm_quantiles[0]
+    )
     # Frozen lognormal distribution for X = exp(Y)
     # (s=sigma is the shape parameter; the scale parameter is exp(mu), which equals the median)
     return stats.lognorm(s=sigma, scale=median)
 
 
 def get_random_variable_draws(columns: pd.Index, seed: str, distribution) -> pd.Series:
-    return pd.Series([get_random_variable(x, seed, distribution) for x in range(0, columns.size)], index=columns)
+    return pd.Series(
+        [get_random_variable(x, seed, distribution) for x in range(0, columns.size)],
+        index=columns,
+    )
 
 
 def get_random_variable(draw: int, seed: str, distribution) -> pd.Series:
-    np.random.seed(get_hash(f'{seed}_draw_{draw}'))
+    np.random.seed(get_hash(f"{seed}_draw_{draw}"))
     return distribution.rvs()
 
 
-def get_random_variable_draws_for_location(columns: pd.Index, location: str, seed: str, distribution) -> np.array:
+def get_random_variable_draws_for_location(
+    columns: pd.Index, location: str, seed: str, distribution
+) -> np.array:
     return get_random_variable_draws(columns, f"{seed}_{location}", distribution)
 
 
-def get_norm_from_quantiles(mean: float, lower: float, upper: float,
-                            quantiles: Tuple[float, float] = (0.025, 0.975)) -> stats.norm:
+def get_norm_from_quantiles(
+    mean: float, lower: float, upper: float, quantiles: Tuple[float, float] = (0.025, 0.975)
+) -> stats.norm:
     stdnorm_quantiles = stats.norm.ppf(quantiles)
     sd = (upper - lower) / (stdnorm_quantiles[1] - stdnorm_quantiles[0])
     return stats.norm(loc=mean, scale=sd)
 
 
-def vectorized_choice(options: np.array, weights: np.array, n_to_choose: int, randomness_stream: RandomnessStream):
+def vectorized_choice(
+    options: Array,
+    n_to_choose: int,
+    randomness_stream: RandomnessStream,
+    weights: Array = None,
+):
+    if weights is None:
+        n = len(options)
+        weights = np.ones(n) / n
     # for each of n_to_choose, sample uniformly between 0 and 1
     probs = randomness_stream.get_draw(np.arange(n_to_choose))
 
     # build cdf based on weights
-    pmf = weights/weights.sum()
+    pmf = weights / weights.sum()
     cdf = np.cumsum(pmf)
 
     # for each p_i in probs, count how many elements of cdf for which p_i >= cdf_i
     vect_find_index = np.vectorize(lambda p_i: (p_i >= cdf).sum())
     chosen_indices = vect_find_index(probs)
     return np.take(options, chosen_indices)
+
+
+def random_integers(
+    min_val: int, max_val: int, index: pd.Index, randomness: RandomnessStream
+) -> pd.Series:
+    """
+
+            Parameters
+            ----------
+            min_val
+                inclusive
+            max_val
+                exclusive
+            index
+                an index whose length is the number of random draws made
+                and which indexes the returned `pandas.Series`.
+            randomness:
+                RandomnessStream
+
+            Returns
+            -------
+            pandas.Series
+                An indexed set of integers in the interval [a,b)
+            """
+    return (randomness.get_draw(index=index) * max_val + min_val).round().astype(int)
