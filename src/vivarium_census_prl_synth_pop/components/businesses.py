@@ -9,7 +9,7 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, data_keys, metadata
-from vivarium_census_prl_synth_pop.components.SyntheticPii import AddressGenerator
+from vivarium_census_prl_synth_pop.components.synthetic_pii import AddressGenerator
 from vivarium_census_prl_synth_pop.constants.data_values import UNEMPLOYED_ID, UNTRACKED_ID, WORKING_AGE
 
 
@@ -193,8 +193,8 @@ class Businesses:
                 random_employers.index,
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
         )
-        random_employers['address'] = random_employers.index.map(address_assignments['address'])
-        random_employers['zipcode'] = random_employers.index.map(address_assignments['zipcode'])
+        random_employers['employer_address'] = random_employers.index.map(address_assignments['address'])
+        random_employers['employer_zipcode'] = random_employers.index.map(address_assignments['zipcode'])
 
         untracked = pd.DataFrame({
             'employer_id': [UNTRACKED_ID],
