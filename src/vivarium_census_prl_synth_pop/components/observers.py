@@ -18,7 +18,7 @@ class Observers:
     """
 
     def __repr__(self) -> str:
-        return 'Observers()'
+        return "Observers()"
 
     ##############
     # Properties #
@@ -44,7 +44,9 @@ class Observers:
 
     def on_time_step__prepare(self, event: Event) -> None:
         if self.counter == 0:
-            start_date_str = f"ymd_{self.start_date.year}_{self.start_date.month}_{self.start_date.day}"
+            start_date_str = (
+                f"ymd_{self.start_date.year}_{self.start_date.month}_{self.start_date.day}"
+            )
             state_table = self.population_view.get(event.index)
             state_table.to_hdf(self.output_path, start_date_str)
         self.counter += 1
@@ -53,6 +55,7 @@ class Observers:
         end_date_str = f"ymd_{self.end_date.year}_{self.end_date.month}_{self.end_date.day}"
         state_table = self.population_view.get(event.index)
         state_table.to_hdf(self.output_path, end_date_str)
+
     ###########
     # Helpers #
     ###########
@@ -60,13 +63,13 @@ class Observers:
     @staticmethod
     def _build_output_path(builder: Builder) -> Path:
         results_root = builder.configuration.output_data.results_directory
-        output_root = Path(results_root) / 'population_table'
+        output_root = Path(results_root) / "population_table"
 
         mkdir(output_root, exists_ok=True)
 
         input_draw = builder.configuration.input_data.input_draw_number
         seed = builder.configuration.randomness.random_seed
         # TODO: add back in 'scenario' if we add scenarios
-        output_path = output_root / f'draw_{input_draw}_seed_{seed}.hdf'
+        output_path = output_root / f"draw_{input_draw}_seed_{seed}.hdf"
 
         return output_path
