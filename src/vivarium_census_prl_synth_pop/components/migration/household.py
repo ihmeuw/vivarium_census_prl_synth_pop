@@ -93,8 +93,9 @@ class HouseholdMigration:
                 address_assignments["zipcode"]
             )
 
-            households.loc[households.household_id == "NA", "address"] = "NA"
-            households.loc[households.household_id == "NA", "zipcode"] = "NA"
+            # handle untracked sims
+            households.loc[households.household_id == 'NA', 'address'] = 'NA'
+            households.loc[households.household_id == 'NA', 'zipcode'] = 'NA'
 
             self.population_view.update(households)
         else:
