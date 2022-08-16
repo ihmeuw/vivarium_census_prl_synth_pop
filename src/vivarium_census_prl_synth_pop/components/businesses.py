@@ -10,6 +10,7 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, data_keys
+from vivarium_census_prl_synth_pop.constants.data_values import UNEMPLOYED_ID, UNTRACKED_ID, WORKING_AGE
 
 
 class Businesses:
@@ -72,7 +73,7 @@ class Businesses:
             self.businesses = self.generate_businesses(pop_data)
 
             pop = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
-            pop['employer_id'] = -1  # we're using -1 for employer_id of unemployed
+            pop['employer_id'] = UNEMPLOYED_ID
             working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
             pop.loc[working_age, 'employer_id'] = self.assign_random_employer(working_age)
 
@@ -84,7 +85,7 @@ class Businesses:
             )
 
             # handle untracked sims
-            pop.loc[pop.tracked == False, 'employer_id'] = -2  # using -2 for employer_id of untracked people
+            pop.loc[pop.tracked == False, 'employer_id'] = UNTRACKED_ID
             pop.loc[pop.tracked == False, 'employer_name'] = 'NA'
             pop.loc[pop.tracked == False, 'employer_address'] = 'NA'
             self.population_view.update(
@@ -93,7 +94,7 @@ class Businesses:
         else:
             new_births = self.population_view.get(pop_data.index)
 
-            new_births["employer_id"] = -1  # we're using -1 for employer_id of unemployed
+            new_births["employer_id"] = UNEMPLOYED_ID
             new_births["employer_name"] = 'unemployed'
             new_births["employer_address"] = 'NA'
 
@@ -108,7 +109,7 @@ class Businesses:
 
         # change jobs if of working age already
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
-        working_age = pop.loc[pop.age >= 18].index
+        working_age = pop.loc[pop.age >= WORKING_AGE].index
         changing_jobs = self.randomness.filter_for_rate(
             working_age,
             np.ones(len(working_age))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
@@ -154,7 +155,7 @@ class Businesses:
 
         # TODO: when have more known employers, maybe move to csv
         known_employers = pd.DataFrame({
-            'employer_id': [-1],
+            'employer_id': [UNEMPLOYED_ID],
             'employer_name': ['unemployed'],
             'employer_address': ['NA'],
             'prevalence': [1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location]],
@@ -178,7 +179,7 @@ class Businesses:
         })
 
         untracked = pd.DataFrame({
-            'employer_id': [-2],
+            'employer_id': [UNTRACKED_ID],
             'employer_name': ['NA'],
             'employer_address': ['NA'],
             'prevalence': 0,
