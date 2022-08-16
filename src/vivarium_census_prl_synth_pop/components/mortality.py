@@ -4,7 +4,6 @@ from vivarium_public_health.population import Mortality as _Mortality
 
 
 class Mortality(_Mortality):
-
     def _get_population_view(self, builder: Builder) -> PopulationView:
         return builder.population.get_view(
             [
@@ -16,4 +15,3 @@ class Mortality(_Mortality):
                 "sex",
             ]
         )
-
