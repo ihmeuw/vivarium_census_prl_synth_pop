@@ -1,12 +1,16 @@
+
 import numpy as np
 import pandas as pd
+from typing import Any
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.constants import data_values, data_keys
+from vivarium_census_prl_synth_pop.constants.data_values import UNEMPLOYED_ID, UNTRACKED_ID, WORKING_AGE
 
 
 class Businesses:
@@ -44,6 +48,7 @@ class Businesses:
 
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.randomness = builder.randomness.get_stream(self.name)
         self.columns_created = ['employer_id', 'employer_name', 'employer_address']
         self.columns_used = ['age', 'tracked'] + self.columns_created
@@ -68,7 +73,7 @@ class Businesses:
             self.businesses = self.generate_businesses(pop_data)
 
             pop = self.population_view.subview(['age', 'tracked']).get(pop_data.index)
-            pop['employer_id'] = -1  # we're using -1 for employer_id of unemployed
+            pop['employer_id'] = UNEMPLOYED_ID
             working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
             pop.loc[working_age, 'employer_id'] = self.assign_random_employer(working_age)
 
@@ -80,7 +85,7 @@ class Businesses:
             )
 
             # handle untracked sims
-            pop.loc[pop.tracked == False, 'employer_id'] = -2  # using -2 for employer_id of untracked people
+            pop.loc[pop.tracked == False, 'employer_id'] = UNTRACKED_ID
             pop.loc[pop.tracked == False, 'employer_name'] = 'NA'
             pop.loc[pop.tracked == False, 'employer_address'] = 'NA'
             self.population_view.update(
@@ -89,7 +94,7 @@ class Businesses:
         else:
             new_births = self.population_view.get(pop_data.index)
 
-            new_births["employer_id"] = -1  # we're using -1 for employer_id of unemployed
+            new_births["employer_id"] = UNEMPLOYED_ID
             new_births["employer_name"] = 'unemployed'
             new_births["employer_address"] = 'NA'
 
@@ -97,16 +102,17 @@ class Businesses:
 
     def on_time_step(self, event: Event):
         """
+<<<<<<< HEAD
         assign job if turning working age
         change jobs at rate of 50 changes / 100 person-years
         """
 
-        # change jobs
+        # change jobs if of working age already
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
-        employed = pop.loc[pop.employer_id != -1].index
+        working_age = pop.loc[pop.age >= WORKING_AGE].index
         changing_jobs = self.randomness.filter_for_rate(
-            employed,
-            np.ones(len(employed))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
+            working_age,
+            np.ones(len(working_age))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
         )
         if len(changing_jobs) > 0:
             pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
@@ -145,45 +151,49 @@ class Businesses:
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
         pop = self.population_view.subview(['age']).get(pop_data.index)
-        working_age = pop.loc[pop.age >= data_values.WORKING_AGE]
+        n_working_age = len(pop.loc[pop.age >= data_values.WORKING_AGE])
 
-        n_employed = len(working_age)
+        # TODO: when have more known employers, maybe move to csv
+        known_employers = pd.DataFrame({
+            'employer_id': [UNEMPLOYED_ID],
+            'employer_name': ['unemployed'],
+            'employer_address': ['NA'],
+            'prevalence': [1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location]],
+        })
+
+        pct_adults_needing_employers = 1 - known_employers['prevalence'].sum()
+        n_need_employers = np.round(n_working_age * pct_adults_needing_employers)
+
         employee_counts = np.random.lognormal(
-            4, 1, size=int(n_employed // data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
+            4, 1, size=int(n_need_employers // data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
         ).round()
         n_businesses = len(employee_counts)
         # TODO: note: this fixed number of employers based on population size is not adaptive.
         #  we don't (necessarily?) expect the number of work-eligible people to stay constant over time.
         #  Consider updating.
-        businesses = pd.DataFrame({
+        random_employers = pd.DataFrame({
             'employer_id': np.arange(n_businesses),
             'employer_name': ['not implemented']*n_businesses,
             'employer_address': ['not implemented']*n_businesses,
-            'probability': employee_counts / employee_counts.sum(),
-        })
-
-        unemployed = pd.DataFrame({
-            'employer_id': [-1],  # we're using -1 for employed_id of unemployed
-            'employer_name': ['unemployed'],
-            'employer_address': ['NA'],
-            'probability': 0, #TODO: implement unemployment
+            'prevalence': employee_counts / employee_counts.sum() * pct_adults_needing_employers,
         })
 
         untracked = pd.DataFrame({
-            'employer_id': [-2],  # we're using -2 for employer_id of untracked people
+            'employer_id': [UNTRACKED_ID],
             'employer_name': ['NA'],
             'employer_address': ['NA'],
-            'probability': 0,
+            'prevalence': 0,
         })
 
-        businesses = pd.concat([businesses, unemployed, untracked])
+        businesses = pd.concat([known_employers, random_employers, untracked])
         return businesses
 
-    def assign_random_employer(self, sim_index: pd.Index) -> pd.Series:
+    def assign_random_employer(self, sim_index: pd.Index, additional_seed: Any = None) -> pd.Series:
         return self.randomness.choice(
             index=sim_index,
             choices=self.businesses['employer_id'],
-            p=self.businesses['probability']
+            p=self.businesses['prevalence'],
+            additional_key=additional_seed
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
@@ -193,11 +203,9 @@ class Businesses:
         additional_seed = 0
         while (current_employers == new_employers).any():
             unchanged_employers = (current_employers == new_employers)
-            new_employers[unchanged_employers] = self.randomness.choice(
-                index=new_employers[unchanged_employers].index,
-                choices=self.businesses['employer_id'].to_numpy(),
-                p=self.businesses['probability'].to_numpy(),
-                additional_key=additional_seed
+            new_employers[unchanged_employers] = self.assign_random_employer(
+                sim_index=new_employers[unchanged_employers].index,
+                additional_seed=additional_seed
             )
             additional_seed += 1
 
