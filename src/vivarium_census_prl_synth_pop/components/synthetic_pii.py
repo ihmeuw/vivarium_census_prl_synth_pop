@@ -244,9 +244,6 @@ class NameGenerator(GenericGenerator):
 
 
 class AddressGenerator(GenericGenerator):
-    # def __init__(self, label: str):
-    #     self.label = label
-
     @property
     def name(self):
         return "AddressGenerator"

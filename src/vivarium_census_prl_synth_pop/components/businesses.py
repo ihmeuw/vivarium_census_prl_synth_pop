@@ -107,7 +107,7 @@ class Businesses:
         """
         assign job if turning working age
         change jobs at rate of 50 changes / 100 person-years
-        businesses change addresses at rate of 10 changes / 100 person-years\
+        businesses change addresses at rate of 10 changes / 100 person-years
         """
         # TODO: employers change addresses at a rate of 10 changes per 100 person years
 
