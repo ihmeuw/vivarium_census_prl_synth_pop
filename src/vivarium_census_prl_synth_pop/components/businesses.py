@@ -113,7 +113,7 @@ class Businesses:
 
         # TODO: employers change addresses at a rate of 10 changes per 100 person years
         changing_addresses = self.randomness.filter_for_rate(
-            self.businesses.employer_id,
+            self.businesses.loc[~self.businesses['employer_id'].isin([UNEMPLOYED_ID, UNTRACKED_ID]),'employer_id'],
             np.ones(len(self.businesses))*(data_values.YEARLY_ADDRESS_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
         )
         if len(changing_addresses) > 0:
