@@ -9,7 +9,6 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, data_keys, metadata
-from vivarium_census_prl_synth_pop.components.synthetic_pii import Addresses
 from vivarium_census_prl_synth_pop.constants.data_values import UNEMPLOYED_ID, UNTRACKED_ID, WORKING_AGE
 
 
