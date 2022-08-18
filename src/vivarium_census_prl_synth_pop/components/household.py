@@ -1,13 +1,9 @@
-from typing import List
-
 import pandas as pd
-import faker
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import AddressGenerator
 from vivarium_census_prl_synth_pop.constants import metadata, data_keys
 from vivarium_census_prl_synth_pop.constants import data_values
 
@@ -22,9 +18,6 @@ class HouseholdMigration:
     - puma will not change (pumas and zip codes currently unrelated)
     """
 
-    def __init__(self):
-        self.address_generator = AddressGenerator()
-
     def __repr__(self) -> str:
         return "HouseholdMigration()"
 
@@ -35,10 +28,6 @@ class HouseholdMigration:
     @property
     def name(self):
         return "household_migration"
-
-    @property
-    def sub_components(self):
-        return [self.address_generator]
 
     #################
     # Setup methods #
@@ -55,10 +44,7 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.fake = faker.Faker()
-        faker.Faker.seed(self.config.randomness.random_seed)
-        self.provider = faker.providers.address.en_US.Provider(faker.Generator())
-
+        self.addresses = builder.components.get_component('Address')
         self.columns_created = ["address", "zipcode"]
         self.columns_used = ["household_id", "address", "zipcode", "tracked"]
         self.population_view = builder.population.get_view(self.columns_used)
@@ -82,7 +68,7 @@ class HouseholdMigration:
             households = self.population_view.subview(["household_id", "tracked"]).get(
                 pop_data.index
             )
-            address_assignments = self.address_generator.generate(
+            address_assignments = self.addresses.generate(
                 pd.Index(households["household_id"].drop_duplicates()),
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
             )
@@ -111,32 +97,25 @@ class HouseholdMigration:
 
     def on_time_step(self, event: Event):
         """
-        choose which households move
+        choose which households move;
         move those households to a new address
         """
         households = self.population_view.subview(["household_id", "address", "zipcode"]).get(
             event.index
         )
-        households_that_move = self._determine_if_moving(households["household_id"])
-        new_addresses = self.address_generator.generate(
+        households_that_move = self.addresses.determine_if_moving(
+            households["household_id"], self.household_move_rate
+        ).index
+
+        address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
             households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
         )
 
-        households.loc[
-            households.household_id.isin(households_that_move), "address"
-        ] = households.household_id.map(new_addresses["address"])
-        households.loc[
-            households.household_id.isin(households_that_move), "zipcode"
-        ] = households.household_id.map(new_addresses["zipcode"])
-        self.population_view.update(households)
-
-    ##################
-    # Helper methods #
-    ##################
-
-    def _determine_if_moving(self, households: pd.Series) -> pd.Index:
-        households = households.drop_duplicates()
-        households_that_move = self.randomness.filter_for_rate(
-            households, self.household_move_rate(households.index)
+        households = self.addresses.update_address_and_zipcode(
+            df=households,
+            rows_to_update=households_that_move,
+            id_key=households_that_move,
+            address_map=address_map,
+            zipcode_map=zipcode_map,
         )
-        return pd.Index(households_that_move, dtype=int)
+        self.population_view.update(households)

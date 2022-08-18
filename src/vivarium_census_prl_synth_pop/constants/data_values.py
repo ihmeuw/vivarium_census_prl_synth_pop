@@ -33,7 +33,7 @@ PROBABILITY_OF_SPACE_IN_NAME = {
 }
 
 #####################
-# Employment Values #
+# Businesses Values #
 #####################
 
 # data from https://www.jec.senate.gov/public/index.cfm/republicans/fl/
@@ -48,3 +48,5 @@ YEARLY_JOB_CHANGE_RATE = .5  # 50 changes per 100 py
 
 UNEMPLOYED_ID = -1
 UNTRACKED_ID = -2
+
+BUSINESS_MOVE_RATE_YEARLY = .1 # 10 changes per 100 py
