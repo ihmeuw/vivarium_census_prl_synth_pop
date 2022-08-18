@@ -53,6 +53,7 @@ class Businesses:
         self.columns_used = ['age', 'tracked'] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
+
         job_change_rate_data = builder.lookup.build_table(data_values.YEARLY_JOB_CHANGE_RATE)
         self.job_change_rate = builder.value.register_rate_producer(
             f"{self.name}.job_change_rate", source=job_change_rate_data
@@ -119,7 +120,9 @@ class Businesses:
         """
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
 
-        all_businesses = self.businesses.loc[~self.businesses['employer_id'].isin([UNEMPLOYED_ID, UNTRACKED_ID]),'employer_id']
+        all_businesses = self.businesses.loc[
+            ~self.businesses['employer_id'].isin([UNEMPLOYED_ID, UNTRACKED_ID]), 'employer_id'
+        ]
         businesses_that_move = self.addresses.determine_if_moving(
             all_businesses, self.businesses_move_rate
         )
@@ -153,21 +156,11 @@ class Businesses:
         working_age = pop.loc[pop.age >= WORKING_AGE].index
         changing_jobs = self.randomness.filter_for_rate(
             working_age,
-            np.ones(len(working_age))*(data_values.YEARLY_JOB_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
+            self.job_change_rate(working_age) * event.step_size.days / utilities.DAYS_PER_YEAR
         )
         if len(changing_jobs) > 0:
             pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
-
-            # add employer addresses and names
-            pop.loc[changing_jobs, "employer_address"] = pop.loc[changing_jobs, "employer_id"].map(
-                self.businesses.set_index("employer_id")['employer_address'].to_dict()
-            )
-            pop.loc[changing_jobs, "employer_zipcode"] = pop.loc[changing_jobs, "employer_id"].map(
-                self.businesses.set_index("employer_id")['employer_zipcode'].to_dict()
-            )
-            pop.loc[changing_jobs, "employer_name"] = pop.loc[changing_jobs, "employer_id"].map(
-                self.businesses.set_index("employer_id")['employer_name'].to_dict()
-            )
+            pop = self.update_employer_metadata(pop, changing_jobs)
 
         # assign job if turning working age
         turning_working_age = pop.loc[
@@ -176,17 +169,7 @@ class Businesses:
             ].index
         if len(turning_working_age) > 0:
             pop.loc[turning_working_age, 'employer_id'] = self.assign_random_employer(turning_working_age)
-
-            # add employer addresses and names
-            pop.loc[turning_working_age, "employer_address"] = pop.loc[turning_working_age, "employer_id"].map(
-                self.businesses.set_index("employer_id")['employer_address'].to_dict()
-            )
-            pop.loc[turning_working_age, "employer_zipcode"] = pop.loc[turning_working_age, "employer_id"].map(
-                self.businesses.set_index("employer_id")['employer_zipcode'].to_dict()
-            )
-            pop.loc[turning_working_age, "employer_name"] = pop.loc[turning_working_age, "employer_id"].map(
-                self.businesses.set_index("employer_id")['employer_name'].to_dict()
-            )
+            pop = self.update_employer_metadata(pop, turning_working_age)
 
         self.population_view.update(
             pop
@@ -259,3 +242,18 @@ class Businesses:
             additional_seed += 1
 
         return new_employers
+
+    def update_employer_metadata(self, pop: pd.DataFrame, rows_to_update: pd.Index) -> pd.DataFrame:
+        employer_ids = pop.loc[rows_to_update, "employer_id"]
+
+        pop.loc[rows_to_update, "employer_address"] = employer_ids.map(
+            self.businesses.set_index("employer_id")['employer_address'].to_dict()
+        )
+        pop.loc[rows_to_update, "employer_zipcode"] = employer_ids.map(
+            self.businesses.set_index("employer_id")['employer_zipcode'].to_dict()
+        )
+        pop.loc[rows_to_update, "employer_name"] = employer_ids.map(
+            self.businesses.set_index("employer_id")['employer_name'].to_dict()
+        )
+
+        return pop
