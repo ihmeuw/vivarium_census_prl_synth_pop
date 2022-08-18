@@ -133,6 +133,7 @@ class Businesses:
             self.businesses = self.addresses.update_address_and_zipcode(
                 df=self.businesses,
                 rows_to_update=businesses_that_move.index,
+                id_key=businesses_that_move,
                 address_map=address_map,
                 zipcode_map=zipcode_map,
                 address_col_name="employer_address",
@@ -140,10 +141,11 @@ class Businesses:
             )
 
             # update employer address and zipcode in the pop table
-            rows_changing_addresses = pop.loc[pop.employer_id.isin(businesses_that_move), 'employer_id']
+            rows_changing_addresses = pop.loc[pop.employer_id.isin(businesses_that_move)]
             pop = self.addresses.update_address_and_zipcode(
                 df=pop,
-                rows_to_update=rows_changing_addresses,
+                rows_to_update=rows_changing_addresses.index,
+                id_key=rows_changing_addresses['employer_id'],
                 address_map=address_map,
                 zipcode_map=zipcode_map,
                 address_col_name="employer_address",

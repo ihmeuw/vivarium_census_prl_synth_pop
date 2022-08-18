@@ -114,6 +114,7 @@ class HouseholdMigration:
         households = self.addresses.update_address_and_zipcode(
             df=households,
             rows_to_update=households_that_move,
+            id_key=households_that_move,
             address_map=address_map,
             zipcode_map=zipcode_map,
         )

@@ -342,11 +342,12 @@ class Addresses(GenericGenerator):
             self,
             df: pd.DataFrame,
             rows_to_update: pd.Index,
+            id_key: pd.Series,
             address_map: Dict,
             zipcode_map: Dict,
             address_col_name: str = "address",
             zipcode_col_name: str = "zipcode",
     ) -> pd.DataFrame:
-        df.loc[rows_to_update, address_col_name] = rows_to_update.map(address_map)
-        df.loc[rows_to_update, zipcode_col_name] = rows_to_update.map(zipcode_map)
+        df.loc[rows_to_update, address_col_name] = id_key.map(address_map)
+        df.loc[rows_to_update, zipcode_col_name] = id_key.map(zipcode_map)
         return df
