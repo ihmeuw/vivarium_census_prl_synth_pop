@@ -63,7 +63,7 @@ class Businesses:
         self.businesses_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
-        self.addresses = builder.components.get_component('Addresses')
+        self.addresses = builder.components.get_component('Address')
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             requires_columns=['age'],
@@ -160,7 +160,7 @@ class Businesses:
         )
         if len(changing_jobs) > 0:
             pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(changing_jobs)
-            pop = self.update_employer_metadata(pop, changing_jobs)
+            pop = self._update_employer_metadata(pop, changing_jobs)
 
         # assign job if turning working age
         turning_working_age = pop.loc[
@@ -169,7 +169,7 @@ class Businesses:
             ].index
         if len(turning_working_age) > 0:
             pop.loc[turning_working_age, 'employer_id'] = self.assign_random_employer(turning_working_age)
-            pop = self.update_employer_metadata(pop, turning_working_age)
+            pop = self._update_employer_metadata(pop, turning_working_age)
 
         self.population_view.update(
             pop
@@ -243,7 +243,7 @@ class Businesses:
 
         return new_employers
 
-    def update_employer_metadata(self, pop: pd.DataFrame, rows_to_update: pd.Index) -> pd.DataFrame:
+    def _update_employer_metadata(self, pop: pd.DataFrame, rows_to_update: pd.Index) -> pd.DataFrame:
         employer_ids = pop.loc[rows_to_update, "employer_id"]
 
         pop.loc[rows_to_update, "employer_address"] = employer_ids.map(
