@@ -44,7 +44,7 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.addresses = builder.components.get_component('Address')
+        self.addresses = builder.components.get_component("Address")
         self.columns_created = ["address", "zipcode"]
         self.columns_used = ["household_id", "address", "zipcode", "tracked"]
         self.population_view = builder.population.get_view(self.columns_used)
@@ -80,8 +80,8 @@ class HouseholdMigration:
             )
 
             # handle untracked sims
-            households.loc[households.household_id == 'NA', 'address'] = 'NA'
-            households.loc[households.household_id == 'NA', 'zipcode'] = 'NA'
+            households.loc[households.household_id == "NA", "address"] = "NA"
+            households.loc[households.household_id == "NA", "zipcode"] = "NA"
 
             self.population_view.update(households)
         else:

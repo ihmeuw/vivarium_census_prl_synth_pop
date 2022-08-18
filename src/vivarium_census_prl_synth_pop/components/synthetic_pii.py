@@ -314,7 +314,9 @@ class Address(GenericGenerator):
         df["zipcode"] = self.address_data.loc[chosen_indices, "PostalCode"].fillna("").values
         return df
 
-    def determine_if_moving(self, potential_movers: pd.Series, move_rate_producer: Pipeline) -> pd.Series:
+    def determine_if_moving(
+        self, potential_movers: pd.Series, move_rate_producer: Pipeline
+    ) -> pd.Series:
         """
         Parameters
         ----------
@@ -331,7 +333,9 @@ class Address(GenericGenerator):
         )
         return those_that_move
 
-    def get_new_addresses_and_zipcodes(self, those_that_move: pd.Index, state: str) -> Tuple[Dict, Dict]:
+    def get_new_addresses_and_zipcodes(
+        self, those_that_move: pd.Index, state: str
+    ) -> Tuple[Dict, Dict]:
         """
         Parameters
         ----------
@@ -342,20 +346,18 @@ class Address(GenericGenerator):
         -------
         ({those_that_move: addresses}, {those_that_move: zipcodes})
         """
-        new_addresses = self.generate(
-            those_that_move, state=state
-        )
+        new_addresses = self.generate(those_that_move, state=state)
         return (new_addresses["address"].to_dict(), new_addresses["zipcode"].to_dict())
 
     def update_address_and_zipcode(
-            self,
-            df: pd.DataFrame,
-            rows_to_update: pd.Index,
-            id_key: pd.Series,
-            address_map: Dict,
-            zipcode_map: Dict,
-            address_col_name: str = "address",
-            zipcode_col_name: str = "zipcode",
+        self,
+        df: pd.DataFrame,
+        rows_to_update: pd.Index,
+        id_key: pd.Series,
+        address_map: Dict,
+        zipcode_map: Dict,
+        address_col_name: str = "address",
+        zipcode_col_name: str = "zipcode",
     ) -> pd.DataFrame:
         """
         Parameters
