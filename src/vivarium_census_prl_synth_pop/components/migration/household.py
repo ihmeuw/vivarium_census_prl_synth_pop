@@ -1,5 +1,3 @@
-from typing import List
-
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -46,8 +44,7 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.address_generator = builder.components.get_component('AddressGenerator')
-
+        self.addresses = builder.components.get_component('Addresses')
         self.columns_created = ["address", "zipcode"]
         self.columns_used = ["household_id", "address", "zipcode", "tracked"]
         self.population_view = builder.population.get_view(self.columns_used)
@@ -71,7 +68,7 @@ class HouseholdMigration:
             households = self.population_view.subview(["household_id", "tracked"]).get(
                 pop_data.index
             )
-            address_assignments = self.address_generator.generate(
+            address_assignments = self.addresses.generate(
                 pd.Index(households["household_id"].drop_duplicates()),
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
             )
@@ -100,32 +97,24 @@ class HouseholdMigration:
 
     def on_time_step(self, event: Event):
         """
-        choose which households move
+        choose which households move;
         move those households to a new address
         """
         households = self.population_view.subview(["household_id", "address", "zipcode"]).get(
             event.index
         )
-        households_that_move = self._determine_if_moving(households["household_id"])
-        new_addresses = self.address_generator.generate(
+        households_that_move = self.addresses.determine_if_moving(
+            households["household_id"], self.household_move_rate
+        )
+
+        address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
             households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
         )
 
-        households.loc[
-            households.household_id.isin(households_that_move), "address"
-        ] = households.household_id.map(new_addresses["address"])
-        households.loc[
-            households.household_id.isin(households_that_move), "zipcode"
-        ] = households.household_id.map(new_addresses["zipcode"])
-        self.population_view.update(households)
-
-    ##################
-    # Helper methods #
-    ##################
-
-    def _determine_if_moving(self, households: pd.Series) -> pd.Index:
-        households = households.drop_duplicates()
-        households_that_move = self.randomness.filter_for_rate(
-            households, self.household_move_rate(households.index)
+        households = self.addresses.update_address_and_zipcode(
+            df=households,
+            rows_to_update=households_that_move,
+            address_map=address_map,
+            zipcode_map=zipcode_map,
         )
-        return pd.Index(households_that_move, dtype=int)
+        self.population_view.update(households)

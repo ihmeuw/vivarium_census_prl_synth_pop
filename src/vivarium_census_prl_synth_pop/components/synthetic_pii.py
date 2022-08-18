@@ -1,13 +1,19 @@
 """collection of classes for generating sensitive data
 synthetically, e.g. name, address, social-security number
 """
+from typing import Union, List, Tuple, Dict
+
 import pandas as pd
 import numpy as np
 from vivarium.framework.engine import Builder
+from vivarium.framework.values import Pipeline
+
 from vivarium_census_prl_synth_pop.utilities import random_integers
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
+
+Array = Union[List, Tuple, np.ndarray, pd.Series]
 
 
 class GenericGenerator:
@@ -243,10 +249,10 @@ class NameGenerator(GenericGenerator):
         return df
 
 
-class AddressGenerator(GenericGenerator):
+class Addresses(GenericGenerator):
     @property
     def name(self):
-        return "AddressGenerator"
+        return "Addresses"
 
     def setup(self, builder: Builder):
         super().setup(builder)
@@ -306,4 +312,30 @@ class AddressGenerator(GenericGenerator):
 
         df["address"] = synthetic_address
         df["zipcode"] = self.address_data.loc[chosen_indices, "PostalCode"].fillna("").values
+        return df
+
+    def determine_if_moving(self, options: pd.Series, move_rate_producer: Pipeline) -> pd.Index:
+        options = options.drop_duplicates()
+        those_that_move = self.randomness.filter_for_rate(
+            options, move_rate_producer(options.index)
+        )
+        return pd.Index(those_that_move, dtype=int)
+
+    def get_new_addresses_and_zipcodes(self, those_that_move: pd.Index, state: str):
+        new_addresses = self.generate(
+            those_that_move, state=state
+        )
+        return new_addresses["address"].to_dict(), new_addresses["zipcode"].to_dict()
+
+    def update_address_and_zipcode(
+            self,
+            df: pd.DataFrame,
+            rows_to_update: pd.Index,
+            address_map: Dict,
+            zipcode_map: Dict,
+            address_col_name: str = "address",
+            zipcode_col_name: str = "zipcode",
+    ) -> pd.DataFrame:
+        df.loc[rows_to_update, address_col_name] = rows_to_update.map(address_map)
+        df.loc[rows_to_update, zipcode_col_name] = rows_to_update.map(zipcode_map)
         return df

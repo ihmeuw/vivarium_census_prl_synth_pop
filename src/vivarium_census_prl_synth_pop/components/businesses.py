@@ -9,7 +9,7 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, data_keys, metadata
-from vivarium_census_prl_synth_pop.components.synthetic_pii import AddressGenerator
+from vivarium_census_prl_synth_pop.components.synthetic_pii import Addresses
 from vivarium_census_prl_synth_pop.constants.data_values import UNEMPLOYED_ID, UNTRACKED_ID, WORKING_AGE
 
 
@@ -54,7 +54,16 @@ class Businesses:
         self.columns_used = ['age', 'tracked'] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
-        self.address_generator = builder.components.get_component('AddressGenerator')
+        job_change_rate_data = builder.lookup.build_table(data_values.YEARLY_JOB_CHANGE_RATE)
+        self.job_change_rate = builder.value.register_rate_producer(
+            f"{self.name}.job_change_rate", source=job_change_rate_data
+        )
+
+        move_rate_data = builder.lookup.build_table(data_values.BUSINESS_MOVE_RATE_YEARLY)
+        self.businesses_move_rate = builder.value.register_rate_producer(
+            f"{self.name}.move_rate", source=move_rate_data
+        )
+        self.addresses = builder.components.get_component('Addresses')
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             requires_columns=['age'],
@@ -111,27 +120,35 @@ class Businesses:
         """
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
 
-        # TODO: employers change addresses at a rate of 10 changes per 100 person years
-        changing_addresses = self.randomness.filter_for_rate(
-            self.businesses.loc[~self.businesses['employer_id'].isin([UNEMPLOYED_ID, UNTRACKED_ID]),'employer_id'],
-            np.ones(len(self.businesses))*(data_values.YEARLY_ADDRESS_CHANGE_RATE * event.step_size.days / utilities.DAYS_PER_YEAR)
+        all_businesses = self.businesses.loc[~self.businesses['employer_id'].isin([UNEMPLOYED_ID, UNTRACKED_ID]),'employer_id']
+        businesses_that_move = self.addresses.determine_if_moving(
+            all_businesses, self.businesses_move_rate
         )
-        if len(changing_addresses) > 0:
+
+        if len(businesses_that_move) > 0:
             # update the employer address and zipcode in self.businesses
-            address_assignments = self.address_generator.generate(
-                changing_addresses,
-                state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+            address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
+                businesses_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
             )
-            self.businesses.loc[self.businesses.employer_id.isin(changing_addresses), 'employer_address'] = changing_addresses.map(address_assignments['address'])
-            self.businesses.loc[self.businesses.employer_id.isin(changing_addresses), 'employer_zipcode'] = changing_addresses.map(
-                address_assignments['zipcode'])
+            self.businesses = self.addresses.update_address_and_zipcode(
+                df=self.businesses,
+                rows_to_update=businesses_that_move,
+                address_map=address_map,
+                zipcode_map=zipcode_map,
+                address_col_name="employer_address",
+                zipcode_col_name="employer_zipcode"
+            )
 
             # update employer address and zipcode in the pop table
-            rows_changing_addresses = pop.loc[pop.employer_id.isin(changing_addresses), 'employer_id']
-            pop.loc[pop.employer_id.isin(changing_addresses), 'employer_address'] = rows_changing_addresses.map(
-                address_assignments['address'])
-            pop.loc[pop.employer_id.isin(changing_addresses), 'employer_zipcode'] = rows_changing_addresses.map(
-                address_assignments['zipcode'])
+            rows_changing_addresses = pop.loc[pop.employer_id.isin(businesses_that_move), 'employer_id']
+            pop = self.addresses.update_address_and_zipcode(
+                df=pop,
+                rows_to_update=rows_changing_addresses,
+                address_map=address_map,
+                zipcode_map=zipcode_map,
+                address_col_name="employer_address",
+                zipcode_col_name="employer_zipcode"
+            )
 
         # change jobs if of working age already
         working_age = pop.loc[pop.age >= WORKING_AGE].index
@@ -203,7 +220,7 @@ class Businesses:
             'employer_name': ['not implemented']*n_businesses,
             'prevalence': employee_counts / employee_counts.sum() * pct_adults_needing_employers,
         })
-        address_assignments = self.address_generator.generate(
+        address_assignments = self.addresses.generate(
                 random_employers.index,
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
         )

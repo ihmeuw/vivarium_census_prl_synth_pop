@@ -88,7 +88,7 @@ def test_name():
     
 @pytest.mark.slow
 def test_address():
-    g = synthetic_pii.AddressGenerator(1234)
+    g = synthetic_pii.Addresses(1234)
 
     index = range(10)
     df_in = pd.DataFrame(index=index)
