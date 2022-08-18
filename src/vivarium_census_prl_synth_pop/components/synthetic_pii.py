@@ -314,14 +314,25 @@ class Addresses(GenericGenerator):
         df["zipcode"] = self.address_data.loc[chosen_indices, "PostalCode"].fillna("").values
         return df
 
-    def determine_if_moving(self, options: pd.Series, move_rate_producer: Pipeline) -> pd.Index:
+    def determine_if_moving(self, options: pd.Series, move_rate_producer: Pipeline) -> pd.Series:
         options = options.drop_duplicates()
         those_that_move = self.randomness.filter_for_rate(
             options, move_rate_producer(options.index)
         )
-        return pd.Index(those_that_move, dtype=int)
+        return those_that_move
 
     def get_new_addresses_and_zipcodes(self, those_that_move: pd.Index, state: str):
+        """
+
+        Parameters
+        ----------
+        those_that_move
+        state
+
+        Returns
+        -------
+        {those_that_move: addresses}, {those_that_move: zipcodes}
+        """
         new_addresses = self.generate(
             those_that_move, state=state
         )

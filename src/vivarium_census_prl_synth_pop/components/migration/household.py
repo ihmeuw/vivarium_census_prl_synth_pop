@@ -105,7 +105,7 @@ class HouseholdMigration:
         )
         households_that_move = self.addresses.determine_if_moving(
             households["household_id"], self.household_move_rate
-        )
+        ).index
 
         address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
             households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()

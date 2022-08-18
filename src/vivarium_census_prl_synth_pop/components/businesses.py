@@ -120,11 +120,9 @@ class Businesses:
         """
         pop = self.population_view.subview(self.columns_created + ['age']).get(event.index)
 
-        all_businesses = self.businesses.loc[
-            ~self.businesses['employer_id'].isin([UNEMPLOYED_ID, UNTRACKED_ID]), 'employer_id'
-        ]
+        all_businesses = self.businesses.loc[~self.businesses['employer_id'].isin([UNEMPLOYED_ID, UNTRACKED_ID])]
         businesses_that_move = self.addresses.determine_if_moving(
-            all_businesses, self.businesses_move_rate
+            all_businesses['employer_id'], self.businesses_move_rate
         )
 
         if len(businesses_that_move) > 0:
@@ -134,7 +132,7 @@ class Businesses:
             )
             self.businesses = self.addresses.update_address_and_zipcode(
                 df=self.businesses,
-                rows_to_update=businesses_that_move,
+                rows_to_update=businesses_that_move.index,
                 address_map=address_map,
                 zipcode_map=zipcode_map,
                 address_col_name="employer_address",
