@@ -44,7 +44,7 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.addresses = builder.components.get_component('Addresses')
+        self.addresses = builder.components.get_component('Address')
         self.columns_created = ["address", "zipcode"]
         self.columns_used = ["household_id", "address", "zipcode", "tracked"]
         self.population_view = builder.population.get_view(self.columns_used)

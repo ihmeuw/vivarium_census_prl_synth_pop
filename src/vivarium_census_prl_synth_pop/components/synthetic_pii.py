@@ -249,7 +249,7 @@ class NameGenerator(GenericGenerator):
         return df
 
 
-class Addresses(GenericGenerator):
+class Address(GenericGenerator):
     @property
     def name(self):
         return "Addresses"

@@ -2,7 +2,7 @@ components:
     vivarium_census_prl_synth_pop:
         components:
             - Population()
-            - Addresses()
+            - Address()
             - HouseholdMigration()
             - PersonMigration()
             - Observers()
