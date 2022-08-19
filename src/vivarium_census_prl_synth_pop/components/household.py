@@ -120,10 +120,14 @@ class HouseholdMigration:
                 households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
             )
 
+            households_to_update = households.loc[
+                households['household_id'].isin(households_that_move), 'household_id'
+            ]
+
             households = self.addresses.update_address_and_zipcode(
                 df=households,
-                rows_to_update=households_that_move,
-                id_key=households_that_move,
+                rows_to_update=households_to_update.index,
+                id_key=households_to_update,
                 address_map=address_map,
                 zipcode_map=zipcode_map,
             )
