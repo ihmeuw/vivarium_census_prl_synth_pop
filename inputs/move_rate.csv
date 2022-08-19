@@ -1,0 +1,183 @@
+age_start,age_end,sex,race_ethnicity,person_rate,household_rate
+0,14,Female,Black,0.0,0.0
+0,14,Female,White,0.0,0.0
+0,14,Female,Latino,0.0,0.0
+0,14,Female,Multiracial or Other,0.0,0.0
+0,14,Female,Asian,0.0,0.0
+0,14,Female,AIAN,0.0,0.0
+0,14,Female,NHOPI,0.0,0.0
+0,14,Male,Black,0.0,0.0
+0,14,Male,White,0.0,0.0
+0,14,Male,Latino,0.0,0.0
+0,14,Male,Multiracial or Other,0.0,0.0
+0,14,Male,Asian,0.0,0.0
+0,14,Male,AIAN,0.0,0.0
+0,14,Male,NHOPI,0.0,0.0
+15,17,Female,Black,0.01,0.5
+15,17,Female,White,0.01,0.5
+15,17,Female,Latino,0.01,0.5
+15,17,Female,Multiracial or Other,0.01,0.5
+15,17,Female,Asian,0.01,0.5
+15,17,Female,AIAN,0.01,0.5
+15,17,Female,NHOPI,0.01,0.5
+15,17,Male,Black,0.01,0.5
+15,17,Male,White,0.01,0.5
+15,17,Male,Latino,0.01,0.5
+15,17,Male,Multiracial or Other,0.01,0.5
+15,17,Male,Asian,0.01,0.5
+15,17,Male,AIAN,0.01,0.5
+15,17,Male,NHOPI,0.01,0.5
+18,18,Female,Black,0.7,0.4
+18,18,Female,White,0.7,0.4
+18,18,Female,Latino,0.7,0.4
+18,18,Female,Multiracial or Other,0.7,0.4
+18,18,Female,Asian,0.7,0.4
+18,18,Female,AIAN,0.7,0.4
+18,18,Female,NHOPI,0.7,0.4
+18,18,Male,Black,0.7,0.4
+18,18,Male,White,0.7,0.4
+18,18,Male,Latino,0.7,0.4
+18,18,Male,Multiracial or Other,0.7,0.4
+18,18,Male,Asian,0.7,0.4
+18,18,Male,AIAN,0.7,0.4
+18,18,Male,NHOPI,0.7,0.4
+19,19,Female,Black,0.8,0.3
+19,19,Female,White,0.8,0.3
+19,19,Female,Latino,0.8,0.3
+19,19,Female,Multiracial or Other,0.8,0.3
+19,19,Female,Asian,0.8,0.3
+19,19,Female,AIAN,0.8,0.3
+19,19,Female,NHOPI,0.8,0.3
+19,19,Male,Black,0.8,0.3
+19,19,Male,White,0.8,0.3
+19,19,Male,Latino,0.8,0.3
+19,19,Male,Multiracial or Other,0.8,0.3
+19,19,Male,Asian,0.8,0.3
+19,19,Male,AIAN,0.8,0.3
+19,19,Male,NHOPI,0.8,0.3
+20,20,Female,Black,0.8,0.3
+20,20,Female,White,0.8,0.3
+20,20,Female,Latino,0.8,0.3
+20,20,Female,Multiracial or Other,0.8,0.3
+20,20,Female,Asian,0.8,0.3
+20,20,Female,AIAN,0.8,0.3
+20,20,Female,NHOPI,0.8,0.3
+20,20,Male,Black,0.8,0.3
+20,20,Male,White,0.8,0.3
+20,20,Male,Latino,0.8,0.3
+20,20,Male,Multiracial or Other,0.8,0.3
+20,20,Male,Asian,0.8,0.3
+20,20,Male,AIAN,0.8,0.3
+20,20,Male,NHOPI,0.8,0.3
+21,21,Female,Black,0.8,0.3
+21,21,Female,White,0.8,0.3
+21,21,Female,Latino,0.8,0.3
+21,21,Female,Multiracial or Other,0.8,0.3
+21,21,Female,Asian,0.8,0.3
+21,21,Female,AIAN,0.8,0.3
+21,21,Female,NHOPI,0.8,0.3
+21,21,Male,Black,0.8,0.3
+21,21,Male,White,0.8,0.3
+21,21,Male,Latino,0.8,0.3
+21,21,Male,Multiracial or Other,0.8,0.3
+21,21,Male,Asian,0.8,0.3
+21,21,Male,AIAN,0.8,0.3
+21,21,Male,NHOPI,0.8,0.3
+22,24,Female,Black,0.9,0.3
+22,24,Female,White,0.9,0.3
+22,24,Female,Latino,0.9,0.3
+22,24,Female,Multiracial or Other,0.9,0.3
+22,24,Female,Asian,0.9,0.3
+22,24,Female,AIAN,0.9,0.3
+22,24,Female,NHOPI,0.9,0.3
+22,24,Male,Black,0.9,0.3
+22,24,Male,White,0.9,0.3
+22,24,Male,Latino,0.9,0.3
+22,24,Male,Multiracial or Other,0.9,0.3
+22,24,Male,Asian,0.9,0.3
+22,24,Male,AIAN,0.9,0.3
+22,24,Male,NHOPI,0.9,0.3
+25,29,Female,Black,0.3,0.2
+25,29,Female,White,0.3,0.2
+25,29,Female,Latino,0.3,0.2
+25,29,Female,Multiracial or Other,0.3,0.2
+25,29,Female,Asian,0.3,0.2
+25,29,Female,AIAN,0.3,0.2
+25,29,Female,NHOPI,0.3,0.2
+25,29,Male,Black,0.3,0.2
+25,29,Male,White,0.3,0.2
+25,29,Male,Latino,0.3,0.2
+25,29,Male,Multiracial or Other,0.3,0.2
+25,29,Male,Asian,0.3,0.2
+25,29,Male,AIAN,0.3,0.2
+25,29,Male,NHOPI,0.3,0.2
+30,39,Female,Black,0.1,0.05
+30,39,Female,White,0.1,0.05
+30,39,Female,Latino,0.1,0.05
+30,39,Female,Multiracial or Other,0.1,0.05
+30,39,Female,Asian,0.1,0.05
+30,39,Female,AIAN,0.1,0.05
+30,39,Female,NHOPI,0.1,0.05
+30,39,Male,Black,0.1,0.05
+30,39,Male,White,0.1,0.05
+30,39,Male,Latino,0.1,0.05
+30,39,Male,Multiracial or Other,0.1,0.05
+30,39,Male,Asian,0.1,0.05
+30,39,Male,AIAN,0.1,0.05
+30,39,Male,NHOPI,0.1,0.05
+40,49,Female,Black,0.07,0.05
+40,49,Female,White,0.07,0.05
+40,49,Female,Latino,0.07,0.05
+40,49,Female,Multiracial or Other,0.07,0.05
+40,49,Female,Asian,0.07,0.05
+40,49,Female,AIAN,0.07,0.05
+40,49,Female,NHOPI,0.07,0.05
+40,49,Male,Black,0.07,0.05
+40,49,Male,White,0.07,0.05
+40,49,Male,Latino,0.07,0.05
+40,49,Male,Multiracial or Other,0.07,0.05
+40,49,Male,Asian,0.07,0.05
+40,49,Male,AIAN,0.07,0.05
+40,49,Male,NHOPI,0.07,0.05
+50,59,Female,Black,0.05,0.04
+50,59,Female,White,0.05,0.04
+50,59,Female,Latino,0.05,0.04
+50,59,Female,Multiracial or Other,0.05,0.04
+50,59,Female,Asian,0.05,0.04
+50,59,Female,AIAN,0.05,0.04
+50,59,Female,NHOPI,0.05,0.04
+50,59,Male,Black,0.05,0.04
+50,59,Male,White,0.05,0.04
+50,59,Male,Latino,0.05,0.04
+50,59,Male,Multiracial or Other,0.05,0.04
+50,59,Male,Asian,0.05,0.04
+50,59,Male,AIAN,0.05,0.04
+50,59,Male,NHOPI,0.05,0.04
+60,79,Female,Black,0.06,0.03
+60,79,Female,White,0.06,0.03
+60,79,Female,Latino,0.06,0.03
+60,79,Female,Multiracial or Other,0.06,0.03
+60,79,Female,Asian,0.06,0.03
+60,79,Female,AIAN,0.06,0.03
+60,79,Female,NHOPI,0.06,0.03
+60,79,Male,Black,0.06,0.03
+60,79,Male,White,0.06,0.03
+60,79,Male,Latino,0.06,0.03
+60,79,Male,Multiracial or Other,0.06,0.03
+60,79,Male,Asian,0.06,0.03
+60,79,Male,AIAN,0.06,0.03
+60,79,Male,NHOPI,0.06,0.03
+80,99,Female,Black,0.03,0.01
+80,99,Female,White,0.03,0.01
+80,99,Female,Latino,0.03,0.01
+80,99,Female,Multiracial or Other,0.03,0.01
+80,99,Female,Asian,0.03,0.01
+80,99,Female,AIAN,0.03,0.01
+80,99,Female,NHOPI,0.03,0.01
+80,99,Male,Black,0.03,0.01
+80,99,Male,White,0.03,0.01
+80,99,Male,Latino,0.03,0.01
+80,99,Male,Multiracial or Other,0.03,0.01
+80,99,Male,Asian,0.03,0.01
+80,99,Male,AIAN,0.03,0.01
+80,99,Male,NHOPI,0.03,0.01
