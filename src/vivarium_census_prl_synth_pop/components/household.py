@@ -111,7 +111,7 @@ class HouseholdMigration:
         households = self.population_view.subview(["household_id", "address", "zipcode"]).get(
             event.index
         )
-        household_heads = households.loc[households["relation_to_households_head"]=="Reference person"]
+        household_heads = households.loc[households["relation_to_household_head"] == "Reference person"]
         households_that_move = self.addresses.determine_if_moving(
             household_heads["household_id"], self.household_move_rate
         ).index
