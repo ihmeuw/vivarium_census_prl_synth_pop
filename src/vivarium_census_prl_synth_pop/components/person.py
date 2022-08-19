@@ -4,8 +4,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_census_prl_synth_pop.constants import metadata
-from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.constants import paths
 
 
 class PersonMigration:
@@ -42,7 +41,14 @@ class PersonMigration:
             "zipcode",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
-        move_rate_data = builder.lookup.build_table(data_values.INDIVIDUAL_MOVE_RATE_YEARLY)
+        move_rate_data = builder.lookup.build_table(
+            data=pd.read_csv(
+                paths.REPO_DIR / 'inputs/move_rates.csv'
+            ),
+            key_columns=["sex", "race_ethnicity"],
+            parameter_columns=["age"],
+            value_columns=["person_move_rate"]
+        )
         self.person_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
