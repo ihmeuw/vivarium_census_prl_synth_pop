@@ -4,7 +4,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.constants import metadata, data_keys
+from vivarium_census_prl_synth_pop.constants import metadata, data_keys, paths
 from vivarium_census_prl_synth_pop.constants import data_values
 
 
@@ -38,7 +38,15 @@ class HouseholdMigration:
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
-        move_rate_data = builder.lookup.build_table(data_values.HOUSEHOLD_MOVE_RATE_YEARLY)
+        move_rate_data = builder.lookup.build_table(
+            data=pd.read_csv(
+                paths.REPO_DIR / 'inputs/move_rates.csv',
+                usecols=["sex", "race_ethnicity", "age_start", "age_end", "household_rate"]
+            ),
+            key_columns=["sex", "race_ethnicity"],
+            parameter_columns=["age"],
+            value_columns=["household_rate"]
+        )
         self.household_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
@@ -107,15 +115,16 @@ class HouseholdMigration:
             households["household_id"], self.household_move_rate
         ).index
 
-        address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-            households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
-        )
+        if len(households_that_move) > 0:
+            address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
+                households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+            )
 
-        households = self.addresses.update_address_and_zipcode(
-            df=households,
-            rows_to_update=households_that_move,
-            id_key=households_that_move,
-            address_map=address_map,
-            zipcode_map=zipcode_map,
-        )
-        self.population_view.update(households)
+            households = self.addresses.update_address_and_zipcode(
+                df=households,
+                rows_to_update=households_that_move,
+                id_key=households_that_move,
+                address_map=address_map,
+                zipcode_map=zipcode_map,
+            )
+            self.population_view.update(households)
