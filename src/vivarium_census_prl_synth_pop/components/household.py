@@ -54,7 +54,7 @@ class HouseholdMigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.addresses = builder.components.get_component("Address")
         self.columns_created = ["address", "zipcode"]
-        self.columns_used = ["household_id", "relation_to_household_head", "address", "zipcode", "tracked"]
+        self.columns_used = ["age", "household_id", "relation_to_household_head", "address", "zipcode", "tracked"]
         self.population_view = builder.population.get_view(self.columns_used)
 
         builder.population.initializes_simulants(
@@ -109,16 +109,19 @@ class HouseholdMigration:
         move those households to a new address
         """
         households = self.population_view.subview(
-            ["household_id", "relation_to_household_head", "address", "zipcode"]
+            ["age", "household_id", "relation_to_household_head", "address", "zipcode"]
         ).get(event.index)
         household_heads = households.loc[households["relation_to_household_head"] == "Reference person"]
         households_that_move = self.addresses.determine_if_moving(
             household_heads["household_id"], self.household_move_rate
-        ).index
+        )
 
         if len(households_that_move) > 0:
+            ages = list(households.loc[households_that_move].age)
+            if sum([a < 50 or a > 60 for a in ages]) > 0:
+                print("here")
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+                households_that_move.index, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
             )
 
             households_to_update = households.loc[
