@@ -117,11 +117,8 @@ class HouseholdMigration:
         )
 
         if len(households_that_move) > 0:
-            ages = list(households.loc[households_that_move].age)
-            if sum([a < 50 or a > 60 for a in ages]) > 0:
-                print("here")
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                households_that_move.index, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+                households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
             )
 
             households_to_update = households.loc[
