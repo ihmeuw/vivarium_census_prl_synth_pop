@@ -54,7 +54,7 @@ class HouseholdMigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.addresses = builder.components.get_component("Address")
         self.columns_created = ["address", "zipcode"]
-        self.columns_used = ["age", "household_id", "relation_to_household_head", "address", "zipcode", "tracked"]
+        self.columns_used = ["household_id", "relation_to_household_head", "address", "zipcode", "tracked"]
         self.population_view = builder.population.get_view(self.columns_used)
 
         builder.population.initializes_simulants(
@@ -109,7 +109,7 @@ class HouseholdMigration:
         move those households to a new address
         """
         households = self.population_view.subview(
-            ["age", "household_id", "relation_to_household_head", "address", "zipcode"]
+            ["household_id", "relation_to_household_head", "address", "zipcode"]
         ).get(event.index)
         household_heads = households.loc[households["relation_to_household_head"] == "Reference person"]
         households_that_move = self.addresses.determine_if_moving(
