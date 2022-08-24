@@ -215,6 +215,8 @@ US_STATE_ABBRV_MAP = {
     "Puerto Rico": "PR",
 }
 
+P_GROUP_QUARTERS = 0.03
+
 
 class __Scenarios(NamedTuple):
     baseline: str = "baseline"

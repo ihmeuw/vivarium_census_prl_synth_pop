@@ -77,10 +77,13 @@ class Population:
             self.initialize_newborns(pop_data)
 
     def generate_base_population(self, pop_data: SimulantData) -> None:
+        approx_in_group_quarters = metadata.P_GROUP_QUARTERS * self.config.population_size
+        n_in_households = self.config.population_size - approx_in_group_quarters
+
         # oversample households
         chosen_households = vectorized_choice(
             options=self.population_data["households"]["census_household_id"],
-            n_to_choose=self.config.population_size,
+            n_to_choose=n_in_households,
             randomness_stream=self.randomness,
             weights=self.population_data["households"]["household_weight"],
         )
@@ -111,7 +114,7 @@ class Population:
 
         # get rid simulants in excess of desired pop size
         households_to_discard = chosen_persons.loc[
-            self.config.population_size :, "household_id"
+            n_in_households:, "household_id"
         ].unique()
         chosen_persons = chosen_persons.query(
             f"household_id not in {list(households_to_discard)}"
@@ -133,36 +136,46 @@ class Population:
         chosen_persons["alive"] = "alive"
         chosen_persons["tracked"] = True
 
-        # add back in extra simulants to reach desired pop size
-        remainder = self.config.population_size - n_chosen
-        if remainder > 0:
-            extras = pd.DataFrame(
-                data={
-                    "household_id": ["NA"],
-                    "state": [-1],
-                    "puma": ["NA"],
-                    "age": [np.NaN],
-                    "relation_to_household_head": ["NA"],
-                    "sex": ["NA"],
-                    "race_ethnicity": ["NA"],
-                    "first_name": ["NA"],
-                    "middle_name": ["NA"],
-                    "last_name": ["NA"],
-                    "ssn": ["NA"],
-                    "entrance_time": [pd.NaT],
-                    "exit_time": [pd.NaT],
-                    "alive": ["alive"],
-                    "tracked": [False],
-                },
-                index=range(remainder),
-            )
-            chosen_persons = pd.concat([chosen_persons, extras])
+        # # add back in extra simulants to reach desired pop size
+        # remainder = n_in_households - n_chosen
+        # if remainder > 0:
+        #     extras = pd.DataFrame(
+        #         data={
+        #             "household_id": ["NA"],
+        #             "state": [-1],
+        #             "puma": ["NA"],
+        #             "age": [np.NaN],
+        #             "relation_to_household_head": ["NA"],
+        #             "sex": ["NA"],
+        #             "race_ethnicity": ["NA"],
+        #             "first_name": ["NA"],
+        #             "middle_name": ["NA"],
+        #             "last_name": ["NA"],
+        #             "ssn": ["NA"],
+        #             "entrance_time": [pd.NaT],
+        #             "exit_time": [pd.NaT],
+        #             "alive": ["alive"],
+        #             "tracked": [False],
+        #         },
+        #         index=range(remainder),
+        #     )
+        #     chosen_persons = pd.concat([chosen_persons, extras])
 
         # add typing
         chosen_persons["age"] = chosen_persons["age"].astype("float64")
         chosen_persons["state"] = chosen_persons["state"].astype("int64")
         chosen_persons = chosen_persons.set_index(pop_data.index)
+
+        group_quarters_pop = self.sample_group_housing_inhabitants(
+            n=self.config.population_size - len(chosen_persons),
+            pop_data=pop_data
+        )
+
         self.population_view.update(chosen_persons)
+
+    def sample_group_housing_inhabitants(self, n: int, pop_data: SimulantData) -> pd.DataFrame:
+
+
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids = pop_data.user_data["parent_ids"]
