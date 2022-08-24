@@ -12,7 +12,6 @@ for an example.
 
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
-from pathlib import Path
 from typing import Dict
 
 import pandas as pd
@@ -147,7 +146,14 @@ def load_households(key: str, location: str) -> pd.DataFrame:
     persons = load_raw_persons_data(metadata.SUBSET_PERSONS_COLUMNS_MAP, location)
 
     # subset data to household ids in person file
-    data = data.query(f"census_household_id in {list(persons.census_household_id.unique())}")
+    data = data.query(f"census_household_id in {list(persons['census_household_id'].unique())}")
+
+    # merge on person weights for GQ
+    data = data.merge(
+        persons.loc[['GQ' in i for i in persons.census_household_id]],
+        on='census_household_id',
+        how='left'
+    )
 
     return data
 
