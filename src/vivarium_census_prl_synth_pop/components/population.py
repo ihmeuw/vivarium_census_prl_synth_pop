@@ -77,11 +77,15 @@ class Population:
             self.initialize_newborns(pop_data)
 
     def generate_initial_population(self, pop_data: SimulantData) -> None:
-        target_GQ_pop_size = int(self.config.population_size * data_values.PROP_POPULATION_IN_GQ)
+        target_GQ_pop_size = int(
+            self.config.population_size * data_values.PROP_POPULATION_IN_GQ
+        )
         target_standard_housing_pop_size = self.config.population_size - target_GQ_pop_size
 
         chosen_households = self.choose_standard_households(target_standard_housing_pop_size)
-        chosen_group_quarters = self.choose_group_quarters(self.config.population_size - len(chosen_households))
+        chosen_group_quarters = self.choose_group_quarters(
+            self.config.population_size - len(chosen_households)
+        )
 
         pop = pd.concat([chosen_households, chosen_group_quarters])
 
@@ -126,13 +130,15 @@ class Population:
         )
 
         # create unique id for resampled households
-        chosen_households = pd.DataFrame({
-            "census_household_id": chosen_households,
-            "household_id": np.arange(
-                data_values.N_GROUP_QUARTER_TYPES,
-                len(chosen_households) + data_values.N_GROUP_QUARTER_TYPES
-            )
-        })
+        chosen_households = pd.DataFrame(
+            {
+                "census_household_id": chosen_households,
+                "household_id": np.arange(
+                    data_values.N_GROUP_QUARTER_TYPES,
+                    len(chosen_households) + data_values.N_GROUP_QUARTER_TYPES,
+                ),
+            }
+        )
 
         # get all simulants per household
         chosen_persons = pd.merge(
@@ -165,7 +171,7 @@ class Population:
             options=group_quarters,
             n_to_choose=target_number_sims,
             randomness_stream=self.randomness,
-            weights=self.population_data["households"][["person_weight"]]
+            weights=self.population_data["households"][["person_weight"]],
         )
 
         # get simulants per GQ unit
@@ -176,19 +182,23 @@ class Population:
             how="left",
         )
 
-        noninstitutionalized = chosen_persons.loc[chosen_persons["relation_to_household_head"] == "Noninstitutionalized GQ pop"]
-        institutionalized = chosen_persons.loc[chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"]
+        noninstitutionalized = chosen_persons.loc[
+            chosen_persons["relation_to_household_head"] == "Noninstitutionalized GQ pop"
+        ]
+        institutionalized = chosen_persons.loc[
+            chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"
+        ]
 
         noninstitutionalized_gq_types = vectorized_choice(
             options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
             n_to_choose=len(noninstitutionalized),
-            randomness_stream=self.randomness
+            randomness_stream=self.randomness,
         )
 
         institutionalized_gq_types = vectorized_choice(
             options=list(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()),
             n_to_choose=len(institutionalized),
-            randomness_stream=self.randomness
+            randomness_stream=self.randomness,
         )
 
         noninstitutionalized["household_id"] = noninstitutionalized_gq_types
