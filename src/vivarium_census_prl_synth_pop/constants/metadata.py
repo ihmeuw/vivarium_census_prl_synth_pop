@@ -97,7 +97,11 @@ PERSONS_COLUMNS_MAP = {
     "RAC1P": "race",
 }
 
-SUBSET_PERSONS_COLUMNS_MAP = {'ST': 'state', 'SERIALNO': 'census_household_id', 'PWGTP' :'person_weight'}
+SUBSET_PERSONS_COLUMNS_MAP = {
+    "ST": "state",
+    "SERIALNO": "census_household_id",
+    "PWGTP": "person_weight",
+}
 
 LATINO_VAR_MAP = {i: (1 if i == 1 else 0) for i in range(1, 25)}
 
