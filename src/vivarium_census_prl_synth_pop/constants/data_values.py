@@ -1,9 +1,7 @@
 ########################
-# Migration Parameters #
+# Fertility Parameters #
 ########################
 
-HOUSEHOLD_MOVE_RATE_YEARLY = 0.15
-INDIVIDUAL_MOVE_RATE_YEARLY = 0.15
 PROBABILITY_OF_TWINS = 0.04
 
 #########################

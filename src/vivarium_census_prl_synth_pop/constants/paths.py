@@ -13,6 +13,8 @@ RESULTS_ROOT = PROJECT_ROOT / "results/"
 HOUSEHOLDS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 PERSONS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 
+HOUSEHOLD_MOVE_RATE_PATH = BASE_DIR / "data/raw_data/move_rates.csv"
+
 HOUSEHOLDS_FILENAMES = [f"psam_hus{x}.csv" for x in ["a", "b", "c", "d"]]
 PERSONS_FILENAMES = [f"psam_pus{x}.csv" for x in ["a", "b", "c", "d"]]
 

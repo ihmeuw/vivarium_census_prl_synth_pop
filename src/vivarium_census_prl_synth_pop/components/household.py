@@ -4,7 +4,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.constants import metadata, data_keys
+from vivarium_census_prl_synth_pop.constants import metadata, data_keys, paths
 from vivarium_census_prl_synth_pop.constants import data_values
 
 
@@ -38,7 +38,15 @@ class HouseholdMigration:
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
-        move_rate_data = builder.lookup.build_table(data_values.HOUSEHOLD_MOVE_RATE_YEARLY)
+        move_rate_data = builder.lookup.build_table(
+            data=pd.read_csv(
+                paths.HOUSEHOLD_MOVE_RATE_PATH,
+                usecols=["sex", "race_ethnicity", "age_start", "age_end", "household_rate"]
+            ),
+            key_columns=["sex", "race_ethnicity"],
+            parameter_columns=["age"],
+            value_columns=["household_rate"]
+        )
         self.household_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
@@ -46,7 +54,7 @@ class HouseholdMigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.addresses = builder.components.get_component("Address")
         self.columns_created = ["address", "zipcode"]
-        self.columns_used = ["household_id", "address", "zipcode", "tracked"]
+        self.columns_used = ["household_id", "relation_to_household_head", "address", "zipcode", "tracked"]
         self.population_view = builder.population.get_view(self.columns_used)
 
         builder.population.initializes_simulants(
@@ -100,22 +108,28 @@ class HouseholdMigration:
         choose which households move;
         move those households to a new address
         """
-        households = self.population_view.subview(["household_id", "address", "zipcode"]).get(
-            event.index
-        )
+        households = self.population_view.subview(
+            ["household_id", "relation_to_household_head", "address", "zipcode"]
+        ).get(event.index)
+        household_heads = households.loc[households["relation_to_household_head"] == "Reference person"]
         households_that_move = self.addresses.determine_if_moving(
-            households["household_id"], self.household_move_rate
-        ).index
-
-        address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-            households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+            household_heads["household_id"], self.household_move_rate
         )
 
-        households = self.addresses.update_address_and_zipcode(
-            df=households,
-            rows_to_update=households_that_move,
-            id_key=households_that_move,
-            address_map=address_map,
-            zipcode_map=zipcode_map,
-        )
-        self.population_view.update(households)
+        if len(households_that_move) > 0:
+            address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
+                households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+            )
+
+            households_to_update = households.loc[
+                households['household_id'].isin(households_that_move), 'household_id'
+            ]
+
+            households = self.addresses.update_address_and_zipcode(
+                df=households,
+                rows_to_update=households_to_update.index,
+                id_key=households_to_update,
+                address_map=address_map,
+                zipcode_map=zipcode_map,
+            )
+            self.population_view.update(households)
