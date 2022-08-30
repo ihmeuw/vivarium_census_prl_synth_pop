@@ -44,11 +44,11 @@ class PersonMigration:
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
                 paths.HOUSEHOLD_MOVE_RATE_PATH,
-                usecols=["sex", "race_ethnicity", "age_start", "age_end", "person_rate"]
+                usecols=["sex", "race_ethnicity", "age_start", "age_end", "person_rate"],
             ),
             key_columns=["sex", "race_ethnicity"],
             parameter_columns=["age"],
-            value_columns=["person_rate"]
+            value_columns=["person_rate"],
         )
         self.person_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
