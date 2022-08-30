@@ -125,18 +125,7 @@ class Population:
             weights=self.population_data["households"]["household_weight"],
         )
 
-        # get all simulants per household
-        chosen_persons = self.population_data["persons"][["census_household_id"]]
-        chosen_persons = chosen_persons.loc[
-            chosen_persons["census_household_id"].isin(chosen_households)
-        ]
-
-        # get rid simulants in excess of desired pop size
-        households_to_discard = chosen_persons.loc[
-            target_number_sims:, "household_id"
-        ].unique()
-
-        chosen_households = [hh for hh in chosen_households if hh not in households_to_discard]
+        # create unique id for resampled households
         chosen_households = pd.DataFrame({
             "census_household_id": chosen_households,
             "household_id": np.arange(
@@ -146,19 +135,28 @@ class Population:
         })
 
         # get all simulants per household
-        pop = pd.merge(
+        chosen_persons = pd.merge(
             chosen_households,
             self.population_data["persons"],
             on="census_household_id",
             how="left",
         )
 
-        return pop
+        # get rid simulants in excess of desired pop size
+        households_to_discard = chosen_persons.loc[
+            target_number_sims:, "household_id"
+        ].unique()
+
+        chosen_persons = chosen_persons.loc[
+            ~chosen_persons["household_id"].isin(households_to_discard)
+        ]
+
+        return chosen_persons
 
     def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
-        group_quarters = self.population_data["households"][["census_household_id"]]
+        group_quarters = self.population_data["households"]["census_household_id"]
         group_quarters = group_quarters.loc[
-            ["GQ" in household_id for household_id in group_quarters["census_household_id"]]
+            ["GQ" in household_id for household_id in group_quarters]
         ]
 
         # group quarters each house one person per census_household_id
@@ -170,20 +168,25 @@ class Population:
             weights=self.population_data["households"][["person_weight"]]
         )
 
-        pop = self.population_data["persons"].loc[
-            self.population_data["persons"]["census_household_id"].isin(chosen_units)
-        ]
-        noninstitutionalized = pop.loc[pop["relation_to_household_head"] == "Noninstitutionalized GQ pop"]
-        institutionalized = pop.loc[pop["relation_to_household_head"] == "Institutionalized GQ pop"]
+        # get simulants per GQ unit
+        chosen_persons = pd.merge(
+            chosen_units,
+            self.population_data["persons"],
+            on="census_household_id",
+            how="left",
+        )
+
+        noninstitutionalized = chosen_persons.loc[chosen_persons["relation_to_household_head"] == "Noninstitutionalized GQ pop"]
+        institutionalized = chosen_persons.loc[chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"]
 
         noninstitutionalized_gq_types = vectorized_choice(
-            options=data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values(),
+            options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
             n_to_choose=len(noninstitutionalized),
             randomness_stream=self.randomness
         )
 
         institutionalized_gq_types = vectorized_choice(
-            options=data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values(),
+            options=list(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()),
             n_to_choose=len(institutionalized),
             randomness_stream=self.randomness
         )
