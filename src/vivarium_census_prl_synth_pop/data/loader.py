@@ -137,7 +137,6 @@ def load_households(key: str, location: str) -> pd.DataFrame:
 
     # reshape
     data = data.rename(columns=metadata.HOUSEHOLDS_COLUMN_MAP)
-    data = data.set_index(["state", "puma", "census_household_id", "household_weight"])
 
     if location != "United States":
         data = data.query(f"state == {metadata.CENSUS_STATE_IDS[location]}")
@@ -154,6 +153,8 @@ def load_households(key: str, location: str) -> pd.DataFrame:
         on='census_household_id',
         how='left'
     )
+
+    data = data.set_index(["state", "puma", "census_household_id", "household_weight", "person_weight"])
 
     return data
 
