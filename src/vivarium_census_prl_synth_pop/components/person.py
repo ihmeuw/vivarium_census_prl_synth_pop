@@ -43,7 +43,7 @@ class PersonMigration:
         self.population_view = builder.population.get_view(self.columns_needed)
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
-                paths.REPO_DIR / 'inputs/move_rates.csv',
+                paths.HOUSEHOLD_MOVE_RATE_PATH,
                 usecols=["sex", "race_ethnicity", "age_start", "age_end", "person_rate"]
             ),
             key_columns=["sex", "race_ethnicity"],
