@@ -100,10 +100,10 @@ class PersonMigration:
         persons_who_move["relation_to_household_head"] = "Other nonrelative"
         persons_who_move.loc[persons["household_id"].isin(
             data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
-        )] = "Institutionalized GQ pop"
+        ), "relation_to_household_head"] = "Institutionalized GQ pop"
         persons_who_move.loc[persons["household_id"].isin(
             data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
-        )] = "Noninstitutionalized GQ pop"
+        ), "relation_to_household_head"] = "Noninstitutionalized GQ pop"
 
         self.population_view.update(persons_who_move)
 
