@@ -248,7 +248,7 @@ class Population:
         names = self.name_generator.generate_first_and_middle_names(new_births)
         new_births = pd.concat([new_births, names], axis=1)
 
-        #typing
+        # typing
         new_births["household_id"] = new_births["household_id"].astype(int)
 
         self.population_view.update(new_births[self.columns_created])
