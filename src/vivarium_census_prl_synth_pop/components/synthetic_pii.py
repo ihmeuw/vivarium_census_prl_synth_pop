@@ -79,7 +79,7 @@ class SSNGenerator(GenericGenerator):
         df["ssn"] += df.ssn_serial.astype(str).str.zfill(4)
         return df
 
-    def noise(self, df):
+    def noise(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
 
         # TODO: add some errors in digits
@@ -108,7 +108,14 @@ class NameGenerator(GenericGenerator):
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
-    def random_first_names(self, randomness: RandomnessStream, yob: int, sex: str, size: int, additional_key: Any = None) -> np.ndarray:
+    def random_first_names(
+        self,
+        randomness: RandomnessStream,
+        yob: int,
+        sex: str,
+        size: int,
+        additional_key: Any = None,
+    ) -> np.ndarray:
         # we only have data up to 2020; for younger children, sample from 2020 names.
         if yob > 2020:
             yob = 2020
@@ -125,7 +132,13 @@ class NameGenerator(GenericGenerator):
             additional_key=additional_key,
         ).to_numpy()  # TODO: include spaces and hyphens
 
-    def random_last_names(self, randomness: RandomnessStream, race_eth: str, size: int, additional_key: Any = None) -> np.ndarray:
+    def random_last_names(
+        self,
+        randomness: RandomnessStream,
+        race_eth: str,
+        size: int,
+        additional_key: Any = None,
+    ) -> np.ndarray:
         df_census_names = self.last_name_data
 
         # randomly sample last names
@@ -227,7 +240,7 @@ class NameGenerator(GenericGenerator):
         # TODO: include household structure
         return pd.DataFrame(last_names, columns=["last_name"])
 
-    def noise(self, df):
+    def noise(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
 
         # TODO: add some errors
