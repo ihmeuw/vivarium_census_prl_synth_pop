@@ -4,7 +4,7 @@ import pandas as pd
 from gbd_mapping import ModelableEntity, causes, covariates, risk_factors
 from scipy import stats
 
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 from pathlib import Path
 from loguru import logger
 from vivarium.framework.artifact import EntityKey
@@ -213,12 +213,13 @@ def vectorized_choice(
     n_to_choose: int,
     randomness_stream: RandomnessStream,
     weights: Array = None,
+    additional_key: Any = None,
 ):
     if weights is None:
         n = len(options)
         weights = np.ones(n) / n
     # for each of n_to_choose, sample uniformly between 0 and 1
-    probs = randomness_stream.get_draw(np.arange(n_to_choose))
+    probs = randomness_stream.get_draw(np.arange(n_to_choose), additional_key=additional_key)
 
     # build cdf based on weights
     pmf = weights / weights.sum()

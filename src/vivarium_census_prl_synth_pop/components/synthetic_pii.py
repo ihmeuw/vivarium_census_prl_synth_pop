@@ -1,11 +1,12 @@
 """collection of classes for generating sensitive data
 synthetically, e.g. name, address, social-security number
 """
-from typing import Union, List, Tuple, Dict
+from typing import Union, List, Tuple, Dict, Any
 
 import pandas as pd
 import numpy as np
 from vivarium.framework.engine import Builder
+from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.utilities import random_integers
@@ -107,7 +108,7 @@ class NameGenerator(GenericGenerator):
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
-    def random_first_names(self, randomness, yob, sex, size) -> np.ndarray:
+    def random_first_names(self, randomness: RandomnessStream, yob: int, sex: str, size: int, additional_key: Any = None) -> np.ndarray:
         # we only have data up to 2020; for younger children, sample from 2020 names.
         if yob > 2020:
             yob = 2020
@@ -121,9 +122,10 @@ class NameGenerator(GenericGenerator):
             n_to_choose=size,
             randomness_stream=self.randomness,
             weights=name_probabilities,
+            additional_key=additional_key,
         ).to_numpy()  # TODO: include spaces and hyphens
 
-    def random_last_names(self, randomness, race_eth, size) -> np.ndarray:
+    def random_last_names(self, randomness: RandomnessStream, race_eth: str, size: int, additional_key: Any = None) -> np.ndarray:
         df_census_names = self.last_name_data
 
         # randomly sample last names
@@ -132,6 +134,7 @@ class NameGenerator(GenericGenerator):
             n_to_choose=size,
             randomness_stream=self.randomness,
             weights=df_census_names[race_eth],
+            additional_key=additional_key,
         )
 
         # Last names sometimes also include spaces or hyphens, and abie has
@@ -194,10 +197,10 @@ class NameGenerator(GenericGenerator):
         for (age, sex), df_age in df_in.groupby(["age", "sex"]):
             n = len(df_age)
             first_and_middle.loc[df_age.index, "first_name"] = self.random_first_names(
-                self.randomness, current_year - age, sex, n
+                self.randomness, current_year - age, sex, n, "first"
             )
             first_and_middle.loc[df_age.index, "middle_name"] = self.random_first_names(
-                self.randomness, current_year - age, sex, n
+                self.randomness, current_year - age, sex, n, "middle"
             )
 
         return first_and_middle
