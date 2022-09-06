@@ -8,7 +8,7 @@ from vivarium_public_health.utilities import to_years
 
 from vivarium_census_prl_synth_pop.components.synthetic_pii import NameGenerator
 from vivarium_census_prl_synth_pop.components.synthetic_pii import SSNGenerator
-from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
@@ -70,17 +70,61 @@ class Population:
     def initialize_simulants(self, pop_data: SimulantData) -> None:
         # at start of sim, generate base population
         if pop_data.creation_time < self.start_time:
-            self.generate_base_population(pop_data)
+            self.generate_initial_population(pop_data)
 
         # if new simulants are born into the sim
         else:
             self.initialize_newborns(pop_data)
 
-    def generate_base_population(self, pop_data: SimulantData) -> None:
+    def generate_initial_population(self, pop_data: SimulantData) -> None:
+        target_gq_pop_size = int(
+            self.config.population_size * data_values.PROP_POPULATION_IN_GQ
+        )
+        target_standard_housing_pop_size = self.config.population_size - target_gq_pop_size
+
+        chosen_households = self.choose_standard_households(target_standard_housing_pop_size)
+        chosen_group_quarters = self.choose_group_quarters(
+            self.config.population_size - len(chosen_households)
+        )
+
+        pop = pd.concat([chosen_households, chosen_group_quarters])
+
+        # pull back on state and puma
+        pop = pd.merge(
+            pop,
+            self.population_data["households"][["state", "puma", "census_household_id"]],
+            on="census_household_id",
+            how="left",
+        )
+
+        # drop non-unique household_id
+        pop = pop.drop(columns="census_household_id")
+
+        # give names
+        first_and_middle = self.name_generator.generate_first_and_middle_names(pop)
+        last_names = self.name_generator.generate_last_names(pop)
+        pop = pd.concat([pop, first_and_middle, last_names], axis=1)
+
+        # format
+        n_chosen = pop.shape[0]
+        pop["ssn"] = self.ssn_generator.generate(pop).ssn
+        pop["entrance_time"] = pop_data.creation_time
+        pop["exit_time"] = pd.NaT
+        pop["alive"] = "alive"
+        pop["tracked"] = True
+
+        # add typing
+        pop["age"] = pop["age"].astype("float64")
+        pop["state"] = pop["state"].astype("int64")
+        pop = pop.set_index(pop_data.index)
+
+        self.population_view.update(pop)
+
+    def choose_standard_households(self, target_number_sims: int) -> pd.DataFrame:
         # oversample households
         chosen_households = vectorized_choice(
             options=self.population_data["households"]["census_household_id"],
-            n_to_choose=self.config.population_size,
+            n_to_choose=target_number_sims,
             randomness_stream=self.randomness,
             weights=self.population_data["households"]["household_weight"],
         )
@@ -89,16 +133,11 @@ class Population:
         chosen_households = pd.DataFrame(
             {
                 "census_household_id": chosen_households,
-                "household_id": np.arange(len(chosen_households)),
+                "household_id": np.arange(
+                    data_values.N_GROUP_QUARTER_TYPES,
+                    len(chosen_households) + data_values.N_GROUP_QUARTER_TYPES,
+                ),
             }
-        )
-
-        # pull back on state and puma
-        chosen_households = pd.merge(
-            chosen_households,
-            self.population_data["households"][["state", "puma", "census_household_id"]],
-            on="census_household_id",
-            how="left",
         )
 
         # get all simulants per household
@@ -111,58 +150,61 @@ class Population:
 
         # get rid simulants in excess of desired pop size
         households_to_discard = chosen_persons.loc[
-            self.config.population_size :, "household_id"
+            target_number_sims:, "household_id"
         ].unique()
-        chosen_persons = chosen_persons.query(
-            f"household_id not in {list(households_to_discard)}"
+
+        chosen_persons = chosen_persons.loc[
+            ~chosen_persons["household_id"].isin(households_to_discard)
+        ]
+
+        return chosen_persons
+
+    def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
+        group_quarters = self.population_data["households"]["census_household_id"]
+        group_quarters = group_quarters.loc[
+            ["GQ" in household_id for household_id in group_quarters]
+        ]
+
+        # group quarters each house one person per census_household_id
+        # they have NA household weights, but appropriately weighted person weights.
+        chosen_units = vectorized_choice(
+            options=group_quarters,
+            n_to_choose=target_number_sims,
+            randomness_stream=self.randomness,
+            weights=self.population_data["households"][["person_weight"]],
         )
 
-        # drop non-unique household_id
-        chosen_persons = chosen_persons.drop(columns="census_household_id")
+        # get simulants per GQ unit
+        chosen_persons = pd.merge(
+            chosen_units,
+            self.population_data["persons"],
+            on="census_household_id",
+            how="left",
+        )
 
-        # give names
-        first_and_middle = self.name_generator.generate_first_and_middle_names(chosen_persons)
-        last_names = self.name_generator.generate_last_names(chosen_persons)
-        chosen_persons = pd.concat([chosen_persons, first_and_middle, last_names], axis=1)
+        noninstitutionalized = chosen_persons.loc[
+            chosen_persons["relation_to_household_head"] == "Noninstitutionalized GQ pop"
+        ]
+        institutionalized = chosen_persons.loc[
+            chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"
+        ]
 
-        # format
-        n_chosen = chosen_persons.shape[0]
-        chosen_persons["ssn"] = self.ssn_generator.generate(chosen_persons).ssn
-        chosen_persons["entrance_time"] = pop_data.creation_time
-        chosen_persons["exit_time"] = pd.NaT
-        chosen_persons["alive"] = "alive"
-        chosen_persons["tracked"] = True
+        noninstitutionalized_gq_types = vectorized_choice(
+            options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
+            n_to_choose=len(noninstitutionalized),
+            randomness_stream=self.randomness,
+        )
 
-        # add back in extra simulants to reach desired pop size
-        remainder = self.config.population_size - n_chosen
-        if remainder > 0:
-            extras = pd.DataFrame(
-                data={
-                    "household_id": ["NA"],
-                    "state": [-1],
-                    "puma": ["NA"],
-                    "age": [np.NaN],
-                    "relation_to_household_head": ["NA"],
-                    "sex": ["NA"],
-                    "race_ethnicity": ["NA"],
-                    "first_name": ["NA"],
-                    "middle_name": ["NA"],
-                    "last_name": ["NA"],
-                    "ssn": ["NA"],
-                    "entrance_time": [pd.NaT],
-                    "exit_time": [pd.NaT],
-                    "alive": ["alive"],
-                    "tracked": [False],
-                },
-                index=range(remainder),
-            )
-            chosen_persons = pd.concat([chosen_persons, extras])
+        institutionalized_gq_types = vectorized_choice(
+            options=list(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()),
+            n_to_choose=len(institutionalized),
+            randomness_stream=self.randomness,
+        )
 
-        # add typing
-        chosen_persons["age"] = chosen_persons["age"].astype("float64")
-        chosen_persons["state"] = chosen_persons["state"].astype("int64")
-        chosen_persons = chosen_persons.set_index(pop_data.index)
-        self.population_view.update(chosen_persons)
+        noninstitutionalized["household_id"] = noninstitutionalized_gq_types
+        institutionalized["household_id"] = institutionalized_gq_types
+
+        return pd.concat([noninstitutionalized, institutionalized])
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids = pop_data.user_data["parent_ids"]
@@ -205,6 +247,9 @@ class Population:
         # add first and middle names
         names = self.name_generator.generate_first_and_middle_names(new_births)
         new_births = pd.concat([new_births, names], axis=1)
+
+        # typing
+        new_births["household_id"] = new_births["household_id"].astype(int)
 
         self.population_view.update(new_births[self.columns_created])
 
