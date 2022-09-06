@@ -102,7 +102,7 @@ class Businesses:
                 self.businesses[self.columns_created], on="employer_id", how="left"
             )
 
-            # TODO: assign military employer to military-GQ sims
+            # TODO: assign military employer to military-GQ sims if working age
 
             # handle untracked sims
             pop.loc[~pop.tracked, "employer_id"] = UNTRACKED_ID
@@ -190,7 +190,7 @@ class Businesses:
             )
             pop = self._update_employer_metadata(pop, turning_working_age)
 
-        # TODO: assign military employer if living in military GQ
+        # TODO: assign military employer if living in military GQ if working age
 
         self.population_view.update(pop)
 
