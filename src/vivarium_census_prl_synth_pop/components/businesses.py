@@ -103,6 +103,9 @@ class Businesses:
             )
 
             # TODO: assign military employer to military-GQ sims if working age
+            pop.loc[(pop["employer_id"] == data_values.MILITARY_ID)
+                    & pop["age"] >= data_values.WORKING_AGE, "employer_name"] = "Military"
+
 
             # handle untracked sims
             pop.loc[~pop.tracked, "employer_id"] = UNTRACKED_ID
@@ -191,6 +194,8 @@ class Businesses:
             pop = self._update_employer_metadata(pop, turning_working_age)
 
         # TODO: assign military employer if living in military GQ if working age
+        pop.loc[(pop["household_id"] == data_values.INSTITUTIONAL_GROUP_QUARTER_IDS["military"])
+                & (pop["age"] >= data_values.WORKING_AGE), "employer_id"] = data_values.MILITARY_ID
 
         self.population_view.update(pop)
 
