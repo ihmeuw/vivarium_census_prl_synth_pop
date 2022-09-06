@@ -78,7 +78,8 @@ class Businesses:
             requires_columns=["age"],
             creates_columns=self.columns_created,
         )
-        builder.event.register_listener("time_step", self.on_time_step)
+        # note: priority must be later than that of persons.on_time_step
+        builder.event.register_listener("time_step", self.on_time_step, priority=6)
 
     ########################
     # Event-driven methods #
@@ -100,6 +101,8 @@ class Businesses:
             pop = pop.merge(
                 self.businesses[self.columns_created], on="employer_id", how="left"
             )
+
+            # TODO: assign military employer to military-GQ sims
 
             # handle untracked sims
             pop.loc[~pop.tracked, "employer_id"] = UNTRACKED_ID
@@ -187,6 +190,8 @@ class Businesses:
             )
             pop = self._update_employer_metadata(pop, turning_working_age)
 
+        # TODO: assign military employer if living in military GQ
+
         self.population_view.update(pop)
 
     ##################
@@ -200,10 +205,13 @@ class Businesses:
         # TODO: when have more known employers, maybe move to csv
         known_employers = pd.DataFrame(
             {
-                "employer_id": [UNEMPLOYED_ID],
-                "employer_name": ["unemployed"],
-                "employer_address": ["NA"],
-                "prevalence": [1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location]],
+                "employer_id": [data_values.UNEMPLOYED_ID, data_values.MILITARY_ID],
+                "employer_name": ["unemployed", "military"],
+                "employer_address": ["NA", data_values.MILITARY_ADDRESS],
+                "prevalence": [
+                    1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
+                    data_values.PROPORTION_WORKFORCE_EMPLOYED_MILITARY,
+                ],
             }
         )
 
