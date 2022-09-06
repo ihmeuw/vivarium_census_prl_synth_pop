@@ -1,11 +1,12 @@
 """collection of classes for generating sensitive data
 synthetically, e.g. name, address, social-security number
 """
-from typing import Union, List, Tuple, Dict
+from typing import Union, List, Tuple, Dict, Any
 
 import pandas as pd
 import numpy as np
 from vivarium.framework.engine import Builder
+from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.utilities import random_integers
@@ -78,7 +79,7 @@ class SSNGenerator(GenericGenerator):
         df["ssn"] += df.ssn_serial.astype(str).str.zfill(4)
         return df
 
-    def noise(self, df):
+    def noise(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
 
         # TODO: add some errors in digits
@@ -107,7 +108,25 @@ class NameGenerator(GenericGenerator):
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
-    def random_first_names(self, randomness, yob, sex, size) -> np.ndarray:
+    def random_first_names(
+        self, yob: int, sex: str, size: int, additional_key: Any = None
+    ) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        yob: the year of birth of the sims for whom to sample a name
+        sex: the sex of the sims for whom to sample a name
+        size: the number of sample to return
+        additional_key: additional randomness key to pass vivarium.randomness
+
+        Returns
+        -------
+        if [yob] <= 2020:
+            nd.ndarray of [size] names sampled from the first names of people of sex [sex], born in the year [yob]
+        if [yob] > 2002:
+            nd.ndarray of [size] names sampled from the first names of people of sex [sex], born in the year 2020
+        """
         # we only have data up to 2020; for younger children, sample from 2020 names.
         if yob > 2020:
             yob = 2020
@@ -121,9 +140,29 @@ class NameGenerator(GenericGenerator):
             n_to_choose=size,
             randomness_stream=self.randomness,
             weights=name_probabilities,
+            additional_key=additional_key,
         ).to_numpy()  # TODO: include spaces and hyphens
 
-    def random_last_names(self, randomness, race_eth, size) -> np.ndarray:
+    def random_last_names(
+        self,
+        randomness: RandomnessStream,
+        race_eth: str,
+        size: int,
+        additional_key: Any = None,
+    ) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        randomness: randomness stream
+        race_eth: the race_ethnicity category (string) of the sims for whom to sample a name
+        size: the number of samples to return
+        additional_key: additional randomness key to pass vivarium.randomness
+
+        Returns
+        -------
+        nd.ndarray of [size] last names sampled from people of race and ethnicity [race_eth]
+        """
         df_census_names = self.last_name_data
 
         # randomly sample last names
@@ -132,6 +171,7 @@ class NameGenerator(GenericGenerator):
             n_to_choose=size,
             randomness_stream=self.randomness,
             weights=df_census_names[race_eth],
+            additional_key=additional_key,
         )
 
         # Last names sometimes also include spaces or hyphens, and abie has
@@ -194,10 +234,10 @@ class NameGenerator(GenericGenerator):
         for (age, sex), df_age in df_in.groupby(["age", "sex"]):
             n = len(df_age)
             first_and_middle.loc[df_age.index, "first_name"] = self.random_first_names(
-                self.randomness, current_year - age, sex, n
+                current_year - age, sex, n, "first"
             )
             first_and_middle.loc[df_age.index, "middle_name"] = self.random_first_names(
-                self.randomness, current_year - age, sex, n
+                current_year - age, sex, n, "middle"
             )
 
         return first_and_middle
@@ -224,7 +264,7 @@ class NameGenerator(GenericGenerator):
         # TODO: include household structure
         return pd.DataFrame(last_names, columns=["last_name"])
 
-    def noise(self, df):
+    def noise(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
 
         # TODO: add some errors
