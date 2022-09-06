@@ -110,12 +110,27 @@ class NameGenerator(GenericGenerator):
 
     def random_first_names(
         self,
-        randomness: RandomnessStream,
         yob: int,
         sex: str,
         size: int,
-        additional_key: Any = "first",
+        additional_key: Any = None,
     ) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        yob: the year of birth of the sims for whom to sample a name
+        sex: the sex of the sims for whom to sample a name
+        size: the number of sample to return
+        additional_key: additional randomness key to pass vivarium.randomness
+
+        Returns
+        -------
+        if [yob] <= 2020:
+            nd.ndarray of [size] names sampled from the first names of people of sex [sex], born in the year [yob]
+        if [yob] > 2002:
+            nd.ndarray of [size] names sampled from the first names of people of sex [sex], born in the year 2020
+        """
         # we only have data up to 2020; for younger children, sample from 2020 names.
         if yob > 2020:
             yob = 2020
@@ -137,8 +152,21 @@ class NameGenerator(GenericGenerator):
         randomness: RandomnessStream,
         race_eth: str,
         size: int,
-        additional_key: Any = "last",
+        additional_key: Any = None,
     ) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        randomness: randomness stream
+        race_eth: the race_ethnicity category (string) of the sims for whom to sample a name
+        size: the number of samples to return
+        additional_key: additional randomness key to pass vivarium.randomness
+
+        Returns
+        -------
+        nd.ndarray of [size] last names sampled from people of race and ethnicity [race_eth]
+        """
         df_census_names = self.last_name_data
 
         # randomly sample last names
@@ -210,10 +238,10 @@ class NameGenerator(GenericGenerator):
         for (age, sex), df_age in df_in.groupby(["age", "sex"]):
             n = len(df_age)
             first_and_middle.loc[df_age.index, "first_name"] = self.random_first_names(
-                self.randomness, current_year - age, sex, n, "first"
+                current_year - age, sex, n, "first"
             )
             first_and_middle.loc[df_age.index, "middle_name"] = self.random_first_names(
-                self.randomness, current_year - age, sex, n, "middle"
+                current_year - age, sex, n, "middle"
             )
 
         return first_and_middle
