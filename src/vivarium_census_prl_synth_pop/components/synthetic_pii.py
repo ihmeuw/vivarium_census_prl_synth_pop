@@ -114,7 +114,7 @@ class NameGenerator(GenericGenerator):
         yob: int,
         sex: str,
         size: int,
-        additional_key: Any = None,
+        additional_key: Any = "first",
     ) -> np.ndarray:
         # we only have data up to 2020; for younger children, sample from 2020 names.
         if yob > 2020:
@@ -137,7 +137,7 @@ class NameGenerator(GenericGenerator):
         randomness: RandomnessStream,
         race_eth: str,
         size: int,
-        additional_key: Any = None,
+        additional_key: Any = "last",
     ) -> np.ndarray:
         df_census_names = self.last_name_data
 
