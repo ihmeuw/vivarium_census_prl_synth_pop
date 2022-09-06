@@ -102,9 +102,12 @@ class Businesses:
                 self.businesses[self.columns_created], on="employer_id", how="left"
             )
 
-            # TODO: assign military employer to military-GQ sims if working age
-            pop.loc[(pop["employer_id"] == data_values.MILITARY_ID)
-                    & pop["age"] >= data_values.WORKING_AGE, "employer_name"] = "Military"
+            # Give military gq sims military employment
+            military_index = pop.loc[(pop["household_id"] == data_values.INSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
+                                     & (pop["age"] >= data_values.WORKING_AGE)].index
+            if not military_index.empty:
+                pop.loc[military_index, "employer_id"] = data_values.MILITARY_EMPLOYER_ID
+                pop = self._update_employer_metadata(pop, military_index)
 
 
             # handle untracked sims
@@ -193,9 +196,12 @@ class Businesses:
             )
             pop = self._update_employer_metadata(pop, turning_working_age)
 
-        # TODO: assign military employer if living in military GQ if working age
-        pop.loc[(pop["household_id"] == data_values.INSTITUTIONAL_GROUP_QUARTER_IDS["military"])
-                & (pop["age"] >= data_values.WORKING_AGE), "employer_id"] = data_values.MILITARY_ID
+        # Give military gq sims military employment
+        military_index = pop.loc[(pop["household_id"] == data_values.INSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
+                & (pop["age"] >= data_values.WORKING_AGE)].index
+        if not military_index.empty:
+            pop.loc[military_index, "employer_id"] = data_values.MILITARY_EMPLOYER_ID
+            pop = self._update_employer_metadata(pop, military_index)
 
         self.population_view.update(pop)
 
@@ -210,9 +216,9 @@ class Businesses:
         # TODO: when have more known employers, maybe move to csv
         known_employers = pd.DataFrame(
             {
-                "employer_id": [data_values.UNEMPLOYED_ID, data_values.MILITARY_ID],
+                "employer_id": [data_values.UNEMPLOYED_ID, data_values.MILITARY_EMPLOYER_ID],
                 "employer_name": ["unemployed", "military"],
-                "employer_address": ["NA", data_values.MILITARY_ADDRESS],
+                "employer_address": ["NA", data_values.MILITARY_EMPLOYER_ADDRESS],
                 "prevalence": [
                     1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
                     data_values.PROPORTION_WORKFORCE_EMPLOYED_MILITARY,
