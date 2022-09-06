@@ -109,11 +109,7 @@ class NameGenerator(GenericGenerator):
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
     def random_first_names(
-        self,
-        yob: int,
-        sex: str,
-        size: int,
-        additional_key: Any = None,
+        self, yob: int, sex: str, size: int, additional_key: Any = None
     ) -> np.ndarray:
         """
 
