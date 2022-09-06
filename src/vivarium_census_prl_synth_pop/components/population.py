@@ -77,10 +77,10 @@ class Population:
             self.initialize_newborns(pop_data)
 
     def generate_initial_population(self, pop_data: SimulantData) -> None:
-        target_GQ_pop_size = int(
+        target_gq_pop_size = int(
             self.config.population_size * data_values.PROP_POPULATION_IN_GQ
         )
-        target_standard_housing_pop_size = self.config.population_size - target_GQ_pop_size
+        target_standard_housing_pop_size = self.config.population_size - target_gq_pop_size
 
         chosen_households = self.choose_standard_households(target_standard_housing_pop_size)
         chosen_group_quarters = self.choose_group_quarters(
