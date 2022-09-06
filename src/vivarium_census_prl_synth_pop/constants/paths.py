@@ -3,6 +3,7 @@ from pathlib import Path
 import vivarium_census_prl_synth_pop
 from vivarium_census_prl_synth_pop.constants import metadata
 
+REPO_DIR = Path(vivarium_census_prl_synth_pop.__file__).resolve().parent.parent.parent
 BASE_DIR = Path(vivarium_census_prl_synth_pop.__file__).resolve().parent
 
 PROJECT_ROOT = Path(f"/mnt/team/simulation_science/priv/engineering/{metadata.PROJECT_NAME}")
