@@ -80,7 +80,15 @@ class SSNGenerator(GenericGenerator):
         return df
 
     #TODO: write function that turns some ssns into "". outputs pd.Series with some SSNs converted to ""
+    def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: Pipeline) -> pd.Series:
+        rows_to_blank = self.randomness.filter_for_probability(
+            ssn_column,
+            proportion_no_ssn(ssn_column.index)
+        ).index  # TODO: make this an optional parameter to this method and/or inform it with some evidence
+        if len(rows_to_blank) > 0:
+            ssn_column.loc[rows_to_blank] = ""
 
+        return ssn_column
 
     def noise(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()

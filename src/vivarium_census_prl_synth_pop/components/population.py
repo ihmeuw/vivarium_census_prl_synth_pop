@@ -32,10 +32,11 @@ class Population:
         self.randomness = builder.randomness.get_stream(
             "household_sampling", for_initialization=True
         )
-        #TODO: populate these
-        proportion_lacking_ssn_data = 0.01 #TODO: move into data_values
+        proportion_lacking_ssn_data = builder.lookup.build_table(
+            data=data_values.PROPORTION_NO_SSN
+        )
         self.proportion_with_no_ssn = builder.value.register_rate_producer(
-            #TODO
+            "proportion_no_ssn", source=proportion_lacking_ssn_data
         )
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
@@ -113,7 +114,7 @@ class Population:
         # format
         n_chosen = pop.shape[0]
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
-        #TODO: run ssn-removal function over pop["ssn"] column
+        pop["ssn"] = self.ssn_generator.remove_ssn(pop['ssn'])
         pop["entrance_time"] = pop_data.creation_time
         pop["exit_time"] = pd.NaT
         pop["alive"] = "alive"

@@ -44,6 +44,7 @@ PROBABILITY_OF_SPACE_IN_NAME = {
 
 # data from https://www.jec.senate.gov/public/index.cfm/republicans/fl/
 PROPORTION_WORKFORCE_EMPLOYED = {"Florida": 0.576}
+PROPORTION_NO_SSN = 0.01
 
 WORKING_AGE = 18
 EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
