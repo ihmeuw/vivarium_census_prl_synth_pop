@@ -114,7 +114,7 @@ class Population:
         # format
         n_chosen = pop.shape[0]
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
-        pop["ssn"] = self.ssn_generator.remove_ssn(pop['ssn'])
+        pop["ssn"] = self.ssn_generator.remove_ssn(pop['ssn'], self.proportion_with_no_ssn)
         pop["entrance_time"] = pop_data.creation_time
         pop["exit_time"] = pd.NaT
         pop["alive"] = "alive"
