@@ -59,7 +59,7 @@ class Businesses:
             "employer_address",
             "employer_zipcode",
         ]
-        self.columns_used = ["age", "tracked"] + self.columns_created
+        self.columns_used = ["age", "tracked", "household_id"] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
 
@@ -92,7 +92,7 @@ class Businesses:
         if pop_data.creation_time < self.start_time:
             self.businesses = self.generate_businesses(pop_data)
 
-            pop = self.population_view.subview(["age", "tracked"]).get(pop_data.index)
+            pop = self.population_view.subview(["age", "tracked", "household_id"]).get(pop_data.index)
             pop["employer_id"] = UNEMPLOYED_ID
             working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
@@ -103,7 +103,7 @@ class Businesses:
             )
 
             # Give military gq sims military employment
-            military_index = pop.loc[(pop["household_id"] == data_values.INSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
+            military_index = pop.loc[(pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
                                      & (pop["age"] >= data_values.WORKING_AGE)].index
             if not military_index.empty:
                 pop.loc[military_index, "employer_id"] = data_values.MILITARY_EMPLOYER_ID
@@ -132,7 +132,7 @@ class Businesses:
         change jobs at rate of 50 changes / 100 person-years
         businesses change addresses at rate of 10 changes / 100 person-years
         """
-        pop = self.population_view.subview(self.columns_created + ["age"]).get(event.index)
+        pop = self.population_view.subview(self.columns_created + ["age", "household_id"]).get(event.index)
 
         all_businesses = self.businesses.loc[
             ~self.businesses["employer_id"].isin([UNEMPLOYED_ID, UNTRACKED_ID])
@@ -197,7 +197,7 @@ class Businesses:
             pop = self._update_employer_metadata(pop, turning_working_age)
 
         # Give military gq sims military employment
-        military_index = pop.loc[(pop["household_id"] == data_values.INSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
+        military_index = pop.loc[(pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
                 & (pop["age"] >= data_values.WORKING_AGE)].index
         if not military_index.empty:
             pop.loc[military_index, "employer_id"] = data_values.MILITARY_EMPLOYER_ID
