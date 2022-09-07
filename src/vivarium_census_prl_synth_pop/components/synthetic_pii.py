@@ -79,6 +79,9 @@ class SSNGenerator(GenericGenerator):
         df["ssn"] += df.ssn_serial.astype(str).str.zfill(4)
         return df
 
+    #TODO: write function that turns some ssns into "". outputs pd.Series with some SSNs converted to ""
+
+
     def noise(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
 
