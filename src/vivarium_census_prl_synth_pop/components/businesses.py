@@ -59,7 +59,7 @@ class Businesses:
             "employer_address",
             "employer_zipcode",
         ]
-        self.columns_used = ["address", "age", "tracked", "household_id"] + self.columns_created
+        self.columns_used = ["address", "age", "tracked", "household_id", "zipcode"] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
 
