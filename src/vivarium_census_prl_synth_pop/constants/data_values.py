@@ -55,11 +55,6 @@ YEARLY_JOB_CHANGE_RATE = 0.5  # 50 changes per 100 py
 
 UNEMPLOYED_ID = -1
 UNTRACKED_ID = -2
-MILITARY_EMPLOYER_ID = -3
-MILITARY_EMPLOYER_ADDRESS = "military address"
-MILITARY_ZIPCODE = "military zipcode"
-MILITARY_EMPLOYER_NAME = "military"
-PROPORTION_WORKFORCE_EMPLOYED_MILITARY = 0.03
 
 BUSINESS_MOVE_RATE_YEARLY = 0.1  # 10 changes per 100 py
 
@@ -69,3 +64,4 @@ class MilitaryEmployer(NamedTuple):
     EMPLOYER_ADDRESS = "military address"
     EMPLOYER_ZIPCODE = "military zipcode"
     EMPLOYER_NAME = "military"
+    PROPORTION_WORKFORCE_EMPLOYED = 0.03
