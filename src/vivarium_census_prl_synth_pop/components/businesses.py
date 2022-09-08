@@ -210,7 +210,7 @@ class Businesses:
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["age"]).get(pop_data.index)
+        pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
         n_working_age = len(pop.loc[pop.age >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
@@ -220,8 +220,8 @@ class Businesses:
             pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "zipcode"][0]
         known_employers = pd.DataFrame(
             {
-                "employer_id": [data_values.UNEMPLOYED_ID, data_values.MILITARY_EMPLOYER_ID],
-                "employer_name": ["unemployed", data_values.MILITARY_EMPLOYER_NAMED],
+                "employer_id": [data_values.UNEMPLOYED_ID, data_values.MilitaryEmployer.EMPLOYER_ID],
+                "employer_name": ["unemployed", data_values.MilitaryEmployer.EMPLOYER_NAME],
                 "employer_address": ["NA", military_address],
                 "prevalence": [
                     1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
