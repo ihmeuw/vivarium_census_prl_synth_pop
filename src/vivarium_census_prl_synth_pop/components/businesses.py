@@ -215,9 +215,9 @@ class Businesses:
 
         # TODO: when have more known employers, maybe move to csv
         military_address = pop.loc[
-            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "address"][0]
+            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "address"].iloc[0]
         military_zipcode = pop.loc[
-            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "zipcode"][0]
+            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "zipcode"].iloc[0]
         known_employers = pd.DataFrame(
             {
                 "employer_id": [data_values.UNEMPLOYED_ID, data_values.MilitaryEmployer.EMPLOYER_ID],
