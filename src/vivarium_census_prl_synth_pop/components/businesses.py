@@ -214,15 +214,20 @@ class Businesses:
         n_working_age = len(pop.loc[pop.age >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
+        military_address = pop.loc[
+            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "address"][0]
+        military_zipcode = pop.loc[
+            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "zipcode"][0]
         known_employers = pd.DataFrame(
             {
                 "employer_id": [data_values.UNEMPLOYED_ID, data_values.MILITARY_EMPLOYER_ID],
-                "employer_name": ["unemployed", "military"],
-                "employer_address": ["NA", data_values.MILITARY_EMPLOYER_ADDRESS],
+                "employer_name": ["unemployed", data_values.MILITARY_EMPLOYER_NAMED],
+                "employer_address": ["NA", military_address],
                 "prevalence": [
                     1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
                     data_values.PROPORTION_WORKFORCE_EMPLOYED_MILITARY,
                 ],
+                "employer_zipcode": ["NA", military_zipcode]
             }
         )
 
