@@ -106,7 +106,7 @@ class Businesses:
             military_index = pop.loc[(pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
                                      & (pop["age"] >= data_values.WORKING_AGE)].index
             if not military_index.empty:
-                pop.loc[military_index, "employer_id"] = data_values.MILITARY_EMPLOYER_ID
+                pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
                 pop = self._update_employer_metadata(pop, military_index)
 
 
