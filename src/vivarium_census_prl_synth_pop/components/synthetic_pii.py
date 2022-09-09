@@ -79,7 +79,6 @@ class SSNGenerator(GenericGenerator):
         df["ssn"] += df.ssn_serial.astype(str).str.zfill(4)
         return df
 
-    #TODO: write function that turns some ssns into "". outputs pd.Series with some SSNs converted to ""
     def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: Pipeline) -> pd.Series:
         rows_to_blank = self.randomness.filter_for_probability(
             ssn_column,
