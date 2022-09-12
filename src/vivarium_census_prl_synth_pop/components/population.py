@@ -63,13 +63,12 @@ class Population:
             "exit_time",
         ]
         self.register_simulants = builder.randomness.register_simulants
-        self.population_view = builder.population.get_view(self.columns_created + ["tracked"])
+        self.population_view = builder.population.get_view(self.columns_created)
         self.population_data = self._load_population_data(builder)
 
         builder.population.initializes_simulants(
             self.initialize_simulants,
             creates_columns=self.columns_created,
-            requires_columns=["tracked"],
         )
 
         builder.event.register_listener("time_step__cleanup", self.on_time_step__prepare)
@@ -124,7 +123,6 @@ class Population:
         pop["entrance_time"] = pop_data.creation_time
         pop["exit_time"] = pd.NaT
         pop["alive"] = "alive"
-        pop["tracked"] = True
 
         # add typing
         pop["age"] = pop["age"].astype("float64")
@@ -232,7 +230,6 @@ class Population:
             "relation_to_household_head",
             "last_name",
             "alive",
-            "tracked",
         ]
 
         # assign babies inherited traits
@@ -256,7 +253,6 @@ class Population:
         new_births['ssn'] = self.ssn_generator.remove_ssn(new_births['ssn'], self.proportion_newborns_no_ssn)
         new_births["entrance_time"] = pop_data.creation_time
         new_births["exit_time"] = pd.NaT
-        new_births["tracked"] = True
 
         # add first and middle names
         names = self.name_generator.generate_first_and_middle_names(new_births)
