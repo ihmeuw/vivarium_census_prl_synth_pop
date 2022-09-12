@@ -33,10 +33,16 @@ class Population:
             "household_sampling", for_initialization=True
         )
         proportion_lacking_ssn_data = builder.lookup.build_table(
-            data=data_values.PROPORTION_NO_SSN
+            data=data_values.PROPORTION_INITIALIZATION_NO_SSN
         )
-        self.proportion_with_no_ssn = builder.value.register_rate_producer(
+        self.proportion_with_no_ssn = builder.value.register_value_producer(
             "proportion_no_ssn", source=proportion_lacking_ssn_data
+        )
+        proportion_newborns_lacking_ssn_data = builder.lookup.build_table(
+            data=data_values.PROPORTION_NEWBORNS_NO_SSN
+        )
+        self.proportion_newborns_no_ssn = builder.value.register_value_producer(
+            "proportion_newborns_no_ssn", source=proportion_newborns_lacking_ssn_data
         )
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
@@ -247,6 +253,7 @@ class Population:
         )
         new_births["alive"] = "alive"
         new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
+        new_births['ssn'] = self.ssn_generator.remove_ssn(new_births['ssn'], self.proportion_newborns_no_ssn)
         new_births["entrance_time"] = pop_data.creation_time
         new_births["exit_time"] = pd.NaT
         new_births["tracked"] = True
