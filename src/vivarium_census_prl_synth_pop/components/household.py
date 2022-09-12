@@ -59,7 +59,6 @@ class HouseholdMigration:
             "relation_to_household_head",
             "address",
             "zipcode",
-            "tracked",
         ]
         self.population_view = builder.population.get_view(self.columns_used)
 
@@ -79,7 +78,7 @@ class HouseholdMigration:
         add addresses to each household in the population table
         """
         if pop_data.creation_time < self.start_time:
-            households = self.population_view.subview(["household_id", "tracked"]).get(
+            households = self.population_view.subview(["household_id"]).get(
                 pop_data.index
             )
             address_assignments = self.addresses.generate(
@@ -92,10 +91,6 @@ class HouseholdMigration:
             households["zipcode"] = households["household_id"].map(
                 address_assignments["zipcode"]
             )
-
-            # handle untracked sims
-            households.loc[households.household_id == "NA", "address"] = "NA"
-            households.loc[households.household_id == "NA", "zipcode"] = "NA"
 
             self.population_view.update(households)
         else:
