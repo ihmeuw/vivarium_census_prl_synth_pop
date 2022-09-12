@@ -1,3 +1,6 @@
+from typing import NamedTuple
+
+
 #########################
 # Population parameters #
 #########################
@@ -54,3 +57,11 @@ UNEMPLOYED_ID = -1
 UNTRACKED_ID = -2
 
 BUSINESS_MOVE_RATE_YEARLY = 0.1  # 10 changes per 100 py
+
+
+class MilitaryEmployer(NamedTuple):
+    EMPLOYER_ID = -3
+    EMPLOYER_ADDRESS = "military address"
+    EMPLOYER_ZIPCODE = "military zipcode"
+    EMPLOYER_NAME = "military"
+    PROPORTION_WORKFORCE_EMPLOYED = 0.03

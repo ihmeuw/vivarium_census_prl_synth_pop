@@ -59,7 +59,7 @@ class Businesses:
             "employer_address",
             "employer_zipcode",
         ]
-        self.columns_used = ["age", "tracked"] + self.columns_created
+        self.columns_used = ["address", "age", "tracked", "household_id", "zipcode"] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
 
@@ -78,7 +78,8 @@ class Businesses:
             requires_columns=["age"],
             creates_columns=self.columns_created,
         )
-        builder.event.register_listener("time_step", self.on_time_step)
+        # note: priority must be later than that of persons.on_time_step
+        builder.event.register_listener("time_step", self.on_time_step, priority=6)
 
     ########################
     # Event-driven methods #
@@ -91,7 +92,7 @@ class Businesses:
         if pop_data.creation_time < self.start_time:
             self.businesses = self.generate_businesses(pop_data)
 
-            pop = self.population_view.subview(["age", "tracked"]).get(pop_data.index)
+            pop = self.population_view.subview(["age", "tracked", "household_id"]).get(pop_data.index)
             pop["employer_id"] = UNEMPLOYED_ID
             working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
@@ -100,6 +101,14 @@ class Businesses:
             pop = pop.merge(
                 self.businesses[self.columns_created], on="employer_id", how="left"
             )
+
+            # Give military gq sims military employment
+            military_index = pop.loc[(pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
+                                     & (pop["age"] >= data_values.WORKING_AGE)].index
+            if not military_index.empty:
+                pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
+                pop = self._update_employer_metadata(pop, military_index)
+
 
             # handle untracked sims
             pop.loc[~pop.tracked, "employer_id"] = UNTRACKED_ID
@@ -123,7 +132,7 @@ class Businesses:
         change jobs at rate of 50 changes / 100 person-years
         businesses change addresses at rate of 10 changes / 100 person-years
         """
-        pop = self.population_view.subview(self.columns_created + ["age"]).get(event.index)
+        pop = self.population_view.subview(self.columns_created + ["age", "household_id"]).get(event.index)
 
         all_businesses = self.businesses.loc[
             ~self.businesses["employer_id"].isin([UNEMPLOYED_ID, UNTRACKED_ID])
@@ -187,6 +196,13 @@ class Businesses:
             )
             pop = self._update_employer_metadata(pop, turning_working_age)
 
+        # Give military gq sims military employment
+        military_index = pop.loc[(pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"])
+                & (pop["age"] >= data_values.WORKING_AGE)].index
+        if len(military_index) > 0:
+            pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
+            pop = self._update_employer_metadata(pop, military_index)
+
         self.population_view.update(pop)
 
     ##################
@@ -194,16 +210,24 @@ class Businesses:
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["age"]).get(pop_data.index)
+        pop = self.population_view.subview(["address", "age", "household_id", "zipcode"]).get(pop_data.index)
         n_working_age = len(pop.loc[pop.age >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
+        military_address = pop.loc[
+            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "address"].iloc[0]
+        military_zipcode = pop.loc[
+            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"], "zipcode"].iloc[0]
         known_employers = pd.DataFrame(
             {
-                "employer_id": [UNEMPLOYED_ID],
-                "employer_name": ["unemployed"],
-                "employer_address": ["NA"],
-                "prevalence": [1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location]],
+                "employer_id": [data_values.UNEMPLOYED_ID, data_values.MilitaryEmployer.EMPLOYER_ID],
+                "employer_name": ["unemployed", data_values.MilitaryEmployer.EMPLOYER_NAME],
+                "employer_address": ["NA", military_address],
+                "prevalence": [
+                    1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
+                    data_values.MilitaryEmployer.PROPORTION_WORKFORCE_EMPLOYED,
+                ],
+                "employer_zipcode": ["NA", military_zipcode]
             }
         )
 
