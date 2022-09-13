@@ -119,7 +119,7 @@ class Population:
         # format
         n_chosen = pop.shape[0]
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
-        pop["ssn"] = self.ssn_generator.remove_ssn(pop['ssn'], self.proportion_with_no_ssn)
+        pop["ssn"] = self.ssn_generator.remove_ssn(pop["ssn"], self.proportion_with_no_ssn)
         pop["entrance_time"] = pop_data.creation_time
         pop["exit_time"] = pd.NaT
         pop["alive"] = "alive"
@@ -250,7 +250,7 @@ class Population:
         )
         new_births["alive"] = "alive"
         new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
-        new_births['ssn'] = self.ssn_generator.remove_ssn(new_births['ssn'], self.proportion_newborns_no_ssn)
+        new_births["ssn"] = self.ssn_generator.remove_ssn(new_births["ssn"], self.proportion_newborns_no_ssn)
         new_births["entrance_time"] = pop_data.creation_time
         new_births["exit_time"] = pd.NaT
 
