@@ -249,6 +249,7 @@ class Population:
         # assign babies uninherited traits
         new_births["age"] = 0.0
         new_births["age"] = new_births["age"].astype("float64")
+        # Set age to be negative so age + step_size makes correct age at end of time step (see line 289)
         new_births["age"] = new_births["age"] \
                             - self.randomness.get_draw(new_births.index, "age") * (self.step_size_days/DAYS_PER_YEAR)
         new_births["date_of_birth"] = pop_data.creation_time \
