@@ -4,7 +4,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
-from vivarium_public_health.utilities import to_years
+from vivarium_public_health.utilities import to_years, DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop.components.synthetic_pii import NameGenerator
 from vivarium_census_prl_synth_pop.components.synthetic_pii import SSNGenerator
@@ -28,6 +28,7 @@ class Population:
 
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
+        self.clock = builder.time.clock()
         self.seed = builder.configuration.randomness.random_seed
         self.randomness = builder.randomness.get_stream(
             "household_sampling", for_initialization=True
@@ -45,6 +46,7 @@ class Population:
             "proportion_newborns_no_ssn", source=proportion_newborns_lacking_ssn_data
         )
         self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.step_size_days = builder.configuration.time.step_size
 
         self.columns_created = [
             "household_id",
@@ -53,6 +55,7 @@ class Population:
             "relation_to_household_head",
             "sex",
             "age",
+            "date_of_birth",
             "race_ethnicity",
             "first_name",
             "middle_name",
@@ -117,6 +120,10 @@ class Population:
         last_names = self.name_generator.generate_last_names(pop)
         pop = pd.concat([pop, first_and_middle, last_names], axis=1)
 
+        pop["age"] = pop["age"].astype("float64")
+        pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
+        pop["date_of_birth"] = self.start_time - pd.to_timedelta(np.round(pop["age"] * 365.25), unit='days')
+
         # format
         n_chosen = pop.shape[0]
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
@@ -127,7 +134,7 @@ class Population:
         pop["tracked"] = True
 
         # add typing
-        pop["age"] = pop["age"].astype("float64")
+
         pop["state"] = pop["state"].astype("int64")
         pop = pop.set_index(pop_data.index)
 
@@ -244,7 +251,10 @@ class Population:
         ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
 
         # assign babies uninherited traits
-        new_births["age"] = 0.0
+        new_births["age"] = new_births["age"].astype("float64")
+        new_births["age"] = new_births["age"] + self.randomness.get_draw(new_births.index, "age") * (self.step_size_days/DAYS_PER_YEAR)
+        new_births["date_of_birth"] = pop_data.creation_time + pd.to_timedelta(np.round(new_births["age"] * DAYS_PER_YEAR), unit='days')
+
         new_births["sex"] = self.randomness.choice(
             new_births.index,
             choices=["Female", "Male"],
