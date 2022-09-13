@@ -251,7 +251,8 @@ class Population:
         ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
 
         # assign babies uninherited traits
-        new_births["age"] = new_births["age"].astype("float64")
+        new_births["age"] = 0.0
+#        new_births["age"] = new_births["age"].astype("float64")
         new_births["age"] = new_births["age"] + self.randomness.get_draw(new_births.index, "age") * (self.step_size_days/DAYS_PER_YEAR)
         new_births["date_of_birth"] = pop_data.creation_time + pd.to_timedelta(np.round(new_births["age"] * DAYS_PER_YEAR), unit='days')
 
