@@ -11,7 +11,6 @@ from vivarium_public_health import utilities
 from vivarium_census_prl_synth_pop.constants import data_values, data_keys, metadata
 from vivarium_census_prl_synth_pop.constants.data_values import (
     UNEMPLOYED_ID,
-    UNTRACKED_ID,
     WORKING_AGE,
 )
 
@@ -59,7 +58,7 @@ class Businesses:
             "employer_address",
             "employer_zipcode",
         ]
-        self.columns_used = ["address", "age", "tracked", "household_id", "zipcode"] + self.columns_created
+        self.columns_used = ["address", "age", "household_id", "zipcode"] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
 
@@ -92,7 +91,7 @@ class Businesses:
         if pop_data.creation_time < self.start_time:
             self.businesses = self.generate_businesses(pop_data)
 
-            pop = self.population_view.subview(["age", "tracked", "household_id"]).get(pop_data.index)
+            pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
             pop["employer_id"] = UNEMPLOYED_ID
             working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
@@ -109,12 +108,6 @@ class Businesses:
                 pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
                 pop = self._update_employer_metadata(pop, military_index)
 
-
-            # handle untracked sims
-            pop.loc[~pop.tracked, "employer_id"] = UNTRACKED_ID
-            pop.loc[~pop.tracked, "employer_name"] = "NA"
-            pop.loc[~pop.tracked, "employer_address"] = "NA"
-            pop.loc[~pop.tracked, "employer_zipcode"] = "NA"
             self.population_view.update(pop)
         else:
             new_births = self.population_view.get(pop_data.index)
@@ -135,7 +128,7 @@ class Businesses:
         pop = self.population_view.subview(self.columns_created + ["age", "household_id"]).get(event.index)
 
         all_businesses = self.businesses.loc[
-            ~self.businesses["employer_id"].isin([UNEMPLOYED_ID, UNTRACKED_ID])
+            ~self.businesses["employer_id"] == UNEMPLOYED_ID
         ]
         businesses_that_move = self.addresses.determine_if_moving(
             all_businesses["employer_id"], self.businesses_move_rate
@@ -256,18 +249,8 @@ class Businesses:
             address_assignments["zipcode"]
         )
 
-        untracked = pd.DataFrame(
-            {
-                "employer_id": [UNTRACKED_ID],
-                "employer_name": ["NA"],
-                "employer_address": ["NA"],
-                "employer_zipcode": ["NA"],
-                "prevalence": 0,
-            }
-        )
-
         businesses = pd.concat(
-            [known_employers, random_employers, untracked], ignore_index=True
+            [known_employers, random_employers], ignore_index=True
         )
         return businesses
 
