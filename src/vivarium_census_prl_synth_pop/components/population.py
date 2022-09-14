@@ -121,7 +121,7 @@ class Population:
         pop = pd.concat([pop, first_and_middle, last_names], axis=1)
 
         pop["age"] = pop["age"].astype("float64")
-        pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
+        pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age") * DAYS_PER_YEAR
         pop["date_of_birth"] = self.start_time - pd.to_timedelta(np.round(pop["age"] * 365.25), unit='days')
 
         # format
