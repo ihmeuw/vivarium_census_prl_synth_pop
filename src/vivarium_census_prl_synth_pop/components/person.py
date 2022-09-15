@@ -89,7 +89,7 @@ class PersonMigration:
             self.proportion_simulants_leaving_country,
             event
         )
-        moving_abroad = persons_who_move.loc[persons_who_move['exit_time'] == event.time]
+        moving_abroad = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
         moved_abroad_mask = persons_who_move.exit_time == event.time
         persons_who_move = persons_who_move.loc[~moved_abroad_mask]
 
