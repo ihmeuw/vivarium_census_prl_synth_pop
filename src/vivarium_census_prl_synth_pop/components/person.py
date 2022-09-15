@@ -83,8 +83,8 @@ class PersonMigration:
         )
 
         # Handle sims that move out of the country
-        persons_who_move['exit_time'] = self.move_simulants_out_of_country(
-            persons_who_move['exit_time'],
+        persons_who_move = self.move_simulants_out_of_country(
+            persons_who_move,
             self.proportion_simulants_leaving_country,
             event
         )
@@ -160,13 +160,15 @@ class PersonMigration:
 
         return pd.Series(new_household_ids)
 
-    def move_simulants_out_of_country(self, exit_time_column: pd.Series,
+    def move_simulants_out_of_country(self, df_moving: pd.DataFrame,
                                       proportion_simulants_leaving_country: Pipeline, event: Event) -> pd.Series:
         sims_that_move = self.randomness.filter_for_probability(
-            exit_time_column,
-            proportion_simulants_leaving_country(exit_time_column.index)
+            df_moving,
+            proportion_simulants_leaving_country(df_moving.index)
         ).index # todo: If this probability is too high all sims will move abroad
         if len(sims_that_move) > 0:
-            exit_time_column.loc[sims_that_move] = event.time
+            df_moving.loc[sims_that_move, "exit_time"] = event.time
+            df_moving.loc[sims_that_move, "tracked"] = False
 
-        return exit_time_column
+        return df_moving
+
