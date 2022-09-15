@@ -75,6 +75,9 @@ class PersonMigration:
         Moves those simulants to a new household_id
         Assigns those simulants relationship to head of household 'Other nonrelative'
         """
+
+        # todo: get different subsets of population to apply move rates to (and other pipelines)
+
         persons = self.population_view.get(event.index)
         non_household_heads = persons.loc[
             persons.relation_to_household_head != "Reference person"
@@ -107,7 +110,8 @@ class PersonMigration:
         # create map from household_ids to addresses and zipcodes
         new_household_data["household_id"] = new_household_data["household_id"].astype(int)
         new_household_data_map = new_household_data.set_index("household_id").to_dict()
-
+        
+        # todo: make function to update necessary columns like in businesses.py
         # update household data for persons who move
         persons_who_move["household_id"] = new_households
         persons_who_move["address"] = persons_who_move["household_id"].map(
