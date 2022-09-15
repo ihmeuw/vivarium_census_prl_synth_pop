@@ -249,7 +249,7 @@ class Population:
         # Make age negative so age + step size gets simulants correct age at the end of the time step (ref line 284)
         new_births["age"] = - self.randomness.get_draw(new_births.index, "age") * (self.step_size_days/DAYS_PER_YEAR)
         new_births["date_of_birth"] = pop_data.creation_time \
-                                      - pd.to_timedelta(np.round(new_births["age"] * DAYS_PER_YEAR), unit='days')
+                                      - pd.to_timedelta(np.round(new_births["age"] * DAYS_PER_YEAR), unit="days")
 
         new_births["sex"] = self.randomness.choice(
             new_births.index,
