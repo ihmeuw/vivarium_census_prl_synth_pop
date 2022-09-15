@@ -134,7 +134,7 @@ class NameGenerator(GenericGenerator):
         -------
         if [yob] <= 2020:
             nd.ndarray of [size] names sampled from the first names of people of sex [sex], born in the year [yob]
-        if [yob] > 2002:
+        if [yob] > 2020:
             nd.ndarray of [size] names sampled from the first names of people of sex [sex], born in the year 2020
         """
         # we only have data up to 2020; for younger children, sample from 2020 names.
@@ -244,10 +244,10 @@ class NameGenerator(GenericGenerator):
         for (age, sex), df_age in df_in.groupby(["age", "sex"]):
             n = len(df_age)
             first_and_middle.loc[df_age.index, "first_name"] = self.random_first_names(
-                current_year - age, sex, n, "first"
+                current_year - np.floor(age), sex, n, "first"
             )
             first_and_middle.loc[df_age.index, "middle_name"] = self.random_first_names(
-                current_year - age, sex, n, "middle"
+                current_year - np.floor(age), sex, n, "middle"
             )
 
         return first_and_middle
