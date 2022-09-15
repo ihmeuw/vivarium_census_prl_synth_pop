@@ -40,7 +40,8 @@ class PersonMigration:
             "relation_to_household_head",
             "address",
             "zipcode",
-            "exit_time"
+            "exit_time",
+            "tracked",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
         move_rate_data = builder.lookup.build_table(
@@ -93,7 +94,6 @@ class PersonMigration:
         persons_who_move = persons_who_move.loc[~moved_abroad_mask]
 
         new_households = self._get_new_household_ids(persons_who_move, event)
-
         # get address and zipcode corresponding to selected households
         new_household_data = (
             self.population_view.subview(["household_id", "address", "zipcode"])
@@ -160,8 +160,13 @@ class PersonMigration:
 
         return pd.Series(new_household_ids)
 
-    def move_simulants_out_of_country(self, df_moving: pd.DataFrame,
-                                      proportion_simulants_leaving_country: Pipeline, event: Event) -> pd.Series:
+    def move_simulants_out_of_country(self,
+                                      df_moving: pd.DataFrame,
+                                      proportion_simulants_leaving_country: Pipeline,
+                                      event: Event) -> pd.DataFrame:
+        """
+        df_moving: Subset of population that will be changing addresses this time step
+        """
         sims_that_move = self.randomness.filter_for_probability(
             df_moving,
             proportion_simulants_leaving_country(df_moving.index)
@@ -171,4 +176,3 @@ class PersonMigration:
             df_moving.loc[sims_that_move, "tracked"] = False
 
         return df_moving
-
