@@ -120,7 +120,7 @@ class Population:
 
         pop["age"] = pop["age"].astype("float64")
         pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
-        pop["date_of_birth"] = self.start_time - pd.to_timedelta(np.round(pop["age"] * 365.25), unit='days')
+        pop["date_of_birth"] = self.start_time - pd.to_timedelta(np.round(pop["age"] * 365.25), unit="days")
 
         # format
         n_chosen = pop.shape[0]
@@ -246,12 +246,8 @@ class Population:
             "relation_to_household_head"
         ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
 
-        # assign babies uninherited traits
-        new_births["age"] = 0.0
-        new_births["age"] = new_births["age"].astype("float64")
-        # Set age to be negative so age + step_size makes correct age at end of time step (see line 289)
-        new_births["age"] = new_births["age"] \
-                            - self.randomness.get_draw(new_births.index, "age") * (self.step_size_days/DAYS_PER_YEAR)
+        # Make age negative so age + step size gets simulants correct age at the end of the time step (ref line 284)
+        new_births["age"] = - self.randomness.get_draw(new_births.index, "age") * (self.step_size_days/DAYS_PER_YEAR)
         new_births["date_of_birth"] = pop_data.creation_time \
                                       - pd.to_timedelta(np.round(new_births["age"] * DAYS_PER_YEAR), unit='days')
 
