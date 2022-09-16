@@ -69,7 +69,7 @@ class PersonMigration:
             f"gq_{self.name}_move_rate", source=gq_move_rate_data
         )
         proportion_simulants_leaving_country = builder.lookup.build_table(
-            data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
+            data=data_values.PROPORTION_LEAVING_COUNTRY
         )
         # todo: do we want this as a rate or value producer? Rate would be a rate of how many sims move scaled to time step
         self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
