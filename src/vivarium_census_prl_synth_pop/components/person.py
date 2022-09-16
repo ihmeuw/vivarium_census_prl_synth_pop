@@ -71,9 +71,14 @@ class PersonMigration:
         proportion_simulants_leaving_country = builder.lookup.build_table(
             data=data_values.PROPORTION_LEAVING_COUNTRY
         )
-        # todo: do we want this as a rate or value producer? Rate would be a rate of how many sims move scaled to time step
         self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
             "proportion_simulants_leaving_country", source=proportion_simulants_leaving_country
+        )
+        proportion_gq_simulants_leaving_country_data = builder.lookup.build_table(
+            data=data_values.PROPORTION_GQ_PERSONS_LEAVING_COUNTRY
+        )
+        self.proportion_gq_simulants_leaving_country = builder.value.register_rate_producer(
+            "proportion_simulants_leaving_country", source=proportion_gq_simulants_leaving_country_data
         )
         builder.event.register_listener("time_step", self.on_time_step)
 
@@ -88,7 +93,6 @@ class PersonMigration:
         Assigns those simulants relationship to head of household 'Other nonrelative'
         """
 
-        # todo: get different subsets of population to apply move rates to (and other pipelines)
         persons = self.population_view.get(event.index)
         non_household_heads = persons.loc[
             persons.relation_to_household_head != "Reference person"
@@ -104,21 +108,38 @@ class PersonMigration:
             & (non_household_heads['household_id'] not in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS)
             ] # is this the correct logic we want to use? e. g. everyone not in GQ?
 
+        # Get simulants who move
+        gq_persons_who_move = self.randomness.filter_for_rate(
+            non_household_heads, self.gq_move_rate(gq_persons.index)
+        )
         persons_who_move = self.randomness.filter_for_rate(
-            non_household_heads, self.person_move_rate(non_household_heads.index)
+            non_household_heads, self.person_move_rate(non_gq_persons.index)
         )
 
-        # Handle sims that move out of the country
+        # Handle simulants that move out of the country
+        gq_persons_who_move = self.move_simulants_out_of_country(
+            gq_persons_who_move,
+            self.proportion_simulants_leaving_country,
+            event
+        )
         persons_who_move = self.move_simulants_out_of_country(
             persons_who_move,
             self.proportion_simulants_leaving_country,
             event
         )
-        moving_abroad = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
-        moved_abroad_mask = persons_who_move.exit_time == event.time
-        persons_who_move = persons_who_move.loc[~moved_abroad_mask]
 
-        new_households = self._get_new_household_ids(persons_who_move, event)
+       # Separate simulants that move abroad vs domestic
+        gq_moving_abroad = gq_persons_who_move.loc[gq_persons_who_move["exit_time"] == event.time]
+        gq_moving_domestic = gq_persons_who_move.loc[~gq_persons_who_move.index.isin(gq_moving_abroad)]
+
+        moving_abroad = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
+        moving_domestic = persons_who_move.loc[~persons_who_move.index.isin(moving_abroad)]
+
+        # Combine groups
+        domestic_movers = pd.concat([moving_domestic, gq_moving_domestic])
+        abroad_movers = pd.concat([moving_abroad, gq_moving_abroad])
+
+        new_households = self._get_new_household_ids(domestic_movers, event)
         # get address and zipcode corresponding to selected households
         new_household_data = (
             self.population_view.subview(["household_id", "address", "zipcode"])
@@ -134,6 +155,7 @@ class PersonMigration:
         new_household_data_map = new_household_data.set_index("household_id").to_dict()
         
         # todo: make function to update necessary columns like in businesses.py
+        # todo: change name from persons_who_move to domestic_movers
         # update household data for persons who move
         persons_who_move["household_id"] = new_households
         persons_who_move["address"] = persons_who_move["household_id"].map(
@@ -158,7 +180,7 @@ class PersonMigration:
 
         simulants_who_moved = pd.concat([
             persons_who_move,
-            moving_abroad,
+            abroad_movers,
            ]
         )
         self.population_view.update(simulants_who_moved)
