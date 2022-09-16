@@ -23,7 +23,7 @@ class PersonMigration:
 
     ##############
     # Properties #
-    ##############
+    ##############m
 
     @property
     def name(self):
@@ -56,8 +56,20 @@ class PersonMigration:
         self.person_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
+        gq_move_rate_data = builder.lookup.build_table(
+            data=pd.read_csv(
+                paths.GQ_MOVE_RATE_PATH,
+                usecols=["sex", "race_ethnicity", "age_start", "age_end", "leave_gq_rate"],
+            ),
+            key_columns=["sex", "race_ethnicity"],
+            parameter_columns=["age"],
+            value_columns=["leave_gq_rate"],
+        )
+        self.gq_move_rate = builder.value.register_rate_producer(
+            f"gq_{self.name}_move_rate", source=gq_move_rate_data
+        )
         proportion_simulants_leaving_country = builder.lookup.build_table(
-            data=data_values.PROPORTION_LEAVING_COUNTRY
+            data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
         )
         # todo: do we want this as a rate or value producer? Rate would be a rate of how many sims move scaled to time step
         self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
@@ -77,11 +89,21 @@ class PersonMigration:
         """
 
         # todo: get different subsets of population to apply move rates to (and other pipelines)
-
         persons = self.population_view.get(event.index)
         non_household_heads = persons.loc[
             persons.relation_to_household_head != "Reference person"
         ]
+
+        # Get subsets of possible simulants that can move
+        gq_persons = non_household_heads.loc[
+            (non_household_heads['household_id'] in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS)
+            | (non_household_heads['household_id'] in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS)
+            ]
+        non_gq_persons = non_household_heads.loc[
+            (non_household_heads['household_id'] not in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS)
+            & (non_household_heads['household_id'] not in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS)
+            ] # is this the correct logic we want to use? e. g. everyone not in GQ?
+
         persons_who_move = self.randomness.filter_for_rate(
             non_household_heads, self.person_move_rate(non_household_heads.index)
         )
