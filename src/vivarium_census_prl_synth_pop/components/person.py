@@ -56,12 +56,12 @@ class PersonMigration:
         self.person_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
-        proportion_simulants_leaving_country = builder.lookup.build_table(
-            data=data_values.PROPORTION_LEAVING_COUNTRY
+        proportion_simulants_leaving_country_data = builder.lookup.build_table(
+            data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
         )
         # todo: do we want this as a rate or value producer? Rate would be a rate of how many sims move scaled to time step
         self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
-            "proportion_simulants_leaving_country", source=proportion_simulants_leaving_country
+            "proportion_simulants_leaving_country", source=proportion_simulants_leaving_country_data
         )
         builder.event.register_listener("time_step", self.on_time_step)
 
@@ -90,8 +90,7 @@ class PersonMigration:
             event
         )
         moving_abroad = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
-        moved_abroad_mask = persons_who_move.exit_time == event.time
-        persons_who_move = persons_who_move.loc[~moved_abroad_mask]
+        persons_who_move = persons_who_move.loc[~persons_who_move.index.isin(moving_abroad)]
 
         new_households = self._get_new_household_ids(persons_who_move, event)
         # get address and zipcode corresponding to selected households
@@ -167,12 +166,12 @@ class PersonMigration:
         """
         df_moving: Subset of population that will be changing addresses this time step
         """
-        sims_that_move = self.randomness.filter_for_probability(
+        sims_that_move_abroad = self.randomness.filter_for_probability(
             df_moving,
             proportion_simulants_leaving_country(df_moving.index)
         ).index # todo: If this probability is too high all sims will move abroad
-        if len(sims_that_move) > 0:
-            df_moving.loc[sims_that_move, "exit_time"] = event.time
-            df_moving.loc[sims_that_move, "tracked"] = False
+        if len(sims_that_move_abroad) > 0:
+            df_moving.loc[sims_that_move_abroad, "exit_time"] = event.time
+            df_moving.loc[sims_that_move_abroad, "tracked"] = False
 
         return df_moving
