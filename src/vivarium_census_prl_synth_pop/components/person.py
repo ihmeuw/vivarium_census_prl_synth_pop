@@ -90,9 +90,9 @@ class PersonMigration:
             event
         )
         moving_abroad = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
-        moving_domestic = persons_who_move.loc[~persons_who_move.index.isin(moving_abroad)]
+        persons_who_move = persons_who_move.loc[~persons_who_move.index.isin(moving_abroad)]
 
-        new_households = self._get_new_household_ids(moving_domestic, event)
+        new_households = self._get_new_household_ids(persons_who_move, event)
         # get address and zipcode corresponding to selected households
         new_household_data = (
             self.population_view.subview(["household_id", "address", "zipcode"])
@@ -108,29 +108,29 @@ class PersonMigration:
         new_household_data_map = new_household_data.set_index("household_id").to_dict()
 
         # update household data for persons who move
-        moving_domestic["household_id"] = new_households
-        moving_domestic["address"] = moving_domestic["household_id"].map(
+        persons_who_move["household_id"] = new_households
+        persons_who_move["address"] = persons_who_move["household_id"].map(
             new_household_data_map["address"]
         )
-        moving_domestic["zipcode"] = moving_domestic["household_id"].map(
+        persons_who_move["zipcode"] = persons_who_move["household_id"].map(
             new_household_data_map["zipcode"]
         )
-        moving_domestic["relation_to_household_head"] = "Other nonrelative"
-        moving_domestic.loc[
-            moving_domestic["household_id"].isin(
+        persons_who_move["relation_to_household_head"] = "Other nonrelative"
+        persons_who_move.loc[
+            persons_who_move["household_id"].isin(
                 data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
             ),
             "relation_to_household_head",
         ] = "Noninstitutionalized GQ pop"
-        moving_domestic.loc[
-            moving_domestic["household_id"].isin(
+        persons_who_move.loc[
+            persons_who_move["household_id"].isin(
                 data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
             ),
             "relation_to_household_head",
         ] = "Institutionalized GQ pop"
 
         simulants_who_moved = pd.concat([
-            moving_domestic,
+            persons_who_move,
             moving_abroad,
            ]
         )
