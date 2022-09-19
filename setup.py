@@ -37,10 +37,6 @@ if __name__ == "__main__":
         "vivarium_inputs[data]==4.0.6",
     ]
 
-    tests_requirements = [
-        'pytest',
-    ]
-
     setup(
         name=about["__title__"],
         version=about["__version__"],
@@ -54,12 +50,6 @@ if __name__ == "__main__":
         packages=find_packages(where="src"),
         include_package_data=True,
         install_requires=install_requirements,
-        
-        extras_require={
-            'dev': extras_require + tests_requirements,
-            'test': tests_requirements,
-        },
-
         zip_safe=False,
         entry_points="""
             [console_scripts]
