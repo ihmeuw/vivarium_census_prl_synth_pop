@@ -100,20 +100,17 @@ class PersonMigration:
 
         # Get subsets of possible simulants that can move
         gq_persons = non_household_heads.loc[
-            (non_household_heads["household_id"] in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values())
-            | (non_household_heads["household_id"] in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())
+            (non_household_heads["household_id"].isin(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()))
+            | (non_household_heads["household_id"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()))
             ]
-        non_gq_persons = non_household_heads.loc[
-            (non_household_heads["household_id"] not in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values())
-            & (non_household_heads["household_id"] not in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())
-            ] # is this the correct logic we want to use? e.g. everyone not in GQ?
+        non_gq_persons = non_household_heads.loc[~non_household_heads.index.isin(gq_persons)]
 
         # Get simulants who move
         gq_persons_who_move = self.randomness.filter_for_rate(
-            non_household_heads, self.gq_move_rate(gq_persons.index)
+            gq_persons, self.gq_move_rate(gq_persons.index)
         )
         persons_who_move = self.randomness.filter_for_rate(
-            non_household_heads, self.person_move_rate(non_gq_persons.index)
+            non_gq_persons, self.person_move_rate(non_gq_persons.index)
         )
 
         # Handle simulants that move out of the country
