@@ -73,7 +73,7 @@ jobs:
           popd
       - name: Install dependencies
         run: |
-          pip install .[dev]
+          pip install .[test]
       - name: Test
         run: |
           pytest ./tests
