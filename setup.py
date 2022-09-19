@@ -50,6 +50,7 @@ if __name__ == "__main__":
         packages=find_packages(where="src"),
         include_package_data=True,
         install_requires=install_requirements,
+        extras_require={"dev": extras_require},
         zip_safe=False,
         entry_points="""
             [console_scripts]
