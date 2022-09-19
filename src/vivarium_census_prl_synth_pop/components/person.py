@@ -78,7 +78,7 @@ class PersonMigration:
             data=data_values.PROPORTION_GQ_PERSONS_LEAVING_COUNTRY
         )
         self.proportion_gq_simulants_leaving_country = builder.value.register_rate_producer(
-            "proportion_simulants_leaving_country", source=proportion_gq_simulants_leaving_country_data
+            "proportion_gq_simulants_leaving_country", source=proportion_gq_simulants_leaving_country_data
         )
         builder.event.register_listener("time_step", self.on_time_step)
 
@@ -100,13 +100,13 @@ class PersonMigration:
 
         # Get subsets of possible simulants that can move
         gq_persons = non_household_heads.loc[
-            (non_household_heads['household_id'] in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS)
-            | (non_household_heads['household_id'] in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS)
+            (non_household_heads["household_id"] in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values())
+            | (non_household_heads["household_id"] in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())
             ]
         non_gq_persons = non_household_heads.loc[
-            (non_household_heads['household_id'] not in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS)
-            & (non_household_heads['household_id'] not in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS)
-            ] # is this the correct logic we want to use? e. g. everyone not in GQ?
+            (non_household_heads["household_id"] not in data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values())
+            & (non_household_heads["household_id"] not in data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())
+            ] # is this the correct logic we want to use? e.g. everyone not in GQ?
 
         # Get simulants who move
         gq_persons_who_move = self.randomness.filter_for_rate(
@@ -224,3 +224,4 @@ class PersonMigration:
             df_moving.loc[sims_that_move, "tracked"] = False
 
         return df_moving
+
