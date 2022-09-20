@@ -5,6 +5,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.values import Pipeline
 
+from vivarium_census_prl_synth_pop.components import synthetic_pii, Address
+from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
 from vivarium_census_prl_synth_pop.constants import paths, data_values
 
 
@@ -35,6 +37,7 @@ class PersonMigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
+        self.addresses = builder.components.get_component("Address")
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
@@ -103,7 +106,7 @@ class PersonMigration:
             (non_household_heads["household_id"].isin(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()))
             | (non_household_heads["household_id"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()))
             ]
-        non_gq_persons = non_household_heads.loc[~non_household_heads.index.isin(gq_persons)]
+        non_gq_persons = non_household_heads.loc[~non_household_heads.index.isin(gq_persons.index)]
 
         # Get simulants who move
         gq_persons_who_move = self.randomness.filter_for_rate(
@@ -127,10 +130,10 @@ class PersonMigration:
 
        # Separate simulants that move abroad vs domestic
         gq_moving_abroad = gq_persons_who_move.loc[gq_persons_who_move["exit_time"] == event.time]
-        gq_moving_domestic = gq_persons_who_move.loc[~gq_persons_who_move.index.isin(gq_moving_abroad)]
+        gq_moving_domestic = gq_persons_who_move.loc[~gq_persons_who_move.index.isin(gq_moving_abroad.index)]
 
         moving_abroad = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
-        moving_domestic = persons_who_move.loc[~persons_who_move.index.isin(moving_abroad)]
+        moving_domestic = persons_who_move.loc[~persons_who_move.index.isin(moving_abroad.index)]
 
         # Combine groups
         domestic_movers = pd.concat([moving_domestic, gq_moving_domestic])
@@ -149,34 +152,35 @@ class PersonMigration:
 
         # create map from household_ids to addresses and zipcodes
         new_household_data["household_id"] = new_household_data["household_id"].astype(int)
-        new_household_data_map = new_household_data.set_index("household_id").to_dict()
-        
-        # todo: make function to update necessary columns like in businesses.py
-        # todo: change name from persons_who_move to domestic_movers
+        new_household_data_map = new_household_data.set_index("household_id")
+
         # update household data for persons who move
-        persons_who_move["household_id"] = new_households
-        persons_who_move["address"] = persons_who_move["household_id"].map(
-            new_household_data_map["address"]
+        domestic_movers["household_id"] = new_households
+        domestic_movers = update_address_and_zipcode(
+            df=domestic_movers,
+            rows_to_update=domestic_movers.index,
+            id_key=domestic_movers["household_id"],
+            address_map=new_household_data_map["address"],
+            zipcode_map=new_household_data_map["zipcode"],
         )
-        persons_who_move["zipcode"] = persons_who_move["household_id"].map(
-            new_household_data_map["zipcode"]
-        )
-        persons_who_move["relation_to_household_head"] = "Other nonrelative"
-        persons_who_move.loc[
-            persons_who_move["household_id"].isin(
+
+        # update relation to head of household data
+        domestic_movers["relation_to_household_head"] = "Other nonrelative"
+        domestic_movers.loc[
+            domestic_movers["household_id"].isin(
                 data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
             ),
             "relation_to_household_head",
         ] = "Noninstitutionalized GQ pop"
-        persons_who_move.loc[
-            persons_who_move["household_id"].isin(
+        domestic_movers.loc[
+            domestic_movers["household_id"].isin(
                 data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
             ),
             "relation_to_household_head",
         ] = "Institutionalized GQ pop"
 
         simulants_who_moved = pd.concat([
-            persons_who_move,
+            domestic_movers,
             abroad_movers,
            ]
         )

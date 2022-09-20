@@ -399,32 +399,31 @@ class Address(GenericGenerator):
         new_addresses = self.generate(those_that_move, state=state)
         return (new_addresses["address"].to_dict(), new_addresses["zipcode"].to_dict())
 
-    def update_address_and_zipcode(
-        self,
-        df: pd.DataFrame,
-        rows_to_update: pd.Index,
-        id_key: pd.Series,
-        address_map: Dict,
-        zipcode_map: Dict,
-        address_col_name: str = "address",
-        zipcode_col_name: str = "zipcode",
-    ) -> pd.DataFrame:
-        """
-        Parameters
-        ----------
-        df: the pd.DataFrame to update
-        rows_to_update: a pd.Index of the rows of df to update
-        id_key: the id values corresponding to the rows_to_update.
-                should be the key for address_map and zipcode_map
-        address_map: a Dict from id_key values to addresses
-        zipcode_map: a Dict from id_key values to zipcodes
-        address_col_name: a string. the name of the column in df to hold addresses.
-        zipcode_col_name: a string. the name of the column in df to hold zipcodes.
+def update_address_and_zipcode(
+    df: pd.DataFrame,
+    rows_to_update: pd.Index,
+    id_key: pd.Series,
+    address_map: Dict,
+    zipcode_map: Dict,
+    address_col_name: str = "address",
+    zipcode_col_name: str = "zipcode",
+) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    df: the pd.DataFrame to update
+    rows_to_update: a pd.Index of the rows of df to update
+    id_key: the id values corresponding to the rows_to_update.
+            should be the key for address_map and zipcode_map
+    address_map: a Dict from id_key values to addresses
+    zipcode_map: a Dict from id_key values to zipcodes
+    address_col_name: a string. the name of the column in df to hold addresses.
+    zipcode_col_name: a string. the name of the column in df to hold zipcodes.
 
-        Returns
-        -------
-        df with appropriately updated addresses and zipcodes
-        """
-        df.loc[rows_to_update, address_col_name] = id_key.map(address_map)
-        df.loc[rows_to_update, zipcode_col_name] = id_key.map(zipcode_map)
-        return df
+    Returns
+    -------
+    df with appropriately updated addresses and zipcodes
+    """
+    df.loc[rows_to_update, address_col_name] = id_key.map(address_map)
+    df.loc[rows_to_update, zipcode_col_name] = id_key.map(zipcode_map)
+    return df

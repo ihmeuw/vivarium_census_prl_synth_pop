@@ -4,6 +4,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
+from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
 from vivarium_census_prl_synth_pop.constants import metadata, data_keys, paths
 from vivarium_census_prl_synth_pop.constants import data_values
 
@@ -128,7 +129,7 @@ class HouseholdMigration:
                 households["household_id"].isin(households_that_move), "household_id"
             ]
 
-            households = self.addresses.update_address_and_zipcode(
+            households = update_address_and_zipcode(
                 df=households,
                 rows_to_update=households_to_update.index,
                 id_key=households_to_update,
