@@ -216,13 +216,13 @@ class PersonMigration:
         """
         df_moving: Subset of population that will be changing addresses this time step
         """
-        sims_that_move = self.randomness.filter_for_probability(
+        sims_that_move_abroad = self.randomness.filter_for_probability(
             df_moving,
             proportion_simulants_leaving_country(df_moving.index)
         ).index # todo: If this probability is too high all sims will move abroad
-        if len(sims_that_move) > 0:
-            df_moving.loc[sims_that_move, "exit_time"] = event.time
-            df_moving.loc[sims_that_move, "tracked"] = False
+        if len(sims_that_move_abroad) > 0:
+            df_moving.loc[sims_that_move_abroad, "exit_time"] = event.time
+            df_moving.loc[sims_that_move_abroad, "tracked"] = False
 
         return df_moving
 
