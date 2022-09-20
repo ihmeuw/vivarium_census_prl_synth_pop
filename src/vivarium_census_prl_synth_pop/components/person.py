@@ -25,7 +25,7 @@ class PersonMigration:
 
     ##############
     # Properties #
-    ##############m
+    ##############
 
     @property
     def name(self):
