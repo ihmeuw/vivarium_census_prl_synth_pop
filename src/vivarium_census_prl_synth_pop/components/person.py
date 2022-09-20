@@ -71,11 +71,11 @@ class PersonMigration:
         self.gq_move_rate = builder.value.register_rate_producer(
             f"gq_{self.name}_move_rate", source=gq_move_rate_data
         )
-        proportion_simulants_leaving_country = builder.lookup.build_table(
-            data=data_values.PROPORTION_LEAVING_COUNTRY
+        proportion_simulants_leaving_country_data = builder.lookup.build_table(
+            data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
         )
         self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
-            "proportion_simulants_leaving_country", source=proportion_simulants_leaving_country
+            "proportion_simulants_leaving_country", source=proportion_simulants_leaving_country_data
         )
         proportion_gq_simulants_leaving_country_data = builder.lookup.build_table(
             data=data_values.PROPORTION_GQ_PERSONS_LEAVING_COUNTRY
@@ -116,10 +116,10 @@ class PersonMigration:
             non_gq_persons, self.person_move_rate(non_gq_persons.index)
         )
 
-        # Handle simulants that move out of the country
+        # Find simulants that move out of the country
         gq_persons_who_move = self.move_simulants_out_of_country(
             gq_persons_who_move,
-            self.proportion_simulants_leaving_country,
+            self.proportion_gq_simulants_leaving_country,
             event
         )
         persons_who_move = self.move_simulants_out_of_country(
@@ -137,7 +137,7 @@ class PersonMigration:
 
         # Combine groups
         domestic_movers = pd.concat([moving_domestic, gq_moving_domestic])
-        abroad_movers = pd.concat([moving_abroad, gq_moving_abroad])
+        abroad_movers = pd.concat([moving_abroad, gq_moving_abroad])  # Simulants that will become untracked
 
         new_households = self._get_new_household_ids(domestic_movers, event)
         # get address and zipcode corresponding to selected households
@@ -154,7 +154,7 @@ class PersonMigration:
         new_household_data["household_id"] = new_household_data["household_id"].astype(int)
         new_household_data_map = new_household_data.set_index("household_id")
 
-        # update household data for persons who move
+        # update household data for domestic movers
         domestic_movers["household_id"] = new_households
         domestic_movers = update_address_and_zipcode(
             df=domestic_movers,
