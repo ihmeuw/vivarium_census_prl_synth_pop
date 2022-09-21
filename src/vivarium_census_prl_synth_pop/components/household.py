@@ -3,6 +3,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
+from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
 from vivarium_census_prl_synth_pop.constants import metadata, data_keys, paths
@@ -129,23 +130,60 @@ class HouseholdMigration:
         households_that_move = self.addresses.determine_if_moving(
             household_heads["household_id"], self.household_move_rate
         )
-        # todo: add in call to find households that leave country
-        # todo: separate into moving abroad and domestic again
-        if len(households_that_move) > 0:
+
+        # Find households that move abroad and separate subsets of state table
+        households_that_move_aboard_idx = self.determine_households_moving_abroad(
+            households_that_move,
+            self.proportion_households_leaving_country,
+            event
+        )
+        moving_abroad_households = households_that_move.loc[households_that_move_aboard_idx]
+        moving_domestic_households = households_that_move.loc[
+            ~households_that_move.index.isin(moving_abroad_households.index)
+        ]
+        abroad_moving_households = households.loc[
+            households["household_id"].isin(moving_abroad_households), "household_id"
+        ]
+        domestic_moving_households = households.loc[
+            households["household_id"].isin(moving_domestic_households), "household_id"
+        ]
+
+        # Process households moving abroad
+        if len(abroad_moving_households) > 0:
+            abroad_moving_households["household_id"] = event.time
+            abroad_moving_households["tracked"] = False
+
+        if len(domestic_moving_households) > 0:
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+                moving_domestic_households, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
             )
 
-            households_to_update = households.loc[
-                households["household_id"].isin(households_that_move), "household_id"
-            ]
-
-            households = update_address_and_zipcode(
-                df=households,
-                rows_to_update=households_to_update.index,
-                id_key=households_to_update,
+            domestic_moving_households = update_address_and_zipcode(
+                df=domestic_moving_households,
+                rows_to_update=domestic_moving_households.index,
+                id_key=domestic_moving_households["household_id"],
                 address_map=address_map,
                 zipcode_map=zipcode_map,
             )
-            # todo: OR update households who move abroad to untracked here
-            self.population_view.update(households)
+
+        # Updated state table
+        updated_households = pd.concat([
+            domestic_moving_households,
+            abroad_moving_households,
+            ]
+        )
+        self.population_view.update(updated_households)
+
+    def determine_households_moving_abroad(
+            self,
+            households_that_move: pd.Series,
+            proportion_households_moving_abroad: Pipeline,
+            event: Event) -> pd.Index:
+
+        moving_abroad = self.randomness.filter_for_probability(
+            households_that_move,
+            proportion_households_moving_abroad(households_that_move.index)
+        ).index
+
+        return moving_abroad
+
