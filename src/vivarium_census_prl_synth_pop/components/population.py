@@ -218,6 +218,7 @@ class Population:
             randomness_stream=self.randomness,
         )
 
+        #TODO: add "housing_type" column (map from household_id to housing_type)
         noninstitutionalized["household_id"] = noninstitutionalized_gq_types
         institutionalized["household_id"] = institutionalized_gq_types
 
@@ -228,6 +229,7 @@ class Population:
         mothers = self.population_view.get(parent_ids.unique())
         new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
 
+        #TODO: add "housing_type" to inherited traits
         inherited_traits = [
             "household_id",
             "state",

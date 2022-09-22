@@ -39,6 +39,7 @@ class HouseholdMigration:
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
+        #TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
                 paths.HOUSEHOLD_MOVE_RATE_PATH,
