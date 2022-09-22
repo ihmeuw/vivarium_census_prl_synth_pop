@@ -174,6 +174,8 @@ class Population:
             ~chosen_persons["household_id"].isin(households_to_discard)
         ]
 
+        chosen_persons["housing_type"] = "Standard"
+
         return chosen_persons
 
     def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
@@ -222,7 +224,17 @@ class Population:
         noninstitutionalized["household_id"] = noninstitutionalized_gq_types
         institutionalized["household_id"] = institutionalized_gq_types
 
-        return pd.concat([noninstitutionalized, institutionalized])
+        group_quarters = pd.concat([noninstitutionalized, institutionalized])
+        group_quarters["housing_type"] = group_quarters["household_id"].map({
+            0: "Carceral",
+            1: "Nursing home",
+            2: "Other institutional",
+            3: "College",
+            4: "Military",
+            5: "Other non-institutional"
+        })
+
+        return group_quarters
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids = pop_data.user_data["parent_ids"]
