@@ -47,6 +47,8 @@ class PersonMigration:
             "tracked",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
+
+        # TODO: add the "housing_type" column to move_rate data's used columns
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
                 paths.HOUSEHOLD_MOVE_RATE_PATH,
@@ -58,18 +60,6 @@ class PersonMigration:
         )
         self.person_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
-        )
-        gq_move_rate_data = builder.lookup.build_table(
-            data=pd.read_csv(
-                paths.GQ_MOVE_RATE_PATH,
-                usecols=["sex", "race_ethnicity", "age_start", "age_end", "leave_gq_rate"],
-            ),
-            key_columns=["sex", "race_ethnicity"],
-            parameter_columns=["age"],
-            value_columns=["leave_gq_rate"],
-        )
-        self.gq_move_rate = builder.value.register_rate_producer(
-            f"gq_{self.name}_move_rate", source=gq_move_rate_data
         )
         proportion_simulants_leaving_country_data = builder.lookup.build_table(
             data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
@@ -102,26 +92,11 @@ class PersonMigration:
         ]
 
         # Get subsets of possible simulants that can move
-        gq_persons = non_household_heads.loc[
-            (non_household_heads["household_id"].isin(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()))
-            | (non_household_heads["household_id"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()))
-            ]
-        non_gq_persons = non_household_heads.loc[~non_household_heads.index.isin(gq_persons.index)]
-
-        # Get simulants who move
-        gq_persons_who_move = self.randomness.filter_for_rate(
-            gq_persons, self.gq_move_rate(gq_persons.index)
-        )
         persons_who_move = self.randomness.filter_for_rate(
-            non_gq_persons, self.person_move_rate(non_gq_persons.index)
+            non_household_heads, self.person_move_rate(non_household_heads.index)
         )
 
         # Find simulants that move out of the country
-        gq_persons_who_move = self.move_simulants_out_of_country(
-            gq_persons_who_move,
-            self.proportion_gq_simulants_leaving_country,
-            event
-        )
         persons_who_move = self.move_simulants_out_of_country(
             persons_who_move,
             self.proportion_simulants_leaving_country,
@@ -129,17 +104,11 @@ class PersonMigration:
         )
 
        # Separate simulants that move abroad vs domestic
-        gq_moving_abroad = gq_persons_who_move.loc[gq_persons_who_move["exit_time"] == event.time]
-        gq_moving_domestic = gq_persons_who_move.loc[~gq_persons_who_move.index.isin(gq_moving_abroad.index)]
-
-        moving_abroad = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
-        moving_domestic = persons_who_move.loc[~persons_who_move.index.isin(moving_abroad.index)]
-
-        # Combine groups
-        domestic_movers = pd.concat([moving_domestic, gq_moving_domestic])
-        abroad_movers = pd.concat([moving_abroad, gq_moving_abroad])  # Simulants that will become untracked
+        abroad_movers = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
+        domestic_movers = persons_who_move.loc[~persons_who_move.index.isin(abroad_movers.index)]
 
         new_households = self._get_new_household_ids(domestic_movers, event)
+
         # get address and zipcode corresponding to selected households
         new_household_data = (
             self.population_view.subview(["household_id", "address", "zipcode"])
