@@ -62,6 +62,7 @@ class HouseholdMigration:
             "address",
             "zipcode",
             "tracked",
+            "exit_time"
         ]
         self.population_view = builder.population.get_view(self.columns_used)
 
@@ -119,9 +120,7 @@ class HouseholdMigration:
         choose which households move;
         move those households to a new address
         """
-        households = self.population_view.subview(
-            ["household_id", "relation_to_household_head", "address", "zipcode"]
-        ).get(event.index)
+        households = self.population_view.get(event.index)
         household_heads = households.loc[
             households["relation_to_household_head"] == "Reference person"
         ]
@@ -140,15 +139,15 @@ class HouseholdMigration:
             ~households_that_move.index.isin(moving_abroad_households.index)
         ]
         abroad_moving_households = households.loc[
-            households["household_id"].isin(moving_abroad_households), "household_id"
+            households["household_id"].isin(moving_abroad_households)
         ]
         domestic_moving_households = households.loc[
-            households["household_id"].isin(moving_domestic_households), "household_id"
+            households["household_id"].isin(moving_domestic_households)
         ]
 
         # Process households moving abroad
         if len(abroad_moving_households) > 0:
-            abroad_moving_households["household_id"] = event.time
+            abroad_moving_households["exit_time"] = event.time
             abroad_moving_households["tracked"] = False
 
         if len(domestic_moving_households) > 0:
