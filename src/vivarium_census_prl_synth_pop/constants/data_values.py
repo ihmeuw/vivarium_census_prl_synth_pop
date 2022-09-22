@@ -18,10 +18,18 @@ NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "Military": 4,
     "Other non-institutional": 5,
 }
+HOUSING_TYPE_MAP = {
+            0: "Carceral",
+            1: "Nursing home",
+            2: "Other institutional",
+            3: "College",
+            4: "Military",
+            5: "Other non-institutional"
+}
+
 PROPORTION_INITIALIZATION_NO_SSN = 0.14
 PROPORTION_NEWBORNS_NO_SSN = 0.10
 PROPORTION_PERSONS_LEAVING_COUNTRY = 0.01
-PROPORTION_GQ_PERSONS_LEAVING_COUNTRY = 0.03
 PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY = 0.5
 
 #########################
