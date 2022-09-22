@@ -45,16 +45,16 @@ class PersonMigration:
             "zipcode",
             "exit_time",
             "tracked",
+            "housing_type"
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
 
-        # TODO: add the "housing_type" column to move_rate data's used columns
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
                 paths.HOUSEHOLD_MOVE_RATE_PATH,
-                usecols=["sex", "race_ethnicity", "age_start", "age_end", "person_rate"],
+                usecols=["sex", "race_ethnicity", "age_start", "age_end", "person_rate", "housing_type"],
             ),
-            key_columns=["sex", "race_ethnicity"],
+            key_columns=["sex", "race_ethnicity", "housing_type"],
             parameter_columns=["age"],
             value_columns=["person_rate"],
         )
@@ -67,12 +67,7 @@ class PersonMigration:
         self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
             "proportion_simulants_leaving_country", source=proportion_simulants_leaving_country_data
         )
-        proportion_gq_simulants_leaving_country_data = builder.lookup.build_table(
-            data=data_values.PROPORTION_GQ_PERSONS_LEAVING_COUNTRY
-        )
-        self.proportion_gq_simulants_leaving_country = builder.value.register_rate_producer(
-            "proportion_gq_simulants_leaving_country", source=proportion_gq_simulants_leaving_country_data
-        )
+
         builder.event.register_listener("time_step", self.on_time_step)
 
     ########################
@@ -148,6 +143,20 @@ class PersonMigration:
             "relation_to_household_head",
         ] = "Institutionalized GQ pop"
 
+        # Update housing type
+        domestic_movers.loc[
+            domestic_movers["household_id"].isin(
+                data_values.HOUSING_TYPE_MAP.keys()
+            ),
+            "housing_type"
+        ] = domestic_movers["household_id"].map(data_values.HOUSING_TYPE_MAP)
+        domestic_movers.loc[
+            ~domestic_movers["household_id"].isin(
+                data_values.HOUSING_TYPE_MAP.keys()
+            ),
+            "housing_type"
+        ] = "Standard"
+
         simulants_who_moved = pd.concat([
             domestic_movers,
             abroad_movers,
@@ -188,7 +197,7 @@ class PersonMigration:
         sims_that_move_abroad = self.randomness.filter_for_probability(
             df_moving,
             proportion_simulants_leaving_country(df_moving.index)
-        ).index # todo: If this probability is too high all sims will move abroad
+        ).index
         if len(sims_that_move_abroad) > 0:
             df_moving.loc[sims_that_move_abroad, "exit_time"] = event.time
             df_moving.loc[sims_that_move_abroad, "tracked"] = False

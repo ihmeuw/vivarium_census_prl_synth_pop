@@ -64,6 +64,7 @@ class Population:
             "alive",
             "entrance_time",
             "exit_time",
+            "housing_type",
         ]
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(self.columns_created)
@@ -220,19 +221,11 @@ class Population:
             randomness_stream=self.randomness,
         )
 
-        #TODO: add "housing_type" column (map from household_id to housing_type)
         noninstitutionalized["household_id"] = noninstitutionalized_gq_types
         institutionalized["household_id"] = institutionalized_gq_types
 
         group_quarters = pd.concat([noninstitutionalized, institutionalized])
-        group_quarters["housing_type"] = group_quarters["household_id"].map({
-            0: "Carceral",
-            1: "Nursing home",
-            2: "Other institutional",
-            3: "College",
-            4: "Military",
-            5: "Other non-institutional"
-        })
+        group_quarters["housing_type"] = group_quarters["household_id"].map(data_values.HOUSING_TYPE_MAP)
 
         return group_quarters
 
@@ -241,9 +234,9 @@ class Population:
         mothers = self.population_view.get(parent_ids.unique())
         new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
 
-        #TODO: add "housing_type" to inherited traits
         inherited_traits = [
             "household_id",
+            "housing_type",
             "state",
             "puma",
             "race_ethnicity",

@@ -18,6 +18,14 @@ NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "Military": 4,
     "Other non-institutional": 5,
 }
+HOUSING_TYPE_MAP = {
+            0: "Carceral",
+            1: "Nursing home",
+            2: "Other institutional",
+            3: "College",
+            4: "Military",
+            5: "Other non-institutional"
+}
 
 #########################
 # Synthetic Name Inputs #
