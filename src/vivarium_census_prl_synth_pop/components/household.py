@@ -4,6 +4,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
+from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
 from vivarium_census_prl_synth_pop.constants import metadata, data_keys, paths
 from vivarium_census_prl_synth_pop.constants import data_values
 
@@ -38,11 +39,13 @@ class HouseholdMigration:
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
-        move_rate_data = builder.lookup.build_table(
-            data=pd.read_csv(
+        #TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
+        move_rate_data = pd.read_csv(
                 paths.HOUSEHOLD_MOVE_RATE_PATH,
-                usecols=["sex", "race_ethnicity", "age_start", "age_end", "household_rate"],
-            ),
+                usecols=["sex", "race_ethnicity", "age_start", "age_end", "household_rate", "housing_type"],
+            )
+        move_rate_data = builder.lookup.build_table(
+            data=move_rate_data.loc[move_rate_data["housing_type"] == "Standard"].drop(columns="housing_type"),
             key_columns=["sex", "race_ethnicity"],
             parameter_columns=["age"],
             value_columns=["household_rate"],
@@ -128,7 +131,7 @@ class HouseholdMigration:
                 households["household_id"].isin(households_that_move), "household_id"
             ]
 
-            households = self.addresses.update_address_and_zipcode(
+            households = update_address_and_zipcode(
                 df=households,
                 rows_to_update=households_to_update.index,
                 id_key=households_to_update,

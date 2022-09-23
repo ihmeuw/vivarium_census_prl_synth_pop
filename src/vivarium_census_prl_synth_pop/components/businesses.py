@@ -8,6 +8,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
+from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
 from vivarium_census_prl_synth_pop.constants import data_values, data_keys, metadata
 from vivarium_census_prl_synth_pop.constants.data_values import (
     UNEMPLOYED_ID,
@@ -139,7 +140,7 @@ class Businesses:
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
                 businesses_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
             )
-            self.businesses = self.addresses.update_address_and_zipcode(
+            self.businesses = update_address_and_zipcode(
                 df=self.businesses,
                 rows_to_update=businesses_that_move.index,
                 id_key=businesses_that_move,
@@ -151,7 +152,7 @@ class Businesses:
 
             # update employer address and zipcode in the pop table
             rows_changing_addresses = pop.loc[pop.employer_id.isin(businesses_that_move)]
-            pop = self.addresses.update_address_and_zipcode(
+            pop = update_address_and_zipcode(
                 df=pop,
                 rows_to_update=rows_changing_addresses.index,
                 id_key=rows_changing_addresses["employer_id"],

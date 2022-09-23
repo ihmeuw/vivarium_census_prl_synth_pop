@@ -64,6 +64,7 @@ class Population:
             "alive",
             "entrance_time",
             "exit_time",
+            "housing_type",
         ]
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(self.columns_created)
@@ -174,6 +175,8 @@ class Population:
             ~chosen_persons["household_id"].isin(households_to_discard)
         ]
 
+        chosen_persons["housing_type"] = "Standard"
+
         return chosen_persons
 
     def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
@@ -221,7 +224,10 @@ class Population:
         noninstitutionalized["household_id"] = noninstitutionalized_gq_types
         institutionalized["household_id"] = institutionalized_gq_types
 
-        return pd.concat([noninstitutionalized, institutionalized])
+        group_quarters = pd.concat([noninstitutionalized, institutionalized])
+        group_quarters["housing_type"] = group_quarters["household_id"].map(data_values.HOUSING_TYPE_MAP)
+
+        return group_quarters
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids = pop_data.user_data["parent_ids"]
@@ -230,6 +236,7 @@ class Population:
 
         inherited_traits = [
             "household_id",
+            "housing_type",
             "state",
             "puma",
             "race_ethnicity",
