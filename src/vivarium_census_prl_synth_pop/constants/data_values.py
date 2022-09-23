@@ -80,5 +80,3 @@ class MilitaryEmployer(NamedTuple):
     EMPLOYER_ZIPCODE = "military zipcode"
     EMPLOYER_NAME = "military"
     PROPORTION_WORKFORCE_EMPLOYED = 0.03
-
-__ = 'test variable for build update'
