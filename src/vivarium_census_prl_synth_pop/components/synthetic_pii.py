@@ -364,7 +364,7 @@ class Address(GenericGenerator):
         df["zipcode"] = self.address_data.loc[chosen_indices, "PostalCode"].fillna("").values
         return df
 
-    # todo: Update this function
+    # todo: Make this function more versatile for simulants and households
     def determine_if_moving(
         self, potential_movers: pd.Series, move_rate_producer: Pipeline
     ) -> pd.Series:

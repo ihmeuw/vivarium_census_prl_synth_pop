@@ -131,12 +131,12 @@ class HouseholdMigration:
         )
 
         # Find households that move abroad and separate subsets of state table
-        households_that_move_aboard_idx = self.determine_households_moving_abroad(
+        households_that_move_abroad_idx = self.determine_households_moving_abroad(
             households_that_move,
             self.proportion_households_leaving_country,
             event
         )
-        moving_abroad_households = households_that_move.loc[households_that_move_aboard_idx]
+        moving_abroad_households = households_that_move.loc[households_that_move_abroad_idx]
         moving_domestic_households = households_that_move.loc[
             ~households_that_move.index.isin(moving_abroad_households.index)
         ]
@@ -165,7 +165,7 @@ class HouseholdMigration:
                 zipcode_map=zipcode_map,
             )
 
-        # Updated state table
+        # Update state table
         updated_households = pd.concat([
             domestic_moving_households,
             abroad_moving_households,
