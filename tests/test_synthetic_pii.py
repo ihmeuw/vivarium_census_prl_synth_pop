@@ -1,7 +1,8 @@
 # Sample Test passing with nose and pytest
 import pytest
 
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
 
