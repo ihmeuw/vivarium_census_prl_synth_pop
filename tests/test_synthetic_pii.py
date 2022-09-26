@@ -3,11 +3,11 @@ import pytest
 
 import numpy as np, pandas as pd
 
-from vivarium_census_prl_synth_pop import synthetic_pii
+from vivarium_census_prl_synth_pop.components import synthetic_pii
 
 
 def test_generic():
-    g = synthetic_pii.GenericGenerator(1234)
+    g = synthetic_pii.GenericGenerator()
 
     index = [1, 2, 4, 8]
     df_in = pd.DataFrame(index=index)
@@ -22,43 +22,44 @@ def test_generic():
     ), "expect noise to leave dataframe index and columns unchanged"
 
 
-def test_dob():
-    g = synthetic_pii.DOBGenerator(1234)
-
-    index = range(10_000)
-    df_in = pd.DataFrame(index=index)
-    df_in["age"] = np.random.uniform(0, 125, len(index))
-    df = g.generate(df_in)
-
-    assert np.all(df.month <= 12)
-    assert np.all(df.day <= 31)
-    assert np.all(df.year >= 2019 - 125 - 1)
-
-    df2 = g.noise(df)
-    assert np.all(df.index == df2.index) and np.all(
-        df.columns == df2.columns
-    ), "expect noise to leave dataframe index and columns unchanged"
-
-    assert np.all((df2.month >= 1) | df2.month.isnull()) and np.all(
-        (df2.month <= 12)
-        | (df2.day <= 12)  # noise can swap day and month, resulting in a month > 12
-        | df2.month.isnull()
-    )
-    assert np.all((df2.day >= 1) | df2.day.isnull()) and np.all(
-        (df2.day <= 31) | df2.day.isnull()
-    )
-    assert np.all((df2.year >= 2019 - 150) | df2.year.isnull()) and np.all(
-        (df2.year < 2022) | df2.year.isnull()
-    )
-
-    assert not np.all(df.day == df2.day)
-    assert not np.all(df.month == df2.month)
-    assert not np.all(df.year == df2.year)
-    assert not np.all(df.dob == df2.dob)
+# This is outdated and not a random generator anymore
+# def test_dob():
+#     g = synthetic_pii.DOBGenerator(1234)
+#
+#     index = range(10_000)
+#     df_in = pd.DataFrame(index=index)
+#     df_in["age"] = np.random.uniform(0, 125, len(index))
+#     df = g.generate(df_in)
+#
+#     assert np.all(df.month <= 12)
+#     assert np.all(df.day <= 31)
+#     assert np.all(df.year >= 2019 - 125 - 1)
+#
+#     df2 = g.noise(df)
+#     assert np.all(df.index == df2.index) and np.all(
+#         df.columns == df2.columns
+#     ), "expect noise to leave dataframe index and columns unchanged"
+#
+#     assert np.all((df2.month >= 1) | df2.month.isnull()) and np.all(
+#         (df2.month <= 12)
+#         | (df2.day <= 12)  # noise can swap day and month, resulting in a month > 12
+#         | df2.month.isnull()
+#     )
+#     assert np.all((df2.day >= 1) | df2.day.isnull()) and np.all(
+#         (df2.day <= 31) | df2.day.isnull()
+#     )
+#     assert np.all((df2.year >= 2019 - 150) | df2.year.isnull()) and np.all(
+#         (df2.year < 2022) | df2.year.isnull()
+#     )
+#
+#     assert not np.all(df.day == df2.day)
+#     assert not np.all(df.month == df2.month)
+#     assert not np.all(df.year == df2.year)
+#     assert not np.all(df.dob == df2.dob)
 
 
 def test_ssn():
-    g = synthetic_pii.SSNGenerator(1234)
+    g = synthetic_pii.SSNGenerator()
 
     index = range(10)
     df_in = pd.DataFrame(index=index)
@@ -76,10 +77,11 @@ def test_ssn():
     assert np.all(df.index == df2.index) and np.all(
         df.columns == df2.columns
     ), "expect noise to leave dataframe index and columns unchanged"
+    # todo: add test for remove ssn
 
 
 def test_name():
-    g = synthetic_pii.NameGenerator(1234)
+    g = synthetic_pii.NameGenerator()
 
     all_race_eth_values = [
         "White",
@@ -110,7 +112,7 @@ def test_name():
 
 @pytest.mark.slow
 def test_address():
-    g = synthetic_pii.Address(1234)
+    g = synthetic_pii.Address()
 
     index = range(10)
     df_in = pd.DataFrame(index=index)
