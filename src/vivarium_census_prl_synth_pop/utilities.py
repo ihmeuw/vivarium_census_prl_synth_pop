@@ -10,7 +10,7 @@ from loguru import logger
 from vivarium.framework.artifact import EntityKey
 
 from vivarium.framework.randomness import get_hash, RandomnessStream, Array
-from vivarium_inputs.mapping_extension import alternative_risk_factors
+from vivarium_inputs.mapping_extension.alternative_risk_factor import alternative_risk_factors
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
