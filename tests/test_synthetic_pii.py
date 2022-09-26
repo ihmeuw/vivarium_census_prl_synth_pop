@@ -78,7 +78,6 @@ def test_ssn():
     assert np.all(df.index == df2.index) and np.all(
         df.columns == df2.columns
     ), "expect noise to leave dataframe index and columns unchanged"
-    # todo: add test for remove ssn
 
 
 def test_name():
@@ -99,7 +98,8 @@ def test_name():
     df_in["age"] = 0
     df_in["sex"] = "Male"
 
-    df = g.generate(df_in)
+    df = g.generate_first_and_middle_names(df_in)
+    df = g.generate_last_names(df_in)
 
     assert len(df) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
 

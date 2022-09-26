@@ -33,6 +33,9 @@ class SSNGenerator(GenericGenerator):
     def name(self):
         return "SSNGenerator"
 
+    def setup(self, builder: Builder):
+        super().setup(builder)
+
     def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic Social Security Numbers
 
