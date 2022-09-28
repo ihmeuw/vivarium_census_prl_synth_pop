@@ -102,14 +102,63 @@ def get_year():
     return mock_clock
 
 
+def get_first_names():
+    names = pd.DataFrame(data={
+        "state": ["FL", "FL", "FL", "FL", "FL"],
+        "sex": ["Female", "Female", "Male", "Male", "Female"],
+        "yob": [1999, 1999, 1999, 2000, 2000],
+        "name": ["Mary", "Annie", "Louise", "John", "Jeff"],
+        "freq": [200, 199, 198, 10, 11]
+    })
+    names = names.set_index(["state", "sex", "yob", "name", "freq"])
+    return names
+
+
+def get_last_names():
+    last_names = pd.DataFrame(data={
+        "name": ["Smith", "Johnson", "Jackson"],
+        "rank": [1, 2, 3, ],
+        "count": [2000, 1500, 1000],
+        "prop100k": [20.01, 15.01, 10.01],
+        "cum_prop100k": [20.01, 15.01, 10.01],
+        "pctwhite": [70.01, 60.01, 50.01],
+        "pctblack": [22.01, 21.01, 20.01],
+        "pctapi": [0.55, 0.54, 0.53],
+        "pctasian": [0.62, 0.61, 0.60],
+        "pct2prace": [3.03, 3.02, 3.01],
+        "pcthispanic": [2.02, 2.01, 2.00],
+        "White": [0.03, 0.02, 0.01],
+        "Latino": [0.003, 0.002, 0.001],
+        "Black": [0.01, 0.02, 0.03],
+        "Asian": [0.001, 0.002, 0.003],
+        "Multiracial or Other": [0.11, 0.12, 0.13],
+        "AIAN": [0.01, 0.02, 0.03],
+        "NHOPI": [0.05, 0.04, 0.03]
+        }
+    )
+    cols = list(last_names.columns)
+    last_names = last_names.set_index(cols)
+
+    return last_names
+
 
 def test_name(mocker):
     g = synthetic_pii.NameGenerator()
+    # Mock randomness and get_draw
+    g.randomness = mocker.Mock()
+    mocker.patch.object(g.randomness, "get_draw")
+    g.randomness.get_draw = MethodType(get_draw, g)
+
     # Get year from clock
     g.clock = mocker.Mock()
     mocker.patch.object(g.clock, "year")
     g.clock.year = MethodType(get_year, g)
     g.clock.return_value = get_year()
+
+    # Mock first name data
+    g.first_name_data = get_first_names()
+    # Mock last name data
+    g.last_name_data = get_last_names()
 
     all_race_eth_values = [
         "White",
@@ -126,16 +175,17 @@ def test_name(mocker):
     df_in["age"] = 0
     df_in["sex"] = "Male"
 
-    df = g.generate_first_and_middle_names(df_in)
-    df = g.generate_last_names(df_in)
+    df1 = g.generate_first_and_middle_names(df_in)
+    df2 = g.generate_last_names(df_in)
 
-    assert len(df) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
+    assert len(df1) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
+    assert len(df2) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
 
-    assert "first_name" in df.columns
-    assert "middle_name" in df.columns
-    assert "last_name" in df.columns
+    assert "first_name" in df1.columns
+    assert "middle_name" in df1.columns
+    assert "last_name" in df2.columns
     assert (
-        "AIAN" not in df.last_name.values
+        "AIAN" not in df2.last_name.values
     )  # FIXME: come up with a more robust test of the synthetic content
 
 
