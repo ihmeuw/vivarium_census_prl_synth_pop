@@ -1,8 +1,10 @@
 # Sample Test passing with nose and pytest
 import pytest
+from types import MethodType
 
 import numpy as np
 import pandas as pd
+from typing import NamedTuple
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
 
@@ -59,11 +61,21 @@ def test_generic():
 #     assert not np.all(df.dob == df2.dob)
 
 
-def test_ssn():
+def get_draw(self, index, additional_key=None) -> pd.Series:
+    # Mock get draw function
+    return pd.Series(0, index=index)
+
+
+def test_ssn(mocker):
     g = synthetic_pii.SSNGenerator()
 
     index = range(10)
     df_in = pd.DataFrame(index=index)
+
+    # Patch randomness stream to a mock object, point randomness.get_draw to a dummy function
+    g.randomness = mocker.Mock()
+    mocker.patch.object(g.randomness, "get_draw")
+    g.randomness.get_draw = MethodType(get_draw, g)
     df = g.generate(df_in)
 
     assert len(df) == 10, "expect result to be a dataframe with 10 rows"
@@ -80,8 +92,24 @@ def test_ssn():
     ), "expect noise to leave dataframe index and columns unchanged"
 
 
-def test_name():
+def get_year():
+    class MockClock(NamedTuple):
+        day = 12,
+        month = 31,
+        year = 1999
+
+    mock_clock = MockClock()
+    return mock_clock
+
+
+
+def test_name(mocker):
     g = synthetic_pii.NameGenerator()
+    # Get year from clock
+    g.clock = mocker.Mock()
+    mocker.patch.object(g.clock, "year")
+    g.clock.year = MethodType(get_year, g)
+    g.clock.return_value = get_year()
 
     all_race_eth_values = [
         "White",

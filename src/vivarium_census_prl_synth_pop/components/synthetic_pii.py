@@ -83,6 +83,7 @@ class SSNGenerator(GenericGenerator):
         return df
 
     def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: Pipeline) -> pd.Series:
+        ssn_column = ssn_column.copy()
         rows_to_blank = self.randomness.filter_for_probability(
             ssn_column,
             proportion_no_ssn(ssn_column.index)

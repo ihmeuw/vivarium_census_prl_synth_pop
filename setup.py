@@ -36,7 +36,10 @@ if __name__ == "__main__":
         "vivarium_cluster_tools>=1.3.5",
         "vivarium_inputs[data]==4.0.8",
     ]
-    test_requirements = ['pytest']
+    test_requirements = [
+        "pytest",
+        "pytest-mock",
+    ]
 
     setup(
         name=about["__title__"],
