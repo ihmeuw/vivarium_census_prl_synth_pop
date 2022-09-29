@@ -146,8 +146,6 @@ class HouseholdMigration:
         domestic_moving_households = households.loc[
             households["household_id"].isin(moving_domestic_households)
         ]
-        abroad_moving_households = abroad_moving_households.copy()
-        domestic_moving_households = domestic_moving_households.copy()
 
         # Process households moving abroad
         if len(abroad_moving_households) > 0:
