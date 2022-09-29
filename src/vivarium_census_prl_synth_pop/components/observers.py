@@ -2,10 +2,6 @@ from pathlib import Path
 
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
-
-from vivarium_census_prl_synth_pop.constants import paths
-from vivarium_cluster_tools import mkdir
 
 
 class Observers:
@@ -65,6 +61,7 @@ class Observers:
         results_root = builder.configuration.output_data.results_directory
         output_root = Path(results_root) / "population_table"
 
+        from vivarium_cluster_tools.utilities import mkdir
         mkdir(output_root, exists_ok=True)
 
         input_draw = builder.configuration.input_data.input_draw_number

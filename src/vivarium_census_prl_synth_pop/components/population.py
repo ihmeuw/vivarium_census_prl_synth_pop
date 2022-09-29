@@ -208,6 +208,8 @@ class Population:
         institutionalized = chosen_persons.loc[
             chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"
         ]
+        noninstitutionalized = noninstitutionalized.copy()
+        institutionalized = institutionalized.copy()
 
         noninstitutionalized_gq_types = vectorized_choice(
             options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),

@@ -1,33 +1,19 @@
 import click
 import numpy as np
 import pandas as pd
-from gbd_mapping import ModelableEntity, causes, covariates, risk_factors
 from scipy import stats
 
 from typing import List, Tuple, Union, Any
 from pathlib import Path
 from loguru import logger
-from vivarium.framework.artifact import EntityKey
 
 from vivarium.framework.randomness import get_hash, RandomnessStream, Array
-from vivarium_inputs.mapping_extension import alternative_risk_factors
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
 
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
-
-
-def get_entity(key: EntityKey) -> ModelableEntity:
-    # Map of entity types to their gbd mappings.
-    type_map = {
-        "cause": causes,
-        "covariate": covariates,
-        "risk_factor": risk_factors,
-        "alternative_risk_factor": alternative_risk_factors,
-    }
-    return type_map[key.type][key.name]
 
 
 def len_longest_location() -> int:

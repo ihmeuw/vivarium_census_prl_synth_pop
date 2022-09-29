@@ -26,7 +26,6 @@ HOUSING_TYPE_MAP = {
             4: "Military",
             5: "Other non-institutional"
 }
-
 PROPORTION_INITIALIZATION_NO_SSN = 0.14
 PROPORTION_NEWBORNS_NO_SSN = 0.10
 PROPORTION_PERSONS_LEAVING_COUNTRY = 0.01
