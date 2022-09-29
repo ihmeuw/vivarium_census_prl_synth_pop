@@ -144,10 +144,11 @@ class HouseholdMigration:
             household_heads["household_id"], self.household_move_rate
         )
 
-        # Find households_ids that move abroad and domestic
+        # Determine which households move abroad
         households_heads_that_move_abroad_idx = self.determine_households_moving_abroad(
             households_that_move, self.proportion_households_leaving_country
         )
+        # Find households_ids that move abroad and domestic
         moving_abroad_household_ids = households_that_move.loc[households_heads_that_move_abroad_idx]
         moving_domestic_household_ids = households_that_move.loc[
             ~households_that_move.index.isin(moving_abroad_household_ids.index)
