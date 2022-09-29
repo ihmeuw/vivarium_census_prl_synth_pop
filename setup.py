@@ -65,6 +65,7 @@ if __name__ == "__main__":
             "test": test_requirements,
             "data": data_requires,
             "docs": doc_requirements,
+            "ci": test_requirements + doc_requirements,
             "dev": test_requirements + data_requires + doc_requirements,
         },
         zip_safe=False,

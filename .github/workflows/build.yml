@@ -73,7 +73,7 @@ jobs:
           popd
       - name: Install dependencies
         run: |
-          pip install .[test]
+          pip install .[ci]
       - name: Test
         run: |
           pytest ./tests
@@ -81,7 +81,7 @@ jobs:
         run: |
           make html -C docs/ SPHINXOPTS="-W --keep-going -n"
       - name: Doctest
-        run: |
+        run: |  
           make doctest -C docs/
       - name: Lint
         run: |
