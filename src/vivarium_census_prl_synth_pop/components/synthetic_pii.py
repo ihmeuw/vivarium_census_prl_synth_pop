@@ -424,7 +424,6 @@ def update_address_and_zipcode(
     -------
     df with appropriately updated addresses and zipcodes
     """
-    df = df.copy()
     df.loc[rows_to_update, address_col_name] = id_key.map(address_map)
     df.loc[rows_to_update, zipcode_col_name] = id_key.map(zipcode_map)
     return df

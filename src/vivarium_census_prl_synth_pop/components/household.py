@@ -144,56 +144,52 @@ class HouseholdMigration:
             household_heads["household_id"], self.household_move_rate
         )
 
-        # Find households that move abroad and separate subsets of state table
-        households_that_move_abroad_idx = self.determine_households_moving_abroad(
-            households_that_move, self.proportion_households_leaving_country, event
+        # Find households_ids that move abroad and domestic
+        households_heads_that_move_abroad_idx = self.determine_households_moving_abroad(
+            households_that_move, self.proportion_households_leaving_country
         )
-        moving_abroad_households = households_that_move.loc[households_that_move_abroad_idx]
-        moving_domestic_households = households_that_move.loc[
-            ~households_that_move.index.isin(moving_abroad_households.index)
+        moving_abroad_household_ids = households_that_move.loc[households_heads_that_move_abroad_idx]
+        moving_domestic_household_ids = households_that_move.loc[
+            ~households_that_move.index.isin(moving_abroad_household_ids.index)
         ]
-        abroad_moving_households = households.loc[
-            households["household_id"].isin(moving_abroad_households)
-        ]
-        domestic_moving_households = households.loc[
-            households["household_id"].isin(moving_domestic_households)
-        ]
+
+        # Get index of all simulants in households moving abroad and domestic
+        abroad_moving_households_idx = households.loc[
+            households["household_id"].isin(moving_abroad_household_ids)
+        ].index
+        domestic_moving_households_idx = households.loc[
+            households["household_id"].isin(moving_domestic_household_ids)
+        ].index
 
         # Process households moving abroad
-        if len(abroad_moving_households) > 0:
-            abroad_moving_households["exit_time"] = event.time
-            abroad_moving_households["tracked"] = False
+        if len(abroad_moving_households_idx) > 0:
+            households.loc[abroad_moving_households_idx, "exit_time"] = event.time
+            households.loc[abroad_moving_households_idx, "tracked"] = False
 
-        if len(domestic_moving_households) > 0:
+        if len(domestic_moving_households_idx) > 0:
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                moving_domestic_households,
+                moving_domestic_household_ids.index,
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
             )
 
-            domestic_moving_households = update_address_and_zipcode(
-                df=domestic_moving_households,
-                rows_to_update=domestic_moving_households.index,
-                id_key=domestic_moving_households["household_id"],
+            households = update_address_and_zipcode(
+                df=households,
+                rows_to_update=domestic_moving_households_idx,
+                id_key=households["household_id"],
                 address_map=address_map,
                 zipcode_map=zipcode_map,
             )
 
-        # Update state table
-        updated_households = pd.concat(
-            [
-                domestic_moving_households,
-                abroad_moving_households,
-            ]
-        )
-        self.population_view.update(updated_households)
+        self.population_view.update(households)
 
     def determine_households_moving_abroad(
         self,
         households_that_move: pd.Series,
         proportion_households_moving_abroad: Pipeline,
-        event: Event,
     ) -> pd.Index:
-
+        """
+        households_that_move: Subset of rows from state table that have been determined to be moving this time step
+        """
         moving_abroad = self.randomness.filter_for_probability(
             households_that_move,
             proportion_households_moving_abroad(households_that_move.index),
