@@ -40,6 +40,13 @@ if __name__ == "__main__":
         "pytest",
         "pytest-mock",
     ]
+    doc_requirements = [
+        "sphinx>=4.0",
+        "sphinx-rtd-theme",
+        "sphinx-click",
+        "IPython",
+        "matplotlib",
+    ]
 
     setup(
         name=about["__title__"],
@@ -57,7 +64,8 @@ if __name__ == "__main__":
         extras_require={
             "test": test_requirements,
             "data": data_requires,
-            "dev": test_requirements + data_requires,
+            "docs": doc_requirements,
+            "dev": test_requirements + data_requires + doc_requirements,
         },
         zip_safe=False,
         entry_points="""
