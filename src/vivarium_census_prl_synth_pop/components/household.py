@@ -62,8 +62,16 @@ class HouseholdMigration:
             "relation_to_household_head",
             "address",
             "zipcode",
+            "tracked",
         ]
         self.population_view = builder.population.get_view(self.columns_used)
+
+        proportion_households_leaving_country_data = builder.lookup.build_table(
+            data=data_values.PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY
+        )
+        self.proportion_households_leaving_country = builder.value.register_rate_producer(
+            "proportion_households_leaving_country", source=proportion_households_leaving_country_data
+        )
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
@@ -121,7 +129,8 @@ class HouseholdMigration:
         households_that_move = self.addresses.determine_if_moving(
             household_heads["household_id"], self.household_move_rate
         )
-
+        # todo: add in call to find households that leave country
+        # todo: separate into moving abroad and domestic again
         if len(households_that_move) > 0:
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
                 households_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
@@ -138,4 +147,5 @@ class HouseholdMigration:
                 address_map=address_map,
                 zipcode_map=zipcode_map,
             )
+            # todo: OR update households who move abroad to untracked here
             self.population_view.update(households)

@@ -101,6 +101,8 @@ class PersonMigration:
        # Separate simulants that move abroad vs domestic
         abroad_movers = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
         domestic_movers = persons_who_move.loc[~persons_who_move.index.isin(abroad_movers.index)]
+        abroad_movers = abroad_movers.copy()
+        domestic_movers = domestic_movers.copy()
 
         new_households = self._get_new_household_ids(domestic_movers, event)
 
