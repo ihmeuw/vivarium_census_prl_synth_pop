@@ -1,13 +1,12 @@
 import itertools
 from pathlib import Path
-from typing import Dict, NamedTuple, List, Union
+from typing import Dict, List, NamedTuple, Union
 
 import pandas as pd
-from loguru import logger
 import yaml
+from loguru import logger
 
 from vivarium_census_prl_synth_pop.constants import results, scenarios
-
 
 SCENARIO_COLUMN = "scenario"
 GROUPBY_COLUMNS = [results.INPUT_DRAW_COLUMN, SCENARIO_COLUMN]

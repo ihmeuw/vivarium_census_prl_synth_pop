@@ -1,6 +1,5 @@
 from typing import NamedTuple
 
-
 #########################
 # Population parameters #
 #########################
@@ -8,23 +7,19 @@ from typing import NamedTuple
 PROP_POPULATION_IN_GQ = 0.03
 PROBABILITY_OF_TWINS = 0.04
 N_GROUP_QUARTER_TYPES = 6
-INSTITUTIONAL_GROUP_QUARTER_IDS = {
-    "Carceral": 0,
-    "Nursing home": 1,
-    "Other institutional": 2
-}
+INSTITUTIONAL_GROUP_QUARTER_IDS = {"Carceral": 0, "Nursing home": 1, "Other institutional": 2}
 NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "College": 3,
     "Military": 4,
     "Other non-institutional": 5,
 }
 HOUSING_TYPE_MAP = {
-            0: "Carceral",
-            1: "Nursing home",
-            2: "Other institutional",
-            3: "College",
-            4: "Military",
-            5: "Other non-institutional"
+    0: "Carceral",
+    1: "Nursing home",
+    2: "Other institutional",
+    3: "College",
+    4: "Military",
+    5: "Other non-institutional",
 }
 PROPORTION_INITIALIZATION_NO_SSN = 0.14
 PROPORTION_NEWBORNS_NO_SSN = 0.10

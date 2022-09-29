@@ -5,9 +5,15 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
-from vivarium_census_prl_synth_pop.constants import metadata, data_keys, paths
-from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.components.synthetic_pii import (
+    update_address_and_zipcode,
+)
+from vivarium_census_prl_synth_pop.constants import (
+    data_keys,
+    data_values,
+    metadata,
+    paths,
+)
 
 
 class HouseholdMigration:
@@ -40,13 +46,22 @@ class HouseholdMigration:
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
-        #TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
+        # TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
         move_rate_data = pd.read_csv(
-                paths.HOUSEHOLD_MOVE_RATE_PATH,
-                usecols=["sex", "race_ethnicity", "age_start", "age_end", "household_rate", "housing_type"],
-            )
+            paths.HOUSEHOLD_MOVE_RATE_PATH,
+            usecols=[
+                "sex",
+                "race_ethnicity",
+                "age_start",
+                "age_end",
+                "household_rate",
+                "housing_type",
+            ],
+        )
         move_rate_data = builder.lookup.build_table(
-            data=move_rate_data.loc[move_rate_data["housing_type"] == "Standard"].drop(columns="housing_type"),
+            data=move_rate_data.loc[move_rate_data["housing_type"] == "Standard"].drop(
+                columns="housing_type"
+            ),
             key_columns=["sex", "race_ethnicity"],
             parameter_columns=["age"],
             value_columns=["household_rate"],
@@ -64,7 +79,7 @@ class HouseholdMigration:
             "address",
             "zipcode",
             "tracked",
-            "exit_time"
+            "exit_time",
         ]
         self.population_view = builder.population.get_view(self.columns_used)
 
@@ -72,7 +87,8 @@ class HouseholdMigration:
             data=data_values.PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY
         )
         self.proportion_households_leaving_country = builder.value.register_rate_producer(
-            "proportion_households_leaving_country", source=proportion_households_leaving_country_data
+            "proportion_households_leaving_country",
+            source=proportion_households_leaving_country_data,
         )
 
         builder.population.initializes_simulants(
@@ -91,9 +107,7 @@ class HouseholdMigration:
         add addresses to each household in the population table
         """
         if pop_data.creation_time < self.start_time:
-            households = self.population_view.subview(["household_id"]).get(
-                pop_data.index
-            )
+            households = self.population_view.subview(["household_id"]).get(pop_data.index)
             address_assignments = self.addresses.generate(
                 pd.Index(households["household_id"].drop_duplicates()),
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
@@ -132,9 +146,7 @@ class HouseholdMigration:
 
         # Find households that move abroad and separate subsets of state table
         households_that_move_abroad_idx = self.determine_households_moving_abroad(
-            households_that_move,
-            self.proportion_households_leaving_country,
-            event
+            households_that_move, self.proportion_households_leaving_country, event
         )
         moving_abroad_households = households_that_move.loc[households_that_move_abroad_idx]
         moving_domestic_households = households_that_move.loc[
@@ -154,7 +166,8 @@ class HouseholdMigration:
 
         if len(domestic_moving_households) > 0:
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                moving_domestic_households, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+                moving_domestic_households,
+                state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
             )
 
             domestic_moving_households = update_address_and_zipcode(
@@ -166,23 +179,24 @@ class HouseholdMigration:
             )
 
         # Update state table
-        updated_households = pd.concat([
-            domestic_moving_households,
-            abroad_moving_households,
+        updated_households = pd.concat(
+            [
+                domestic_moving_households,
+                abroad_moving_households,
             ]
         )
         self.population_view.update(updated_households)
 
     def determine_households_moving_abroad(
-            self,
-            households_that_move: pd.Series,
-            proportion_households_moving_abroad: Pipeline,
-            event: Event) -> pd.Index:
+        self,
+        households_that_move: pd.Series,
+        proportion_households_moving_abroad: Pipeline,
+        event: Event,
+    ) -> pd.Index:
 
         moving_abroad = self.randomness.filter_for_probability(
             households_that_move,
-            proportion_households_moving_abroad(households_that_move.index)
+            proportion_households_moving_abroad(households_that_move.index),
         ).index
 
         return moving_abroad
-

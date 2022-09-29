@@ -1,10 +1,10 @@
 # Sample Test passing with nose and pytest
-import pytest
 from types import MethodType
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
-from typing import NamedTuple
+import pytest
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
 
@@ -94,8 +94,8 @@ def test_ssn(mocker):
 
 def get_year():
     class MockClock(NamedTuple):
-        day = 12,
-        month = 31,
+        day = (12,)
+        month = (31,)
         year = 1999
 
     mock_clock = MockClock()
@@ -103,37 +103,44 @@ def get_year():
 
 
 def get_first_names():
-    names = pd.DataFrame(data={
-        "state": ["FL", "FL", "FL", "FL", "FL"],
-        "sex": ["Female", "Female", "Male", "Male", "Female"],
-        "yob": [1999, 1999, 1999, 2000, 2000],
-        "name": ["Mary", "Annie", "Louise", "John", "Jeff"],
-        "freq": [200, 199, 198, 10, 11]
-    })
+    names = pd.DataFrame(
+        data={
+            "state": ["FL", "FL", "FL", "FL", "FL"],
+            "sex": ["Female", "Female", "Male", "Male", "Female"],
+            "yob": [1999, 1999, 1999, 2000, 2000],
+            "name": ["Mary", "Annie", "Louise", "John", "Jeff"],
+            "freq": [200, 199, 198, 10, 11],
+        }
+    )
     names = names.set_index(["state", "sex", "yob", "name", "freq"])
     return names
 
 
 def get_last_names():
-    last_names = pd.DataFrame(data={
-        "name": ["Smith", "Johnson", "Jackson"],
-        "rank": [1, 2, 3, ],
-        "count": [2000, 1500, 1000],
-        "prop100k": [20.01, 15.01, 10.01],
-        "cum_prop100k": [20.01, 15.01, 10.01],
-        "pctwhite": [70.01, 60.01, 50.01],
-        "pctblack": [22.01, 21.01, 20.01],
-        "pctapi": [0.55, 0.54, 0.53],
-        "pctasian": [0.62, 0.61, 0.60],
-        "pct2prace": [3.03, 3.02, 3.01],
-        "pcthispanic": [2.02, 2.01, 2.00],
-        "White": [0.03, 0.02, 0.01],
-        "Latino": [0.003, 0.002, 0.001],
-        "Black": [0.01, 0.02, 0.03],
-        "Asian": [0.001, 0.002, 0.003],
-        "Multiracial or Other": [0.11, 0.12, 0.13],
-        "AIAN": [0.01, 0.02, 0.03],
-        "NHOPI": [0.05, 0.04, 0.03]
+    last_names = pd.DataFrame(
+        data={
+            "name": ["Smith", "Johnson", "Jackson"],
+            "rank": [
+                1,
+                2,
+                3,
+            ],
+            "count": [2000, 1500, 1000],
+            "prop100k": [20.01, 15.01, 10.01],
+            "cum_prop100k": [20.01, 15.01, 10.01],
+            "pctwhite": [70.01, 60.01, 50.01],
+            "pctblack": [22.01, 21.01, 20.01],
+            "pctapi": [0.55, 0.54, 0.53],
+            "pctasian": [0.62, 0.61, 0.60],
+            "pct2prace": [3.03, 3.02, 3.01],
+            "pcthispanic": [2.02, 2.01, 2.00],
+            "White": [0.03, 0.02, 0.01],
+            "Latino": [0.003, 0.002, 0.001],
+            "Black": [0.01, 0.02, 0.03],
+            "Asian": [0.001, 0.002, 0.003],
+            "Multiracial or Other": [0.11, 0.12, 0.13],
+            "AIAN": [0.01, 0.02, 0.03],
+            "NHOPI": [0.05, 0.04, 0.03],
         }
     )
     cols = list(last_names.columns)

@@ -1,18 +1,16 @@
 """collection of classes for generating sensitive data
 synthetically, e.g. name, address, social-security number
 """
-from typing import Union, List, Tuple, Dict, Any
+from typing import Any, Dict, List, Tuple, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.utilities import random_integers
-
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
-from vivarium_census_prl_synth_pop.utilities import vectorized_choice
+from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
 
 Array = Union[List, Tuple, np.ndarray, pd.Series]
 
@@ -82,8 +80,7 @@ class SSNGenerator(GenericGenerator):
     def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: Pipeline) -> pd.Series:
         ssn_column = ssn_column.copy()
         rows_to_blank = self.randomness.filter_for_probability(
-            ssn_column,
-            proportion_no_ssn(ssn_column.index)
+            ssn_column, proportion_no_ssn(ssn_column.index)
         ).index  # TODO: make this an optional parameter to this method and/or inform it with some evidence
         if len(rows_to_blank) > 0:
             ssn_column.loc[rows_to_blank] = ""
@@ -400,6 +397,7 @@ class Address(GenericGenerator):
         """
         new_addresses = self.generate(those_that_move, state=state)
         return (new_addresses["address"].to_dict(), new_addresses["zipcode"].to_dict())
+
 
 def update_address_and_zipcode(
     df: pd.DataFrame,

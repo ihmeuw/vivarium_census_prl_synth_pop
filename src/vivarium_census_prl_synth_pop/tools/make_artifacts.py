@@ -9,21 +9,23 @@
 import shutil
 import sys
 import time
-import click
-
 from pathlib import Path
 from typing import Tuple, Union
+
+import click
+import vivarium_cluster_tools as vct
 from loguru import logger
 
-import vivarium_cluster_tools as vct
-
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
+from vivarium_census_prl_synth_pop.tools.app_logging import (
+    add_logging_sink,
+    decode_status,
+)
 from vivarium_census_prl_synth_pop.utilities import (
-    sanitize_location,
     delete_if_exists,
     len_longest_location,
+    sanitize_location,
 )
-from vivarium_census_prl_synth_pop.tools.app_logging import add_logging_sink, decode_status
 
 
 def running_from_cluster() -> bool:
