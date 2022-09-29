@@ -5,9 +5,10 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.components import synthetic_pii, Address
-from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
-from vivarium_census_prl_synth_pop.constants import paths, data_values
+from vivarium_census_prl_synth_pop.components.synthetic_pii import (
+    update_address_and_zipcode,
+)
+from vivarium_census_prl_synth_pop.constants import data_values, paths
 
 
 class PersonMigration:
@@ -45,14 +46,21 @@ class PersonMigration:
             "zipcode",
             "exit_time",
             "tracked",
-            "housing_type"
+            "housing_type",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
 
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
                 paths.HOUSEHOLD_MOVE_RATE_PATH,
-                usecols=["sex", "race_ethnicity", "age_start", "age_end", "person_rate", "housing_type"],
+                usecols=[
+                    "sex",
+                    "race_ethnicity",
+                    "age_start",
+                    "age_end",
+                    "person_rate",
+                    "housing_type",
+                ],
             ),
             key_columns=["sex", "race_ethnicity", "housing_type"],
             parameter_columns=["age"],
@@ -65,7 +73,8 @@ class PersonMigration:
             data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
         )
         self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
-            "proportion_simulants_leaving_country", source=proportion_simulants_leaving_country_data
+            "proportion_simulants_leaving_country",
+            source=proportion_simulants_leaving_country_data,
         )
 
         builder.event.register_listener("time_step", self.on_time_step)
@@ -93,14 +102,14 @@ class PersonMigration:
 
         # Find simulants that move out of the country
         persons_who_move = self.move_simulants_out_of_country(
-            persons_who_move,
-            self.proportion_simulants_leaving_country,
-            event
+            persons_who_move, self.proportion_simulants_leaving_country, event
         )
 
-       # Separate simulants that move abroad vs domestic
+        # Separate simulants that move abroad vs domestic
         abroad_movers = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
-        domestic_movers = persons_who_move.loc[~persons_who_move.index.isin(abroad_movers.index)]
+        domestic_movers = persons_who_move.loc[
+            ~persons_who_move.index.isin(abroad_movers.index)
+        ]
         abroad_movers = abroad_movers.copy()
         domestic_movers = domestic_movers.copy()
 
@@ -147,22 +156,19 @@ class PersonMigration:
 
         # Update housing type
         domestic_movers.loc[
-            domestic_movers["household_id"].isin(
-                data_values.HOUSING_TYPE_MAP.keys()
-            ),
-            "housing_type"
+            domestic_movers["household_id"].isin(data_values.HOUSING_TYPE_MAP.keys()),
+            "housing_type",
         ] = domestic_movers["household_id"].map(data_values.HOUSING_TYPE_MAP)
         domestic_movers.loc[
-            ~domestic_movers["household_id"].isin(
-                data_values.HOUSING_TYPE_MAP.keys()
-            ),
-            "housing_type"
+            ~domestic_movers["household_id"].isin(data_values.HOUSING_TYPE_MAP.keys()),
+            "housing_type",
         ] = "Standard"
 
-        simulants_who_moved = pd.concat([
-            domestic_movers,
-            abroad_movers,
-           ]
+        simulants_who_moved = pd.concat(
+            [
+                domestic_movers,
+                abroad_movers,
+            ]
         )
         self.population_view.update(simulants_who_moved)
 
@@ -189,20 +195,20 @@ class PersonMigration:
 
         return pd.Series(new_household_ids)
 
-    def move_simulants_out_of_country(self,
-                                      df_moving: pd.DataFrame,
-                                      proportion_simulants_leaving_country: Pipeline,
-                                      event: Event) -> pd.DataFrame:
+    def move_simulants_out_of_country(
+        self,
+        df_moving: pd.DataFrame,
+        proportion_simulants_leaving_country: Pipeline,
+        event: Event,
+    ) -> pd.DataFrame:
         """
         df_moving: Subset of population that will be changing addresses this time step
         """
         sims_that_move_abroad = self.randomness.filter_for_probability(
-            df_moving,
-            proportion_simulants_leaving_country(df_moving.index)
+            df_moving, proportion_simulants_leaving_country(df_moving.index)
         ).index
         if len(sims_that_move_abroad) > 0:
             df_moving.loc[sims_that_move_abroad, "exit_time"] = event.time
             df_moving.loc[sims_that_move_abroad, "tracked"] = False
 
         return df_moving
-

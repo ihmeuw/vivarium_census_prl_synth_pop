@@ -2,8 +2,8 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium_public_health.population.add_new_birth_cohorts import (
-    FertilityAgeSpecificRates,
     PREGNANCY_DURATION,
+    FertilityAgeSpecificRates,
 )
 
 from vivarium_census_prl_synth_pop.constants import data_values

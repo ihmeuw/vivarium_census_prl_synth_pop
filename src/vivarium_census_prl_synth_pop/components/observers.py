@@ -62,6 +62,7 @@ class Observers:
         output_root = Path(results_root) / "population_table"
 
         from vivarium_cluster_tools.utilities import mkdir
+
         mkdir(output_root, exists_ok=True)
 
         input_draw = builder.configuration.input_data.input_draw_number

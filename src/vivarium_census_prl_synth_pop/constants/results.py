@@ -95,7 +95,5 @@ def RESULTS_MAP(kind):
     df["key"] = columns
     df[
         "measure"
-    ] = (
-        kind
-    )  # per researcher feedback, this column is useful, even when it's identical for all rows
+    ] = kind  # per researcher feedback, this column is useful, even when it's identical for all rows
     return df.set_index("key").sort_index()

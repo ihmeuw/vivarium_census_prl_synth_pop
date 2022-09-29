@@ -1,17 +1,15 @@
+from pathlib import Path
+from typing import Any, List, Tuple, Union
+
 import click
 import numpy as np
 import pandas as pd
-from scipy import stats
-
-from typing import List, Tuple, Union, Any
-from pathlib import Path
 from loguru import logger
-
-from vivarium.framework.randomness import get_hash, RandomnessStream, Array
+from scipy import stats
+from vivarium.framework.randomness import Array, RandomnessStream, get_hash
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
-
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
@@ -222,21 +220,21 @@ def random_integers(
 ) -> pd.Series:
     """
 
-            Parameters
-            ----------
-            min_val
-                inclusive
-            max_val
-                exclusive
-            index
-                an index whose length is the number of random draws made
-                and which indexes the returned `pandas.Series`.
-            randomness:
-                RandomnessStream
+    Parameters
+    ----------
+    min_val
+        inclusive
+    max_val
+        exclusive
+    index
+        an index whose length is the number of random draws made
+        and which indexes the returned `pandas.Series`.
+    randomness:
+        RandomnessStream
 
-            Returns
-            -------
-            pandas.Series
-                An indexed set of integers in the interval [a,b)
-            """
+    Returns
+    -------
+    pandas.Series
+        An indexed set of integers in the interval [a,b)
+    """
     return (randomness.get_draw(index=index) * max_val + min_val).round().astype(int)

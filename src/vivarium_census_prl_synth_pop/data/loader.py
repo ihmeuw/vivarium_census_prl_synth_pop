@@ -15,12 +15,11 @@ for an example.
 from typing import Dict
 
 import pandas as pd
-
 from vivarium.framework.artifact import EntityKey
 from vivarium_inputs import interface
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_keys, paths, metadata
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
 from vivarium_census_prl_synth_pop.utilities import (
     get_norm_from_quantiles,
     get_random_variable_draws_for_location,
