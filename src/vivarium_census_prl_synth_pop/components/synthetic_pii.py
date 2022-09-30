@@ -362,26 +362,6 @@ class Address(GenericGenerator):
         df["zipcode"] = self.address_data.loc[chosen_indices, "PostalCode"].fillna("").values
         return df
 
-    # todo: Make this function more versatile for simulants and households
-    def determine_if_moving(
-        self, potential_movers: pd.Series, move_rate_producer: Pipeline
-    ) -> pd.Series:
-        """
-        Parameters
-        ----------
-        potential_movers: a series of every entity that might move. not necessarily unique.
-        move_rate_producer: rate_producer for move rates
-
-        Returns
-        -------
-        a pd.Series, subsetted from potential_movers, with those selected to move.
-        """
-        potential_movers = potential_movers.drop_duplicates()
-        those_that_move = self.randomness.filter_for_rate(
-            potential_movers, move_rate_producer(potential_movers.index)
-        )
-        return those_that_move
-
     def get_new_addresses_and_zipcodes(
         self, those_that_move: pd.Index, state: str
     ) -> Tuple[Dict, Dict]:

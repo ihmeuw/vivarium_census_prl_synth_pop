@@ -7,6 +7,7 @@ import pandas as pd
 from loguru import logger
 from scipy import stats
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash
+from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -238,3 +239,25 @@ def random_integers(
         An indexed set of integers in the interval [a,b)
     """
     return (randomness.get_draw(index=index) * max_val + min_val).round().astype(int)
+
+
+def filter_by_rate(
+    simulants: pd.Index, randomness: RandomnessStream, rate_producer: Pipeline, additional_key: Any = None
+) -> pd.Index:
+    """
+    Parameters
+    ----------
+    simulants: a series of every entity that might move. not necessarily unique.
+    move_rate_producer: rate_producer for move rates
+    randomness: RandomnessStream for component this is being run in
+    additional_key: descriptive key to make sure randomness stream produces unique results
+
+    Returns
+    -------
+    a pd.Index, subset from simulants, with those selected to be filtered.
+    """
+    simulants = simulants.drop_duplicates()
+    filtered_sims = randomness.filter_for_rate(
+        simulants, rate_producer(simulants), additional_key
+    )
+    return filtered_sims

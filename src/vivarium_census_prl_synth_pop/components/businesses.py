@@ -16,6 +16,7 @@ from vivarium_census_prl_synth_pop.constants.data_values import (
     UNEMPLOYED_ID,
     WORKING_AGE,
 )
+from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
 class Businesses:
@@ -144,20 +145,20 @@ class Businesses:
             self.columns_created + ["age", "household_id"]
         ).get(event.index)
 
-        all_businesses = self.businesses.loc[~self.businesses["employer_id"] == UNEMPLOYED_ID]
-        businesses_that_move = self.addresses.determine_if_moving(
-            all_businesses["employer_id"], self.businesses_move_rate
+        all_businesses = self.businesses.loc[~self.businesses["employer_id"] == UNEMPLOYED_ID]["employer_id"]
+        businesses_that_move_idx = filter_by_rate(
+            all_businesses.index, self.randomness, self.businesses_move_rate, "moving_businesses"
         )
 
-        if len(businesses_that_move) > 0:
+        if len(businesses_that_move_idx) > 0:
             # update the employer address and zipcode in self.businesses
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                businesses_that_move, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+                businesses_that_move_idx, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
             )
             self.businesses = update_address_and_zipcode(
                 df=self.businesses,
-                rows_to_update=businesses_that_move.index,
-                id_key=businesses_that_move,
+                rows_to_update=businesses_that_move_idx,
+                id_key=all_businesses,
                 address_map=address_map,
                 zipcode_map=zipcode_map,
                 address_col_name="employer_address",
@@ -165,7 +166,7 @@ class Businesses:
             )
 
             # update employer address and zipcode in the pop table
-            rows_changing_addresses = pop.loc[pop.employer_id.isin(businesses_that_move)]
+            rows_changing_addresses = pop.loc[pop.employer_id.isin(businesses_that_move_idx)]
             pop = update_address_and_zipcode(
                 df=pop,
                 rows_to_update=rows_changing_addresses.index,
