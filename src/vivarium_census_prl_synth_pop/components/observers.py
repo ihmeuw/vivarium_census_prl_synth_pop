@@ -35,7 +35,6 @@ class Observers:
     def setup(self, builder: Builder):
         self.start_date = builder.configuration.time.start
         self.end_date = builder.configuration.time.end
-        self.current_year = self.start_date.year
         self.clock = builder.time.clock()
         self.counter = 0
         self.output_path = self._build_output_root(builder) / "state_table.hdf"
