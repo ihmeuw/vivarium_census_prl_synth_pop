@@ -1,33 +1,17 @@
+from pathlib import Path
+from typing import Any, List, Tuple, Union
+
 import click
 import numpy as np
 import pandas as pd
-from gbd_mapping import ModelableEntity, causes, covariates, risk_factors
-from scipy import stats
-
-from typing import List, Tuple, Union, Any
-from pathlib import Path
 from loguru import logger
-from vivarium.framework.artifact import EntityKey
-
-from vivarium.framework.randomness import get_hash, RandomnessStream, Array
-from vivarium_inputs.mapping_extension import alternative_risk_factors
+from scipy import stats
+from vivarium.framework.randomness import Array, RandomnessStream, get_hash
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
 
-
 SeededDistribution = Tuple[str, stats.rv_continuous]
-
-
-def get_entity(key: EntityKey) -> ModelableEntity:
-    # Map of entity types to their gbd mappings.
-    type_map = {
-        "cause": causes,
-        "covariate": covariates,
-        "risk_factor": risk_factors,
-        "alternative_risk_factor": alternative_risk_factors,
-    }
-    return type_map[key.type][key.name]
 
 
 def len_longest_location() -> int:
@@ -236,21 +220,21 @@ def random_integers(
 ) -> pd.Series:
     """
 
-            Parameters
-            ----------
-            min_val
-                inclusive
-            max_val
-                exclusive
-            index
-                an index whose length is the number of random draws made
-                and which indexes the returned `pandas.Series`.
-            randomness:
-                RandomnessStream
+    Parameters
+    ----------
+    min_val
+        inclusive
+    max_val
+        exclusive
+    index
+        an index whose length is the number of random draws made
+        and which indexes the returned `pandas.Series`.
+    randomness:
+        RandomnessStream
 
-            Returns
-            -------
-            pandas.Series
-                An indexed set of integers in the interval [a,b)
-            """
+    Returns
+    -------
+    pandas.Series
+        An indexed set of integers in the interval [a,b)
+    """
     return (randomness.get_draw(index=index) * max_val + min_val).round().astype(int)

@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
@@ -78,12 +77,5 @@ class Observers:
     def _build_output_root(builder: Builder) -> Path:
         results_root = builder.configuration.output_data.results_directory
         output_root = Path(results_root) / "population_table"
-
         mkdir(output_root, exists_ok=True)
-
-        # input_draw = builder.configuration.input_data.input_draw_number
-        # seed = builder.configuration.randomness.random_seed
-        # # TODO: add back in 'scenario' if we add scenarios
-        # output_path = output_root / f"draw_{input_draw}_seed_{seed}.hdf"
-
         return output_root

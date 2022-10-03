@@ -1,18 +1,16 @@
 """collection of classes for generating sensitive data
 synthetically, e.g. name, address, social-security number
 """
-from typing import Union, List, Tuple, Dict, Any
+from typing import Any, Dict, List, Tuple, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.utilities import random_integers
-
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
-from vivarium_census_prl_synth_pop.utilities import vectorized_choice
+from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
 
 Array = Union[List, Tuple, np.ndarray, pd.Series]
 
@@ -80,9 +78,9 @@ class SSNGenerator(GenericGenerator):
         return df
 
     def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: Pipeline) -> pd.Series:
+        ssn_column = ssn_column.copy()
         rows_to_blank = self.randomness.filter_for_probability(
-            ssn_column,
-            proportion_no_ssn(ssn_column.index)
+            ssn_column, proportion_no_ssn(ssn_column.index)
         ).index  # TODO: make this an optional parameter to this method and/or inform it with some evidence
         if len(rows_to_blank) > 0:
             ssn_column.loc[rows_to_blank] = ""
@@ -140,7 +138,7 @@ class NameGenerator(GenericGenerator):
         # we only have data up to 2020; for younger children, sample from 2020 names.
         if yob > 2020:
             yob = 2020
-        grouped_name_data = self.first_name_data.groupby(["yob", "sex"])
+        grouped_name_data = self.first_name_data.reset_index().groupby(["yob", "sex"])
         age_sex_specific_names = grouped_name_data.get_group((yob, sex))
         name_probabilities = (
             age_sex_specific_names["freq"] / age_sex_specific_names["freq"].sum()
@@ -173,7 +171,7 @@ class NameGenerator(GenericGenerator):
         -------
         nd.ndarray of [size] last names sampled from people of race and ethnicity [race_eth]
         """
-        df_census_names = self.last_name_data
+        df_census_names = self.last_name_data.reset_index()
 
         # randomly sample last names
         last_names = vectorized_choice(
@@ -400,6 +398,7 @@ class Address(GenericGenerator):
         new_addresses = self.generate(those_that_move, state=state)
         return (new_addresses["address"].to_dict(), new_addresses["zipcode"].to_dict())
 
+
 def update_address_and_zipcode(
     df: pd.DataFrame,
     rows_to_update: pd.Index,
@@ -425,6 +424,7 @@ def update_address_and_zipcode(
     -------
     df with appropriately updated addresses and zipcodes
     """
+    df = df.copy()
     df.loc[rows_to_update, address_col_name] = id_key.map(address_map)
     df.loc[rows_to_update, zipcode_col_name] = id_key.map(zipcode_map)
     return df

@@ -4,12 +4,13 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
-from vivarium_public_health.utilities import to_years, DAYS_PER_YEAR
+from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import NameGenerator
-from vivarium_census_prl_synth_pop.components.synthetic_pii import SSNGenerator
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values
-from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop.components.synthetic_pii import (
+    NameGenerator,
+    SSNGenerator,
+)
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 
@@ -120,7 +121,9 @@ class Population:
 
         pop["age"] = pop["age"].astype("float64")
         pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
-        pop["date_of_birth"] = self.start_time - pd.to_timedelta(np.round(pop["age"] * 365.25), unit="days")
+        pop["date_of_birth"] = self.start_time - pd.to_timedelta(
+            np.round(pop["age"] * 365.25), unit="days"
+        )
 
         # format
         n_chosen = pop.shape[0]
@@ -207,6 +210,8 @@ class Population:
         institutionalized = chosen_persons.loc[
             chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"
         ]
+        noninstitutionalized = noninstitutionalized.copy()
+        institutionalized = institutionalized.copy()
 
         noninstitutionalized_gq_types = vectorized_choice(
             options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
@@ -224,7 +229,9 @@ class Population:
         institutionalized["household_id"] = institutionalized_gq_types
 
         group_quarters = pd.concat([noninstitutionalized, institutionalized])
-        group_quarters["housing_type"] = group_quarters["household_id"].map(data_values.HOUSING_TYPE_MAP)
+        group_quarters["housing_type"] = group_quarters["household_id"].map(
+            data_values.HOUSING_TYPE_MAP
+        )
 
         return group_quarters
 
@@ -253,9 +260,12 @@ class Population:
         ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
 
         # Make age negative so age + step size gets simulants correct age at the end of the time step (ref line 284)
-        new_births["age"] = - self.randomness.get_draw(new_births.index, "age") * (self.step_size_days/DAYS_PER_YEAR)
-        new_births["date_of_birth"] = pop_data.creation_time \
-                                      - pd.to_timedelta(np.round(new_births["age"] * DAYS_PER_YEAR), unit="days")
+        new_births["age"] = -self.randomness.get_draw(new_births.index, "age") * (
+            self.step_size_days / DAYS_PER_YEAR
+        )
+        new_births["date_of_birth"] = pop_data.creation_time - pd.to_timedelta(
+            np.round(new_births["age"] * DAYS_PER_YEAR), unit="days"
+        )
 
         new_births["sex"] = self.randomness.choice(
             new_births.index,
@@ -265,7 +275,9 @@ class Population:
         )
         new_births["alive"] = "alive"
         new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
-        new_births["ssn"] = self.ssn_generator.remove_ssn(new_births["ssn"], self.proportion_newborns_no_ssn)
+        new_births["ssn"] = self.ssn_generator.remove_ssn(
+            new_births["ssn"], self.proportion_newborns_no_ssn
+        )
         new_births["entrance_time"] = pop_data.creation_time
         new_births["exit_time"] = pd.NaT
 

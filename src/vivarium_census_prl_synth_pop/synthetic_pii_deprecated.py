@@ -1,8 +1,8 @@
 """collection of classes for generating sensitive data
 synthetically, e.g. name, address, social-security number
 """
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 class GenericGenerator:
@@ -17,8 +17,7 @@ class GenericGenerator:
 
 
 def make_dob_col(df):
-    """Append year-month-day in a column called 'dob'
-    """
+    """Append year-month-day in a column called 'dob'"""
     df["dob"] = (
         df.year.fillna("").astype(str)
         + "-"

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 import os
 
-from setuptools import setup, find_packages
-
+from setuptools import find_packages, setup
 
 if __name__ == "__main__":
 
@@ -17,10 +16,10 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium==0.10.12",
-        "vivarium_public_health==0.10.17",
+        "vivarium==0.10.18",
+        "vivarium_public_health==0.10.20",
         "click",
-        "gbd_mapping>=3.0.0, <4.0.0",
+        "gbd_mapping>=3.0.5, <4.0.0",
         "jinja2",
         "loguru",
         "numpy",
@@ -32,9 +31,13 @@ if __name__ == "__main__":
     ]
 
     # use "pip install -e .[dev]" to install required components + extra components
-    extras_require = [
-        "vivarium_cluster_tools==1.3.0", 
-        "vivarium_inputs[data]==4.0.6",
+    data_requires = [
+        "vivarium_cluster_tools>=1.3.5",
+        "vivarium_inputs[data]==4.0.8",
+    ]
+    test_requirements = [
+        "pytest",
+        "pytest-mock",
     ]
 
     setup(
@@ -50,7 +53,11 @@ if __name__ == "__main__":
         packages=find_packages(where="src"),
         include_package_data=True,
         install_requires=install_requirements,
-        extras_require={"dev": extras_require},
+        extras_require={
+            "test": test_requirements,
+            "data": data_requires,
+            "dev": test_requirements + data_requires,
+        },
         zip_safe=False,
         entry_points="""
             [console_scripts]

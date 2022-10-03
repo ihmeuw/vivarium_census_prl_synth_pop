@@ -1,7 +1,6 @@
-import pandas as pd
-
 from typing import NamedTuple
 
+import pandas as pd
 
 ####################
 # Project metadata #
