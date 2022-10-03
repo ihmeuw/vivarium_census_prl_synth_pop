@@ -58,7 +58,6 @@ class Observers:
             if self.clock().day < 29: #because we only want one observation in April
                 self.decennial_census(event, hdf_key=f"year_{self.clock().year}")
 
-
     def on_simulation_end(self, event: Event) -> None:
         end_date_str = f"ymd_{self.end_date.year}_{self.end_date.month}_{self.end_date.day}"
         state_table = self.population_view.get(event.index)
