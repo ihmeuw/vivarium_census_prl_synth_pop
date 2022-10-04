@@ -3,8 +3,6 @@ from pathlib import Path
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_cluster_tools import mkdir
-
 from vivarium_census_prl_synth_pop.constants import metadata
 
 
@@ -76,5 +74,8 @@ class Observers:
     def _build_output_root(builder: Builder) -> Path:
         results_root = builder.configuration.output_data.results_directory
         output_root = Path(results_root) / "population_table"
+
+        from vivarium_cluster_tools import mkdir
+
         mkdir(output_root, exists_ok=True)
         return output_root
