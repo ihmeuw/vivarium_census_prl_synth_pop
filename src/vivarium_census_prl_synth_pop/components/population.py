@@ -29,7 +29,6 @@ class Population:
 
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
-        self.clock = builder.time.clock()
         self.seed = builder.configuration.randomness.random_seed
         self.randomness = builder.randomness.get_stream(
             "household_sampling", for_initialization=True

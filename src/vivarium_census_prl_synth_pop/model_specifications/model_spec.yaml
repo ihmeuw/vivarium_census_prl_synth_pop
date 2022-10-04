@@ -30,7 +30,7 @@ configuration:
             day: 1
         end:
             year: 2030
-            month: 4
+            month: 5
             day: 1
         step_size: 28 # Days
     population:
