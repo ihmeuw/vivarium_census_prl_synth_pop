@@ -230,7 +230,7 @@ class Population:
 
         group_quarters = pd.concat([noninstitutionalized, institutionalized])
         group_quarters["housing_type"] = group_quarters["household_id"].map(
-            data_values.HOUSING_TYPE_MAP
+            data_values.GQ_HOUSING_TYPE_MAP
         )
 
         return group_quarters
