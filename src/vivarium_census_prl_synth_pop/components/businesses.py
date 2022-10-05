@@ -145,7 +145,7 @@ class Businesses:
             self.columns_created + ["age", "household_id"]
         ).get(event.index)
 
-        all_businesses = self.businesses.loc[~self.businesses["employer_id"] == UNEMPLOYED_ID]["employer_id"]
+        all_businesses = self.businesses.loc[self.businesses["employer_id"] != UNEMPLOYED_ID]["employer_id"]
         businesses_that_move_idx = filter_by_rate(
             all_businesses.index, self.randomness, self.businesses_move_rate, "moving_businesses"
         )

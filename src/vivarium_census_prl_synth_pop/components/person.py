@@ -98,19 +98,23 @@ class PersonMigration:
 
         # Get subsets of possible simulants that can move
         persons_who_move_idx = self.randomness.filter_for_rate(
-            non_household_heads.index, self.person_move_rate(non_household_heads.index)
-        ).index
+            non_household_heads.index, self.person_move_rate(non_household_heads.index), "all_movers"
+        )
         # Find simulants that move out of the country and those that move domestically
         abroad_movers_idx = filter_by_rate(
             persons_who_move_idx, self.randomness, self.proportion_simulants_leaving_country, "abroad_movers"
         )
-        domestic_movers_idx = persons.loc[~persons_who_move_idx.isin(abroad_movers_idx)].index
+        domestic_movers_idx = persons.loc[
+            (persons.index.isin(persons_who_move_idx)) &
+            (~persons.index.isin(abroad_movers_idx))
+        ].index
 
         # Process simulants moving abroad
         if len(abroad_movers_idx) > 0:
             persons.loc[abroad_movers_idx, "exit_time"] = event.time
             persons.loc[abroad_movers_idx, "tracked"] = False
 
+        # Get series of new household_ids the domestic_movers_idx will move to
         new_households = self._get_new_household_ids(persons.loc[domestic_movers_idx], event)
 
         # get address and zipcode corresponding to selected households
@@ -132,7 +136,7 @@ class PersonMigration:
         persons = update_address_and_zipcode(
             df=persons,
             rows_to_update=domestic_movers_idx,
-            id_key=persons["household_id"],
+            id_key=new_households,
             address_map=new_household_data_map["address"],
             zipcode_map=new_household_data_map["zipcode"],
         )
@@ -171,12 +175,12 @@ class PersonMigration:
     ##################
 
     def _get_new_household_ids(
-            self, persons_who_move: pd.DataFrame, event: Event
+            self, persons_who_move: pd.DataFrame, event: Event,
     ) -> pd.Series:
         households = self.population_view.subview(["household_id"]).get(event.index)
-        all_household_ids = list(households.squeeze().drop_duplicates())
+        all_household_ids = list(households.squeeze().drop_duplicates())  # all household_ids in simulation
 
-        new_household_ids = persons_who_move["household_id"].copy()
+        new_household_ids = persons_who_move["household_id"].copy()  # People who move household_ids
         additional_seed = 0
         while (new_household_ids == persons_who_move.household_id).any():
             unchanged_households = new_household_ids == persons_who_move.household_id
@@ -185,6 +189,7 @@ class PersonMigration:
                 all_household_ids,
                 additional_key=additional_seed,
             )
+            # Some sims can move to the same house from randomness
             additional_seed += 1
 
         return pd.Series(new_household_ids)

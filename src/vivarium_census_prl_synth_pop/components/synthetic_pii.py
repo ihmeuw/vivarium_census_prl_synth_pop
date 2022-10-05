@@ -306,12 +306,12 @@ class Address(GenericGenerator):
         super().setup(builder)
         self.address_data = builder.data.load(data_keys.SYNTHETIC_DATA.ADDRESSES)
 
-    def generate(self, idx: pd.Index, state: str) -> pd.DataFrame:
+    def generate(self, idx: pd.Series, state: str) -> pd.DataFrame:
         """Generate synthetic addresses for individuals
 
         Parameters
         ----------
-        idx : pd.Index
+        idx : pd.Series that is a list of ids to be used as an index
 
         Results
         -------
@@ -363,12 +363,12 @@ class Address(GenericGenerator):
         return df
 
     def get_new_addresses_and_zipcodes(
-        self, those_that_move: pd.Index, state: str
+        self, those_that_move: pd.Series, state: str
     ) -> Tuple[Dict, Dict]:
         """
         Parameters
         ----------
-        those_that_move: a pd.Index of ids (e.g. employer_id or household_id) who will move
+        those_that_move: a pd.Series of ids (e.g. employer_id or household_id) who will move
         state: US state. e.g., Florida
 
         Returns
