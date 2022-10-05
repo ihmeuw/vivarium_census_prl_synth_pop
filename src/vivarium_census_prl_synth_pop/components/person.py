@@ -94,21 +94,24 @@ class PersonMigration:
         persons = self.population_view.get(event.index)
         non_household_heads = persons.loc[
             persons.relation_to_household_head != "Reference person"
-            ]
+        ]
 
         # Get subsets of possible simulants that can move
         persons_who_move_idx = self.randomness.filter_for_rate(
-            non_household_heads.index, self.person_move_rate(non_household_heads.index), "all_movers"
+            non_household_heads.index,
+            self.person_move_rate(non_household_heads.index),
+            "all_movers",
         )
         # Find simulants that move out of the country and those that move domestically
         abroad_movers_idx = filter_by_rate(
-            persons_who_move_idx, self.randomness, self.proportion_simulants_leaving_country, "abroad_movers"
+            persons_who_move_idx,
+            self.randomness,
+            self.proportion_simulants_leaving_country,
+            "abroad_movers",
         )
         domestic_movers_idx = persons.loc[
-            (persons.index.isin(persons_who_move_idx)) &
-            (~persons.index.isin(abroad_movers_idx))
-        ].index
-
+            persons.index.isin(persons_who_move_idx.difference(abroad_movers_idx))
+        ]
         # Process simulants moving abroad
         if len(abroad_movers_idx) > 0:
             persons.loc[abroad_movers_idx, "exit_time"] = event.time
@@ -144,27 +147,33 @@ class PersonMigration:
         # update relation to head of household data
         persons.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"
         persons.loc[
-            (persons.index.isin(domestic_movers_idx)) &
-            (persons["household_id"].isin(
-                data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values())),
+            (persons.index.isin(domestic_movers_idx))
+            & (
+                persons["household_id"].isin(
+                    data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
+                )
+            ),
             "relation_to_household_head",
         ] = "Noninstitutionalized GQ pop"
         persons.loc[
-            (persons.index.isin(domestic_movers_idx)) &
-            (persons["household_id"].isin(
-                data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())),
+            (persons.index.isin(domestic_movers_idx))
+            & (
+                persons["household_id"].isin(
+                    data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
+                )
+            ),
             "relation_to_household_head",
         ] = "Institutionalized GQ pop"
 
         # Update housing type
         persons.loc[
-            (persons.index.isin(domestic_movers_idx)) &
-            (persons["household_id"].isin(data_values.HOUSING_TYPE_MAP.keys())),
+            (persons.index.isin(domestic_movers_idx))
+            & (persons["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
             "housing_type",
-        ] = persons["household_id"].map(data_values.HOUSING_TYPE_MAP)
+        ] = persons["household_id"].map(data_values.GQ_HOUSING_TYPE_MAP)
         persons.loc[
-            (persons.index.isin(domestic_movers_idx)) &
-            (~persons["household_id"].isin(data_values.HOUSING_TYPE_MAP.keys())),
+            (persons.index.isin(domestic_movers_idx))
+            & (~persons["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
             "housing_type",
         ] = "Standard"
 
@@ -175,12 +184,18 @@ class PersonMigration:
     ##################
 
     def _get_new_household_ids(
-            self, persons_who_move: pd.DataFrame, event: Event,
+        self,
+        persons_who_move: pd.DataFrame,
+        event: Event,
     ) -> pd.Series:
         households = self.population_view.subview(["household_id"]).get(event.index)
-        all_household_ids = list(households.squeeze().drop_duplicates())  # all household_ids in simulation
+        all_household_ids = list(
+            households.squeeze().drop_duplicates()
+        )  # all household_ids in simulation
 
-        new_household_ids = persons_who_move["household_id"].copy()  # People who move household_ids
+        new_household_ids = persons_who_move[
+            "household_id"
+        ].copy()  # People who move household_ids
         additional_seed = 0
         while (new_household_ids == persons_who_move.household_id).any():
             unchanged_households = new_household_ids == persons_who_move.household_id

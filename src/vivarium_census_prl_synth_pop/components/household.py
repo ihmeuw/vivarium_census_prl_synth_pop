@@ -139,21 +139,28 @@ class HouseholdMigration:
         """
         households = self.population_view.get(event.index)
         household_heads = households.loc[
-            households["relation_to_household_head"] == "Reference person"]['household_id']
+            households["relation_to_household_head"] == "Reference person"
+        ]["household_id"]
 
         households_that_move_idx = self.randomness.filter_for_rate(
-            household_heads.index, self.household_move_rate(household_heads.index)
+            household_heads.index,
+            self.household_move_rate(household_heads.index),
+            "all_moving_households",
         )
 
         # Determine which households move abroad
         households_heads_that_move_abroad_idx = filter_by_rate(
-            households_that_move_idx, self.randomness, self.proportion_households_leaving_country, "abroad_households"
+            households_that_move_idx,
+            self.randomness,
+            self.proportion_households_leaving_country,
+            "abroad_households",
         )
         # Find households_ids that move abroad and domestic
         abroad_households_ids = household_heads.loc[households_heads_that_move_abroad_idx]
         domestic_household_ids = household_heads.loc[
-            (household_heads.index.isin(households_that_move_idx)) &
-            (~household_heads.index.isin(households_heads_that_move_abroad_idx))
+            household_heads.index.isin(
+                households_that_move_idx.difference(households_heads_that_move_abroad_idx)
+            )
         ]
 
         # Get index of all simulants in households moving abroad and domestic
@@ -180,7 +187,7 @@ class HouseholdMigration:
             households = update_address_and_zipcode(
                 df=households,
                 rows_to_update=domestic_households_idx,
-                id_key=households['household_id'],
+                id_key=households["household_id"],
                 address_map=address_map,
                 zipcode_map=zipcode_map,
             )

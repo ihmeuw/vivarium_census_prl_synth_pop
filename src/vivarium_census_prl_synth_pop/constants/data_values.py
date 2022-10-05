@@ -13,7 +13,7 @@ NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "Military": 4,
     "Other non-institutional": 5,
 }
-HOUSING_TYPE_MAP = {
+GQ_HOUSING_TYPE_MAP = {
     0: "Carceral",
     1: "Nursing home",
     2: "Other institutional",
