@@ -40,12 +40,8 @@ class Observers:
 
         self.randomness = builder.randomness.get_stream(self.name)
         self.population_view = builder.population.get_view(columns=[])
-        response_probability_decennial = builder.lookup.build_table(
+        self.response_probability_decennial = builder.lookup.build_table(
             data=data_values.RESPONSE_PROBABILITY_DECENNIAL
-        )
-        self.response_probability_decennial = builder.value.register_value_producer(
-            f"{self.name}.response_probability_decennial",
-            source=response_probability_decennial,
         )
 
         builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
@@ -77,7 +73,7 @@ class Observers:
 
         # we don't have a 100% census response rate:
         respondents = self.randomness.filter_for_probability(
-            pop, self.response_probability_decennial(pop.index), "all_moving_households"
+            pop, self.response_probability_decennial(pop.index), "decennial_respondents"
         )
 
         respondents.to_hdf(self.decennial_path, hdf_key)
