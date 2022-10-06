@@ -138,34 +138,28 @@ class HouseholdMigration:
         move those households to a new address
         """
         households = self.population_view.get(event.index)
-        household_heads = households.loc[
+        household_ids = households.loc[
             households["relation_to_household_head"] == "Reference person"
         ]["household_id"]
 
-        households_that_move_idx = self.randomness.filter_for_rate(
-            household_heads.index,
-            self.household_move_rate(household_heads.index),
+        all_household_ids_that_move = self.randomness.filter_for_rate(
+            household_ids,
+            self.household_move_rate(household_ids.index),
             "all_moving_households",
         )
 
         # Determine which households move abroad
-        households_heads_that_move_abroad_idx = filter_by_rate(
-            households_that_move_idx,
+        abroad_household_ids = filter_by_rate(
+            all_household_ids_that_move,
             self.randomness,
             self.proportion_households_leaving_country,
             "abroad_households",
         )
-        # Find households_ids that move abroad and domestic
-        abroad_households_ids = household_heads.loc[households_heads_that_move_abroad_idx]
-        domestic_household_ids = household_heads.loc[
-            household_heads.index.isin(
-                households_that_move_idx.difference(households_heads_that_move_abroad_idx)
-            )
-        ]
+        domestic_household_ids = ~all_household_ids_that_move.isin(abroad_household_ids)
 
         # Get index of all simulants in households moving abroad and domestic
         abroad_households_idx = households.loc[
-            households["household_id"].isin(abroad_households_ids)
+            households["household_id"].isin(abroad_household_ids)
         ].index
         domestic_households_idx = households.loc[
             households["household_id"].isin(domestic_household_ids)
