@@ -8,14 +8,9 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_and_zipcode,
-)
+from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
-from vivarium_census_prl_synth_pop.constants.data_values import (
-    UNEMPLOYED_ID,
-    WORKING_AGE,
-)
+from vivarium_census_prl_synth_pop.constants.data_values import UNEMPLOYED_ID, WORKING_AGE
 from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
