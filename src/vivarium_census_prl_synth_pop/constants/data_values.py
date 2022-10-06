@@ -79,4 +79,5 @@ class MilitaryEmployer(NamedTuple):
 # Observer Values #
 ###################
 
+
 RESPONSE_PROBABILITY_DECENNIAL = 0.95
