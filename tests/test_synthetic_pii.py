@@ -120,11 +120,7 @@ def get_last_names():
     last_names = pd.DataFrame(
         data={
             "name": ["Smith", "Johnson", "Jackson"],
-            "rank": [
-                1,
-                2,
-                3,
-            ],
+            "rank": [1, 2, 3],
             "count": [2000, 1500, 1000],
             "prop100k": [20.01, 15.01, 10.01],
             "cum_prop100k": [20.01, 15.01, 10.01],
