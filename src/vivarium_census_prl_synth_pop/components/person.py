@@ -112,6 +112,7 @@ class PersonMigration:
         domestic_movers_idx = persons.loc[
             persons.index.isin(persons_who_move_idx.difference(abroad_movers_idx))
         ].index
+
         # Process simulants moving abroad
         if len(abroad_movers_idx) > 0:
             persons.loc[abroad_movers_idx, "exit_time"] = event.time

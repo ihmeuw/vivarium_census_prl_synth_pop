@@ -130,8 +130,8 @@ class Population:
        # Add Social Security Numbers
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
         # Prevent duplicate ssn
-        while len(pop.ssn) != len(pop.sss.unique()):
-            pop["sssn"] = self.ssn_generator.generate(pop).ssn
+        while len(pop.ssn) != len(pop.ssn.unique()):
+            pop["ssn"] = self.ssn_generator.generate(pop).ssn
         pop["ssn"] = self.ssn_generator.remove_ssn(pop["ssn"], self.proportion_with_no_ssn)
 
         pop["entrance_time"] = pop_data.creation_time
@@ -240,7 +240,9 @@ class Population:
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids = pop_data.user_data["parent_ids"]
+        pop_index = pop_data.user_data["current_population_index"]
         mothers = self.population_view.get(parent_ids.unique())
+        ssns = self.population_view.subview(['ssn']).get(pop_index).squeeze()
         new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
 
         inherited_traits = [
@@ -277,12 +279,16 @@ class Population:
             additional_key="sex_of_child",
         )
         new_births["alive"] = "alive"
+        new_births["entrance_time"] = pop_data.creation_time
+        new_births["exit_time"] = pd.NaT
+
+        # Generate SSNs for newborns and prevent dups
         new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
+        while len(new_births.ssn) != len(new_births.ssn.unique()) or sum(new_births.ssn.isin(ssns)) > 0:
+            new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
         new_births["ssn"] = self.ssn_generator.remove_ssn(
             new_births["ssn"], self.proportion_newborns_no_ssn
         )
-        new_births["entrance_time"] = pop_data.creation_time
-        new_births["exit_time"] = pd.NaT
 
         # add first and middle names
         names = self.name_generator.generate_first_and_middle_names(new_births)
