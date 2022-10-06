@@ -3,7 +3,7 @@ from pathlib import Path
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop.constants import metadata, data_values
 
 
 class Observers:
@@ -37,7 +37,15 @@ class Observers:
         self.counter = 0
         self.output_path = self._build_output_root(builder) / "state_table.hdf"
         self.decennial_path = self._build_output_root(builder) / "decennial_census.hdf"
+
+        self.randomness = builder.randomness.get_stream(self.name)
         self.population_view = builder.population.get_view(columns=[])
+        response_probability_decennial = builder.lookup.build_table(
+            data=data_values.RESPONSE_PROBABILITY_DECENNIAL
+        )
+        self.response_probability_decennial = builder.value.register_value_producer(
+            f"{self.name}.response_probability_decennial", source=response_probability_decennial
+        )
 
         builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
         builder.event.register_listener("simulation_end", self.on_simulation_end)
@@ -65,7 +73,15 @@ class Observers:
         )
         pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
         pop = pop.drop(columns="middle_name")
-        pop.to_hdf(self.decennial_path, hdf_key)
+
+        # we don't have a 100% census response rate:
+        respondents = self.randomness.filter_for_probability(
+            pop,
+            self.response_probability_decennial(pop.index),
+            "all_moving_households",
+        )
+
+        respondents.to_hdf(self.decennial_path, hdf_key)
 
     ###########
     # Helpers #
