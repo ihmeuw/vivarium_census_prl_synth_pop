@@ -155,7 +155,9 @@ class HouseholdMigration:
             self.proportion_households_leaving_country,
             "abroad_households",
         )
-        domestic_household_ids = ~all_household_ids_that_move.isin(abroad_household_ids)
+        domestic_household_ids = all_household_ids_that_move.loc[
+            ~all_household_ids_that_move.isin(abroad_household_ids)
+        ]
 
         # Get index of all simulants in households moving abroad and domestic
         abroad_households_idx = households.loc[
