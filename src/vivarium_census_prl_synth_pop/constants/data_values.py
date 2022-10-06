@@ -75,6 +75,7 @@ class MilitaryEmployer(NamedTuple):
     EMPLOYER_NAME = "military"
     PROPORTION_WORKFORCE_EMPLOYED = 0.03
 
+
 ###################
 # Observer Values #
 ###################

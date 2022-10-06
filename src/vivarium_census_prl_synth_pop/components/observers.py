@@ -3,7 +3,7 @@ from pathlib import Path
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_census_prl_synth_pop.constants import metadata, data_values
+from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 
 class Observers:
@@ -44,7 +44,8 @@ class Observers:
             data=data_values.RESPONSE_PROBABILITY_DECENNIAL
         )
         self.response_probability_decennial = builder.value.register_value_producer(
-            f"{self.name}.response_probability_decennial", source=response_probability_decennial
+            f"{self.name}.response_probability_decennial",
+            source=response_probability_decennial,
         )
 
         builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
@@ -76,9 +77,7 @@ class Observers:
 
         # we don't have a 100% census response rate:
         respondents = self.randomness.filter_for_probability(
-            pop,
-            self.response_probability_decennial(pop.index),
-            "all_moving_households",
+            pop, self.response_probability_decennial(pop.index), "all_moving_households"
         )
 
         respondents.to_hdf(self.decennial_path, hdf_key)
