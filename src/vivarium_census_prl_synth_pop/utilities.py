@@ -244,7 +244,10 @@ def random_integers(
 
 
 def filter_by_rate(
-    sims_to_filter: Union[pd.Index, pd.Series], randomness: RandomnessStream, rate_producer: Pipeline, additional_key: Any = None
+    sims_to_filter: Union[pd.Index, pd.Series],
+    randomness: RandomnessStream,
+    rate_producer: Pipeline,
+    additional_key: Any = None,
 ) -> pd.Index:
     """
     Parameters

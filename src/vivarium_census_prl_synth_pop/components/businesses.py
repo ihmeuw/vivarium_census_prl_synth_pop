@@ -145,15 +145,21 @@ class Businesses:
             self.columns_created + ["age", "household_id"]
         ).get(event.index)
 
-        all_businesses = self.businesses.loc[self.businesses["employer_id"] != UNEMPLOYED_ID]["employer_id"]
+        all_businesses = self.businesses.loc[self.businesses["employer_id"] != UNEMPLOYED_ID][
+            "employer_id"
+        ]
         businesses_that_move_idx = filter_by_rate(
-            all_businesses.index, self.randomness, self.businesses_move_rate, "moving_businesses"
+            all_businesses.index,
+            self.randomness,
+            self.businesses_move_rate,
+            "moving_businesses",
         )
 
         if len(businesses_that_move_idx) > 0:
             # update the employer address and zipcode in self.businesses
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                businesses_that_move_idx, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
+                businesses_that_move_idx,
+                state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
             )
             self.businesses = update_address_and_zipcode(
                 df=self.businesses,

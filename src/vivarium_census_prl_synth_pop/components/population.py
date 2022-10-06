@@ -71,8 +71,7 @@ class Population:
         self.population_data = self._load_population_data(builder)
 
         builder.population.initializes_simulants(
-            self.initialize_simulants,
-            creates_columns=self.columns_created,
+            self.initialize_simulants, creates_columns=self.columns_created
         )
 
         builder.event.register_listener("time_step__cleanup", self.on_time_step__prepare)
