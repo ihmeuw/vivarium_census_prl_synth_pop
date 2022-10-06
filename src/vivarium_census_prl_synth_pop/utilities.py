@@ -242,13 +242,13 @@ def random_integers(
 
 
 def filter_by_rate(
-    simulants: pd.Index, randomness: RandomnessStream, rate_producer: Pipeline, additional_key: Any = None
+    sims_to_filter: Union[pd.Index, pd.Series], randomness: RandomnessStream, rate_producer: Pipeline, additional_key: Any = None
 ) -> pd.Index:
     """
     Parameters
     ----------
-    simulants: a series of every entity that might move. not necessarily unique.
-    move_rate_producer: rate_producer for move rates
+    sims_to_filter: a series of every entity that might move. not necessarily unique.
+    rate_producer: rate_producer for move rates
     randomness: RandomnessStream for component this is being run in
     additional_key: descriptive key to make sure randomness stream produces unique results
 
@@ -256,8 +256,13 @@ def filter_by_rate(
     -------
     a pd.Index, subset from simulants, with those selected to be filtered.
     """
-    simulants = simulants.drop_duplicates()
+    sims_to_filter = sims_to_filter.drop_duplicates()
+    if type(sims_to_filter) is pd.Series:
+        idx = sims_to_filter.index
+    else:
+        idx = sims_to_filter
+
     filtered_sims = randomness.filter_for_rate(
-        simulants, rate_producer(simulants), additional_key
+        sims_to_filter, rate_producer(idx), additional_key
     )
     return filtered_sims
