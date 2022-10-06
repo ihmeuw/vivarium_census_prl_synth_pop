@@ -6,10 +6,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    NameGenerator,
-    SSNGenerator,
-)
+from vivarium_census_prl_synth_pop.components.synthetic_pii import NameGenerator, SSNGenerator
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
@@ -71,8 +68,7 @@ class Population:
         self.population_data = self._load_population_data(builder)
 
         builder.population.initializes_simulants(
-            self.initialize_simulants,
-            creates_columns=self.columns_created,
+            self.initialize_simulants, creates_columns=self.columns_created
         )
 
         builder.event.register_listener("time_step__cleanup", self.on_time_step__prepare)

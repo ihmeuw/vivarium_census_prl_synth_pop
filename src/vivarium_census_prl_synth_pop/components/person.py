@@ -5,9 +5,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_and_zipcode,
-)
+from vivarium_census_prl_synth_pop.components.synthetic_pii import update_address_and_zipcode
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
@@ -183,12 +181,8 @@ class PersonMigration:
     # Helper methods #
     ##################
 
-    def _get_new_household_ids(
-        self,
-        pop: pd.DataFrame,
-        sims_who_move: pd.Index
-    ) -> pd.Series:
-        households = pop['household_id']
+    def _get_new_household_ids(self, pop: pd.DataFrame, sims_who_move: pd.Index) -> pd.Series:
+        households = pop["household_id"]
         all_household_ids = list(
             households.squeeze().drop_duplicates()
         )  # all household_ids in simulation

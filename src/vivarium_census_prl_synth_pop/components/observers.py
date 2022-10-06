@@ -51,7 +51,7 @@ class Observers:
             state_table.to_hdf(self.output_path, start_date_str)
         self.counter += 1
         if (self.clock().year % 10 == 0) & (self.clock().month == 4):
-            if self.clock().day < 29: #because we only want one observation in April
+            if self.clock().day < 29:  # because we only want one observation in April
                 self.decennial_census(event, hdf_key=f"year_{self.clock().year}")
 
     def on_simulation_end(self, event: Event) -> None:
@@ -60,11 +60,12 @@ class Observers:
         state_table.to_hdf(self.output_path, end_date_str)
 
     def decennial_census(self, event: Event, hdf_key) -> None:
-        pop = self.population_view.subview(metadata.DECENNIAL_CENSUS_COLUMNS_USED).get(event.index)
+        pop = self.population_view.subview(metadata.DECENNIAL_CENSUS_COLUMNS_USED).get(
+            event.index
+        )
         pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
         pop = pop.drop(columns="middle_name")
         pop.to_hdf(self.decennial_path, hdf_key)
-
 
     ###########
     # Helpers #
