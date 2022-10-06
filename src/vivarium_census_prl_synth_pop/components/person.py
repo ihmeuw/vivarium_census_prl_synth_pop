@@ -9,6 +9,7 @@ from vivarium_census_prl_synth_pop.components.synthetic_pii import (
     update_address_and_zipcode,
 )
 from vivarium_census_prl_synth_pop.constants import data_values, paths
+from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
 class PersonMigration:
@@ -96,24 +97,28 @@ class PersonMigration:
         ]
 
         # Get subsets of possible simulants that can move
-        persons_who_move = self.randomness.filter_for_rate(
-            non_household_heads, self.person_move_rate(non_household_heads.index)
+        persons_who_move_idx = self.randomness.filter_for_rate(
+            non_household_heads.index,
+            self.person_move_rate(non_household_heads.index),
+            "all_movers",
         )
-
-        # Find simulants that move out of the country
-        persons_who_move = self.move_simulants_out_of_country(
-            persons_who_move, self.proportion_simulants_leaving_country, event
+        # Find simulants that move out of the country and those that move domestically
+        abroad_movers_idx = filter_by_rate(
+            persons_who_move_idx,
+            self.randomness,
+            self.proportion_simulants_leaving_country,
+            "abroad_movers",
         )
+        domestic_movers_idx = persons.loc[
+            persons.index.isin(persons_who_move_idx.difference(abroad_movers_idx))
+        ].index
+        # Process simulants moving abroad
+        if len(abroad_movers_idx) > 0:
+            persons.loc[abroad_movers_idx, "exit_time"] = event.time
+            persons.loc[abroad_movers_idx, "tracked"] = False
 
-        # Separate simulants that move abroad vs domestic
-        abroad_movers = persons_who_move.loc[persons_who_move["exit_time"] == event.time]
-        domestic_movers = persons_who_move.loc[
-            ~persons_who_move.index.isin(abroad_movers.index)
-        ]
-        abroad_movers = abroad_movers.copy()
-        domestic_movers = domestic_movers.copy()
-
-        new_households = self._get_new_household_ids(domestic_movers, event)
+        # Get series of new household_ids the domestic_movers_idx will move to
+        new_households = self._get_new_household_ids(persons, domestic_movers_idx)
 
         # get address and zipcode corresponding to selected households
         new_household_data = (
@@ -130,85 +135,77 @@ class PersonMigration:
         new_household_data_map = new_household_data.set_index("household_id")
 
         # update household data for domestic movers
-        domestic_movers["household_id"] = new_households
-        domestic_movers = update_address_and_zipcode(
-            df=domestic_movers,
-            rows_to_update=domestic_movers.index,
-            id_key=domestic_movers["household_id"],
+        persons.loc[domestic_movers_idx, "household_id"] = new_households
+        persons = update_address_and_zipcode(
+            df=persons,
+            rows_to_update=domestic_movers_idx,
+            id_key=new_households,
             address_map=new_household_data_map["address"],
             zipcode_map=new_household_data_map["zipcode"],
         )
 
         # update relation to head of household data
-        domestic_movers["relation_to_household_head"] = "Other nonrelative"
-        domestic_movers.loc[
-            domestic_movers["household_id"].isin(
-                data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
+        persons.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"
+        persons.loc[
+            (persons.index.isin(domestic_movers_idx))
+            & (
+                persons["household_id"].isin(
+                    data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
+                )
             ),
             "relation_to_household_head",
         ] = "Noninstitutionalized GQ pop"
-        domestic_movers.loc[
-            domestic_movers["household_id"].isin(
-                data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
+        persons.loc[
+            (persons.index.isin(domestic_movers_idx))
+            & (
+                persons["household_id"].isin(
+                    data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
+                )
             ),
             "relation_to_household_head",
         ] = "Institutionalized GQ pop"
 
         # Update housing type
-        domestic_movers.loc[
-            domestic_movers["household_id"].isin(data_values.HOUSING_TYPE_MAP.keys()),
+        persons.loc[
+            (persons.index.isin(domestic_movers_idx))
+            & (persons["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
             "housing_type",
-        ] = domestic_movers["household_id"].map(data_values.HOUSING_TYPE_MAP)
-        domestic_movers.loc[
-            ~domestic_movers["household_id"].isin(data_values.HOUSING_TYPE_MAP.keys()),
+        ] = persons["household_id"].map(data_values.GQ_HOUSING_TYPE_MAP)
+        persons.loc[
+            (persons.index.isin(domestic_movers_idx))
+            & (~persons["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
             "housing_type",
         ] = "Standard"
 
-        simulants_who_moved = pd.concat(
-            [
-                domestic_movers,
-                abroad_movers,
-            ]
-        )
-        self.population_view.update(simulants_who_moved)
+        self.population_view.update(persons)
 
     ##################
     # Helper methods #
     ##################
 
     def _get_new_household_ids(
-        self, persons_who_move: pd.DataFrame, event: Event
+        self,
+        pop: pd.DataFrame,
+        sims_who_move: pd.Index
     ) -> pd.Series:
-        households = self.population_view.subview(["household_id"]).get(event.index)
-        all_household_ids = list(households.squeeze().drop_duplicates())
+        households = pop['household_id']
+        all_household_ids = list(
+            households.squeeze().drop_duplicates()
+        )  # all household_ids in simulation
 
-        new_household_ids = persons_who_move["household_id"].copy()
+        new_household_ids = pop.loc[
+            sims_who_move, "household_id"
+        ].copy()  # People who move household_ids
+        old_household_ids = new_household_ids.copy()
         additional_seed = 0
-        while (new_household_ids == persons_who_move.household_id).any():
-            unchanged_households = new_household_ids == persons_who_move.household_id
+        while (new_household_ids == old_household_ids).any():
+            unchanged_households = new_household_ids == old_household_ids
             new_household_ids[unchanged_households] = self.randomness.choice(
                 new_household_ids.loc[unchanged_households].index,
                 all_household_ids,
-                additional_key=additional_seed,
+                additional_key=f"newHousehold_ids_{additional_seed}",
             )
+            # Some sims can move to the same house from randomness
             additional_seed += 1
 
         return pd.Series(new_household_ids)
-
-    def move_simulants_out_of_country(
-        self,
-        df_moving: pd.DataFrame,
-        proportion_simulants_leaving_country: Pipeline,
-        event: Event,
-    ) -> pd.DataFrame:
-        """
-        df_moving: Subset of population that will be changing addresses this time step
-        """
-        sims_that_move_abroad = self.randomness.filter_for_probability(
-            df_moving, proportion_simulants_leaving_country(df_moving.index)
-        ).index
-        if len(sims_that_move_abroad) > 0:
-            df_moving.loc[sims_that_move_abroad, "exit_time"] = event.time
-            df_moving.loc[sims_that_move_abroad, "tracked"] = False
-
-        return df_moving
