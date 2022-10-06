@@ -217,7 +217,7 @@ def vectorized_choice(
 
 
 def random_integers(
-    min_val: int, max_val: int, index: pd.Index, randomness: RandomnessStream
+    min_val: int, max_val: int, index: pd.Index, randomness: RandomnessStream, additional_key: Any,
 ) -> pd.Series:
     """
 
@@ -232,13 +232,15 @@ def random_integers(
         and which indexes the returned `pandas.Series`.
     randomness:
         RandomnessStream
+    additional_key:
+        A identifying key for the randomness stream (usually a string)
 
     Returns
     -------
     pandas.Series
         An indexed set of integers in the interval [a,b)
     """
-    return (randomness.get_draw(index=index) * max_val + min_val).round().astype(int)
+    return (randomness.get_draw(index=index, additional_key=additional_key) * max_val + min_val).round().astype(int)
 
 
 def filter_by_rate(

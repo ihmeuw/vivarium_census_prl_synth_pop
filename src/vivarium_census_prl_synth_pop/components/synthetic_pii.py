@@ -52,20 +52,20 @@ class SSNGenerator(GenericGenerator):
         """
 
         df = pd.DataFrame(index=df_in.index)
-        #todo: pass additional key for each call to random_integers
+
         area = random_integers(
-            min_val=1, max_val=899, index=df.index, randomness=self.randomness
-        )  # why does this only go to 899?
-        area = np.where(area == 666, 667, area)  # what is this?
+            min_val=1, max_val=899, index=df.index, randomness=self.randomness, additional_key="ssn_area",
+        )
+        area = np.where(area == 666, 667, area)
         df["ssn_area"] = area
 
         group = random_integers(
-            min_val=1, max_val=99, index=df.index, randomness=self.randomness
+            min_val=1, max_val=99, index=df.index, randomness=self.randomness, additional_key="ssn_group"
         )  # this is making some sims have a group of 100 - wrong
         df["ssn_group"] = group
 
         serial = random_integers(
-            min_val=1, max_val=9999, index=df.index, randomness=self.randomness
+            min_val=1, max_val=9999, index=df.index, randomness=self.randomness, additional_key="ssn_serial"
         )  # this does not make serial == 10,000 but could (sample size?)
         df["ssn_serial"] = serial
 
@@ -75,6 +75,7 @@ class SSNGenerator(GenericGenerator):
         df["ssn"] += df.ssn_group.astype(str).str.zfill(2)
         df["ssn"] += "-"
         df["ssn"] += df.ssn_serial.astype(str).str.zfill(4)
+
         return df
 
     def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: Pipeline) -> pd.Series:
