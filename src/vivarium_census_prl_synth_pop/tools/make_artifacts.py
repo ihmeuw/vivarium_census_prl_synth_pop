@@ -17,7 +17,10 @@ import vivarium_cluster_tools as vct
 from loguru import logger
 
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
-from vivarium_census_prl_synth_pop.tools.app_logging import add_logging_sink, decode_status
+from vivarium_census_prl_synth_pop.tools.app_logging import (
+    add_logging_sink,
+    decode_status,
+)
 from vivarium_census_prl_synth_pop.utilities import (
     delete_if_exists,
     len_longest_location,

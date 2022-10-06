@@ -6,7 +6,10 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import NameGenerator, SSNGenerator
+from vivarium_census_prl_synth_pop.components.synthetic_pii import (
+    NameGenerator,
+    SSNGenerator,
+)
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
