@@ -129,8 +129,8 @@ class Population:
         n_chosen = pop.shape[0]  # what is this?
        # Add Social Security Numbers
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
-        # Prevent duplicate ssns
-        if len(pop.ssn) != len(pop.sss.unique()):
+        # Prevent duplicate ssn
+        while len(pop.ssn) != len(pop.sss.unique()):
             pop["sssn"] = self.ssn_generator.generate(pop).ssn
         pop["ssn"] = self.ssn_generator.remove_ssn(pop["ssn"], self.proportion_with_no_ssn)
 
