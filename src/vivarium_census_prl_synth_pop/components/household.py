@@ -70,6 +70,9 @@ class HouseholdMigration:
         self.household_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
+        self.proportion_households_leaving_country = builder.lookup.build_table(
+            data=data_values.PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY
+        )
 
         self.randomness = builder.randomness.get_stream(self.name)
         self.addresses = builder.components.get_component("Address")
@@ -83,14 +86,6 @@ class HouseholdMigration:
             "exit_time",
         ]
         self.population_view = builder.population.get_view(self.columns_used)
-
-        proportion_households_leaving_country_data = builder.lookup.build_table(
-            data=data_values.PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY
-        )
-        self.proportion_households_leaving_country = builder.value.register_rate_producer(
-            "proportion_households_leaving_country",
-            source=proportion_households_leaving_country_data,
-        )
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,

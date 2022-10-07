@@ -8,7 +8,6 @@ from loguru import logger
 from scipy import stats
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash
-
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
