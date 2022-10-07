@@ -33,18 +33,13 @@ class Population:
         self.randomness = builder.randomness.get_stream(
             "household_sampling", for_initialization=True
         )
-        proportion_lacking_ssn_data = builder.lookup.build_table(
+        self.proportion_with_no_ssn = builder.lookup.build_table(
             data=data_values.PROPORTION_INITIALIZATION_NO_SSN
         )
-        self.proportion_with_no_ssn = builder.value.register_value_producer(
-            "proportion_no_ssn", source=proportion_lacking_ssn_data
-        )
-        proportion_newborns_lacking_ssn_data = builder.lookup.build_table(
+        self.proportion_newborns_no_ssn = builder.lookup.build_table(
             data=data_values.PROPORTION_NEWBORNS_NO_SSN
         )
-        self.proportion_newborns_no_ssn = builder.value.register_value_producer(
-            "proportion_newborns_no_ssn", source=proportion_newborns_lacking_ssn_data
-        )
+
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.step_size_days = builder.configuration.time.step_size
 
