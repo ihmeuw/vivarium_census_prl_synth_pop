@@ -240,7 +240,7 @@ def random_integers(
     pandas.Series
         An indexed set of integers in the interval [a,b)
     """
-    return (randomness.get_draw(index=index, additional_key=additional_key) * max_val + min_val).round().astype(int)
+    return np.floor(randomness.get_draw(index=index, additional_key=additional_key) * max_val + min_val).astype(int)
 
 
 def filter_by_rate(

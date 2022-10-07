@@ -123,12 +123,12 @@ class Population:
         pop["date_of_birth"] = self.start_time - pd.to_timedelta(
             np.round(pop["age"] * 365.25), unit="days"
         )
-
         # format
         n_chosen = pop.shape[0]  # what is this?
+
        # Add Social Security Numbers
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
-        # Prevent duplicate ssn
+        # Check for duplicate ssn
         while len(pop.ssn) != len(pop.ssn.unique()):
             pop["ssn"] = self.ssn_generator.generate(pop).ssn
         pop["ssn"] = self.ssn_generator.remove_ssn(pop["ssn"], self.proportion_with_no_ssn)
