@@ -152,7 +152,7 @@ class Businesses:
         if len(businesses_that_move_idx) > 0:
             # update the employer address and zipcode in self.businesses
             address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                businesses_that_move_idx,
+                all_businesses.loc[businesses_that_move_idx],
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
             )
             self.businesses = update_address_and_zipcode(
@@ -166,7 +166,9 @@ class Businesses:
             )
 
             # update employer address and zipcode in the pop table
-            rows_changing_addresses = pop.loc[pop.employer_id.isin(businesses_that_move_idx)]
+            rows_changing_addresses = pop.loc[
+                pop.employer_id.isin(all_businesses.loc[businesses_that_move_idx])
+            ]
             pop = update_address_and_zipcode(
                 df=pop,
                 rows_to_update=rows_changing_addresses.index,
