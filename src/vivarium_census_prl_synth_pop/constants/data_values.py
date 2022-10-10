@@ -74,3 +74,11 @@ class MilitaryEmployer(NamedTuple):
     EMPLOYER_ZIPCODE = "military zipcode"
     EMPLOYER_NAME = "military"
     PROPORTION_WORKFORCE_EMPLOYED = 0.03
+
+
+###################
+# Observer Values #
+###################
+
+
+RESPONSE_PROBABILITY_DECENNIAL = 0.95
