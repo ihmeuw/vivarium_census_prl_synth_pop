@@ -193,10 +193,10 @@ class PersonMigration:
         new_household_ids = pop.loc[
             sims_who_move, "household_id"
         ].copy()  # People who move household_ids
-        old_household_ids = new_household_ids.copy()
+
         additional_seed = 0
-        while (new_household_ids == old_household_ids).any():
-            unchanged_households = new_household_ids == old_household_ids
+        while (new_household_ids == pop.loc[sims_who_move, "household_id"]).any():
+            unchanged_households = new_household_ids == pop.loc[sims_who_move, "household_id"]
             new_household_ids[unchanged_households] = self.randomness.choice(
                 new_household_ids.loc[unchanged_households].index,
                 all_household_ids,
