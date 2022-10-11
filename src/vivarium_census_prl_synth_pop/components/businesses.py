@@ -71,8 +71,15 @@ class Businesses:
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
 
-        self.job_change_rate = builder.lookup.build_table(data_values.YEARLY_JOB_CHANGE_RATE)
-        self.businesses_move_rate = builder.lookup.build_table(data_values.BUSINESS_MOVE_RATE_YEARLY)
+        job_change_rate_data = builder.lookup.build_table(data_values.YEARLY_JOB_CHANGE_RATE)
+        self.job_change_rate = builder.value.register_rate_producer(
+            f"{self.name}.job_change_rate", source=job_change_rate_data
+        )
+
+        move_rate_data = builder.lookup.build_table(data_values.BUSINESS_MOVE_RATE_YEARLY)
+        self.businesses_move_rate = builder.value.register_rate_producer(
+            f"{self.name}.move_rate", source=move_rate_data
+        )
 
         self.addresses = builder.components.get_component("Address")
         builder.population.initializes_simulants(
