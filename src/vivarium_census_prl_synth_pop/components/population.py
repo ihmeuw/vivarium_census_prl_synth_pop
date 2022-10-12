@@ -277,16 +277,17 @@ class Population:
         new_births["exit_time"] = pd.NaT
 
         # Generate SSNs for newborns
-        new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
         # Check for SSN duplicates with existing SSNs
-        ssn_values = ssns.loc[ssns != ""]
-        duplicate_mask = new_births["ssn"].isin(ssn_values) | new_births.duplicated(subset=["ssn"])
+        to_generate = pd.Series(True, index=new_births.index)
         additional_key = 1
-        while sum(duplicate_mask) > 0:
+        while to_generate.any():
+            new_births.loc[to_generate, "ssn"] = self.ssn_generator.generate(new_births.loc[to_generate], additional_key).ssn
             additional_key += 1
-            new_births.loc[duplicate_mask, "ssn"] = self.ssn_generator.generate(
-                new_births.loc[duplicate_mask], additional_key).ssn
-            duplicate_mask = new_births["ssn"].isin(ssn_values) | new_births.duplicated(subset=["ssn"])
+            duplicate_mask = to_generate & new_births["ssn"].isin(ssns)
+            ssns = pd.concat([ssns, new_births.loc[to_generate & ~duplicate_mask, "ssn"]])
+            # Adds SSNs from new births to population SSNs series that are not duplicates
+            to_generate = duplicate_mask
+            # Consider finding solution that doesn't have different index lengths
 
         new_births["ssn"] = self.ssn_generator.remove_ssn(
             new_births["ssn"], self.proportion_newborns_no_ssn
