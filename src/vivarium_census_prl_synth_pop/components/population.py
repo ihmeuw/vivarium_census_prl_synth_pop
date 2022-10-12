@@ -280,16 +280,14 @@ class Population:
         new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
         # Check for SSN duplicates with existing SSNs
         ssn_values = ssns.loc[ssns != ""]
-        all_ssns = pd.concat([ssn_values, new_births.ssn])
-        duplicate_mask = all_ssns.duplicated()
+        duplicate_mask = new_births["ssn"].isin(ssn_values) | new_births.duplicated(subset=["ssn"])
         additional_key = 1
         while sum(duplicate_mask) > 0:
             additional_key += 1
             new_births.loc[duplicate_mask, "ssn"] = self.ssn_generator.generate(
                 new_births.loc[duplicate_mask], additional_key).ssn
-            all_ssns = pd.concat([ssn_values, new_births.ssn])
-            duplicate_mask = all_ssns.duplicated()
-            # This checks for duplicates against existing SSNs that are not missing SSNs
+            duplicate_mask = new_births["ssn"].isin(ssn_values) | new_births.duplicated(subset=["ssn"])
+
         new_births["ssn"] = self.ssn_generator.remove_ssn(
             new_births["ssn"], self.proportion_newborns_no_ssn
         )

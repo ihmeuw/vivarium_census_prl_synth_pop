@@ -42,7 +42,9 @@ class SSNGenerator(GenericGenerator):
         -------
         returns pd.DataFrame with SSN information, encoded in three
         numeric columns `ssn_area`, `ssn_group`, `ssn_serial`, and one
-        str column that puts these together with dashes called `ssn`
+        str column that puts these together with dashes called `ssn`.
+        This will return a pd.DataFrame that is unique as simulants
+        will not have duplicated SSNs.
 
         Notes
         -----
