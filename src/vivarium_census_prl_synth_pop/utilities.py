@@ -8,7 +8,6 @@ from loguru import logger
 from scipy import stats
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash
-from vivarium.framework.values import Pipeline
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -247,7 +246,7 @@ def random_integers(
 def filter_by_rate(
     entity_to_filter: Union[pd.Index, pd.Series],
     randomness: RandomnessStream,
-    rate_producer: Union[LookupTable, Pipeline],
+    rate_producer: LookupTable,
     additional_key: Any = None,
 ) -> pd.Index:
     """
