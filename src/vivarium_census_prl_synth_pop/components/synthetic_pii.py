@@ -284,7 +284,7 @@ class NameGenerator(GenericGenerator):
         last_names = pd.Series(index=df_in.index, dtype=str)
         for race_eth, df_race_eth in df_in.groupby("race_ethnicity"):
             last_names.loc[df_race_eth.index] = self.random_last_names(
-                self.randomness, race_eth, len(df_race_eth)
+                self.randomness, race_eth, len(df_race_eth), "last_name"
             )
         # TODO: include household structure
         return pd.DataFrame(last_names, columns=["last_name"])
