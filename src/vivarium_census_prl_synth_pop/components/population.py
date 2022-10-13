@@ -118,14 +118,9 @@ class Population:
         pop["date_of_birth"] = self.start_time - pd.to_timedelta(
             np.round(pop["age"] * 365.25), unit="days"
         )
-        # format
-        n_chosen = pop.shape[0]  # what is this?
 
        # Add Social Security Numbers
         pop["ssn"] = self.ssn_generator.generate(pop).ssn
-        # Check for duplicate ssn
-        while len(pop.ssn) != len(pop.ssn.unique()):
-            pop["ssn"] = self.ssn_generator.generate(pop).ssn
         pop["ssn"] = self.ssn_generator.remove_ssn(pop["ssn"], self.proportion_with_no_ssn)
 
         pop["entrance_time"] = pop_data.creation_time
@@ -276,10 +271,18 @@ class Population:
         new_births["entrance_time"] = pop_data.creation_time
         new_births["exit_time"] = pd.NaT
 
-        # Generate SSNs for newborns and prevent dups
-        new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
-        while len(new_births.ssn) != len(new_births.ssn.unique()) or sum(new_births.ssn.isin(ssns)) > 0:
-            new_births["ssn"] = self.ssn_generator.generate(new_births).ssn
+        # Generate SSNs for newborns
+        # Check for SSN duplicates with existing SSNs
+        to_generate = pd.Series(True, index=new_births.index)
+        additional_key = 1
+        while to_generate.any():
+            new_births.loc[to_generate, "ssn"] = self.ssn_generator.generate(new_births.loc[to_generate], additional_key).ssn
+            additional_key += 1
+            duplicate_mask = to_generate & new_births["ssn"].isin(ssns)
+            ssns = pd.concat([ssns, new_births.loc[to_generate & ~duplicate_mask, "ssn"]])
+            # Adds SSNs from new births to population SSNs series that are not duplicates
+            to_generate = duplicate_mask
+
         new_births["ssn"] = self.ssn_generator.remove_ssn(
             new_births["ssn"], self.proportion_newborns_no_ssn
         )

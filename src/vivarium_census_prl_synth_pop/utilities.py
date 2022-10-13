@@ -226,7 +226,7 @@ def random_integers(
     min_val
         inclusive
     max_val
-        exclusive
+        inclusive
     index
         an index whose length is the number of random draws made
         and which indexes the returned `pandas.Series`.
@@ -238,22 +238,23 @@ def random_integers(
     Returns
     -------
     pandas.Series
-        An indexed set of integers in the interval [a,b)
+        An indexed set of integers in the interval [a,b]
     """
-    return np.floor(randomness.get_draw(index=index, additional_key=additional_key) * max_val + min_val).astype(int)
+    return np.floor(randomness.get_draw(index=index, additional_key=additional_key) * (max_val + 1 - min_val) + min_val).astype(int)
 
 
 def filter_by_rate(
-    sims_to_filter: Union[pd.Index, pd.Series],
+    entity_to_filter: Union[pd.Index, pd.Series],
     randomness: RandomnessStream,
-    rate_filter: LookupTable,
+    rate_producer: LookupTable,
     additional_key: Any = None,
 ) -> pd.Index:
     """
     Parameters
     ----------
-    sims_to_filter: a series of every entity that might move. not necessarily unique.
-    rate_filter: rate to filter sims_to_filter
+    entity_to_filter: a series of every entity that might move. not necessarily unique.  Can be a list of ids or an
+        index (household_ids, business_ids, or pandas index or simulants who may move).
+    rate_producer: rate_producer for move rates
     randomness: RandomnessStream for component this is being run in
     additional_key: descriptive key to make sure randomness stream produces unique results
 
@@ -261,13 +262,13 @@ def filter_by_rate(
     -------
     a pd.Index, subset from simulants, with those selected to be filtered.
     """
-    sims_to_filter = sims_to_filter.drop_duplicates()
-    if type(sims_to_filter) is pd.Series:
-        idx = sims_to_filter.index
+    entity_to_filter = entity_to_filter.drop_duplicates()
+    if type(entity_to_filter) is pd.Series:
+        idx = entity_to_filter.index
     else:
-        idx = sims_to_filter
+        idx = entity_to_filter
 
     filtered_sims = randomness.filter_for_rate(
-        sims_to_filter, rate_filter(idx), additional_key
+        entity_to_filter, rate_producer(idx), additional_key
     )
     return filtered_sims

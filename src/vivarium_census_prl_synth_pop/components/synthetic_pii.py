@@ -19,7 +19,7 @@ class GenericGenerator:
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
 
-    def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
+    def generate(self, df_in: pd.DataFrame, additional_key: Any = None) -> pd.DataFrame:
         return pd.DataFrame(index=df_in.index)
 
     def noise(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -31,7 +31,7 @@ class SSNGenerator(GenericGenerator):
     def name(self):
         return "SSNGenerator"
 
-    def generate(self, df_in: pd.DataFrame) -> pd.DataFrame:
+    def generate(self, df_in: pd.DataFrame, additional_key: Any = None) -> pd.DataFrame:
         """Generate synthetic Social Security Numbers
 
         Parameters
@@ -42,7 +42,9 @@ class SSNGenerator(GenericGenerator):
         -------
         returns pd.DataFrame with SSN information, encoded in three
         numeric columns `ssn_area`, `ssn_group`, `ssn_serial`, and one
-        str column that puts these together with dashes called `ssn`
+        str column that puts these together with dashes called `ssn`.
+        This will return a pd.DataFrame that is unique as simulants
+        will not have duplicated SSNs.
 
         Notes
         -----
@@ -51,31 +53,45 @@ class SSNGenerator(GenericGenerator):
 
         """
 
-        df = pd.DataFrame(index=df_in.index)
+        def generate_ssn(df_in: pd.DataFrame, additional_key: Any = None) -> pd.DataFrame:
+            df = pd.DataFrame(index=df_in.index)
 
-        area = random_integers(
-            min_val=1, max_val=899, index=df.index, randomness=self.randomness, additional_key="ssn_area",
-        )
-        area = np.where(area == 666, 667, area)
-        df["ssn_area"] = area
+            area = random_integers(
+                min_val=1, max_val=899, index=df.index, randomness=self.randomness,
+                additional_key=f"{additional_key}_ssn_area",
+            )
+            area = np.where(area == 666, 667, area)
+            df["ssn_area"] = area
 
-        group = random_integers(
-            min_val=1, max_val=99, index=df.index, randomness=self.randomness, additional_key="ssn_group"
-        )  # this is making some sims have a group of 100 - wrong
-        df["ssn_group"] = group
+            group = random_integers(
+                min_val=1, max_val=99, index=df.index, randomness=self.randomness,
+                additional_key=f"{additional_key}_ssn_group"
+            )
+            df["ssn_group"] = group
 
-        serial = random_integers(
-            min_val=1, max_val=9999, index=df.index, randomness=self.randomness, additional_key="ssn_serial"
-        )  # this does not make serial == 10,000 but could (sample size?)
-        df["ssn_serial"] = serial
+            serial = random_integers(
+                min_val=1, max_val=9999, index=df.index, randomness=self.randomness,
+                additional_key=f"{additional_key}_ssn_serial"
+            )
+            df["ssn_serial"] = serial
 
-        df["ssn"] = ""
-        df["ssn"] += df.ssn_area.astype(str).str.zfill(3)
-        df["ssn"] += "-"
-        df["ssn"] += df.ssn_group.astype(str).str.zfill(2)
-        df["ssn"] += "-"
-        df["ssn"] += df.ssn_serial.astype(str).str.zfill(4)
+            df["ssn"] = ""
+            df["ssn"] += df.ssn_area.astype(str).str.zfill(3)
+            df["ssn"] += "-"
+            df["ssn"] += df.ssn_group.astype(str).str.zfill(2)
+            df["ssn"] += "-"
+            df["ssn"] += df.ssn_serial.astype(str).str.zfill(4)
 
+            return df
+
+        if additional_key is None:
+            additional_key = 1
+        df = generate_ssn(df_in, additional_key)
+        duplicate_mask = df.duplicated(subset=["ssn"])
+        while sum(duplicate_mask) > 0:
+            additional_key += 1
+            df.loc[duplicate_mask, "ssn"] = generate_ssn(df_in.loc[duplicate_mask], additional_key)["ssn"]
+            duplicate_mask = df.duplicated(subset=["ssn"])
         return df
 
     def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: LookupTable) -> pd.Series:
