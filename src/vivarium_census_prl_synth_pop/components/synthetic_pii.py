@@ -170,7 +170,6 @@ class NameGenerator(GenericGenerator):
 
     def random_last_names(
         self,
-        randomness: RandomnessStream,
         race_eth: str,
         size: int,
         additional_key: Any = None,
@@ -209,7 +208,7 @@ class NameGenerator(GenericGenerator):
 
         # for some names, add a hyphen between two randomly samples last names
         probability_of_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
-        hyphen_rows = randomness.get_draw(last_names.index) < probability_of_hyphen
+        hyphen_rows = self.randomness.get_draw(last_names.index, "choose_hyphen_sims") < probability_of_hyphen
         if hyphen_rows.sum() > 0:
             last_names[hyphen_rows] += (
                 "-"
@@ -218,12 +217,13 @@ class NameGenerator(GenericGenerator):
                     n_to_choose=hyphen_rows.sum(),
                     randomness_stream=self.randomness,
                     weights=df_census_names[race_eth],
+                    additional_key="hyphen_last_names"
                 ).to_numpy()
             )
 
         # add spaces to some names
         probability_of_space = data_values.PROBABILITY_OF_SPACE_IN_NAME[race_eth]
-        space_rows = randomness.get_draw(last_names.index) < probability_of_space * (
+        space_rows = self.randomness.get_draw(last_names.index, "choose_space_sims") < probability_of_space * (
             1 - hyphen_rows
         )  # HACK: don't put spaces in names that are already hyphenated
         if space_rows.sum() > 0:
@@ -234,6 +234,7 @@ class NameGenerator(GenericGenerator):
                     n_to_choose=space_rows.sum(),
                     randomness_stream=self.randomness,
                     weights=df_census_names[race_eth],
+                    additional_key="space_last_names"
                 ).to_numpy()
             )
 
@@ -284,7 +285,7 @@ class NameGenerator(GenericGenerator):
         last_names = pd.Series(index=df_in.index, dtype=str)
         for race_eth, df_race_eth in df_in.groupby("race_ethnicity"):
             last_names.loc[df_race_eth.index] = self.random_last_names(
-                self.randomness, race_eth, len(df_race_eth), "last_name"
+                race_eth, len(df_race_eth), "last_name"
             )
         # TODO: include household structure
         return pd.DataFrame(last_names, columns=["last_name"])
