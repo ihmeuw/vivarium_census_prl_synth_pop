@@ -70,12 +70,8 @@ class PersonMigration:
         self.person_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
-        proportion_simulants_leaving_country_data = builder.lookup.build_table(
+        self.proportion_simulants_leaving_country = builder.lookup.build_table(
             data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
-        )
-        self.proportion_simulants_leaving_country = builder.value.register_rate_producer(
-            "proportion_simulants_leaving_country",
-            source=proportion_simulants_leaving_country_data,
         )
 
         builder.event.register_listener("time_step", self.on_time_step)

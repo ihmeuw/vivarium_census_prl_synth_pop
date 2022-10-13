@@ -80,6 +80,7 @@ class Businesses:
         self.businesses_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
+
         self.addresses = builder.components.get_component("Address")
         builder.population.initializes_simulants(
             self.on_initialize_simulants,

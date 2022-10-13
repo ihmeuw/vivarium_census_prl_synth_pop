@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Tuple, Union
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
@@ -94,7 +94,7 @@ class SSNGenerator(GenericGenerator):
             duplicate_mask = df.duplicated(subset=["ssn"])
         return df
 
-    def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: Pipeline) -> pd.Series:
+    def remove_ssn(self, ssn_column: pd.Series, proportion_no_ssn: LookupTable) -> pd.Series:
         ssn_column = ssn_column.copy()
         rows_to_blank = self.randomness.filter_for_probability(
             ssn_column, proportion_no_ssn(ssn_column.index)
