@@ -287,7 +287,6 @@ class Population:
             ssns = pd.concat([ssns, new_births.loc[to_generate & ~duplicate_mask, "ssn"]])
             # Adds SSNs from new births to population SSNs series that are not duplicates
             to_generate = duplicate_mask
-            # Consider finding solution that doesn't have different index lengths
 
         new_births["ssn"] = self.ssn_generator.remove_ssn(
             new_births["ssn"], self.proportion_newborns_no_ssn
