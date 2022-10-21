@@ -14,12 +14,19 @@ for an example.
 """
 from typing import Dict
 
+from collections import defaultdict
+import numpy as np
 import pandas as pd
 from vivarium.framework.artifact import EntityKey
 from vivarium_inputs import interface
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
+from vivarium_census_prl_synth_pop.constants import (
+    data_keys,
+    data_values,
+    metadata,
+    paths,
+)
 from vivarium_census_prl_synth_pop.utilities import (
     get_norm_from_quantiles,
     get_random_variable_draws_for_location,
@@ -52,6 +59,7 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
         data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
         data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
+        data_keys.SYNTHETIC_DATA.BUSINESS_NAMES: generate_business_names_data,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -300,3 +308,83 @@ def create_draws(df: pd.DataFrame, key: str, location: str):
     )
 
     return draws
+
+
+def generate_business_names_data(key: str, location: str) -> pd.Series:
+    # loads csv of business names and generates pandas series with random business names
+
+    business_names = pd.read_csv(paths.BUSINESS_NAMES_DATA)
+    bigrams = make_bigrams(business_names)  # bigrams is a pd.Series with multi-index with first_word, second_word
+
+    # Get frequency of business names and find uncommon ones
+    s_name_freq = business_names.location_name.value_counts()
+    real_but_uncommon_names = set(s_name_freq[s_name_freq < 1_000].index)
+
+    n_total_names = 15_000_000  # How do we want to choose this and declare it as a constant?
+    new_name_list = []
+
+    # Generate random business names and add them to new name list
+    i = 0
+    while len(new_name_list) < n_total_names:
+        if i % 25 == 0:
+            print('.', end=' ', flush=True)
+        candidate_name = sample_name(bigrams, data_values.BUSINESS_NAMES_MAX_TOKENS_LENGTH)
+        if candidate_name not in real_but_uncommon_names:
+            # todo: ask RT if we can have duplicate business names and avoid certain dups?
+            if candidate_name not in new_name_list:
+                new_name_list.append(candidate_name)
+
+        i += 1
+
+    return pd.Series(new_name_list, name='business_name')
+
+
+def make_bigrams(df: pd.DataFrame):
+    # Update bigrams default dict to have token choices to generate business names
+
+    series = df.squeeze()
+    word_pairs = []
+    for i in range(len(series)):
+        name_i = series.loc[i]
+        # Get list of each element for each room (name)
+        split_name_i = name_i.split(" ")
+        for j in range(len(split_name_i)):
+            if j == 0:
+                word_pairs.append(["<start>", split_name_i[j]])
+            else:
+                word_pairs.append([split_name_i[j - 1], split_name_i[j]])
+        # Add "end" token, so we don't loop forever
+        word_pairs.append([split_name_i[j], "<end>"])
+
+    pairs = pd.DataFrame(data=word_pairs, columns=["first_word", "second_word"])
+    bigrams = pairs.groupby(["first_word", "second_word"]).value_counts()
+
+    return bigrams
+
+
+def sample_name(bigrams: pd.Series, n_max_tokens: int) -> str:
+    """
+
+    Parameters
+    ----------
+    bigrams: pandas multi-index series with first_word and second_word index levels and frequency as value.
+    n_max_tokens: Max number of words that could be generated for a business name
+
+    Returns
+    -------
+    A string that is a randomly generated business name
+    """
+    name = []
+    token = "<start>"
+
+    for i in range(n_max_tokens):
+        # Get subset of bigrams series by first_word index level of token
+        subset = bigrams.loc[bigrams.index.get_level_values("first_word") == token].droplevel("first_word")
+        choices = list(subset.index)
+        # Pick token for next lookup - choosing between second_word index level
+        token = np.random.choice(choices, p=subset / subset.sum())
+        if token == '<end>':
+            break
+        name.append(token)
+
+    return ' '.join(name)
