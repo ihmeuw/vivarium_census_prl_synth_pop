@@ -104,7 +104,6 @@ class Businesses:
 
             pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
             pop["employer_id"] = UNEMPLOYED_ID
-            pop["income"] = 0
             working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
@@ -128,6 +127,7 @@ class Businesses:
                 pop = self._update_employer_metadata(pop, military_index)
 
             # Update income
+            pop["income"] = 0
             pop.loc[pop["employer_id"] != UNEMPLOYED_ID, "income"] = 29_000
             self.population_view.update(pop)
         else:
