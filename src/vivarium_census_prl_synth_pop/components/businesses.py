@@ -194,18 +194,18 @@ class Businesses:
             )
 
         # change jobs if of working age already
-        working_age = pop.loc[pop.age >= WORKING_AGE].index
-        changing_jobs = self.randomness.filter_for_rate(
-            working_age,
-            self.job_change_rate(working_age)
-            * event.step_size.days
-            / utilities.DAYS_PER_YEAR,
+        working_age_idx = pop.loc[pop.age >= WORKING_AGE].index
+        changing_jobs_idx = filter_by_rate(
+            working_age_idx,
+            self.randomness,
+            self.job_change_rate,
+            "changing jobs"
         )
-        if len(changing_jobs) > 0:
-            pop.loc[changing_jobs, "employer_id"] = self.assign_different_employer(
-                changing_jobs
+        if len(changing_jobs_idx) > 0:
+            pop.loc[changing_jobs_idx, "employer_id"] = self.assign_different_employer(
+                changing_jobs_idx
             )
-            pop = self._update_employer_metadata(pop, changing_jobs)
+            pop = self._update_employer_metadata(pop, changing_jobs_idx)
 
         # assign job if turning working age
         turning_working_age = pop.loc[
