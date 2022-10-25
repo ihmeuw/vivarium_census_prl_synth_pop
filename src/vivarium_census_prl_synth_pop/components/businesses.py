@@ -61,6 +61,7 @@ class Businesses:
             "employer_name",
             "employer_address",
             "employer_zipcode",
+            "income",
         ]
         self.columns_used = [
             "address",
@@ -108,7 +109,7 @@ class Businesses:
 
             # merge on employer addresses and names
             pop = pop.merge(
-                self.businesses[self.columns_created], on="employer_id", how="left"
+                self.businesses[self.columns_created[:-1]], on="employer_id", how="left"
             )
 
             # Give military gq sims military employment
@@ -125,6 +126,9 @@ class Businesses:
                 ] = data_values.MilitaryEmployer.EMPLOYER_ID
                 pop = self._update_employer_metadata(pop, military_index)
 
+            # Update income
+            pop["income"] = 0
+            pop.loc[pop["employer_id"] != UNEMPLOYED_ID, "income"] = 29_000
             self.population_view.update(pop)
         else:
             new_births = self.population_view.get(pop_data.index)
@@ -133,6 +137,7 @@ class Businesses:
             new_births["employer_name"] = "unemployed"
             new_births["employer_address"] = "NA"
             new_births["employer_zipcode"] = "NA"
+            new_births["income"] = 0
 
             self.population_view.update(new_births)
 
@@ -162,6 +167,7 @@ class Businesses:
                 all_businesses.loc[businesses_that_move_idx],
                 state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
             )
+            # todo:  Should add income/salarary to mapping function here
             self.businesses = update_address_and_zipcode(
                 df=self.businesses,
                 rows_to_update=businesses_that_move_idx,
@@ -176,6 +182,7 @@ class Businesses:
             rows_changing_addresses = pop.loc[
                 pop.employer_id.isin(all_businesses.loc[businesses_that_move_idx])
             ]
+            # todo:  Should add income/salarary to mapping function here
             pop = update_address_and_zipcode(
                 df=pop,
                 rows_to_update=rows_changing_addresses.index,
@@ -226,6 +233,9 @@ class Businesses:
             pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
             pop = self._update_employer_metadata(pop, military_index)
 
+        # Update income
+        pop.loc[pop["employer_id"] == UNEMPLOYED_ID, "income"] = 0
+        pop.loc[pop["employer_id"] != UNEMPLOYED_ID, "income"] = 29_000
         self.population_view.update(pop)
 
     ##################
