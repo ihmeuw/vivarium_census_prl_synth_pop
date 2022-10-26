@@ -12,7 +12,7 @@ def generate_business_names_data(n_total_names: str):
     # loads csv of business names and generates pandas series with random business names
 
     business_names = pd.read_csv(paths.BUSINESS_NAMES_DATA)
-    bigrams = make_bigrams(business_names)  # bigrams is a pd.Series with multi-index with first_word, second_word
+    bigrams = make_bigrams(business_names)
 
     # Get frequency of business names and find uncommon ones
     s_name_freq = business_names.location_name.value_counts()
