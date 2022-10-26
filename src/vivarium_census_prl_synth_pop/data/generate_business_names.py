@@ -31,8 +31,12 @@ def generate_business_names_data(n_total_names: str):
         new_names = pd.concat([new_names, more_names]).drop_duplicates()
         new_names = new_names.loc[~new_names.isin(real_but_uncommon_names)]
 
-    new_names = pd.Series(data=new_names, name="business_names")
-    new_names.to_csv(paths.BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH, compression="bz2", index=False)
+    new_names.to_csv(
+        paths.BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH,
+        header=["business_names"],
+        index=False,
+        compression="bz2"
+    )
 
 
 def make_bigrams(df: pd.DataFrame):
