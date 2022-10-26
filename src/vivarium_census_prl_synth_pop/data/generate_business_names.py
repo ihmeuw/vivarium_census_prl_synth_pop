@@ -8,19 +8,18 @@ from loguru import logger
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 
 
-def generate_business_names_data(n_total_names: int):
+def generate_business_names_data(n_total_names: str):
     # loads csv of business names and generates pandas series with random business names
 
     business_names = pd.read_csv(paths.BUSINESS_NAMES_DATA)
-    bigrams = make_bigrams(
-        business_names
-    )  # bigrams is a pd.Series with multi-index with first_word, second_word
+    bigrams = make_bigrams(business_names)  # bigrams is a pd.Series with multi-index with first_word, second_word
 
     # Get frequency of business names and find uncommon ones
     s_name_freq = business_names.location_name.value_counts()
     real_but_uncommon_names = set(s_name_freq[s_name_freq < 1_000].index)
 
     # Generate random business names.  Drop duplicates and overlapping names with uncommon names
+    n_total_names = int(n_total_names)  # Make int because of sys args
     new_names = pd.Series()
 
     # Generate additional names until desired number of random business names is met
@@ -84,13 +83,14 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
     for i in range(1, n_max_tokens):
         if i == 1:
             logger.info("Initializing random name sampling for business name generator")
-        logger.info(
-            f"Sampling random business_names.  Creating {i}th of {n_max_tokens} words (column) in business names."
-        )
         previous_word = f"word_{i - 1}"
         next_word = f"word_{i}"
         current_words_count_dict = names[previous_word].value_counts().to_dict()
         for word in current_words_count_dict.keys():
+            logger.info(
+                f"Generating {len(list(current_words_count_dict.keys()))} words "
+                f"in {i}th of {n_max_tokens} columns for business names data."
+            )
             if word != "<end>":
                 vals = list(bigrams[word].keys())
                 pr = np.array(list(bigrams[word].values()))
@@ -111,4 +111,4 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
 
 
 if __name__ == "__main__":
-    generate_business_names_data(*sys.argv[1])
+    generate_business_names_data(sys.argv[1])
