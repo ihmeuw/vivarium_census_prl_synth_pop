@@ -17,7 +17,9 @@ PERSONS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 HOUSEHOLD_MOVE_RATE_PATH = BASE_DIR / "data/raw_data/move_rates_including_gq.csv"
 BUSINESS_NAMES_DATA = BASE_DIR / "data/raw_data/business_names.csv.bz2"
 # todo: where do we want to save this: share or repo?
-BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH = PROJECT_ROOT / "data/raw_data/randomly_generated_business_names.hdf"
+BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH = (
+    PROJECT_ROOT / "data/raw_data/randomly_generated_business_names.csv.bz2"
+)
 
 HOUSEHOLDS_FILENAMES = [f"psam_hus{x}.csv" for x in ["a", "b", "c", "d"]]
 PERSONS_FILENAMES = [f"psam_pus{x}.csv" for x in ["a", "b", "c", "d"]]

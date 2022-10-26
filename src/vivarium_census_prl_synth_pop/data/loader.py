@@ -13,21 +13,13 @@ for an example.
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
 from typing import Dict
-from loguru import logger
 
-from collections import defaultdict
-import numpy as np
 import pandas as pd
 from vivarium.framework.artifact import EntityKey
 from vivarium_inputs import interface
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    metadata,
-    paths,
-)
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
 from vivarium_census_prl_synth_pop.utilities import (
     get_norm_from_quantiles,
     get_random_variable_draws_for_location,
@@ -60,7 +52,6 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
         data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
         data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
-        data_keys.SYNTHETIC_DATA.BUSINESS_NAMES: generate_business_names_data,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -309,101 +300,3 @@ def create_draws(df: pd.DataFrame, key: str, location: str):
     )
 
     return draws
-
-
-def generate_business_names_data(key: str, location: str) -> pd.Series:
-    # loads csv of business names and generates pandas series with random business names
-
-    business_names = pd.read_csv(paths.BUSINESS_NAMES_DATA)
-    bigrams = make_bigrams(business_names)  # bigrams is a pd.Series with multi-index with first_word, second_word
-
-    # Get frequency of business names and find uncommon ones
-    s_name_freq = business_names.location_name.value_counts()
-    real_but_uncommon_names = set(s_name_freq[s_name_freq < 1_000].index)
-
-    n_total_names = 100_000  # How do we want to choose this and declare it as a constant?
-
-    # Generate random business names.  Drop duplicates and overlapping names with uncommon names
-    new_names = pd.Series()
-
-    # Generate additional names until desired number of random business names is met
-    while len(new_names) < n_total_names:
-        n_needed = n_total_names - len(new_names)
-        more_names = sample_names(bigrams, n_needed, data_values.BUSINESS_NAMES_MAX_TOKENS_LENGTH)
-        new_names = pd.concat([new_names, more_names]).drop_duplicates()
-        new_names = new_names.loc[~new_names.isin(real_but_uncommon_names)]
-
-    new_names.to_hdf(
-        paths.BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH,
-        key="business_names",
-        mode="w"
-    )
-
-
-def make_bigrams(df: pd.DataFrame):
-    # Makes default dict of business names for map to sample from
-    # bigrams will be a Dict[str: Dict[str: int]]
-    # Example {"<start>": {keys are all first words for businesses: values are frequence where these pairs happen}}
-
-    def dict_factory():
-        return lambda: defaultdict(int)
-
-    bigrams = defaultdict(dict_factory())
-    n_rows = len(df)  # expect a few minutes
-
-    for i in range(n_rows):
-        if i % 10_000 == 0:
-            print('.', end=' ', flush=True)
-        names_i = df.iloc[i, 0]
-
-        tokens_i = names_i.split(' ')
-        for j in range(len(tokens_i)):
-            if j == 0:
-                bigrams['<start>'][tokens_i[j]] += 1
-            else:
-                bigrams[tokens_i[j - 1]][tokens_i[j]] += 1
-        bigrams[tokens_i[j]]['<end>'] += 1
-
-    return bigrams
-
-
-def sample_names(bigrams: defaultdict, n_businesses: int,  n_max_tokens: int) -> pd.Series:
-    """
-
-    Parameters
-    ----------
-    bigrams: Default dict produced from make_bigrams function (see formatting of default dict.
-    n_businesses: Int of how many business names to generate
-    n_max_tokens: Int of max number of words possible for a business name to contain
-
-    Returns
-    -------
-    A string that is a randomly generated business name
-    """
-
-    columns = [f'word_{i}' for i in range(n_max_tokens)]
-    names = pd.DataFrame(columns=columns)
-    names['word_0'] = ["<start>"] * n_businesses
-
-    for i in range(1, n_max_tokens):
-        # todo: change size based on number of names being created (n_businesses)
-        logger.info(
-            f"Sampling random business_names.  Creating {i}th of {n_max_tokens} words (column) in business names."
-        )
-        previous_word = f'word_{i - 1}'
-        next_word = f'word_{i}'
-        current_words_count_dict = names[previous_word].value_counts().to_dict()
-        for word in current_words_count_dict.keys():
-            if word != '<end>':
-                vals = list(bigrams[word].keys())
-                pr = np.array(list(bigrams[word].values()))
-                tokens = np.random.choice(vals, p=pr / pr.sum(), size=current_words_count_dict[word])
-
-                names.loc[names[previous_word] == word, next_word] = tokens
-
-    # Process generated names by combining all columns and dropping outer tokens of <start> and <end>
-    names = names.replace(np.nan, "", regex=True)
-    names["business_names"] = names[columns[1:]].apply(lambda row: " ".join(row.values.astype(str)), axis=1)
-    names["business_names"] = names["business_names"].str.split(" <").str[0]
-
-    return names["business_names"]
