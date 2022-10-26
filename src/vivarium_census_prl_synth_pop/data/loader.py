@@ -13,6 +13,7 @@ for an example.
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
 from typing import Dict
+from loguru import logger
 
 from collections import defaultdict
 import numpy as np
@@ -320,71 +321,89 @@ def generate_business_names_data(key: str, location: str) -> pd.Series:
     s_name_freq = business_names.location_name.value_counts()
     real_but_uncommon_names = set(s_name_freq[s_name_freq < 1_000].index)
 
-    n_total_names = 15_000_000  # How do we want to choose this and declare it as a constant?
-    new_name_list = []
+    n_total_names = 100_000  # How do we want to choose this and declare it as a constant?
 
-    # Generate random business names and add them to new name list
-    i = 0
-    while len(new_name_list) < n_total_names:
-        if i % 25 == 0:
-            print('.', end=' ', flush=True)
-        candidate_name = sample_name(bigrams, data_values.BUSINESS_NAMES_MAX_TOKENS_LENGTH)
-        if candidate_name not in real_but_uncommon_names:
-            # todo: ask RT if we can have duplicate business names and avoid certain dups?
-            if candidate_name not in new_name_list:
-                new_name_list.append(candidate_name)
+    # Generate random business names.  Drop duplicates and overlapping names with uncommon names
+    new_names = pd.Series()
 
-        i += 1
+    # Generate additional names until desired number of random business names is met
+    while len(new_names) < n_total_names:
+        n_needed = n_total_names - len(new_names)
+        more_names = sample_names(bigrams, n_needed, data_values.BUSINESS_NAMES_MAX_TOKENS_LENGTH)
+        new_names = pd.concat([new_names, more_names]).drop_duplicates()
+        new_names = new_names.loc[~new_names.isin(real_but_uncommon_names)]
 
-    return pd.Series(new_name_list, name='business_name')
+    new_names.to_hdf(
+        paths.BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH,
+        key="business_names",
+        mode="w"
+    )
 
 
 def make_bigrams(df: pd.DataFrame):
-    # Update bigrams default dict to have token choices to generate business names
+    # Makes default dict of business names for map to sample from
+    # bigrams will be a Dict[str: Dict[str: int]]
+    # Example {"<start>": {keys are all first words for businesses: values are frequence where these pairs happen}}
 
-    series = df.squeeze()
-    word_pairs = []
-    for i in range(len(series)):
-        name_i = series.loc[i]
-        # Get list of each element for each room (name)
-        split_name_i = name_i.split(" ")
-        for j in range(len(split_name_i)):
+    def dict_factory():
+        return lambda: defaultdict(int)
+
+    bigrams = defaultdict(dict_factory())
+    n_rows = len(df)  # expect a few minutes
+
+    for i in range(n_rows):
+        if i % 10_000 == 0:
+            print('.', end=' ', flush=True)
+        names_i = df.iloc[i, 0]
+
+        tokens_i = names_i.split(' ')
+        for j in range(len(tokens_i)):
             if j == 0:
-                word_pairs.append(["<start>", split_name_i[j]])
+                bigrams['<start>'][tokens_i[j]] += 1
             else:
-                word_pairs.append([split_name_i[j - 1], split_name_i[j]])
-        # Add "end" token, so we don't loop forever
-        word_pairs.append([split_name_i[j], "<end>"])
-
-    pairs = pd.DataFrame(data=word_pairs, columns=["first_word", "second_word"])
-    bigrams = pairs.groupby(["first_word", "second_word"]).value_counts()
+                bigrams[tokens_i[j - 1]][tokens_i[j]] += 1
+        bigrams[tokens_i[j]]['<end>'] += 1
 
     return bigrams
 
 
-def sample_name(bigrams: pd.Series, n_max_tokens: int) -> str:
+def sample_names(bigrams: defaultdict, n_businesses: int,  n_max_tokens: int) -> pd.Series:
     """
 
     Parameters
     ----------
-    bigrams: pandas multi-index series with first_word and second_word index levels and frequency as value.
-    n_max_tokens: Max number of words that could be generated for a business name
+    bigrams: Default dict produced from make_bigrams function (see formatting of default dict.
+    n_businesses: Int of how many business names to generate
+    n_max_tokens: Int of max number of words possible for a business name to contain
 
     Returns
     -------
     A string that is a randomly generated business name
     """
-    name = []
-    token = "<start>"
 
-    for i in range(n_max_tokens):
-        # Get subset of bigrams series by first_word index level of token
-        subset = bigrams.loc[bigrams.index.get_level_values("first_word") == token].droplevel("first_word")
-        choices = list(subset.index)
-        # Pick token for next lookup - choosing between second_word index level
-        token = np.random.choice(choices, p=subset / subset.sum())
-        if token == '<end>':
-            break
-        name.append(token)
+    columns = [f'word_{i}' for i in range(n_max_tokens)]
+    names = pd.DataFrame(columns=columns)
+    names['word_0'] = ["<start>"] * n_businesses
 
-    return ' '.join(name)
+    for i in range(1, n_max_tokens):
+        # todo: change size based on number of names being created (n_businesses)
+        logger.info(
+            f"Sampling random business_names.  Creating {i}th of {n_max_tokens} words (column) in business names."
+        )
+        previous_word = f'word_{i - 1}'
+        next_word = f'word_{i}'
+        current_words_count_dict = names[previous_word].value_counts().to_dict()
+        for word in current_words_count_dict.keys():
+            if word != '<end>':
+                vals = list(bigrams[word].keys())
+                pr = np.array(list(bigrams[word].values()))
+                tokens = np.random.choice(vals, p=pr / pr.sum(), size=current_words_count_dict[word])
+
+                names.loc[names[previous_word] == word, next_word] = tokens
+
+    # Process generated names by combining all columns and dropping outer tokens of <start> and <end>
+    names = names.replace(np.nan, "", regex=True)
+    names["business_names"] = names[columns[1:]].apply(lambda row: " ".join(row.values.astype(str)), axis=1)
+    names["business_names"] = names["business_names"].str.split(" <").str[0]
+
+    return names["business_names"]
