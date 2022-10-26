@@ -39,10 +39,39 @@ def generate_business_names_data(n_total_names: str):
     )
 
 
-def make_bigrams(df: pd.DataFrame):
-    # Makes default dict of business names for map to sample from
-    # bigrams will be a Dict[str: Dict[str: int]]
-    # Example {"<start>": {keys are all first words for businesses: values are frequence where these pairs happen}}
+def make_bigrams(df: pd.DataFrame) -> defaultdict:
+    """
+
+    Parameters
+    ----------
+    df: A one column dataframe from a CSV containing a list of real business names.
+
+    Makes default dict of business names for map to sample from
+    Bigrams will be a Dict[str: Dict[str: int]]
+
+    Example:  A series of business names to be turned into a Dict map
+            location_name
+        0 	Cottage Inn Pizza
+        1 	Union St Barber Shop
+        2 	Larkfield Auto Center
+        3 	Randall Guns
+        4 	Sport Clips
+
+    Create bigrams to map a word and the frequence at which the next choice happens.
+
+        {'<start>': {'Cottage': 1,
+                     'Union': 1,
+                     'Larkfield': 1,
+                     'Randall': 1,
+                     'Sport': 1
+                     }
+        }
+
+    Go through each word in each name and get the frequency of each name pair in the series
+    Returns
+    -------
+    defaultdict
+    """
 
     def dict_factory():
         return lambda: defaultdict(int)
