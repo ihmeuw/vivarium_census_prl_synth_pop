@@ -136,7 +136,8 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
                 )
 
                 names.loc[names[previous_word] == word, next_word] = tokens
-        logger.info(f"Complete {i} of {n_max_tokens} columns for business names generation")
+            else:
+                logger.info(f"Generated {current_words_count_dict[word]} business names containing {i} words.")
 
     # Process generated names by combining all columns and dropping outer tokens of <start> and <end>
     names = names.replace(np.nan, "", regex=True)
