@@ -117,7 +117,6 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
     A string that is a randomly generated business name
     """
 
-    logger.info("")
     columns = [f"word_{i}" for i in range(n_max_tokens)]
     names = pd.DataFrame(columns=columns)
     names["word_0"] = ["<start>"] * n_businesses
@@ -129,10 +128,6 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
         next_word = f"word_{i}"
         current_words_count_dict = names[previous_word].value_counts().to_dict()
         for word in current_words_count_dict.keys():
-            logger.info(
-                f"Generating {len(list(current_words_count_dict.keys()))} words "
-                f"in {i}th of {n_max_tokens} columns for business names data."
-            )
             if word != "<end>":
                 vals = list(bigrams[word].keys())
                 freq = np.array(list(bigrams[word].values()))
@@ -141,6 +136,7 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
                 )
 
                 names.loc[names[previous_word] == word, next_word] = tokens
+        logger.info(f"Complete {i} of {n_max_tokens} columns for business names generation")
 
     # Process generated names by combining all columns and dropping outer tokens of <start> and <end>
     names = names.replace(np.nan, "", regex=True)
