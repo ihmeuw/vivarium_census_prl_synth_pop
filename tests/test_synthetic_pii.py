@@ -63,7 +63,8 @@ def test_generic():
 
 def get_draw(self, index, additional_key=None) -> pd.Series:
     # Mock get draw function
-    return pd.Series(0, index=index)
+    s = np.random.uniform(size=len(index))
+    return pd.Series(data=s, index=index)
 
 
 def test_ssn(mocker):
