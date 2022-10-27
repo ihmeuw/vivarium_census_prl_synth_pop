@@ -15,8 +15,8 @@ def generate_business_names_data(n_total_names: str):
     bigrams = make_bigrams(business_names)
 
     # Get frequency of business names and find uncommon ones
-    s_name_freq = business_names.location_name.value_counts()
-    real_but_uncommon_names = set(s_name_freq[s_name_freq < 1_000].index)
+    business_names_freq = business_names.location_name.value_counts()
+    real_but_uncommon_names = set(business_names_freq[business_names_freq < 1_000].index)
 
     # Generate random business names.  Drop duplicates and overlapping names with uncommon names
     n_total_names = int(n_total_names)  # Make int because of sys args
