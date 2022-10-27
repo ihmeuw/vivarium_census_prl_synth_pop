@@ -65,9 +65,16 @@ def make_bigrams(df: pd.DataFrame) -> defaultdict:
                      'Randall': 1,
                      'Sport': 1
                      }
+         'Cottage': {'Inn': 1
+                    }
+         'Inn':     {'Pizza': 1
+                    }
+         'Pizza':   {'<end>': 1
+                    }
         }
 
-    Go through each word in each name and get the frequency of each name pair in the series
+    Go through each word in each name and get the frequency of each name pair in the entire series.  The default dict
+        allows us to add to that frequency when we get a repeat and create a new key if that key does not exist.
     Returns
     -------
     defaultdict
@@ -100,7 +107,8 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
 
     Parameters
     ----------
-    bigrams: Default dict produced from make_bigrams function (see formatting of default dict.
+    bigrams: Default dict of format Dict{str: Dict{str: int}} capturing all word pairs and their frequencies from
+        business names data..
     n_businesses: Int of how many business names to generate
     n_max_tokens: Int of max number of words possible for a business name to contain
 
@@ -127,9 +135,9 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
             )
             if word != "<end>":
                 vals = list(bigrams[word].keys())
-                pr = np.array(list(bigrams[word].values()))
+                freq = np.array(list(bigrams[word].values()))
                 tokens = np.random.choice(
-                    vals, p=pr / pr.sum(), size=current_words_count_dict[word]
+                    vals, p=freq / freq.sum(), size=current_words_count_dict[word]
                 )
 
                 names.loc[names[previous_word] == word, next_word] = tokens
