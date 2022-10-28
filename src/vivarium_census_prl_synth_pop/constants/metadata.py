@@ -8,7 +8,7 @@ import pandas as pd
 
 
 PROJECT_NAME = "vivarium_census_prl_synth_pop"
-CLUSTER_PROJECT = "proj_cost_effect"
+CLUSTER_PROJECT = "proj_simscience_prod"
 
 CLUSTER_QUEUE = "all.q"
 MAKE_ARTIFACT_MEM = "10G"
