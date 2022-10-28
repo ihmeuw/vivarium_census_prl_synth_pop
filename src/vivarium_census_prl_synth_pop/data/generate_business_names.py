@@ -1,4 +1,5 @@
 import sys
+import time
 from collections import defaultdict
 
 import numpy as np
@@ -23,13 +24,26 @@ def generate_business_names_data(n_total_names: str):
     new_names = pd.Series()
 
     # Generate additional names until desired number of random business names is met
+    cycles = 1
+    logger.info("Initializing random name sampling for business name generator")
     while len(new_names) < n_total_names:
         n_needed = n_total_names - len(new_names)
+        if cycles > 1:
+            logger.info(f"{n_needed} duplicates found.  Generating additional names for the {cycles} time.")
+        start_time = time.time()
         more_names = sample_names(
             bigrams, n_needed, data_values.BUSINESS_NAMES_MAX_TOKENS_LENGTH
         )
+        generation_time = time.time() - start_time
+        logger.info(f"Total time for {cycles} iteration of name sample was {generation_time}.")
+
+        # Check for duplicates
+        duplicate_processing_start_time = time.time()
         new_names = pd.concat([new_names, more_names]).drop_duplicates()
         new_names = new_names.loc[~new_names.isin(real_but_uncommon_names)]
+        duplicate_processing_time = time.time() - duplicate_processing_start_time
+        logger.info(f"Total time used to check for duplicates was {duplicate_processing_time}.")
+        cycles += 1
 
     new_names.to_csv(
         paths.BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH,
@@ -121,22 +135,20 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
     names = pd.DataFrame(columns=columns)
     names["word_0"] = ["<start>"] * n_businesses
 
-    logger.info("Initializing random name sampling for business name generator")
     for i in range(1, n_max_tokens):
         previous_word = f"word_{i - 1}"
         next_word = f"word_{i}"
         current_words_count_dict = names[previous_word].value_counts().to_dict()
         for word in current_words_count_dict.keys():
-            if word != "<end>":
+            if word == "<end>":
+                logger.info(f"Generated {current_words_count_dict[word]} business names containing {i} words.")
+            else:
                 vals = list(bigrams[word].keys())
                 freq = np.array(list(bigrams[word].values()))
                 tokens = np.random.choice(
                     vals, p=freq / freq.sum(), size=current_words_count_dict[word]
                 )
-
                 names.loc[names[previous_word] == word, next_word] = tokens
-            else:
-                logger.info(f"Generated {current_words_count_dict[word]} business names containing {i} words.")
 
     # Process generated names by combining all columns and dropping outer tokens of <start> and <end>
     names = names.replace(np.nan, "", regex=True)
