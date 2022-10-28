@@ -35,7 +35,7 @@ def generate_business_names_data(n_total_names: str):
             bigrams, n_needed, data_values.BUSINESS_NAMES_MAX_TOKENS_LENGTH
         )
         generation_time = time.time() - start_time
-        logger.info(f"Total time for {cycles} iteration of name sample was {generation_time}.")
+        logger.info(f"Total time to sample {n_needed} names for {cycles} iteration of name sample was {generation_time}.")
 
         # Check for duplicates
         duplicate_processing_start_time = time.time()
