@@ -57,6 +57,7 @@ PROBABILITY_OF_SPACE_IN_NAME = {
 #####################
 
 # data from https://www.jec.senate.gov/public/index.cfm/republicans/fl/
+BUSINESS_NAMES_MAX_TOKENS_LENGTH = 15
 PROPORTION_WORKFORCE_EMPLOYED = {"Florida": 0.576}
 WORKING_AGE = 18
 EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
