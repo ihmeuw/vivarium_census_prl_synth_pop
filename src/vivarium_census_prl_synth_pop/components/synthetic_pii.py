@@ -84,6 +84,7 @@ class SSNGenerator(GenericGenerator):
 
             return df
 
+        # Implementation in population.py does not pass an additional key so additional key will always default to 1.
         if additional_key is None:
             additional_key = 1
         df = generate_ssn(df_in, additional_key)
