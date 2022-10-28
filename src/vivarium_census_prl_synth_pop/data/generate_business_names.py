@@ -121,9 +121,8 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
     names = pd.DataFrame(columns=columns)
     names["word_0"] = ["<start>"] * n_businesses
 
+    logger.info("Initializing random name sampling for business name generator")
     for i in range(1, n_max_tokens):
-        if i == 1:
-            logger.info("Initializing random name sampling for business name generator")
         previous_word = f"word_{i - 1}"
         next_word = f"word_{i}"
         current_words_count_dict = names[previous_word].value_counts().to_dict()
