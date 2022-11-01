@@ -21,15 +21,15 @@ def generate_business_names_data(n_total_names: str):
 
     # Generate random business names.  Drop duplicates and overlapping names with uncommon names
     n_total_names = int(n_total_names)  # Make int because of sys args
-    batch_sets = 15
-    new_names = pd.Series()
+    batch_sets = 15  # Number of times to run main loop of sampling names
 
-    # Generate additional names until desired number of random business names is met
-    cycles = 1
+    # Generate additional names until desired number of random business names is met.  Run in batches of 100k to
+    #    improve runtime due to duplicate generation
     sets = 0
-    logger.info("Initializing random name sampling for business name generator")
     while sets < batch_sets:
-        logger.info(f"Running main loop for batch {sets+1} of {sets} for business name generation")
+        new_names = pd.Series()
+        cycles = 1
+        logger.info(f"Running main loop for batch {sets+1} of {batch_sets} for business names generation")
         while len(new_names) < n_total_names:
             n_needed = n_total_names - len(new_names)
             if cycles > 1:
