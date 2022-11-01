@@ -9,7 +9,7 @@ from loguru import logger
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 
 
-def generate_business_names_data(n_total_names: str, batch_sets: str):
+def generate_business_names_data(n_total_names: str):
     # loads csv of business names and generates pandas series with random business names
 
     business_names = pd.read_csv(paths.BUSINESS_NAMES_DATA)
@@ -29,6 +29,7 @@ def generate_business_names_data(n_total_names: str, batch_sets: str):
     sets = 0
     logger.info("Initializing random name sampling for business name generator")
     while sets < batch_sets:
+        logger.info(f"Running main loop for batch {sets+1} of {sets} for business name generation")
         while len(new_names) < n_total_names:
             n_needed = n_total_names - len(new_names)
             if cycles > 1:
@@ -165,4 +166,4 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
 
 
 if __name__ == "__main__":
-    generate_business_names_data(sys.argv[1:3])
+    generate_business_names_data(sys.argv[1])
