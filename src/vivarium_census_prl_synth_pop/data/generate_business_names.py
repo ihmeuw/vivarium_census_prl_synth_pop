@@ -21,7 +21,7 @@ def generate_business_names_data(n_total_names: str):
 
     # Generate random business names.  Drop duplicates and overlapping names with uncommon names
     n_total_names = int(n_total_names)  # Make int because of sys args
-    batch_sets = int(batch_sets)
+    batch_sets = 15
     new_names = pd.Series()
 
     # Generate additional names until desired number of random business names is met
