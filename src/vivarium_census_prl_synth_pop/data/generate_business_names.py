@@ -153,6 +153,7 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
                 tokens = np.random.choice(
                     vals, p=freq / freq.sum(), size=current_words_count_dict[word]
                 )
+                # Possible improvement to decrease number of duplicates by removing p arg
                 names.loc[names[previous_word] == word, next_word] = tokens
 
     # Process generated names by combining all columns and dropping outer tokens of <start> and <end>
