@@ -31,8 +31,13 @@ if __name__ == "__main__":
     ]
 
     # use "pip install -e .[dev]" to install required components + extra components
-    data_requires = ["vivarium_cluster_tools>=1.3.6", "vivarium_inputs[data]==4.0.8"]
-    test_requirements = ["pytest", "pytest-mock"]
+    data_requires = [
+        "vivarium_cluster_tools>=1.3.7",
+        "vivarium_inputs[data]==4.0.8",
+    ]
+    test_requirements = [
+        "pytest", "pytest-mock",
+    ]
 
     setup(
         name=about["__title__"],
