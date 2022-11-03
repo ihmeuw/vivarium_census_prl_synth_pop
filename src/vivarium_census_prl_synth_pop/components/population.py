@@ -253,12 +253,25 @@ class Population:
             "relation_to_household_head"
         ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
 
-        # Make age negative so age + step size gets simulants correct age at the end of the time step (ref line 284)
-        new_births["age"] = -self.randomness.get_draw(new_births.index, "age") * (
-            self.step_size_days / DAYS_PER_YEAR
+        # birthday map between parent_ids and DOB (so twins get same bday)
+        dob_map = {
+            parent: dob for (parent, dob) in zip(
+                parent_ids.unique(),
+                pop_data.creation_time + pd.to_timedelta(
+                    np.ceil(self.randomness.get_draw(parent_ids.unique(), "dob") * self.step_size_days), unit="days"
+                )
+            )
+        }
+        new_births["date_of_birth"] = new_births["parent_id"].map(dob_map)
+
+        all_twins = new_births.loc[new_births["parent_id"].duplicated(keep=False)].index
+
+        new_births["age"] = (pop_data.creation_time - new_births["date_of_birth"]).dt.days / DAYS_PER_YEAR
+        new_births["age"] += self.randomness.get_draw(new_births.index, "age") * (
+            0.9 / DAYS_PER_YEAR
         )
-        new_births["date_of_birth"] = pop_data.creation_time - pd.to_timedelta(
-            np.round(new_births["age"] * DAYS_PER_YEAR), unit="days"
+        new_births.loc[all_twins, "age"] += self.randomness.get_draw(all_twins, "differentiate_twins") * (
+                1 / 60 / 60 / 24 / DAYS_PER_YEAR  # random draw between 0 and 1 minutes
         )
 
         new_births["sex"] = self.randomness.choice(
@@ -304,6 +317,6 @@ class Population:
         event : vivarium.framework.event.Event
 
         """
-        population = self.population_view.get(event.index, query="alive == 'alive'")
+        population = self.population_view.subview(["age"]).get(event.index, query="alive == 'alive'")
         population["age"] += to_years(event.step_size)
         self.population_view.update(population)
