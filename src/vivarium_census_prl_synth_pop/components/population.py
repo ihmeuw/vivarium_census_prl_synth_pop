@@ -60,6 +60,7 @@ class Population:
             "entrance_time",
             "exit_time",
             "housing_type",
+            "guardians"
         ]
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(self.columns_created)
@@ -129,6 +130,9 @@ class Population:
         # add typing
         pop["state"] = pop["state"].astype("int64")
         pop = pop.set_index(pop_data.index)
+
+        # todo: initialize guardians for simulants: Should this be the last thing we do in initialize simulants?
+        pop = self.assign_guardians(pop)
 
         self.population_view.update(pop)
 
@@ -307,3 +311,43 @@ class Population:
         population = self.population_view.get(event.index, query="alive == 'alive'")
         population["age"] += to_years(event.step_size)
         self.population_view.update(population)
+
+    def assign_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
+        """
+
+        Parameters
+        ----------
+        pop: State stable of simulants
+
+        Returns
+        -------
+        pd.Dataframe that will be pop with an additional guardians column which will be a list of one or two indexes or
+            "N/A" for that simulant's guaridans.
+        """
+
+        pop["guardians"] = [[] for _ in range(len(pop))]
+        # Grab indexes for 2 groups that will separate how we process different simulants who will have guardians
+        minors_general_pop_idx = pop.loc[
+            (pop["age"] < 18) & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+        ].index
+        # Get series of household_ids that have a minor living in them.
+        household_ids = pop.loc[minors_general_pop_idx, "household_id"].unique()
+        college_gq_idx = pop.loc[
+            (pop["age"] < 24) & (pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["College"])
+        ].index
+        # Should this age be lower bound?
+
+        # todo: Work through decision tree for < 18 year olds not in GQ
+        # Child is a biological, adopted, foster, or step child, assign to reference person
+        pop.loc[
+            minors_general_pop_idx.intersection(pop["relation_to_household_head"].isin(
+                ["Biological child", "Adopted child", "Foster child", "Stepchild"]).index
+            ), "guardians"] = pop.loc[
+            (pop["household_id"].isin(household_ids)) & (pop["relation_to_household_head"] == "Reference person")
+            ].index
+        # These can be different lengths
+
+
+        # todo: Add spouse as guardian
+
+        # todo: Work through decision tree for < 24 year olds in GQ
