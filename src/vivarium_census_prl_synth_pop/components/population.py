@@ -254,24 +254,23 @@ class Population:
         ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
 
         # birthday map between parent_ids and DOB (so twins get same bday)
+        # note we use np.floor to guarantee birth at midnight
         dob_map = {
             parent: dob for (parent, dob) in zip(
                 parent_ids.unique(),
                 pop_data.creation_time + pd.to_timedelta(
-                    np.ceil(self.randomness.get_draw(parent_ids.unique(), "dob") * self.step_size_days), unit="days"
+                    np.floor(self.randomness.get_draw(parent_ids.unique(), "dob") * self.step_size_days), unit="days"
                 )
             )
         }
         new_births["date_of_birth"] = new_births["parent_id"].map(dob_map)
 
-        all_twins = new_births.loc[new_births["parent_id"].duplicated(keep=False)].index
-
         new_births["age"] = (pop_data.creation_time - new_births["date_of_birth"]).dt.days / DAYS_PER_YEAR
+
+        # add some noise because our randomness keys on entrance time and age,
+        # so don't want people born same day to have same exact age
         new_births["age"] += self.randomness.get_draw(new_births.index, "age") * (
             0.9 / DAYS_PER_YEAR
-        )
-        new_births.loc[all_twins, "age"] += self.randomness.get_draw(all_twins, "differentiate_twins") * (
-                1 / 60 / 60 / 24 / DAYS_PER_YEAR  # random draw between 0 and 1 minutes
         )
 
         new_births["sex"] = self.randomness.choice(
