@@ -329,33 +329,55 @@ class Population:
 
         pop["dependents"] = [[] for _ in range(len(pop))]
         pop["guardians"] = [[] for _ in range(len(pop))]
-        # Grab indexes for 2 groups that will separate how we process different simulants who will have guardians
-        minors_general_pop_idx = pop.loc[
-            (pop["age"] < 18) & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+
+        # Get index for 4 main groups in general population < 18 years old not in GQ
+        gen_pop_child_idx = pop.loc[
+            (pop["age"] < 18) & (pop["relation_to_household_head"].isin(
+                ["Biological child", "Adopted child", "Foster child", "Stepchild"])
+            )
         ].index
-        college_gq_idx = pop.loc[
-            (pop["age"] < 24) & (pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["College"])
-            ].index
+        gen_pop_relative_idx = pop.loc[
+            (pop["age"] < 18) & (pop["relation_to_household_head"].isin(
+                ["Other relative", "Grandchild", "Child-in-law", "Sibling"])
+            )
+        ].index
+        gen_pop_non_relative_idx = pop.loc[
+            (pop["age"] < 18) & (pop["relation_to_household_head"].isin(
+                ["Roommate", "Other nonrelative"])
+            )
+        ].index
+        gen_pop_child_reference_idx = pop.loc[
+            (pop["age"] < 18) & (pop["relation_to_household_head"] == "Reference person")
+        ].index
         # todo: Work through decision tree for < 18 year olds not in GQ
 
-        # Child is a biological, adopted, foster, or step child, assign to reference person
+        # gen_pop_child_idx: Child is a biological, adopted, foster, or step child, assign to reference person
         # Get series of household_ids and create mapper
         household_ids = pop.loc[
             pop["relation_to_household_head"] == "Reference person", "household_id"]
         household_ids_mapper = pd.Series(household_ids.index.values, index=household_ids)
-        pop.loc[
-            minors_general_pop_idx.intersection(pop["relation_to_household_head"].isin(
-                ["Biological child", "Adopted child", "Foster child", "Stepchild"]).index
-            ), "guardians"] = pop.loc[
-            minors_general_pop_idx.intersection(pop["relation_to_household_head"].isin(
-                ["Biological child", "Adopted child", "Foster child", "Stepchild"]).index
-            ), "household_id"].map(household_ids_mapper)
+        pop.loc[gen_pop_child_idx, "guardians"] = pop.loc[
+            gen_pop_child_idx, "household_id"].map(household_ids_mapper)
 
         # Child is any other relative to reference person (NOT roommate, housemate, or other nonrelative)
-        pop.loc[
-            minors_general_pop_idx.intersection(pop["relation_to_household_head"].isin(
-                ["Other relative", "Grandchild", "Child-in-law"]).index
-            ), "guardians"] =
+
         # todo: Add spouse as guardian
 
         # todo: Work through decision tree for < 24 year olds in GQ
+
+
+def get_household_structure(pop: pd.DataFrame, sim_idx: pd.Index) -> pd.DataFrame:
+    # Get household structure from a given index in the state table
+    household_id = pop.loc[sim_idx, "household_id"]
+    household_structure = pop.loc[
+        pop["household_id"] == household_id, ["age", "household_id", "relation_to_household_head", "race_ethnicity"]
+    ]
+    household_structure["idx"] = household_structure.index
+    return household_structure
+
+
+def determine_general_pop_minors_guardian(household: pd.DataFrame, child_idx: pd.Index) -> pd.Index:
+    # Take pd.Dataframe of a household and returns index of guardian
+    # Should this be where we also assign the spouse/partner as guardian? -> No
+    # todo: work through decision tree here
+    pass
