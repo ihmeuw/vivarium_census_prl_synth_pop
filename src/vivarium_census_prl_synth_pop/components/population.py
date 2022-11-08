@@ -228,11 +228,11 @@ class Population:
         return group_quarters
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
-        parent_ids = pop_data.user_data["parent_ids"]
+        parent_ids_idx = pop_data.user_data["parent_ids"]
         pop_index = pop_data.user_data["current_population_index"]
-        mothers = self.population_view.get(parent_ids.unique())
+        mothers = self.population_view.get(parent_ids_idx.unique())
         ssns = self.population_view.subview(['ssn']).get(pop_index).squeeze()
-        new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
+        new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
 
         inherited_traits = [
             "household_id",
@@ -253,12 +253,25 @@ class Population:
             "relation_to_household_head"
         ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
 
-        # Make age negative so age + step size gets simulants correct age at the end of the time step (ref line 284)
-        new_births["age"] = -self.randomness.get_draw(new_births.index, "age") * (
-            self.step_size_days / DAYS_PER_YEAR
-        )
-        new_births["date_of_birth"] = pop_data.creation_time - pd.to_timedelta(
-            np.round(new_births["age"] * DAYS_PER_YEAR), unit="days"
+        # birthday map between parent_ids and DOB (so twins get same bday)
+        # note we use np.floor to guarantee birth at midnight
+        dob_map = {
+            parent: dob for (parent, dob) in zip(
+                parent_ids_idx.unique(),
+                pop_data.creation_time + pd.to_timedelta(
+                    np.floor(self.randomness.get_draw(parent_ids_idx.unique(), "dob") * self.step_size_days), unit="days"
+                )
+            )
+        }
+        new_births["date_of_birth"] = new_births["parent_id"].map(dob_map)
+
+        new_births["age"] = (pop_data.creation_time - new_births["date_of_birth"]).dt.days / DAYS_PER_YEAR
+
+        # add some noise because our randomness keys on entrance time and age,
+        # so don't want people born same day to have same exact age
+        # make birth-times between [0, 0.9*one_day] so that rounding will never push sims to be born the next day
+        new_births["age"] += self.randomness.get_draw(new_births.index, "age") * (
+            0.9 / DAYS_PER_YEAR
         )
 
         new_births["sex"] = self.randomness.choice(
@@ -304,6 +317,6 @@ class Population:
         event : vivarium.framework.event.Event
 
         """
-        population = self.population_view.get(event.index, query="alive == 'alive'")
+        population = self.population_view.subview(["age"]).get(event.index, query="alive == 'alive'")
         population["age"] += to_years(event.step_size)
         self.population_view.update(population)
