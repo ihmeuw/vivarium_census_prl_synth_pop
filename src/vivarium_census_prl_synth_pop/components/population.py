@@ -228,11 +228,11 @@ class Population:
         return group_quarters
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
-        parent_ids = pop_data.user_data["parent_ids"]
+        parent_ids_idx = pop_data.user_data["parent_ids"]
         pop_index = pop_data.user_data["current_population_index"]
-        mothers = self.population_view.get(parent_ids.unique())
+        mothers = self.population_view.get(parent_ids_idx.unique())
         ssns = self.population_view.subview(['ssn']).get(pop_index).squeeze()
-        new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
+        new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
 
         inherited_traits = [
             "household_id",
@@ -257,9 +257,9 @@ class Population:
         # note we use np.floor to guarantee birth at midnight
         dob_map = {
             parent: dob for (parent, dob) in zip(
-                parent_ids.unique(),
+                parent_ids_idx.unique(),
                 pop_data.creation_time + pd.to_timedelta(
-                    np.floor(self.randomness.get_draw(parent_ids.unique(), "dob") * self.step_size_days), unit="days"
+                    np.floor(self.randomness.get_draw(parent_ids_idx.unique(), "dob") * self.step_size_days), unit="days"
                 )
             )
         }
@@ -269,6 +269,7 @@ class Population:
 
         # add some noise because our randomness keys on entrance time and age,
         # so don't want people born same day to have same exact age
+        # make birth-times between [0, 0.9*one_day] so that rounding will never push sims to be born the next day
         new_births["age"] += self.randomness.get_draw(new_births.index, "age") * (
             0.9 / DAYS_PER_YEAR
         )
