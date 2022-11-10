@@ -325,6 +325,7 @@ class Population:
 
         Returns
         -------
+        # todo: return a seaparate teable for assigned guardians
         pd.Dataframe that will be pop with an additional guardians column which will be a list of one or two indexes or
             "N/A" for that simulant's guaridans.
         """
@@ -351,7 +352,7 @@ class Population:
         gen_pop_child_reference_idx = pop.loc[
             (pop["age"] < 18) & (pop["relation_to_household_head"] == "Reference person")
             ].index
-        # todo: Find way to apply guardian function to each sim who needs it.  Include index in function arg?
+        # todo: Find way to apply get_household_structure and determine guardian functions to each sim who needs it.
 
         # todo: Work through decision tree for < 24 year olds in GQ
 
@@ -361,7 +362,6 @@ class Population:
         household_structure = pop.loc[
             pop["household_id"] == household_id, ["age", "household_id", "relation_to_household_head"]
         ]
-        household_structure["idx"] = household_structure.index
         return household_structure
 
     def determine_general_pop_guardians_and_dependents(
@@ -370,14 +370,13 @@ class Population:
 
         Parameters
         ----------
-        household: pd.Dataframe of a household containing columns "age", "household_id", "relation_to_household_head"
-            and "idx" (a column for that rows index values)
+        household: pd.Dataframe containing columns "age", "household_id", and "relation_to_household_head"
         child_idx: pd.Index for a single simulant under 18 years old not in GQ.
 
         Returns
         -------
         Either a tuple or a pd.Series.  The tuple will contain either 2 or 3 pd.Series of length 1 with the
-            value being the index for the guardian/dependent of that simulant and the index being their index.
+            value being the index for the guardian(s)/dependent of that simulant and the index being their index.
             Tuple will be formated either as Tuple(dependent, guardian, partner) or Tuple(dependent, guardian)
             If a pd.Series is returned it will be dependent = pd.Series(data=-1, index=child_idx) as that child has no
             assigned guardians.  -1 will be the value for "N/A".
@@ -400,10 +399,13 @@ class Population:
                                      household["relation_to_household_head"] == "Reference person"
                                      ].index
                                  )
-            partner = household.loc[
-                household["relation_to_household_head"].isin(partners)
-            ].index
+            partner = pd.Series(data=child_idx,
+                                index=household.loc[
+                                    household["relation_to_household_head"].isin(partners)
+                                ].index
+                                )
             if len(partner) == 1:
+                dependent = pd.Series(data=[[guardian.index, partner.index]], index=[child_idx])
                 return tuple([dependent, guardian, partner])
             else:
                 return tuple([dependent, guardian])
@@ -428,6 +430,7 @@ class Population:
                                                                   "relation_to_household_head"] == "Reference person"
                                                               ].index]
                                         )
+                    dependent = pd.Series(data=[[guardian.index, partner.index]], index=[child_idx])
                     return tuple([dependent, guardian, partner])
                 else:
                     return tuple([dependent, guardian])
@@ -440,6 +443,7 @@ class Population:
                                                                   "relation_to_household_head"] == "Reference person"
                                                               ].index
                                         )
+                    dependent = pd.Series(data=[[guardian.index, partner.index]], index=child_idx)
                     return tuple([dependent, guardian, partner])
                 else:
                     return tuple([dependent, guardian])
@@ -458,6 +462,7 @@ class Population:
                         household["relation_to_household_head"].isin(partners)
                     ].index
                     if len(partner) == 1:
+                        dependent = pd.Series(data=[[guardian.index, partner.index]], index=child_idx)
                         return tuple([dependent, guardian, partner])
                     else:
                         return tuple([dependent, guardian])
@@ -519,6 +524,7 @@ class Population:
                     ~parents.isin(guardian)
                 ].index
                                     )
+                dependent = pd.Series(data=[[guardian.index, partner.index]], index=child_idx)
                 return tuple([dependent, guardian, partner])
             elif len(parents) == 1:
                 dependent = pd.Series(data=parents.index, index=[child_idx])
