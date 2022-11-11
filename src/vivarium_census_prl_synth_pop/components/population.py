@@ -351,6 +351,13 @@ class Population:
         relatives_of_rp_idx = household_structure.loc[
             ~household_structure["relation_to_household_head_y"].isin(non_relatives)
         ].index
+        non_relative_of_rp_idx = household_structure.loc[
+            household_structure["relation_to_household_head_y"].isin(non_relatives)
+        ].index
+        age_bound_idx = household_structure.loc[
+            (household_structure["age_difference"] >= 20) &
+            (household_structure["age_difference"] < 46) &
+        ].index
 
         # Children of reference person - red box
         children_of_rp = household_structure.loc[
