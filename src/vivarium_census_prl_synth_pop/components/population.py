@@ -61,8 +61,7 @@ class Population:
             "entrance_time",
             "exit_time",
             "housing_type",
-            "dependents",
-            "guardians",
+            "guardian",
         ]
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(self.columns_created)
@@ -134,7 +133,7 @@ class Population:
         pop = pop.set_index(pop_data.index)
 
         # todo: initialize guardians for simulants: Should this be the last thing we do in initialize simulants?
-        pop = self.assign_guardians(pop)
+        pop = self.assign_gen_pop_guardians(pop)
 
         self.population_view.update(pop)
 
@@ -316,7 +315,7 @@ class Population:
         population["age"] += to_years(event.step_size)
         self.population_view.update(population)
 
-    def assign_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
+    def assign_gen_pop_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
         """
 
         Parameters
@@ -325,43 +324,78 @@ class Population:
 
         Returns
         -------
-        # todo: return a seaparate teable for assigned guardians
-        pd.Dataframe that will be pop with an additional guardians column which will be a list of one or two indexes or
-            "N/A" for that simulant's guaridans.
+        pd.Dataframe that will be pop with an additional guardians column containing the index for that simulant's
+          guardian..
         """
+        # Initialize column
+        pop["guardian"] = pd.NaN
+        # Helper lists
+        non_relatives = ["Roommate", "Other nonrelative"]
+        children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
+        parents = ["Parent", "Parent-in-law"]
+        partners = ["Opp-sex spouse", "Opp-sex partner", "Same-sex spouse", "Same-sex partner"]
 
-        pop["dependents"] = [[] for _ in range(len(pop))]
-        pop["guardians"] = [[] for _ in range(len(pop))]
+        # Get household structure for population to vectorize choices
+        # Non-GQ population
+        gen_population = pop.loc[
+            ~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
+        ]
+        household_structure = self.get_household_structure(gen_population)
 
-        # Get index for 4 main groups in general population < 18 years old not in GQ
-        gen_pop_child_idx = pop.loc[
-            (pop["age"] < 18) & (pop["relation_to_household_head"].isin(
-                ["Biological child", "Adopted child", "Foster child", "Stepchild"])
-            )
-            ].index
-        gen_pop_relative_idx = pop.loc[
-            (pop["age"] < 18) & (pop["relation_to_household_head"].isin(
-                ["Other relative", "Grandchild", "Child-in-law", "Sibling"])
-            )
-            ].index
-        gen_pop_non_relative_idx = pop.loc[
-            (pop["age"] < 18) & (pop["relation_to_household_head"].isin(
-                ["Roommate", "Other nonrelative"])
-            )
-            ].index
-        gen_pop_child_reference_idx = pop.loc[
-            (pop["age"] < 18) & (pop["relation_to_household_head"] == "Reference person")
-            ].index
-        # todo: Find way to apply get_household_structure and determine guardian functions to each sim who needs it.
+        # Get indexes of subgroups to work through decision tree
+        # todo: Make subsets to get series
+        under_18_idx = household_structure.loc[
+            household_structure["age_x"] < 18
+        ].index
+
+        relatives_of_rp_idx = household_structure.loc[
+            ~household_structure["relation_to_household_head_y"].isin(non_relatives)
+        ].index
+
+        # Children of reference person - red box
+        children_of_rp = household_structure.loc[
+            under_18_idx.intersection(
+                household_structure.loc[
+                    (household_structure["relation_to_household_head_x"].isin(children)) &
+                    (household_structure["relation_to_household_head_y"] == "Reference person")
+                    ].index)
+        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
+        pop.loc[children_of_rp.index, "guardian"] = children_of_rp
+
+
+
+        # Children are reference person and have a parent in household - green box
+        rp_children_with_parent = household_structure.loc[
+            under_18_idx.intersection(
+                household_structure.loc[
+                    (household_structure["relation_to_household_head_x"] == "Reference person") &
+                    (household_structure["relation_to_household_head_y"].isin(parents))
+                    ].index)].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
+        pop.loc[rp_children_with_parent.index, "guardian"] = rp_children_with_parent
+
 
         # todo: Work through decision tree for < 24 year olds in GQ
 
-    def get_household_structure(self, pop: pd.DataFrame, sim_idx: pd.Index) -> pd.DataFrame:
-        # Get household structure from a given index in the state table
-        household_id = pop.loc[sim_idx, "household_id"]
-        household_structure = pop.loc[
-            pop["household_id"] == household_id, ["age", "household_id", "relation_to_household_head"]
-        ]
+    def get_household_structure(self, pop: pd.DataFrame) -> pd.DataFrame:
+        # Returns a 3 level multi-index with levels ["household_id", "child_id", "person_id"]
+        # Columns will contain data for child alongside each household member
+        # This will allow us to do lookups related to both a child and other household members
+        under_18 = (
+                    pop.loc[pop["age"] < 18, ["household_id", "relation_to_household_head", "age"]]
+                    .reset_index()
+                    .rename(columns={"index": "child_id"})
+                    .set_index(["household_id", "child_id"])
+                )
+        household_info = (
+            pop[["household_id", "relation_to_household_head", "age"]]
+            .reset_index()
+            .rename(columns={"index": "person_id"})
+            .set_index(["household_id", "person_id"])
+        )
+        # Merge dataframes to cast on household_id and child_id
+        household_structure = under_18.merge(household_info, left_index=True, right_index=True)
+        household_structure["age_difference"] = household_structure["age_y"] - household_structure["age_x"]
+
         return household_structure
 
     def determine_general_pop_guardians_and_dependents(
