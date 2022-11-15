@@ -328,7 +328,8 @@ class Population:
           guardian..
         """
         # Initialize column
-        pop["guardian"] = pd.NaN
+        pop["guardian_1"] = pd.NaN
+        pop["guardian_2"] = pd.NaN
         # Helper lists
         non_relatives = ["Roommate", "Other nonrelative"]
         children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
@@ -344,43 +345,126 @@ class Population:
 
         # Get indexes of subgroups to work through decision tree
         # todo: Make subsets to get series
-        under_18_idx = household_structure.loc[
-            household_structure["age_x"] < 18
+        # Children helper index groups
+        children_of_rp_idx = household_structure.loc[
+            household_structure["relation_to_household_head_x"].isin(children)
+        ].index
+        relative_children_of_rp_idx = household_structure.loc[
+                ~household_structure["relation_to_household_head_x"].isin(non_relatives)
+            ].index
+        children_is_rp_idx = household_structure.loc[
+            household_structure["relation_to_household_head_x"] == "Reference person"
         ].index
 
+        # Potential guardian index groups
         relatives_of_rp_idx = household_structure.loc[
             ~household_structure["relation_to_household_head_y"].isin(non_relatives)
         ].index
-        non_relative_of_rp_idx = household_structure.loc[
+        non_relatives_of_rp_idx = household_structure.loc[
             household_structure["relation_to_household_head_y"].isin(non_relatives)
         ].index
         age_bound_idx = household_structure.loc[
             (household_structure["age_difference"] >= 20) &
-            (household_structure["age_difference"] < 46) &
+            (household_structure["age_difference"] < 46)
+        ].index
+        parents_idx = household_structure.loc[
+            household_structure["relation_to_household_head_y"].isin(parents)
+        ].index
+        over_18_idx = household_structure.loc[
+            household_structure["age_y"] >= 18
         ].index
 
+        # Assign guardians across groups
         # Children of reference person - red box
-        children_of_rp = household_structure.loc[
-            under_18_idx.intersection(
+        reference_person_ids = household_structure.loc[
+            children_of_rp_idx
+            .intersection(
                 household_structure.loc[
-                    (household_structure["relation_to_household_head_x"].isin(children)) &
-                    (household_structure["relation_to_household_head_y"] == "Reference person")
-                    ].index)
+                    household_structure["relation_to_household_head_y"] == "Reference person"
+                ].index)
+        ].reset_index()["id"]
+        pop.loc[children_of_rp_idx, "guardian_1"] = reference_person_ids
+        # Assign partners of reference person as partners
+        partners_of_reference_person_ids = household_structure.loc[
+            children_of_rp_idx
+            .intersection(
+                household_structure.loc[
+                    household_structure["relation_to_household_head_y"].isin(partners)
+                ].index)
         ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[children_of_rp.index, "guardian"] = children_of_rp
+        pop.loc[children_of_rp_idx, "guardian_2"] = partners_of_reference_person_ids
 
+        # Children are relative of reference person with relative(s) in age bound - orange box
+        age_bound_relatives_of_rp_ids = household_structure.loc[
+            relative_children_of_rp_idx
+            .intersection(relatives_of_rp_idx)
+            .intersection(age_bound_idx)
+        ]
+        # Save index to find difference for yellow box (where there will be no relatives in age bounds)
+        children_relatives_of_rp_with_age_bound_relative_idx = age_bound_relatives_of_rp_ids.index
+        age_bound_relatives_of_rp_ids = (
+            age_bound_relatives_of_rp_ids
+            .reset_index()
+            .groupby(["ch_id"])["id"]
+            .apply(np.random.choice)
+        )
+        pop.loc[
+            age_bound_relatives_of_rp_ids.index, "guardian_1"
+        ] = age_bound_relatives_of_rp_ids
 
+        # Children are relative of reference person with no age bound relative(s) - yellow box
+        rp_with_no_age_bound_relative_ids = household_structure.loc[
+            relative_children_of_rp_idx
+            .difference(children_relatives_of_rp_with_age_bound_relative_idx)
+            .intersection(household_structure.loc[
+                              household_structure["relation_to_household_head_y"] == "Reference person"
+                              ].index
+                          )
+        ].reset_index()["id"]
+        pop.loc[
+            rp_with_no_age_bound_relative_ids.index, "guardian_1"
+        ] = rp_with_no_age_bound_relative_ids
+        # Assign guardian to spouse/partner of reference person
+        partners_of_rp_for_relatives_ids = household_structure.loc[
+            relative_children_of_rp_idx
+            .difference(children_relatives_of_rp_with_age_bound_relative_idx)
+            .intersection(household_structure.loc[
+                              household_structure["relation_to_household_head_y"] == "Reference person"
+                              ].index
+                          )
+        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
+        pop.loc[partners_of_rp_for_relatives_ids.index, "guardian_2"] = partners_of_rp_for_relatives_ids
 
         # Children are reference person and have a parent in household - green box
         rp_children_with_parent = household_structure.loc[
-            under_18_idx.intersection(
-                household_structure.loc[
-                    (household_structure["relation_to_household_head_x"] == "Reference person") &
-                    (household_structure["relation_to_household_head_y"].isin(parents))
-                    ].index)].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[rp_children_with_parent.index, "guardian"] = rp_children_with_parent
+            children_is_rp_idx
+            .intersection(parents_idx)
+        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
+        pop.loc[rp_children_with_parent.index, "guardian_1"] = rp_children_with_parent
 
+        # Child is reference person with no parent, assign to age bound relative - blue box
+        age_bound_relatives_of_children_rp_ids = household_structure.loc[
+            children_is_rp_idx
+            .intersection(relatives_of_rp_idx)
+            .difference(parents_idx)
+            .intersection(age_bound_idx)
+        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
+        pop.loc[age_bound_relatives_of_children_rp_ids.index, "guardian_1"] = age_bound_relatives_of_children_rp_ids
 
+        # Child is not related to and is not reference person, assign to age bound non-relative - blurple box
+        age_bound_non_relatives_of_rp_ids = household_structure.loc[
+            non_relatives_of_rp_idx
+            .intersection(age_bound_idx)
+        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
+        pop.loc[age_bound_non_relatives_of_rp_ids.index, "guardian_1"] = age_bound_non_relatives_of_rp_ids
+
+        # Child is not reference person, no age bound non-relative but there is adult non-relative - purple box
+        adult_non_relatives_of_rp_ids = household_structure.loc[
+            non_relatives_of_rp_idx
+            .intersection(over_18_idx)
+            .difference(age_bound_idx)
+        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
+        pop.loc[adult_non_relatives_of_rp_ids.index, "guardian_1"] = adult_non_relatives_of_rp_ids
         # todo: Work through decision tree for < 24 year olds in GQ
 
     def get_household_structure(self, pop: pd.DataFrame) -> pd.DataFrame:
@@ -404,192 +488,3 @@ class Population:
         household_structure["age_difference"] = household_structure["age_y"] - household_structure["age_x"]
 
         return household_structure
-
-    def determine_general_pop_guardians_and_dependents(
-            self, household: pd.DataFrame, child_idx: pd.Index) -> Union[Tuple, pd.Series]:
-        """
-
-        Parameters
-        ----------
-        household: pd.Dataframe containing columns "age", "household_id", and "relation_to_household_head"
-        child_idx: pd.Index for a single simulant under 18 years old not in GQ.
-
-        Returns
-        -------
-        Either a tuple or a pd.Series.  The tuple will contain either 2 or 3 pd.Series of length 1 with the
-            value being the index for the guardian(s)/dependent of that simulant and the index being their index.
-            Tuple will be formated either as Tuple(dependent, guardian, partner) or Tuple(dependent, guardian)
-            If a pd.Series is returned it will be dependent = pd.Series(data=-1, index=child_idx) as that child has no
-            assigned guardians.  -1 will be the value for "N/A".
-        """
-
-        non_relatives = ["Roommate", "Other nonrelative"]
-        parents = ["Parent", "Parent-in-law"]
-        partners = ["Opp-sex spouse", "Opp-sex partner", "Same-sex spouse", "Same-sex partner"]
-
-        # Get index for reference person when child_dx is their child
-        if household.loc[child_idx, "relation_to_household_head"] in [
-            "Biological child", "Adopted child", "Foster child", "Stepchild"
-        ]:
-            dependent = pd.Series(data=household.loc[
-                household["relation_to_household_head"] == "Reference person"
-                ].index, index=[child_idx]
-                                  )
-            guardian = pd.Series(data=child_idx,
-                                 index=household.loc[
-                                     household["relation_to_household_head"] == "Reference person"
-                                     ].index
-                                 )
-            partner = pd.Series(data=child_idx,
-                                index=household.loc[
-                                    household["relation_to_household_head"].isin(partners)
-                                ].index
-                                )
-            if len(partner) == 1:
-                dependent = pd.Series(data=[[guardian.index, partner.index]], index=[child_idx])
-                return tuple([dependent, guardian, partner])
-            else:
-                return tuple([dependent, guardian])
-        elif household.loc[child_idx, "relation_to_household_head"] in [
-            "Other relative", "Grandchild", "Child-in-law", "Sibling"
-        ]:
-            # Find possible relatives related to reference person and in acceptible range
-            related_relatives = household.loc[
-                (~household["relation_to_household_head"].isin(non_relatives)) &
-                (household["age"] >= household.loc[child_idx, "age"] + 20) &
-                (household["age"] < household.loc[child_idx, "age"] + 46)
-                ]
-            if len(related_relatives) > 1:
-                dependent = self.randomness.choice(child_idx,
-                                                   choices=related_relatives.index,
-                                                   additional_key="related_relatives_guardian_choice"
-                                                   )
-                guardian = pd.Series(child_idx, index=dependent)
-                if household.loc[guardian, "relation_to_household_head"] in partners:
-                    partner = pd.Series(child_idx, index=[household.loc[
-                                                              household[
-                                                                  "relation_to_household_head"] == "Reference person"
-                                                              ].index]
-                                        )
-                    dependent = pd.Series(data=[[guardian.index, partner.index]], index=[child_idx])
-                    return tuple([dependent, guardian, partner])
-                else:
-                    return tuple([dependent, guardian])
-            elif len(related_relatives) == 1:
-                dependent = pd.Series(data=related_relatives.index, index=[child_idx])
-                guardian = pd.Series(data=child_idx, index=dependent)
-                if household.loc[guardian, "relation_to_household_head"] in partners:
-                    partner = pd.Series(child_idx, index=household.loc[
-                                                              household[
-                                                                  "relation_to_household_head"] == "Reference person"
-                                                              ].index
-                                        )
-                    dependent = pd.Series(data=[[guardian.index, partner.index]], index=child_idx)
-                    return tuple([dependent, guardian, partner])
-                else:
-                    return tuple([dependent, guardian])
-            else:
-                reference_person = household.loc[
-                    (household["relation_to_household_head"] == "Reference person") &
-                    (household["age"] >= 18)
-                    ]
-                if len(reference_person) == 1:
-                    dependent = pd.Series(data=household.loc[
-                        household["relation_to_household_head"] == "Reference person"
-                        ].index, index=[child_idx]
-                                          )
-                    guardian = pd.Series(child_idx, dependent)
-                    partner = household.loc[
-                        household["relation_to_household_head"].isin(partners)
-                    ].index
-                    if len(partner) == 1:
-                        dependent = pd.Series(data=[[guardian.index, partner.index]], index=child_idx)
-                        return tuple([dependent, guardian, partner])
-                    else:
-                        return tuple([dependent, guardian])
-                else:
-                    return pd.Series(data=-1, index=[child_idx])
-        # Child is roommate or other nonrelative to reference person
-        elif household.loc[child_idx, "relation_toHousehold_head"] in non_relatives:
-            non_relatives_of_reference_person = household.loc[
-                (household["relation_to_household_head"].isin(non_relatives)) &
-                (household["age"] >= household.loc[child_idx, "age"] + 20) &
-                (household["age"] < household.loc[child_idx, "age"] + 46)
-                ]
-            if len(non_relatives_of_reference_person) > 1:
-                dependent = self.randomness.choice(child_idx,
-                                                   choices=non_relatives_of_reference_person.index,
-                                                   additional_key="non_relative_age_bound_guardian_choice"
-                                                   )
-                guardian = pd.Series(data=child_idx, index=dependent)
-                return tuple([dependent, guardian])
-            elif len(non_relatives_of_reference_person) == 1:
-                dependent = pd.Series(data=non_relatives_of_reference_person.index,
-                                      index=[child_idx]
-                                      )
-                guardian = pd.Series(data=child_idx, index=dependent)
-                return tuple([dependent, guardian])
-            else:
-                any_non_relative_of_reference_person = household.loc[
-                    (household["relation_to_household_head"].isin(non_relatives)) &
-                    (household["age"] >= 18)
-                    ]
-                if len(any_non_relative_of_reference_person) > 1:
-                    dependent = self.randomness.choice(child_idx,
-                                                       choices=non_relatives_of_reference_person.index,
-                                                       additional_key="non_relative_guardian_choice"
-                                                       )
-                    guardian = pd.Series(data=child_idx, index=dependent)
-                    return tuple([dependent, guardian])
-                elif len(any_non_relative_of_reference_person) == 1:
-                    dependent = pd.Series(data=any_non_relative_of_reference_person.index,
-                                          index=[child_idx]
-                                          )
-                    guardian = pd.Series(data=child_idx, index=dependent)
-                    return tuple([dependent, guardian])
-                else:
-                    return pd.Series(data=-1, index=[child_idx])
-        # Child is reference person
-        elif household.loc[child_idx, "relation_to_household_head"] == "Reference person":
-            parents = household.loc[
-                household["relation_to_household_head"].isin(parents)
-            ]
-            # Check for multiple parents, this could assign parent-in-law instead of parent
-            if len(parents) > 1:
-                dependent = self.randomness.choice(child_idx,
-                                                   choices=parents.index,
-                                                   additional_key="parents_guardian_choice"
-                                                   )
-                guardian = pd.Series(data=child_idx, index=dependent)
-                partner = pd.Series(data=child_idx, index=parents.loc[
-                    ~parents.isin(guardian)
-                ].index
-                                    )
-                dependent = pd.Series(data=[[guardian.index, partner.index]], index=child_idx)
-                return tuple([dependent, guardian, partner])
-            elif len(parents) == 1:
-                dependent = pd.Series(data=parents.index, index=[child_idx])
-                guardian = pd.Series(data=child_idx, index=dependent)
-                return tuple([dependent, guardian])
-            else:
-                # Find possible relatives related to child and in acceptible range
-                related_relatives = household.loc[
-                    (~household["relation_to_household_head"].isin(non_relatives)) &
-                    (household["age"] >= household.loc[child_idx, "age"] + 20) &
-                    (household["age"] < household.loc[child_idx, "age"] + 46)
-                    ]
-                if len(related_relatives) > 1:
-                    dependent = self.randomness.choice(child_idx,
-                                                       choices=related_relatives.index,
-                                                       additional_key="child_ref_relatives_guardian_choice"
-                                                       )
-                    guardian = pd.Series(data=child_idx, index=dependent)
-                    return tuple([dependent, guardian])
-                elif len(related_relatives) == 1:
-                    dependent = pd.Series(data=related_relatives.index, index=[child_idx])
-                    guardian = pd.Series(data=child_idx, index=dependent)
-                    return tuple([dependent, guardian])
-                else:
-                    return pd.Series(data=-1, index=child_idx)
-        else:
-            raise ValueError(f"Reached undefined relationship for {child_idx} in their household.")
