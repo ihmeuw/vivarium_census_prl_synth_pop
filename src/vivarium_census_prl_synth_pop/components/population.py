@@ -135,8 +135,8 @@ class Population:
         pop["state"] = pop["state"].astype("int64")
         pop = pop.set_index(pop_data.index)
 
-        # todo: initialize guardians for simulants: Should this be the last thing we do in initialize simulants?
         pop = self.assign_gen_pop_guardians(pop)
+        # todo: Assign GQ-college guardians - MIC-3597
 
         self.population_view.update(pop)
 
@@ -317,7 +317,7 @@ class Population:
 
         # typing
         new_births["household_id"] = new_births["household_id"].astype(int)
-        # todo: Update guardian columns
+        # todo: Update guardian columns MIC-3595
         new_births["guardian_1"] = -1
         new_births["guardian_2"] = -1
 
