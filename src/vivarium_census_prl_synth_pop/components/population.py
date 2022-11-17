@@ -317,8 +317,8 @@ class Population:
         # typing
         new_births["household_id"] = new_births["household_id"].astype(int)
         # todo: Update guardian columns MIC-3595
-        new_births["guardian_1"] = -1
-        new_births["guardian_2"] = -1
+        new_births["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
+        new_births["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
 
         self.population_view.update(new_births[self.columns_created])
 
@@ -348,8 +348,8 @@ class Population:
         """
         start_time = time.time()
         # Initialize column
-        pop["guardian_1"] = -1
-        pop["guardian_2"] = -1
+        pop["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
+        pop["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
         # Helper lists
         non_relatives = ["Roommate", "Other nonrelative"]
         children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
