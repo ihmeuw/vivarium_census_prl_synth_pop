@@ -1,6 +1,9 @@
+from loguru import logger
+import time
+
 import numpy as np
 import pandas as pd
-from typing import (Tuple, Union)
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -61,7 +64,8 @@ class Population:
             "entrance_time",
             "exit_time",
             "housing_type",
-            "guardian",
+            "guardian_1",
+            "guardian_2",
         ]
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(self.columns_created)
@@ -327,9 +331,10 @@ class Population:
         pd.Dataframe that will be pop with an additional guardians column containing the index for that simulant's
           guardian..
         """
+        start_time = time.time()
         # Initialize column
-        pop["guardian_1"] = pd.NaN
-        pop["guardian_2"] = pd.NaN
+        pop["guardian_1"] = -1
+        pop["guardian_2"] = -1
         # Helper lists
         non_relatives = ["Roommate", "Other nonrelative"]
         children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
@@ -343,20 +348,22 @@ class Population:
         ]
         household_structure = self.get_household_structure(gen_population)
 
-        # Get indexes of subgroups to work through decision tree
-        # todo: Make subsets to get series
         # Children helper index groups
         children_of_rp_idx = household_structure.loc[
             household_structure["relation_to_household_head_x"].isin(children)
         ].index
-        relative_children_of_rp_idx = household_structure.loc[
-                ~household_structure["relation_to_household_head_x"].isin(non_relatives)
+        child_relative_of_rp_idx = household_structure.loc[
+                ~household_structure["relation_to_household_head_x"].isin(non_relatives + children)
             ].index
-        children_is_rp_idx = household_structure.loc[
-            household_structure["relation_to_household_head_x"] == "Reference person"
+        child_non_relative_of_rp_idx = household_structure.loc[
+            household_structure["relation_to_household_head_x"].isin(non_relatives)
+        ].index
+        child_rp_idx = household_structure.loc[
+            (household_structure["relation_to_household_head_x"] == "Reference person") &
+            (household_structure["age_x"] < 18)
         ].index
 
-        # Potential guardian index groups
+        # Potential guardian/household member index groups
         relatives_of_rp_idx = household_structure.loc[
             ~household_structure["relation_to_household_head_y"].isin(non_relatives)
         ].index
@@ -367,107 +374,143 @@ class Population:
             (household_structure["age_difference"] >= 20) &
             (household_structure["age_difference"] < 46)
         ].index
-        parents_idx = household_structure.loc[
+        parents_of_rp_idx = household_structure.loc[
             household_structure["relation_to_household_head_y"].isin(parents)
         ].index
         over_18_idx = household_structure.loc[
             household_structure["age_y"] >= 18
         ].index
+        rp_idx = household_structure.loc[
+            household_structure["relation_to_household_head_y"] == "Reference person"
+        ].index
+        partners_idx = household_structure.loc[
+            household_structure["relation_to_household_head_y"].isin(partners)
+        ].index
 
         # Assign guardians across groups
         # Children of reference person - red box
-        reference_person_ids = household_structure.loc[
+        rp_parent_ids = household_structure.loc[
             children_of_rp_idx
-            .intersection(
-                household_structure.loc[
-                    household_structure["relation_to_household_head_y"] == "Reference person"
-                ].index)
-        ].reset_index()["id"]
-        pop.loc[children_of_rp_idx, "guardian_1"] = reference_person_ids
+            .intersection(rp_idx)
+        ].reset_index().set_index("child_id")["person_id"]
+        pop.loc[rp_parent_ids.index, "guardian_1"] = rp_parent_ids
         # Assign partners of reference person as partners
-        partners_of_reference_person_ids = household_structure.loc[
+        partners_of_rp_parent_ids = household_structure.loc[
             children_of_rp_idx
-            .intersection(
-                household_structure.loc[
-                    household_structure["relation_to_household_head_y"].isin(partners)
-                ].index)
-        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[children_of_rp_idx, "guardian_2"] = partners_of_reference_person_ids
+            .intersection(partners_idx)
+        ]
+        if len(partners_of_rp_parent_ids) > 0:
+            partners_of_rp_parent_ids = (
+                partners_of_rp_parent_ids
+                .reset_index()
+                .groupby(["child_id"])["person_id"]
+                .apply(np.random.choice)
+            )
+            pop.loc[partners_of_rp_parent_ids.index, "guardian_2"] = partners_of_rp_parent_ids
+
+        # Children are relative of reference person with no age bound relative(s) - yellow box
+        relative_ids = (
+            household_structure.loc[
+                child_relative_of_rp_idx
+                .intersection(rp_idx)
+            ]
+            .reset_index()
+            .set_index("child_id")["person_id"]
+        )
+        pop.loc[relative_ids.index, "guardian_1"] = relative_ids
+        # Assign guardian to spouse/partner of reference person
+        relative_with_rp_partner_guardian_ids = household_structure.loc[
+            child_relative_of_rp_idx
+            .intersection(partners_idx)
+        ]
+        if len(relative_with_rp_partner_guardian_ids) > 0:
+            relative_with_rp_partner_guardian_ids = (
+                relative_with_rp_partner_guardian_ids
+                .reset_index()
+                .groupby(["child_id"])["person_id"]
+                .apply(np.random.choice)
+            )
+            pop.loc[relative_with_rp_partner_guardian_ids.index, "guardian_2"] = relative_with_rp_partner_guardian_ids
 
         # Children are relative of reference person with relative(s) in age bound - orange box
-        age_bound_relatives_of_rp_ids = household_structure.loc[
-            relative_children_of_rp_idx
+        relatives_with_guardian = household_structure.loc[
+            child_relative_of_rp_idx
             .intersection(relatives_of_rp_idx)
             .intersection(age_bound_idx)
         ]
-        # Save index to find difference for yellow box (where there will be no relatives in age bounds)
-        children_relatives_of_rp_with_age_bound_relative_idx = age_bound_relatives_of_rp_ids.index
-        age_bound_relatives_of_rp_ids = (
-            age_bound_relatives_of_rp_ids
-            .reset_index()
-            .groupby(["ch_id"])["id"]
-            .apply(np.random.choice)
-        )
-        pop.loc[
-            age_bound_relatives_of_rp_ids.index, "guardian_1"
-        ] = age_bound_relatives_of_rp_ids
-
-        # Children are relative of reference person with no age bound relative(s) - yellow box
-        rp_with_no_age_bound_relative_ids = household_structure.loc[
-            relative_children_of_rp_idx
-            .difference(children_relatives_of_rp_with_age_bound_relative_idx)
-            .intersection(household_structure.loc[
-                              household_structure["relation_to_household_head_y"] == "Reference person"
-                              ].index
-                          )
-        ].reset_index()["id"]
-        pop.loc[
-            rp_with_no_age_bound_relative_ids.index, "guardian_1"
-        ] = rp_with_no_age_bound_relative_ids
-        # Assign guardian to spouse/partner of reference person
-        partners_of_rp_for_relatives_ids = household_structure.loc[
-            relative_children_of_rp_idx
-            .difference(children_relatives_of_rp_with_age_bound_relative_idx)
-            .intersection(household_structure.loc[
-                              household_structure["relation_to_household_head_y"] == "Reference person"
-                              ].index
-                          )
-        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[partners_of_rp_for_relatives_ids.index, "guardian_2"] = partners_of_rp_for_relatives_ids
+        if len(relatives_with_guardian) > 0:
+            relatives_with_guardian_ids = (
+                relatives_with_guardian
+                .reset_index()
+                .groupby(["child_id"])["person_id"]
+                .apply(np.random.choice)
+            )
+            pop.loc[
+                relatives_with_guardian_ids.index, "guardian_1"
+            ] = relatives_with_guardian_ids
+            pop.loc[relatives_with_guardian_ids.index, "guardian_2"] = -1
 
         # Children are reference person and have a parent in household - green box
-        rp_children_with_parent = household_structure.loc[
-            children_is_rp_idx
-            .intersection(parents_idx)
-        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[rp_children_with_parent.index, "guardian_1"] = rp_children_with_parent
+        child_rp_with_parent = household_structure.loc[
+            child_rp_idx
+            .intersection(parents_of_rp_idx)
+        ]
+        if len(child_rp_with_parent) > 0:
+            child_rp_with_parent_ids = (
+                child_rp_with_parent
+                .reset_index()
+                .groupby(["child_id"])
+                ["person_id"].apply(np.random.choice)
+            )
+            pop.loc[child_rp_with_parent_ids.index, "guardian_1"] = child_rp_with_parent_ids
 
         # Child is reference person with no parent, assign to age bound relative - blue box
-        age_bound_relatives_of_children_rp_ids = household_structure.loc[
-            children_is_rp_idx
-            .intersection(relatives_of_rp_idx)
-            .difference(parents_idx)
-            .intersection(age_bound_idx)
-        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[age_bound_relatives_of_children_rp_ids.index, "guardian_1"] = age_bound_relatives_of_children_rp_ids
+        # child_rp_with_relative_ids = household_structure.loc[
+        #     child_rp_idx
+        #     .difference(child_rp_with_parent.index)
+        #     .intersection(relatives_of_rp_idx)
+        #     .intersection(age_bound_idx)
+        # ]
+        # if len(child_rp_with_relative_ids) > 0:
+        #     child_rp_with_relative_ids = (
+        #         child_rp_with_relative_ids
+        #         .reset_index()
+        #         .groupby(["child_id"])["person_id"]
+        #         .apply(np.random.choice)
+        #     )
+        #     pop.loc[child_rp_with_relative_ids.index, "guardian_1"] = child_rp_with_relative_ids
 
         # Child is not related to and is not reference person, assign to age bound non-relative - blurple box
-        age_bound_non_relatives_of_rp_ids = household_structure.loc[
-            non_relatives_of_rp_idx
+        non_relative_guardian_ids = household_structure.loc[
+            child_non_relative_of_rp_idx
+            .intersection(non_relatives_of_rp_idx)
             .intersection(age_bound_idx)
-        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[age_bound_non_relatives_of_rp_ids.index, "guardian_1"] = age_bound_non_relatives_of_rp_ids
+        ]
+        if len(non_relative_guardian_ids) > 0:
+            non_relative_guardian_ids = (
+                non_relative_guardian_ids
+                .reset_index()
+                .groupby(["child_id"])["person_id"]
+                .apply(np.random.choice)
+            )
+            pop.loc[non_relative_guardian_ids.index, "guardian_1"] = non_relative_guardian_ids
 
         # Child is not reference person, no age bound non-relative but there is adult non-relative - purple box
-        adult_non_relatives_of_rp_ids = household_structure.loc[
-            non_relatives_of_rp_idx
+        other_non_relative_guardian_ids = household_structure.loc[
+            child_non_relative_of_rp_idx
+            .intersection(non_relatives_of_rp_idx)
             .intersection(over_18_idx)
             .difference(age_bound_idx)
-        ].reset_index().groupby(["ch_id"])["id"].apply(np.random.choice)
-        pop.loc[adult_non_relatives_of_rp_ids.index, "guardian_1"] = adult_non_relatives_of_rp_ids
-        # todo: Work through decision tree for < 24 year olds in GQ
+        ]
+        if len(other_non_relative_guardian_ids) > 0:
+            other_non_relative_guardian_ids = other_non_relative_guardian_ids.reset_index().groupby(["child_id"])[
+                "person_id"].apply(np.random.choice)
+            pop.loc[other_non_relative_guardian_ids.index, "guardian_1"] = other_non_relative_guardian_ids
 
-    def get_household_structure(self, pop: pd.DataFrame) -> pd.DataFrame:
+        return pop
+
+    @staticmethod
+    def get_household_structure(pop: pd.DataFrame) -> pd.DataFrame:
         # Returns a 3 level multi-index with levels ["household_id", "child_id", "person_id"]
         # Columns will contain data for child alongside each household member
         # This will allow us to do lookups related to both a child and other household members
@@ -485,6 +528,7 @@ class Population:
         )
         # Merge dataframes to cast on household_id and child_id
         household_structure = under_18.merge(household_info, left_index=True, right_index=True)
+        household_structure = household_structure.droplevel("household_id")
         household_structure["age_difference"] = household_structure["age_y"] - household_structure["age_x"]
 
         return household_structure
