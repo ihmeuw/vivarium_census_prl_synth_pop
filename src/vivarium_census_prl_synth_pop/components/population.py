@@ -1,8 +1,6 @@
-import time
-
 import numpy as np
 import pandas as pd
-from loguru import logger
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -346,7 +344,7 @@ class Population:
         pd.Dataframe that will be pop with an additional guardians column containing the index for that simulant's
           guardian..
         """
-        start_time = time.time()
+
         # Initialize column
         pop["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
         pop["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
