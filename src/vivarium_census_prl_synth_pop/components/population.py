@@ -303,7 +303,9 @@ class Population:
 
         # typing
         new_births["household_id"] = new_births["household_id"].astype(int)
-        # todo: Add additional guardian if necessary
+        # todo: Update guardian columns
+        new_births["guardian_1"] = -1
+        new_births["guardian_2"] = -1
 
         self.population_view.update(new_births[self.columns_created])
 
@@ -465,30 +467,30 @@ class Population:
             pop.loc[child_rp_with_parent_ids.index, "guardian_1"] = child_rp_with_parent_ids
 
         # Child is reference person with no parent, assign to age bound relative - blue box
-        # child_rp_with_relative_ids = household_structure.loc[
-        #     child_rp_idx
-        #     .difference(child_rp_with_parent.index)
-        #     .intersection(relatives_of_rp_idx)
-        #     .intersection(age_bound_idx)
-        # ]
-        # if len(child_rp_with_relative_ids) > 0:
-        #     child_rp_with_relative_ids = (
-        #         child_rp_with_relative_ids
-        #         .reset_index()
-        #         .groupby(["child_id"])["person_id"]
-        #         .apply(np.random.choice)
-        #     )
-        #     pop.loc[child_rp_with_relative_ids.index, "guardian_1"] = child_rp_with_relative_ids
+        child_rp_with_relative_ids = household_structure.loc[
+            child_rp_idx
+            .drop(child_rp_with_parent.index.unique("child_id"), level="child_id")
+            .intersection(relatives_of_rp_idx)
+            .intersection(age_bound_idx)
+        ]
+        if len(child_rp_with_relative_ids) > 0:
+            child_rp_with_relative_ids = (
+                child_rp_with_relative_ids
+                .reset_index()
+                .groupby(["child_id"])["person_id"]
+                .apply(np.random.choice)
+            )
+            pop.loc[child_rp_with_relative_ids.index, "guardian_1"] = child_rp_with_relative_ids
 
         # Child is not related to and is not reference person, assign to age bound non-relative - blurple box
-        non_relative_guardian_ids = household_structure.loc[
+        non_relative_guardian = household_structure.loc[
             child_non_relative_of_rp_idx
             .intersection(non_relatives_of_rp_idx)
             .intersection(age_bound_idx)
         ]
-        if len(non_relative_guardian_ids) > 0:
+        if len(non_relative_guardian) > 0:
             non_relative_guardian_ids = (
-                non_relative_guardian_ids
+                non_relative_guardian
                 .reset_index()
                 .groupby(["child_id"])["person_id"]
                 .apply(np.random.choice)
@@ -498,9 +500,9 @@ class Population:
         # Child is not reference person, no age bound non-relative but there is adult non-relative - purple box
         other_non_relative_guardian_ids = household_structure.loc[
             child_non_relative_of_rp_idx
+            .drop(non_relative_guardian.index.unique("child_id"), level="child_id")
             .intersection(non_relatives_of_rp_idx)
             .intersection(over_18_idx)
-            .difference(age_bound_idx)
         ]
         if len(other_non_relative_guardian_ids) > 0:
             other_non_relative_guardian_ids = other_non_relative_guardian_ids.reset_index().groupby(["child_id"])[
@@ -511,9 +513,31 @@ class Population:
 
     @staticmethod
     def get_household_structure(pop: pd.DataFrame) -> pd.DataFrame:
-        # Returns a 3 level multi-index with levels ["household_id", "child_id", "person_id"]
+        """
+
+        Parameters
+        ----------
+        pop: population state table
+
+        Returns
+        -------
+        pd.DataFrame with 2 level multi-index with levels ("child_id", "person_id")
         # Columns will contain data for child alongside each household member
         # This will allow us to do lookups related to both a child and other household members
+        pd.Dataframe =     age_x | relation_to_household_head_x | age_y | relation_to_household_head_y | age_difference
+        child_id person_id
+            0        0       11              "Biological child      11            "Biological child           0
+            0        1       11              "Biological child      35            "Reference person"          24
+            0        2       11              "Biological child      7             "Adopted child"             -4
+            2        0       7               "Adopted child         11            "Biological child"           4
+            2        1       7               "Adopted child         35            "Reference person"          28
+            2        2       7               "Adopted child         7             "Adopted child"              0
+
+        Note: Child_id and age_x and relation_to_household_head_x relate to one child in a specific household under
+          under 18 years old. There is a row corresponding to each child in the household and every member in that
+          household.  If a household does not have a simulant under 18 the household is not in this data structure.
+        """
+
         under_18 = (
                     pop.loc[pop["age"] < 18, ["household_id", "relation_to_household_head", "age"]]
                     .reset_index()
