@@ -238,10 +238,9 @@ class Population:
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids_idx = pop_data.user_data["parent_ids"]
         pop_index = pop_data.user_data["current_population_index"]
-
-        mothers = self.population_view.get(parent_ids.unique())
-        ssns = self.population_view.subview(["ssn"]).get(pop_index).squeeze()
-        new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
+        mothers = self.population_view.get(parent_ids_idx.unique())
+        ssns = self.population_view.subview(['ssn']).get(pop_index).squeeze()
+        new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
 
         inherited_traits = [
             "household_id",
