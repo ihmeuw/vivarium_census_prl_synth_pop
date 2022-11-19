@@ -360,6 +360,7 @@ class Population:
         # Helper lists
         non_relatives = ["Roommate", "Other nonrelative"]
         children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
+        children_relatives = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
         parents = ["Parent", "Parent-in-law"]
         partners = [
             "Opp-sex spouse",
@@ -379,9 +380,7 @@ class Population:
             child_households["child_relation_to_household_head"].isin(children)
         ].index
         child_relative_of_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"].isin(
-                ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
-            )
+            child_households["child_relation_to_household_head"].isin(children_relatives)
         ].index
         child_non_relative_of_ref_person_idx = child_households.loc[
             child_households["child_relation_to_household_head"].isin(non_relatives)
@@ -429,23 +428,23 @@ class Population:
         ]
         if len(partners_of_ref_person_parent_ids) > 0:
             # Select random partner of reference person and assign as second guardian
-            partners_of_ref_person_parent_ids = (
-                self.choose_random_guardian(partners_of_ref_person_parent_ids)
+            partners_of_ref_person_parent_ids = self.choose_random_guardian(
+                partners_of_ref_person_parent_ids
             )
-            pop.loc[partners_of_ref_person_parent_ids.index, "guardian_2"] = partners_of_ref_person_parent_ids
+            pop.loc[
+                partners_of_ref_person_parent_ids.index, "guardian_2"
+            ] = partners_of_ref_person_parent_ids
 
         # Children are relative of reference person with relative(s) in age bound, assign to random age bound
         # relative - orange box
         relatives_with_guardian = child_households.loc[
-            child_relative_of_ref_person_idx.intersection(relatives_of_ref_person_idx).intersection(
-                age_bound_idx
-            )
+            child_relative_of_ref_person_idx.intersection(
+                relatives_of_ref_person_idx
+            ).intersection(age_bound_idx)
         ]
         if len(relatives_with_guardian) > 0:
             # Select random relative if multiple and assign as guardian
-            relatives_with_guardian_ids = (
-                self.choose_random_guardian(relatives_with_guardian)
-            )
+            relatives_with_guardian_ids = self.choose_random_guardian(relatives_with_guardian)
             pop.loc[
                 relatives_with_guardian_ids.index, "guardian_1"
             ] = relatives_with_guardian_ids
@@ -469,8 +468,8 @@ class Population:
         ]
         if len(relative_with_ref_person_partner_guardian_ids) > 0:
             # Select random partner of reference person and assign as second guardian
-            relative_with_ref_person_partner_guardian_ids = (
-                self.choose_random_guardian(relative_with_ref_person_partner_guardian_ids)
+            relative_with_ref_person_partner_guardian_ids = self.choose_random_guardian(
+                relative_with_ref_person_partner_guardian_ids
             )
             pop.loc[
                 relative_with_ref_person_partner_guardian_ids.index, "guardian_2"
@@ -481,21 +480,25 @@ class Population:
             child_ref_person_idx.intersection(parents_of_ref_person_idx)
         ]
         if len(child_ref_person_with_parent) > 0:
-            child_ref_person_with_parent_ids = (
-                self.choose_random_guardian(child_ref_person_with_parent())
+            child_ref_person_with_parent_ids = self.choose_random_guardian(
+                child_ref_person_with_parent
             )
-            pop.loc[child_ref_person_with_parent_ids.index, "guardian_1"] = child_ref_person_with_parent_ids
+            pop.loc[
+                child_ref_person_with_parent_ids.index, "guardian_1"
+            ] = child_ref_person_with_parent_ids
 
         # Child is reference person with no parent, assign to age bound relative - blue box
         child_ref_person_with_relative_ids = child_households.loc[
-            child_ref_person_idx.drop(child_ref_person_with_parent.index.unique("child_id"), level="child_id")
+            child_ref_person_idx.drop(
+                child_ref_person_with_parent.index.unique("child_id"), level="child_id"
+            )
             .intersection(relatives_of_ref_person_idx)
             .intersection(age_bound_idx)
         ]
         if len(child_ref_person_with_relative_ids) > 0:
             # Select random relative if multiple and assign as guardian
-            child_ref_person_with_relative_ids = (
-                self.choose_random_guardian(child_ref_person_with_relative_ids)
+            child_ref_person_with_relative_ids = self.choose_random_guardian(
+                child_ref_person_with_relative_ids
             )
             pop.loc[
                 child_ref_person_with_relative_ids.index, "guardian_1"
@@ -503,15 +506,13 @@ class Population:
 
         # Child is not related to and is not reference person, assign to age bound non-relative - blurple box
         non_relative_guardian = child_households.loc[
-            child_non_relative_of_ref_person_idx.intersection(non_relatives_of_ref_person_idx).intersection(
-                age_bound_idx
-            )
+            child_non_relative_of_ref_person_idx.intersection(
+                non_relatives_of_ref_person_idx
+            ).intersection(age_bound_idx)
         ]
         if len(non_relative_guardian) > 0:
             # Select random non-relative if multiple and assign to guardian
-            non_relative_guardian_ids = (
-                self.choose_random_guardian(non_relative_guardian)
-            )
+            non_relative_guardian_ids = self.choose_random_guardian(non_relative_guardian)
             pop.loc[non_relative_guardian_ids.index, "guardian_1"] = non_relative_guardian_ids
 
         # Child is not reference person with no age bound non-relative, assign to adult non-relative - purple box
@@ -524,8 +525,8 @@ class Population:
         ]
         if len(other_non_relative_guardian_ids) > 0:
             # Select random non-relative if multiple and assign to guardian
-            other_non_relative_guardian_ids = (
-                self.choose_random_guardian(other_non_relative_guardian_ids)
+            other_non_relative_guardian_ids = self.choose_random_guardian(
+                other_non_relative_guardian_ids
             )
             pop.loc[
                 other_non_relative_guardian_ids.index, "guardian_1"
@@ -577,12 +578,14 @@ class Population:
             household_info, left_index=True, right_index=True
         )
         household_structure = household_structure.droplevel("household_id")
-        household_structure.rename(columns={
-            "age_x": "child_age",
-            "relation_to_household_head_x": "child_relation_to_household_head",
-            "age_y": "member_age",
-            "relation_to_household_head_y": "member_relation_to_household_head",
-        }, inplace=True
+        household_structure.rename(
+            columns={
+                "age_x": "child_age",
+                "relation_to_household_head_x": "child_relation_to_household_head",
+                "age_y": "member_age",
+                "relation_to_household_head_y": "member_relation_to_household_head",
+            },
+            inplace=True,
         )
         household_structure["age_difference"] = (
             household_structure["member_age"] - household_structure["child_age"]
