@@ -414,16 +414,6 @@ class Population:
             child_households["member_relation_to_household_head"].isin(partners)
         ].index
 
-        # Helper function
-        def choose_random_guardian(member_ids: pd.DataFrame) -> pd.Series:
-            # member_ids is a subset of child_households dataframe
-            member_ids = (
-                    member_ids.reset_index()
-                .groupby(["child_id"])["person_id"]
-                .apply(np.random.choice)
-                )
-            return member_ids
-
         # Assign guardians across groups
         # Children of reference person, assign reference person as guardian - red box
         ref_person_parent_ids = (
@@ -440,7 +430,7 @@ class Population:
         if len(partners_of_ref_person_parent_ids) > 0:
             # Select random partner of reference person and assign as second guardian
             partners_of_ref_person_parent_ids = (
-                choose_random_guardian(partners_of_ref_person_parent_ids)
+                self.choose_random_guardian(partners_of_ref_person_parent_ids)
             )
             pop.loc[partners_of_ref_person_parent_ids.index, "guardian_2"] = partners_of_ref_person_parent_ids
 
@@ -454,7 +444,7 @@ class Population:
         if len(relatives_with_guardian) > 0:
             # Select random relative if multiple and assign as guardian
             relatives_with_guardian_ids = (
-                choose_random_guardian(relatives_with_guardian)
+                self.choose_random_guardian(relatives_with_guardian)
             )
             pop.loc[
                 relatives_with_guardian_ids.index, "guardian_1"
@@ -480,7 +470,7 @@ class Population:
         if len(relative_with_ref_person_partner_guardian_ids) > 0:
             # Select random partner of reference person and assign as second guardian
             relative_with_ref_person_partner_guardian_ids = (
-                choose_random_guardian(relative_with_ref_person_partner_guardian_ids)
+                self.choose_random_guardian(relative_with_ref_person_partner_guardian_ids)
             )
             pop.loc[
                 relative_with_ref_person_partner_guardian_ids.index, "guardian_2"
@@ -492,7 +482,7 @@ class Population:
         ]
         if len(child_ref_person_with_parent) > 0:
             child_ref_person_with_parent_ids = (
-                choose_random_guardian(child_ref_person_with_parent())
+                self.choose_random_guardian(child_ref_person_with_parent())
             )
             pop.loc[child_ref_person_with_parent_ids.index, "guardian_1"] = child_ref_person_with_parent_ids
 
@@ -505,7 +495,7 @@ class Population:
         if len(child_ref_person_with_relative_ids) > 0:
             # Select random relative if multiple and assign as guardian
             child_ref_person_with_relative_ids = (
-                choose_random_guardian(child_ref_person_with_relative_ids)
+                self.choose_random_guardian(child_ref_person_with_relative_ids)
             )
             pop.loc[
                 child_ref_person_with_relative_ids.index, "guardian_1"
@@ -520,7 +510,7 @@ class Population:
         if len(non_relative_guardian) > 0:
             # Select random non-relative if multiple and assign to guardian
             non_relative_guardian_ids = (
-                choose_random_guardian(non_relative_guardian)
+                self.choose_random_guardian(non_relative_guardian)
             )
             pop.loc[non_relative_guardian_ids.index, "guardian_1"] = non_relative_guardian_ids
 
@@ -535,7 +525,7 @@ class Population:
         if len(other_non_relative_guardian_ids) > 0:
             # Select random non-relative if multiple and assign to guardian
             other_non_relative_guardian_ids = (
-                choose_random_guardian(other_non_relative_guardian_ids)
+                self.choose_random_guardian(other_non_relative_guardian_ids)
             )
             pop.loc[
                 other_non_relative_guardian_ids.index, "guardian_1"
@@ -546,7 +536,6 @@ class Population:
     @staticmethod
     def get_household_structure(pop: pd.DataFrame) -> pd.DataFrame:
         """
-
         Parameters
         ----------
         pop: population state table
@@ -600,3 +589,13 @@ class Population:
         )
 
         return household_structure
+
+    @staticmethod
+    def choose_random_guardian(member_ids: pd.DataFrame) -> pd.Series:
+        # member_ids is a subset of child_households dataframe
+        member_ids = (
+            member_ids.reset_index()
+            .groupby(["child_id"])["person_id"]
+            .apply(np.random.choice)
+        )
+        return member_ids
