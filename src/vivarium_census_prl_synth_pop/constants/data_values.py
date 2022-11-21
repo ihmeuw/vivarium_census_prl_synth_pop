@@ -26,6 +26,8 @@ PROPORTION_NEWBORNS_NO_SSN = 0.10
 PROPORTION_PERSONS_LEAVING_COUNTRY = 0.05
 PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY = 0.05
 
+UNKNOWN_GUARDIAN_IDX = -1
+
 #########################
 # Synthetic Name Inputs #
 #########################
