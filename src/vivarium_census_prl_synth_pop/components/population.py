@@ -237,7 +237,7 @@ class Population:
         pop_index = pop_data.user_data["current_population_index"]
         mothers = self.population_view.get(parent_ids_idx.unique())
         households = self.population_view.subview(["household_id", "relation_to_household_head"]).get(pop_index)
-        # SSNS will be moved to post-processing
+        # Making separate subviews because SSNS will be moved to post-processing
         ssns = self.population_view.subview(["ssn"]).get(pop_index).squeeze()
         new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
 
@@ -323,7 +323,6 @@ class Population:
 
         # typing
         new_births["household_id"] = new_births["household_id"].astype(int)
-        # todo: Update guardian columns MIC-3595
         # Assign guardian_1 to birth mother
         new_births["guardian_1"] = new_births["parent_id"]
         # Assign second guardian if one exists
@@ -350,7 +349,7 @@ class Population:
 
         Parameters
         ----------
-        pop: State stable of simulants
+        pop:  Population state table
 
         Returns
         -------
@@ -671,9 +670,22 @@ class Population:
 
     @staticmethod
     def get_mothers_household_structure(mothers_idx: pd.Series, households: pd.DataFrame) -> pd.DataFrame:
-        # This will return a dataframe of similar format to the child households but will be based on households for
-        # mothers that gave birth each time step.  Two level index with mother_id and person_id.  Two columns will be
-        # be mother_relation_to_household_head  and member_relation_to_household_head columns.
+        """
+
+        Parameters
+        ----------
+        mothers_idx: Series of index values corresponding to mothers who gave birth this time step
+        households: 2 column dataframe of state table with containing "household_id" and "relation_to_household_head"
+          columns.
+
+        Returns
+        -------
+        Dataframe with 2 index levels "mother_id" and "person_id" and 2 columns "mother_relation_to_household_head" and
+          "member_relation_to_household_head".  This is the same schema we used with creating the data structure for
+          child households.
+        """
+        # todo: Future improvement would be to refactor the two data wrangling functions.
+
         mothers = (
             households.loc[mothers_idx]
             .reset_index()
