@@ -646,14 +646,10 @@ class Population:
 
         reference_person_ids = mothers_households.loc[
             mother_partner_idx.intersection(ref_person_idx)
-        ]
-        if len(reference_person_ids) > 0:
-            reference_person_ids = self.choose_random_guardian(
-                reference_person_ids, "mother_id"
-            )
-            new_births.loc[
-                new_births["parent_id"].isin(reference_person_ids.index), "guardian_2"
-            ] = new_births["parent_id"].map(reference_person_ids)
+        ].reset_index().set_index("mother_id")["person_id"]
+        new_births.loc[
+            new_births["parent_id"].isin(reference_person_ids.index), "guardian_2"
+        ] = new_births["parent_id"].map(reference_person_ids)
 
         return new_births
 
