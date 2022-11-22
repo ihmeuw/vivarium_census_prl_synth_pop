@@ -362,17 +362,6 @@ class Population:
         # Initialize column
         pop["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
         pop["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
-        # Helper lists
-        non_relatives = ["Roommate", "Other nonrelative"]
-        children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
-        children_relatives = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
-        parents = ["Parent", "Parent-in-law"]
-        partners = [
-            "Opp-sex spouse",
-            "Opp-sex partner",
-            "Same-sex spouse",
-            "Same-sex partner",
-        ]
 
         # Get household structure for population to vectorize choices
         # Non-GQ population
@@ -586,16 +575,14 @@ class Population:
         household_structure = under_18.merge(
             household_info, left_index=True, right_index=True
         )
-        household_structure = household_structure.droplevel("household_id")
-        household_structure.rename(
+        household_structure = household_structure.rename(
             columns={
                 "age_x": "child_age",
                 "relation_to_household_head_x": "child_relation_to_household_head",
                 "age_y": "member_age",
                 "relation_to_household_head_y": "member_relation_to_household_head",
-            },
-            inplace=True,
-        )
+            }
+        ).droplevel("household_id")
         household_structure["age_difference"] = (
             household_structure["member_age"] - household_structure["child_age"]
         )
@@ -632,16 +619,10 @@ class Population:
         mothers_households = self.get_mothers_household_structure(
             new_births["parent_id"], households
         )
-        partners = [
-            "Opp-sex spouse",
-            "Opp-sex partner",
-            "Same-sex spouse",
-            "Same-sex partner",
-        ]
 
         # Index helpers
         # Mother index groups
-        mother_rp_idx = mothers_households.loc[
+        mother_ref_person_idx = mothers_households.loc[
             mothers_households["mother_relation_to_household_head"] == "Reference person"
         ].index
         mother_partner_idx = mothers_households.loc[
@@ -651,12 +632,12 @@ class Population:
         partners_idx = mothers_households.loc[
             mothers_households["member_relation_to_household_head"].isin(partners)
         ].index
-        reference_person_idx = mothers_households.loc[
+        ref_person_idx = mothers_households.loc[
             mothers_households["member_relation_to_household_head"] == "Reference person"
         ].index
 
         # Assign second guardian to random partner of mothers
-        partner_ids = mothers_households.loc[mother_rp_idx.intersection(partners_idx)]
+        partner_ids = mothers_households.loc[mother_ref_person_idx.intersection(partners_idx)]
         if len(partner_ids) > 0:
             partner_ids = self.choose_random_guardian(partner_ids, "mother_id")
             new_births.loc[
@@ -664,7 +645,7 @@ class Population:
             ] = new_births["parent_id"].map(partner_ids)
 
         reference_person_ids = mothers_households.loc[
-            mother_partner_idx.intersection(reference_person_idx)
+            mother_partner_idx.intersection(ref_person_idx)
         ]
         if len(reference_person_ids) > 0:
             reference_person_ids = self.choose_random_guardian(
@@ -709,13 +690,24 @@ class Population:
         )
 
         mother_households = mothers.merge(household_info, left_index=True, right_index=True)
-        mother_households.rename(
+        mother_households = mother_households.rename(
             columns={
                 "relation_to_household_head_x": "mother_relation_to_household_head",
                 "relation_to_household_head_y": "member_relation_to_household_head",
-            },
-            inplace=True,
-        )
-        mother_households = mother_households.droplevel("household_id")
+            }
+        ).droplevel("household_id")
 
         return mother_households
+
+
+# Family/household relationships helper lists
+non_relatives = ["Roommate", "Other nonrelative"]
+children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
+children_relatives = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
+parents = ["Parent", "Parent-in-law"]
+partners = [
+    "Opp-sex spouse",
+    "Opp-sex partner",
+    "Same-sex spouse",
+    "Same-sex partner",
+]
