@@ -236,6 +236,10 @@ class Population:
         parent_ids_idx = pop_data.user_data["parent_ids"]
         pop_index = pop_data.user_data["current_population_index"]
         mothers = self.population_view.get(parent_ids_idx.unique())
+        households = self.population_view.subview(
+            ["household_id", "relation_to_household_head"]
+        ).get(pop_index)
+        # Making separate subviews because SSNS will be moved to post-processing
         ssns = self.population_view.subview(["ssn"]).get(pop_index).squeeze()
         new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
 
@@ -321,9 +325,10 @@ class Population:
 
         # typing
         new_births["household_id"] = new_births["household_id"].astype(int)
-        # todo: Update guardian columns MIC-3595
-        new_births["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
-        new_births["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
+        # Assign guardian_1 to birth mother
+        new_births["guardian_1"] = new_births["parent_id"]
+        # Assign second guardian if one exists
+        new_births = self.assign_second_guardian_to_newborns(new_births, households)
 
         self.population_view.update(new_births[self.columns_created])
 
@@ -346,7 +351,7 @@ class Population:
 
         Parameters
         ----------
-        pop: State stable of simulants
+        pop:  Population state table
 
         Returns
         -------
@@ -357,17 +362,6 @@ class Population:
         # Initialize column
         pop["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
         pop["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
-        # Helper lists
-        non_relatives = ["Roommate", "Other nonrelative"]
-        children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
-        children_relatives = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
-        parents = ["Parent", "Parent-in-law"]
-        partners = [
-            "Opp-sex spouse",
-            "Opp-sex partner",
-            "Same-sex spouse",
-            "Same-sex partner",
-        ]
 
         # Get household structure for population to vectorize choices
         # Non-GQ population
@@ -429,7 +423,7 @@ class Population:
         if len(partners_of_ref_person_parent_ids) > 0:
             # Select random partner of reference person and assign as second guardian
             partners_of_ref_person_parent_ids = self.choose_random_guardian(
-                partners_of_ref_person_parent_ids
+                partners_of_ref_person_parent_ids, "child_id"
             )
             pop.loc[
                 partners_of_ref_person_parent_ids.index, "guardian_2"
@@ -444,7 +438,9 @@ class Population:
         ]
         if len(relatives_with_guardian) > 0:
             # Select random relative if multiple and assign as guardian
-            relatives_with_guardian_ids = self.choose_random_guardian(relatives_with_guardian)
+            relatives_with_guardian_ids = self.choose_random_guardian(
+                relatives_with_guardian, "child_id"
+            )
             pop.loc[
                 relatives_with_guardian_ids.index, "guardian_1"
             ] = relatives_with_guardian_ids
@@ -469,7 +465,7 @@ class Population:
         if len(relative_with_ref_person_partner_guardian_ids) > 0:
             # Select random partner of reference person and assign as second guardian
             relative_with_ref_person_partner_guardian_ids = self.choose_random_guardian(
-                relative_with_ref_person_partner_guardian_ids
+                relative_with_ref_person_partner_guardian_ids, "child_id"
             )
             pop.loc[
                 relative_with_ref_person_partner_guardian_ids.index, "guardian_2"
@@ -481,7 +477,7 @@ class Population:
         ]
         if len(child_ref_person_with_parent) > 0:
             child_ref_person_with_parent_ids = self.choose_random_guardian(
-                child_ref_person_with_parent
+                child_ref_person_with_parent, "child_id"
             )
             pop.loc[
                 child_ref_person_with_parent_ids.index, "guardian_1"
@@ -498,7 +494,7 @@ class Population:
         if len(child_ref_person_with_relative_ids) > 0:
             # Select random relative if multiple and assign as guardian
             child_ref_person_with_relative_ids = self.choose_random_guardian(
-                child_ref_person_with_relative_ids
+                child_ref_person_with_relative_ids, "child_id"
             )
             pop.loc[
                 child_ref_person_with_relative_ids.index, "guardian_1"
@@ -512,7 +508,9 @@ class Population:
         ]
         if len(non_relative_guardian) > 0:
             # Select random non-relative if multiple and assign to guardian
-            non_relative_guardian_ids = self.choose_random_guardian(non_relative_guardian)
+            non_relative_guardian_ids = self.choose_random_guardian(
+                non_relative_guardian, "child_id"
+            )
             pop.loc[non_relative_guardian_ids.index, "guardian_1"] = non_relative_guardian_ids
 
         # Child is not reference person with no age bound non-relative, assign to adult non-relative - purple box
@@ -526,7 +524,7 @@ class Population:
         if len(other_non_relative_guardian_ids) > 0:
             # Select random non-relative if multiple and assign to guardian
             other_non_relative_guardian_ids = self.choose_random_guardian(
-                other_non_relative_guardian_ids
+                other_non_relative_guardian_ids, "child_id"
             )
             pop.loc[
                 other_non_relative_guardian_ids.index, "guardian_1"
@@ -577,16 +575,14 @@ class Population:
         household_structure = under_18.merge(
             household_info, left_index=True, right_index=True
         )
-        household_structure = household_structure.droplevel("household_id")
-        household_structure.rename(
+        household_structure = household_structure.rename(
             columns={
                 "age_x": "child_age",
                 "relation_to_household_head_x": "child_relation_to_household_head",
                 "age_y": "member_age",
                 "relation_to_household_head_y": "member_relation_to_household_head",
-            },
-            inplace=True,
-        )
+            }
+        ).droplevel("household_id")
         household_structure["age_difference"] = (
             household_structure["member_age"] - household_structure["child_age"]
         )
@@ -594,11 +590,120 @@ class Population:
         return household_structure
 
     @staticmethod
-    def choose_random_guardian(member_ids: pd.DataFrame) -> pd.Series:
+    def choose_random_guardian(member_ids: pd.DataFrame, groupby_level: str) -> pd.Series:
         # member_ids is a subset of child_households dataframe
+        # groupby_level will be index level to group by (the first level index of member_ids (child_id or mother_id).
         member_ids = (
             member_ids.reset_index()
-            .groupby(["child_id"])["person_id"]
+            .groupby([groupby_level])["person_id"]
             .apply(np.random.choice)
         )
         return member_ids
+
+    def assign_second_guardian_to_newborns(
+        self, new_births: pd.DataFrame, households: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        new_births: pd.DataFrame of new births on this time step
+        households: pd.DataFrame of the entire state table for the two columns of household_id
+          and relation_to_household_head.
+
+        Returns
+        -------
+        new_births with the additional guardian_2 column updated.
+        """
+        # Setup
+        new_births["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
+        mothers_households = self.get_mothers_household_structure(
+            new_births["parent_id"], households
+        )
+
+        # Index helpers
+        # Mother index groups
+        mother_ref_person_idx = mothers_households.loc[
+            mothers_households["mother_relation_to_household_head"] == "Reference person"
+        ].index
+        mother_partner_idx = mothers_households.loc[
+            mothers_households["mother_relation_to_household_head"].isin(partners)
+        ].index
+        # Potential partner index groups
+        partners_idx = mothers_households.loc[
+            mothers_households["member_relation_to_household_head"].isin(partners)
+        ].index
+        ref_person_idx = mothers_households.loc[
+            mothers_households["member_relation_to_household_head"] == "Reference person"
+        ].index
+
+        # Assign second guardian to random partner of mothers
+        partner_ids = mothers_households.loc[mother_ref_person_idx.intersection(partners_idx)]
+        if len(partner_ids) > 0:
+            partner_ids = self.choose_random_guardian(partner_ids, "mother_id")
+            new_births.loc[
+                new_births["parent_id"].isin(partner_ids.index), "guardian_2"
+            ] = new_births["parent_id"].map(partner_ids)
+
+        reference_person_ids = mothers_households.loc[
+            mother_partner_idx.intersection(ref_person_idx)
+        ].reset_index().set_index("mother_id")["person_id"]
+        new_births.loc[
+            new_births["parent_id"].isin(reference_person_ids.index), "guardian_2"
+        ] = new_births["parent_id"].map(reference_person_ids)
+
+        return new_births
+
+    @staticmethod
+    def get_mothers_household_structure(
+        mothers_idx: pd.Series, households: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+
+        Parameters
+        ----------
+        mothers_idx: Series of index values corresponding to mothers who gave birth this time step
+        households: 2 column dataframe of state table with containing "household_id" and "relation_to_household_head"
+          columns.
+
+        Returns
+        -------
+        Dataframe with 2 index levels "mother_id" and "person_id" and 2 columns "mother_relation_to_household_head" and
+          "member_relation_to_household_head".  This is the same schema we used with creating the data structure for
+          child households.
+        """
+        # todo: Future improvement would be to refactor the two data wrangling functions.
+
+        mothers = (
+            households.loc[mothers_idx]
+            .reset_index()
+            .rename(columns={"index": "mother_id"})
+            .set_index(["household_id", "mother_id"])
+        )
+        household_info = (
+            households.reset_index()
+            .rename(columns={"index": "person_id"})
+            .set_index(["household_id", "person_id"])
+        )
+
+        mother_households = mothers.merge(household_info, left_index=True, right_index=True)
+        mother_households = mother_households.rename(
+            columns={
+                "relation_to_household_head_x": "mother_relation_to_household_head",
+                "relation_to_household_head_y": "member_relation_to_household_head",
+            }
+        ).droplevel("household_id")
+
+        return mother_households
+
+
+# Family/household relationships helper lists
+non_relatives = ["Roommate", "Other nonrelative"]
+children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
+children_relatives = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
+parents = ["Parent", "Parent-in-law"]
+partners = [
+    "Opp-sex spouse",
+    "Opp-sex partner",
+    "Same-sex spouse",
+    "Same-sex partner",
+]
