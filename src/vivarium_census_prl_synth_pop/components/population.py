@@ -1,8 +1,5 @@
-from typing import (
-    Dict,
-    List,
-    Union,
-)
+from typing import Dict, List, Union
+
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -372,8 +369,7 @@ class Population:
         # Non-GQ population
         gen_population = pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
         under_18_idx = pop.loc[
-            (pop["age"] < 18) &
-            (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+            (pop["age"] < 18) & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
         ].index
         new_column_names = {
             "age_x": "child_age",
@@ -391,7 +387,9 @@ class Population:
             lookup_id_level_name="child_id",
         )
         # Add age difference column to lookup age bounds for potential guardians
-        child_households["age_difference"] = child_households["member_age"] - child_households["child_age"]
+        child_households["age_difference"] = (
+            child_households["member_age"] - child_households["child_age"]
+        )
 
         # Children helper index groups
         # Ref_person = "Reference person"
@@ -586,9 +584,9 @@ class Population:
         new_births["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
         key_cols = ["household_id", "relation_to_household_head"]
         new_column_names = {
-                "relation_to_household_head_x": "mother_relation_to_household_head",
-                "relation_to_household_head_y": "member_relation_to_household_head",
-            }
+            "relation_to_household_head_x": "mother_relation_to_household_head",
+            "relation_to_household_head_y": "member_relation_to_household_head",
+        }
         mothers_households = self.get_household_structure(
             households,
             query_sims=new_births["parent_id"],
@@ -621,9 +619,11 @@ class Population:
                 new_births["parent_id"].isin(partner_ids.index), "guardian_2"
             ] = new_births["parent_id"].map(partner_ids)
 
-        reference_person_ids = mothers_households.loc[
-            mother_partner_idx.intersection(ref_person_idx)
-        ].reset_index().set_index("mother_id")["person_id"]
+        reference_person_ids = (
+            mothers_households.loc[mother_partner_idx.intersection(ref_person_idx)]
+            .reset_index()
+            .set_index("mother_id")["person_id"]
+        )
         new_births.loc[
             new_births["parent_id"].isin(reference_person_ids.index), "guardian_2"
         ] = new_births["parent_id"].map(reference_person_ids)
@@ -632,11 +632,11 @@ class Population:
 
     @staticmethod
     def get_household_structure(
-            pop: pd.DataFrame,
-            query_sims: Union[pd.Series, pd.Index],
-            key_columns: List,
-            column_names: Dict,
-            lookup_id_level_name: str
+        pop: pd.DataFrame,
+        query_sims: Union[pd.Series, pd.Index],
+        key_columns: List,
+        column_names: Dict,
+        lookup_id_level_name: str,
     ) -> pd.DataFrame:
         """
 
@@ -692,10 +692,12 @@ class Population:
             .set_index(["household_id", "person_id"])
         )
 
-        household_structure = lookup_sims.merge(household_info, left_index=True, right_index=True)
-        household_structure = household_structure.rename(
-            columns=column_names
-        ).droplevel("household_id")
+        household_structure = lookup_sims.merge(
+            household_info, left_index=True, right_index=True
+        )
+        household_structure = household_structure.rename(columns=column_names).droplevel(
+            "household_id"
+        )
 
         return household_structure
 
