@@ -241,7 +241,6 @@ class Population:
         parent_ids_idx = pop_data.user_data["parent_ids"]
         pop_index = pop_data.user_data["current_population_index"]
         mothers = self.population_view.get(parent_ids_idx.unique())
-        # todo: find intelligent way to pass necessary columns without loading all of state table
         households = self.population_view.subview(
             ["household_id", "relation_to_household_head"]
         ).get(pop_index)
@@ -372,7 +371,27 @@ class Population:
         # Get household structure for population to vectorize choices
         # Non-GQ population
         gen_population = pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
-        child_households = self.get_household_structure(gen_population)
+        under_18_idx = pop.loc[
+            (pop["age"] < 18) &
+            (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+        ].index
+        new_column_names = {
+            "age_x": "child_age",
+            "relation_to_household_head_x": "child_relation_to_household_head",
+            "age_y": "member_age",
+            "relation_to_household_head_y": "member_relation_to_household_head",
+        }
+        key_cols = ["household_id", "relation_to_household_head", "age"]
+
+        child_households = self.get_household_structure(
+            gen_population,
+            query_sims=under_18_idx,
+            key_columns=key_cols,
+            column_names=new_column_names,
+            lookup_id_level_name="child_id",
+        )
+        # Add age difference column to lookup age bounds for potential guardians
+        child_households["age_difference"] = child_households["member_age"] - child_households["child_age"]
 
         # Children helper index groups
         # Ref_person = "Reference person"
@@ -539,64 +558,6 @@ class Population:
         return pop
 
     @staticmethod
-    def get_household_structure(pop: pd.DataFrame) -> pd.DataFrame:
-        """
-        Parameters
-        ----------
-        pop: population state table
-
-        Returns
-        -------
-        pd.DataFrame with 2 level multi-index with levels ("child_id", "person_id")
-        # Columns will contain data for child alongside each household member
-        # This will allow us to do lookups related to both a child and other household members
-        pd.Dataframe = child_age | child_relation_to_household_head | member_age | member_relation_to_household_head | age_difference
-        child_id person_id|
-            0        0    |  11              "Biological child               11            "Biological child           0
-            0        1    |  11              "Biological child               35            "Reference person"          24
-            0        2    |  11              "Biological child               7             "Adopted child"             -4
-            2        0    |  7               "Adopted child                  11            "Biological child"           4
-            2        1    |  7               "Adopted child                  35            "Reference person"          28
-            2        2    |  7               "Adopted child                  7             "Adopted child"              0
-
-        Note: For every household with a child under 18, there N * X number of rows per household in the dataframe where
-          N = number of simulants under 18 and X is the number of members in that household.  The above example is for a
-          three person household with 2 children resulting in 6 rows.  This allows us to (eventually) lookup an the
-          index for each child's guardian, which in this case would be [(0, 1), (2, 1)].
-        """
-
-        under_18 = (
-            pop.loc[pop["age"] < 18, ["household_id", "relation_to_household_head", "age"]]
-            .reset_index()
-            .rename(columns={"index": "child_id"})
-            .set_index(["household_id", "child_id"])
-        )
-        household_info = (
-            pop[["household_id", "relation_to_household_head", "age"]]
-            .reset_index()
-            .rename(columns={"index": "person_id"})
-            .set_index(["household_id", "person_id"])
-        )
-        # Merge dataframes to cast on household_id and child_id
-        household_structure = under_18.merge(
-            household_info, left_index=True, right_index=True
-        )
-        household_structure = household_structure.rename(
-            columns={
-                "age_x": "child_age",
-                "relation_to_household_head_x": "child_relation_to_household_head",
-                "age_y": "member_age",
-                "relation_to_household_head_y": "member_relation_to_household_head",
-            }
-        ).droplevel("household_id")
-        # todo: move this out of here
-        household_structure["age_difference"] = (
-            household_structure["member_age"] - household_structure["child_age"]
-        )
-
-        return household_structure
-
-    @staticmethod
     def choose_random_guardian(member_ids: pd.DataFrame, groupby_level: str) -> pd.Series:
         # member_ids is a subset of child_households dataframe
         # groupby_level will be index level to group by (the first level index of member_ids (child_id or mother_id).
@@ -623,8 +584,17 @@ class Population:
         """
         # Setup
         new_births["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
-        mothers_households = self.get_mothers_household_structure(
-            new_births["parent_id"], households
+        key_cols = ["household_id", "relation_to_household_head"]
+        new_column_names = {
+                "relation_to_household_head_x": "mother_relation_to_household_head",
+                "relation_to_household_head_y": "member_relation_to_household_head",
+            }
+        mothers_households = self.get_household_structure(
+            households,
+            query_sims=new_births["parent_id"],
+            key_columns=key_cols,
+            column_names=new_column_names,
+            lookup_id_level_name="mother_id",
         )
 
         # Index helpers
@@ -661,48 +631,6 @@ class Population:
         return new_births
 
     @staticmethod
-    def get_mothers_household_structure(
-        mothers_idx: pd.Series, households: pd.DataFrame
-    ) -> pd.DataFrame:
-        """
-
-        Parameters
-        ----------
-        mothers_idx: Series of index values corresponding to mothers who gave birth this time step
-        households: 2 column dataframe of state table with containing "household_id" and "relation_to_household_head"
-          columns.
-
-        Returns
-        -------
-        Dataframe with 2 index levels "mother_id" and "person_id" and 2 columns "mother_relation_to_household_head" and
-          "member_relation_to_household_head".  This is the same schema we used with creating the data structure for
-          child households.
-        """
-        # todo: Future improvement would be to refactor the two data wrangling functions.
-
-        mothers = (
-            households.loc[mothers_idx]
-            .reset_index()
-            .rename(columns={"index": "mother_id"})
-            .set_index(["household_id", "mother_id"])
-        )
-        household_info = (
-            households.reset_index()
-            .rename(columns={"index": "person_id"})
-            .set_index(["household_id", "person_id"])
-        )
-
-        mother_households = mothers.merge(household_info, left_index=True, right_index=True)
-        mother_households = mother_households.rename(
-            columns={
-                "relation_to_household_head_x": "mother_relation_to_household_head",
-                "relation_to_household_head_y": "member_relation_to_household_head",
-            }
-        ).droplevel("household_id")
-
-        return mother_households
-
-    @staticmethod
     def get_household_structure(
             pop: pd.DataFrame,
             query_sims: Union[pd.Series, pd.Index],
@@ -718,7 +646,8 @@ class Population:
         query_sims: Series that will be used for a lookup to subset the state table.  This will create one of the
           dataframes we will merge to create our multi-index dataframe
         key_columns: columns to subset pop
-        column_names: Dictionary to map columns and their new names to
+        column_names: Dictionary to map columns and their new names to.  These will generally match the key_columns arg
+          and wil be of the format KEY_COLUMNS_x or KEY_COLUMN_y and then the new name for that column.
         lookup_id_level_name: Name for index level that will be first level of final dataframe.  This will be the index
           of the simulant for the "left" portion of our dataframe.
 
@@ -731,14 +660,14 @@ class Population:
         The following example is how we will construct a dataframe for children under 18.
         # Columns will contain data for child alongside each household member
         # This will allow us to do lookups related to both a child and other household members.
-        pd.Dataframe = child_age | child_relation_to_household_head | member_age | member_relation_to_household_head | age_difference
+        pd.Dataframe = child_age | child_relation_to_household_head | member_age | member_relation_to_household_head
         child_id person_id|
-            0        0    |  11              "Biological child               11            "Biological child           0
-            0        1    |  11              "Biological child               35            "Reference person"          24
-            0        2    |  11              "Biological child               7             "Adopted child"             -4
-            2        0    |  7               "Adopted child                  11            "Biological child"           4
-            2        1    |  7               "Adopted child                  35            "Reference person"          28
-            2        2    |  7               "Adopted child                  7             "Adopted child"              0
+            0        0    |  11              "Biological child               11            "Biological child
+            0        1    |  11              "Biological child               35            "Reference person"
+            0        2    |  11              "Biological child               7             "Adopted child"
+            2        0    |  7               "Adopted child                  11            "Biological child"
+            2        1    |  7               "Adopted child                  35            "Reference person"
+            2        2    |  7               "Adopted child                  7             "Adopted child"
 
         Note: For every household with a child under 18, there N * X number of rows per household in the dataframe where
           N = number of simulants under 18 and X is the number of members in that household.  The above example is for a
@@ -746,7 +675,9 @@ class Population:
           index for each child's guardian, which in this case would be [(0, 1), (2, 1)].
 
         # This function allows us to subset the state table to necessary columns and do more complicated lookups based
-          on household structures in a vectorized way to improve performance.
+          on household structures in a vectorized way to improve performance.  Additional columns to be added to this
+          data structure (for example age difference between the lookup (left) member and household member (right) shoud
+          be done outside this function.
         """
         lookup_sims = (
             pop.loc[query_sims, key_columns]
@@ -767,6 +698,7 @@ class Population:
         ).droplevel("household_id")
 
         return household_structure
+
 
 # Family/household relationships helper lists
 non_relatives = ["Roommate", "Other nonrelative"]
