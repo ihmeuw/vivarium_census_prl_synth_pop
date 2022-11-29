@@ -136,6 +136,7 @@ class Population:
 
         pop = self.assign_general_population_guardians(pop)
         # todo: Assign GQ-college guardians - MIC-3597
+        pop = self.assign_college_simulants_guaridans(pop)
 
         self.population_view.update(pop)
 
@@ -629,6 +630,91 @@ class Population:
         ] = new_births["parent_id"].map(reference_person_ids)
 
         return new_births
+
+    def assign_college_simulants_guaridans(self, pop: pd.DataFrame) -> pd.DataFrame:
+        # Takes pop (simulation state table) and updates guardian_1 and guardian_2 atributes for college GQ simulants.
+
+        # Get index helper groups for college sims, guardians, and by race_ethnicity
+        college_sims_idx = pop.loc[
+            (pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["College"]) &
+            (pop["age"] < 24)
+        ].index
+        asian_idx = pop.loc[
+            pop["race_ethnicity"] == "Asian"
+            ].index
+        black_idx = pop.loc[
+            pop["race_ethnicity"] == "Black"
+            ].index
+        latino_idx = pop.loc[
+            pop["race_ethnicity"] == "Latino"
+        ].index
+        multiracial_other_idx = pop.loc[
+            pop["race_ethnicity"] == "Multiracial or Other"
+            ].index
+        white_idx = pop.loc[
+            pop["race_ethnicity"] == "White"
+        ].index
+
+        # College sims by race/ethnicity
+        asian_college_sims_idx = pop.loc[
+            college_sims_idx
+            .intersection(asian_idx)
+        ].index
+        black_college_sims_idx = pop.loc[
+            college_sims_idx
+            .intersection(black_idx)
+        ].index
+        latino_college_sims_idx = pop.loc[
+            college_sims_idx
+            .intersection(latino_idx)
+        ].index
+        multiracial_other_college_sims_idx = pop.loc[
+            college_sims_idx
+            .intersect(multiracial_other_idx)
+        ].index
+        white_college_sims_idx = pop.loc[
+            college_sims_idx
+            .intersection(white_idx)
+        ].index
+        # Get potential guardian indexes
+        potential_guardians_idx = pop.loc[
+            (pop["age"] >= 18 + 18) &
+            (pop["age"] < 24 + 45) &
+            (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+        ].index  # Check this query with RT - how do we handle age bound for individual sims here
+        asian_potential_guardians_idx = pop.loc[
+            potential_guardians_idx
+            .intersection(asian_idx)
+        ].index
+        black_potential_guardians_idx = pop.loc[
+            potential_guardians_idx
+            .intersection(black_idx)
+        ].index
+        latino_potential_guardians_idx = pop.loc[
+            potential_guardians_idx
+            .intersection(latino_idx)
+        ].index
+        white_potential_guardians_idx = pop.loc[
+            potential_guardians_idx
+            .intersection(white_idx)
+        ]
+        # todo: Use randomness.choice to get indexes for each race/ethnicity college idx group
+        # todo: Build household structure from the chosen guardians to find second guardian if possible
+
+        # Get household structure for guardians to find potential partners
+        key_cols = ["age", "relation_to_household_head", "race_ethnicity"]
+        col_names = {
+            "relation_to_household_head_x": "guardian_relation_to_household_head",
+            "relation_to_household_head_y": "member_relation_to_household_head",
+        }
+        guardian_households = self.get_household_structure(
+            pop,
+            query_sims=guardians_idx,
+            key_columns=key_cols,
+            column_names=col_names,
+            lookup_id_level_name="guardian_id"
+        )
+
 
     @staticmethod
     def get_household_structure(
