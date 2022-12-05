@@ -27,7 +27,6 @@ PARTNERS = [
     "Same-sex spouse",
     "Same-sex partner",
 ]
-GUARDIAN_TYPES = ["single_female", "single_male", "partnered"]
 
 
 class Population:
@@ -692,8 +691,8 @@ class Population:
         # Handle percentage of single reference guardians vs reference persons with partners
         guardian_type_for_college_sims = self.randomness.choice(
             college_sims.index,
-            choices=GUARDIAN_TYPES,
-            p=data_values.PROPORTION_GUARDIAN_TYPES,
+            choices=list(data_values.PROPORTION_GUARDIAN_TYPES.keys()),
+            p=list(data_values.PROPORTION_GUARDIAN_TYPES.values()),
             additional_key="guardian_reference_person_relationship_type",
         )
         households_guardian_types = {
@@ -706,7 +705,7 @@ class Population:
         other_college_sims_idx = college_sims.loc[
             college_sims["race_ethnicity"] == "Multiracial or Other"
         ].index
-        for guardian_type in GUARDIAN_TYPES:
+        for guardian_type in data_values.PROPORTION_GUARDIAN_TYPES:
             college_sims_with_guardian_idx = guardian_type_for_college_sims.loc[
                 guardian_type_for_college_sims == guardian_type
             ].index
@@ -738,21 +737,21 @@ class Population:
                 "NHOPI",
                 "White",
             ]  # All races in state table excluding "Multiracial or other"
-            for r in races:
+            for race in races:
                 race_college_sims_idx = college_sims.loc[
-                    college_sims["race_ethnicity"] == r
+                    college_sims["race_ethnicity"] == race
                 ].index
                 race_college_sims_with_guardian_idx = race_college_sims_idx.intersection(
                     college_sims_with_guardian_idx
                 )
                 race_reference_person_ids = households_guardian_types[guardian_type].loc[
-                    households_guardian_types[guardian_type]["race_ethnicity"] == r,
+                    households_guardian_types[guardian_type]["race_ethnicity"] == race,
                     "reference_person_id",
                 ]
                 race_guardian_ids = self.randomness.choice(
                     race_college_sims_with_guardian_idx,
                     choices=race_reference_person_ids,
-                    additional_key=f"{r}_{guardian_type}_guardian_ids",
+                    additional_key=f"{race}_{guardian_type}_guardian_ids",
                 )
 
                 pop.loc[race_guardian_ids.index, "guardian_1"] = race_guardian_ids
