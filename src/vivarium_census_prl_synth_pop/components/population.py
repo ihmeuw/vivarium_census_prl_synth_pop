@@ -16,6 +16,20 @@ from vivarium_census_prl_synth_pop.constants import data_keys, data_values, meta
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 
+# Family/household relationships helper lists
+NON_RELATIVES = ["Roommate", "Other nonrelative"]
+CHILDREN = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
+CHILDREN_RELATIVES = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
+PARENTS = ["Parent", "Parent-in-law"]
+PARTNERS = [
+    "Opp-sex spouse",
+    "Opp-sex partner",
+    "Same-sex spouse",
+    "Same-sex partner",
+]
+GUARDIAN_TYPES = ["single_female", "single_male", "partnered"]
+
+
 class Population:
     def __init__(self):
         self.name_generator = NameGenerator()
@@ -369,8 +383,7 @@ class Population:
         # Non-GQ population
         gen_population = pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
         under_18_idx = pop.loc[
-            (pop["age"] < 18) &
-            (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+            (pop["age"] < 18) & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
         ].index
         new_column_names = {
             "age_x": "child_age",
@@ -395,13 +408,13 @@ class Population:
         # Children helper index groups
         # Ref_person = "Reference person"
         child_of_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"].isin(children)
+            child_households["child_relation_to_household_head"].isin(CHILDREN)
         ].index
         child_relative_of_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"].isin(children_relatives)
+            child_households["child_relation_to_household_head"].isin(CHILDREN_RELATIVES)
         ].index
         child_non_relative_of_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"].isin(non_relatives)
+            child_households["child_relation_to_household_head"].isin(NON_RELATIVES)
         ].index
         child_ref_person_idx = child_households.loc[
             child_households["child_relation_to_household_head"] == "Reference person"
@@ -410,25 +423,25 @@ class Population:
         # Potential guardian/household member index groups
         relatives_of_ref_person_idx = child_households.loc[
             ~child_households["member_relation_to_household_head"].isin(
-                non_relatives + partners + ["Reference person"]
+                NON_RELATIVES + PARTNERS + ["Reference person"]
             )
         ].index
         non_relatives_of_ref_person_idx = child_households.loc[
-            child_households["member_relation_to_household_head"].isin(non_relatives)
+            child_households["member_relation_to_household_head"].isin(NON_RELATIVES)
         ].index
         age_bound_idx = child_households.loc[
-            (child_households["age_difference"] >= 18) &
-            (child_households["age_difference"] < 46)
+            (child_households["age_difference"] >= 18)
+            & (child_households["age_difference"] < 46)
         ].index
         parents_of_ref_person_idx = child_households.loc[
-            child_households["member_relation_to_household_head"].isin(parents)
+            child_households["member_relation_to_household_head"].isin(PARENTS)
         ].index
         over_18_idx = child_households.loc[child_households["member_age"] >= 18].index
         ref_person_idx = child_households.loc[
             child_households["member_relation_to_household_head"] == "Reference person"
         ].index
         partners_of_ref_person_idx = child_households.loc[
-            child_households["member_relation_to_household_head"].isin(partners)
+            child_households["member_relation_to_household_head"].isin(PARTNERS)
         ].index
 
         # Assign guardians across groups
@@ -602,11 +615,11 @@ class Population:
             mothers_households["mother_relation_to_household_head"] == "Reference person"
         ].index
         mother_partner_idx = mothers_households.loc[
-            mothers_households["mother_relation_to_household_head"].isin(partners)
+            mothers_households["mother_relation_to_household_head"].isin(PARTNERS)
         ].index
         # Potential partner index groups
         partners_idx = mothers_households.loc[
-            mothers_households["member_relation_to_household_head"].isin(partners)
+            mothers_households["member_relation_to_household_head"].isin(PARTNERS)
         ].index
         ref_person_idx = mothers_households.loc[
             mothers_households["member_relation_to_household_head"] == "Reference person"
@@ -635,17 +648,17 @@ class Population:
         # Takes pop (simulation state table) and updates guardian_1 and guardian_2 atributes for college GQ simulants.
 
         college_sims = pop.loc[
-            (pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["College"]) &
-            (pop["age"] < 24),
+            (pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["College"])
+            & (pop["age"] < 24),
             ["race_ethnicity"],
         ]
-        # Get subsets of pop to create data structure with hhousehold_id, reference_person_id, partner_id, sex, race
+        # Get subsets of pop to create data structure with household_id, reference_person_id, partner_id, sex, race
         #  for easier lookups
         reference_persons = (
             pop.loc[
-                (pop["relation_to_household_head"] == "Reference person") &
-                (pop["age"] >= 35) &
-                (pop["age"] < 66),
+                (pop["relation_to_household_head"] == "Reference person")
+                & (pop["age"] >= 35)
+                & (pop["age"] < 66),
                 ["household_id", "sex", "race_ethnicity"],
             ]
             .reset_index()
@@ -653,10 +666,11 @@ class Population:
             .rename(columns={"index": "reference_person_id"})
         )
         partners_of_reference_persons = (
-            pop.loc[pop["relation_to_household_head"].isin(partners), ["household_id"]]
+            pop.loc[pop["relation_to_household_head"].isin(PARTNERS), ["household_id"]]
             .reset_index()
-            .set_index("household_id")
             .rename(columns={"index": "partner_id"})
+            .groupby("household_id")["partner_id"]
+            .apply(np.random.choice)
         )
         potential_guardians_data = reference_persons.join(
             partners_of_reference_persons, on="household_id", how="left"
@@ -667,175 +681,89 @@ class Population:
         ]
         # Get single reference persons by sex
         households_with_single_female_reference_person = potential_guardians_data.loc[
-            (potential_guardians_data["sex"] == "Female") &
-            (potential_guardians_data["partner_id"].isnull())
+            (potential_guardians_data["sex"] == "Female")
+            & (potential_guardians_data["partner_id"].isnull())
         ]
         households_with_single_male_reference_person = potential_guardians_data.loc[
-            (potential_guardians_data["sex"] == "Male") &
-            (potential_guardians_data["partner_id"].isnull())
+            (potential_guardians_data["sex"] == "Male")
+            & (potential_guardians_data["partner_id"].isnull())
         ]
 
         # Handle percentage of single reference guardians vs reference persons with partners
-        choices_p = [0.23, 0.05, 0.72]
-        choices = ["single_female", "single_male", "partnered"]
         guardian_type_for_college_sims = self.randomness.choice(
             college_sims.index,
-            choices=choices,
-            p=choices_p,
+            choices=GUARDIAN_TYPES,
+            p=data_values.PROPORTION_GUARDIAN_TYPES,
             additional_key="guardian_reference_person_relationship_type",
         )
-        # Get index for college sims for each type of reference person (from choices)
-        college_sims_with_single_female_reference_guardian_idx = (
-            guardian_type_for_college_sims.loc[
-                guardian_type_for_college_sims == "single_female"
-            ].index
-        )
-        college_sims_with_single_male_reference_guardian_idx = (
-            guardian_type_for_college_sims.loc[
-                guardian_type_for_college_sims == "single_male"
-            ].index
-        )
-        college_sims_with_partnered_reference_guardian_idx = (
-            guardian_type_for_college_sims.loc[
-                guardian_type_for_college_sims == "partnered"
-            ].index
-        )
+        households_guardian_types = {
+            "single_female": households_with_single_female_reference_person,
+            "single_male": households_with_single_male_reference_person,
+            "partnered": households_with_partners,
+        }
 
         # Handle "Multiracial or Other" and other since we do not subset for that race
-        other_race = "Multiracial or Other"
         other_college_sims_idx = college_sims.loc[
-            college_sims["race_ethnicity"] == other_race
+            college_sims["race_ethnicity"] == "Multiracial or Other"
         ].index
-        other_college_sims_with_single_female_reference_person_idx = (
-            other_college_sims_idx.intersection(
-                college_sims_with_single_female_reference_guardian_idx
-            )
-        )
-        other_college_sims_with_single_male_reference_person_idx = (
-            other_college_sims_idx.intersection(
-                college_sims_with_single_male_reference_guardian_idx
-            )
-        )
-        other_college_sims_with_partnered_reference_person_idx = (
-            other_college_sims_idx.intersection(
-                college_sims_with_partnered_reference_guardian_idx
-            )
-        )
-        # Pick guardian for college sims based on their guardian type and assign guardian
-        other_single_female_guardian_ids = self.randomness.choice(
-            other_college_sims_with_single_female_reference_person_idx,
-            choices=households_with_single_female_reference_person["reference_person_id"],
-            additional_key="other_single_female_guardian_ids",
-        )
-        other_single_male_guardian_ids = self.randomness.choice(
-            other_college_sims_with_single_male_reference_person_idx,
-            choices=households_with_single_male_reference_person["reference_person_id"],
-            additional_key="other_single_male_guardian_ids",
-        )
-        other_partnered_guardian_ids = self.randomness.choice(
-            other_college_sims_with_partnered_reference_person_idx,
-            choices=households_with_partners["reference_person_id"],
-            additional_key="other_partnered_guardian_ids",
-        )
-        pop.loc[
-            other_single_female_guardian_ids.index, "guardian_1"
-        ] = other_single_female_guardian_ids
-        # Should I use the original index of race_college_sims_with_single_female_reference_person_idx for lookup
-        pop.loc[
-            other_single_male_guardian_ids.index, "guardian_1"
-        ] = other_single_male_guardian_ids
-        pop.loc[
-            other_partnered_guardian_ids.index, "guardian_1"
-        ] = other_partnered_guardian_ids
-        # Assign guardian_2 for sims who's reference person has a partner
-        other_partner_ids = (
-            households_with_partners.reset_index()
-            .groupby(["reference_person_id"])["partner_id"]
-            .apply(np.random.choice)
-        )
-        pop.loc[other_partnered_guardian_ids.index, "guardian_2"] = pop["guardian_1"].map(
-            other_partner_ids
-        )
-
-        # Iterate through race/ethnicity and assign initial guardian
-        races = [
-            "AIAN",
-            "Asian",
-            "Black",
-            "Latino",
-            "NHOPI",
-            "White",
-        ]  # All races in state table excluding "Multiracial or other"
-        for r in races:
-            # Get race index for college sims by guardian reference person type
-            race_college_sims_idx = college_sims.loc[
-                college_sims["race_ethnicity"] == r
+        for guardian_type in GUARDIAN_TYPES:
+            college_sims_with_guardian_idx = guardian_type_for_college_sims.loc[
+                guardian_type_for_college_sims == guardian_type
             ].index
-            race_college_sims_with_single_female_reference_person_idx = (
-                race_college_sims_idx.intersection(
-                    college_sims_with_single_female_reference_guardian_idx
-                )
+            other_college_sims_with_guardian_idx = other_college_sims_idx.intersection(
+                college_sims_with_guardian_idx
             )
-            race_college_sims_with_single_male_reference_person_idx = (
-                race_college_sims_idx.intersection(
-                    college_sims_with_single_male_reference_guardian_idx
-                )
-            )
-            race_college_sim_with_partnered_reference_person_idx = (
-                race_college_sims_idx.intersection(
-                    college_sims_with_partnered_reference_guardian_idx
-                )
+            other_guardian_ids = self.randomness.choice(
+                other_college_sims_with_guardian_idx,
+                choices=households_guardian_types[guardian_type]["reference_person_id"],
+                additional_key=f"other_{guardian_type}_guardian_ids",
             )
 
-            # Get ids (index) for each possible reference person guardian type
-            race_female_single_reference_person_ids = (
-                households_with_single_female_reference_person.loc[
-                    households_with_single_female_reference_person["race_ethnicity"] == r,
-                    "reference_person_id",
-                ]
-            )
-            race_male_single_reference_person_ids = (
-                households_with_single_male_reference_person.loc[
-                    households_with_single_male_reference_person["race_ethnicity"] == r,
-                    "reference_person_id",
-                ]
-            )
-            race_partnered_households = households_with_partners.loc[
-                households_with_partners["race_ethnicity"] == r
-            ]
+            pop.loc[other_guardian_ids.index, "guardian_1"] = other_guardian_ids
 
-            # Choose and assign guardian_1
-            single_female_guardian_ids = self.randomness.choice(
-                race_college_sims_with_single_female_reference_person_idx,
-                choices=race_female_single_reference_person_ids,
-                additional_key=f"{r}_single_female_guardian_ids",
-            )
-            single_male_guardian_ids = self.randomness.choice(
-                race_college_sims_with_single_male_reference_person_idx,
-                choices=race_male_single_reference_person_ids,
-                additional_key=f"{r}_single_male_guardian_ids",
-            )
-            partnered_guardian_ids = self.randomness.choice(
-                race_college_sim_with_partnered_reference_person_idx,
-                choices=race_partnered_households["reference_person_id"],
-                additional_key=f"{r}_partnered_guardian_ids",
-            )
-            pop.loc[
-                single_female_guardian_ids.index, "guardian_1"
-            ] = single_female_guardian_ids
-            # Should I use the original index of race_college_sims_with_single_female_reference_person_idx for lookup
-            pop.loc[single_male_guardian_ids.index, "guardian_1"] = single_male_guardian_ids
-            pop.loc[partnered_guardian_ids.index, "guardian_1"] = partnered_guardian_ids
-            # Assign guardian_2 for sims who's reference person has a partner
-            if len(race_partnered_households) > 0:
-                partner_ids = (
-                    race_partnered_households.reset_index()
-                    .groupby(["reference_person_id"])["partner_id"]
-                    .apply(np.random.choice)
+            if guardian_type == "partnered":
+                other_partner_ids = households_with_partners.reset_index().set_index(
+                    "reference_person_id"
+                )["partner_id"]
+                pop.loc[other_guardian_ids.index, "guardian_2"] = pop["guardian_1"].map(
+                    other_partner_ids
                 )
-                pop.loc[partnered_guardian_ids.index, "guardian_2"] = pop["guardian_1"].map(
-                    partner_ids
+
+            # Iterate through race/ethnicity and assign initial guardian
+            races = [
+                "AIAN",
+                "Asian",
+                "Black",
+                "Latino",
+                "NHOPI",
+                "White",
+            ]  # All races in state table excluding "Multiracial or other"
+            for r in races:
+                race_college_sims_idx = college_sims.loc[
+                    college_sims["race_ethnicity"] == r
+                ].index
+                race_college_sims_with_guardian_idx = race_college_sims_idx.intersection(
+                    college_sims_with_guardian_idx
                 )
+                race_reference_person_ids = households_guardian_types[guardian_type].loc[
+                    households_guardian_types[guardian_type]["race_ethnicity"] == r,
+                    "reference_person_id",
+                ]
+                race_guardian_ids = self.randomness.choice(
+                    race_college_sims_with_guardian_idx,
+                    choices=race_reference_person_ids,
+                    additional_key=f"{r}_{guardian_type}_guardian_ids",
+                )
+
+                pop.loc[race_guardian_ids.index, "guardian_1"] = race_guardian_ids
+
+                if guardian_type == "partnered":
+                    race_partner_ids = households_with_partners.reset_index().set_index(
+                        "reference_person_id"
+                    )["partner_id"]
+                    pop.loc[race_guardian_ids.index, "guardian_2"] = pop["guardian_1"].map(
+                        race_partner_ids
+                    )
 
         return pop
 
@@ -909,16 +837,3 @@ class Population:
         )
 
         return household_structure
-
-
-# Family/household relationships helper lists
-non_relatives = ["Roommate", "Other nonrelative"]
-children = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
-children_relatives = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
-parents = ["Parent", "Parent-in-law"]
-partners = [
-    "Opp-sex spouse",
-    "Opp-sex partner",
-    "Same-sex spouse",
-    "Same-sex partner",
-]
