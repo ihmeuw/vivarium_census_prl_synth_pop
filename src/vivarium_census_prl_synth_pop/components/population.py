@@ -131,6 +131,7 @@ class Population:
         pop = pd.concat([pop, first_and_middle, last_names], axis=1)
 
         pop["age"] = pop["age"].astype("float64")
+        #todo: the below line can be dropped after we perturb age
         pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
         pop["date_of_birth"] = self.start_time - pd.to_timedelta(
             np.round(pop["age"] * 365.25), unit="days"
@@ -171,6 +172,7 @@ class Population:
                 ),
             }
         )
+        #todo: Perturb age for household here with new column
 
         # get all simulants per household
         chosen_persons = pd.merge(
@@ -188,8 +190,8 @@ class Population:
         chosen_persons = chosen_persons.loc[
             ~chosen_persons["household_id"].isin(households_to_discard)
         ]
-
         chosen_persons["housing_type"] = "Standard"
+        #todo: Use age shift to perturb age and drop column.
 
         return chosen_persons
 
@@ -244,6 +246,7 @@ class Population:
         group_quarters["housing_type"] = group_quarters["household_id"].map(
             data_values.GQ_HOUSING_TYPE_MAP
         )
+        # todo: Add function that perturbs age for indvidisual that will also be used for immigrants.
 
         return group_quarters
 
