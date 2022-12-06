@@ -844,20 +844,24 @@ class Population:
         # Takes dataframe of households and returns a series with an applied age shift for each household.
         household_ids = simulants.loc[
             simulants["relation_to_household_head"] == "Reference person", "household_id"
-        ]
+        ]  # Series with index for each refernce person and value is household id
         # Flip index and values to map age shift later
         reference_person_ids = pd.Series(data=household_ids.index, index=household_ids)
-        age_shift = self.randomness.get_draw(
+        age_shift_propensity = self.randomness.get_draw(
             reference_person_ids.index,  # This index is a unique list of household ids
             additional_key="household_age_perturbation",
         )
+        # Convert to normal distribution with mean=0 and sd=10
+        age_shift = pd.Series(
+            data=stats.norm.ppf(age_shift_propensity, loc=0, scale=10),
+            index=age_shift_propensity.index,
+        )
         # Map age_shift to households so each member's age is perturbed the same amount
-        mapped_age = pd.Series(
+        mapped_age_shift = pd.Series(
             data=simulants["household_id"].map(age_shift), index=simulants.index
         )
-        # Convert to normal distribution with mean=0 and sd=10
-        perturbed_age = stats.norm.ppf(mapped_age, loc=0, scale=10)
-        simulants["age"] = simulants["age"] + perturbed_age
+
+        simulants["age"] = simulants["age"] + mapped_age_shift
 
         # Clip ages at 0 and 125
         simulants.loc[simulants["age"] < 0, "age"] = 0
