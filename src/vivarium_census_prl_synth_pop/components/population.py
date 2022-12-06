@@ -132,6 +132,7 @@ class Population:
         pop = pd.concat([pop, first_and_middle, last_names], axis=1)
 
         pop["age"] = pop["age"].astype("float64")
+        # Shift age so all households do not have the same birthday
         pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
         pop["date_of_birth"] = self.start_time - pd.to_timedelta(
             np.round(pop["age"] * 365.25), unit="days"
@@ -190,7 +191,6 @@ class Population:
             ~chosen_persons["household_id"].isin(households_to_discard)
         ]
         chosen_persons["housing_type"] = "Standard"
-        # todo: Perturb age for household here with new column
         chosen_persons["age"] = self.perturb_household_age(chosen_persons)
 
         return chosen_persons
@@ -845,13 +845,22 @@ class Population:
         household_ids = simulants.loc[
             simulants["relation_to_household_head"] == "Reference person", "household_id"
         ]
+        # Flip index and values to map age shift later
+        reference_person_ids = pd.Series(data=household_ids.index, index=household_ids)
         age_shift = self.randomness.get_draw(
-            household_ids.index,
-            additional_key="household_age_perturbation"
+            reference_person_ids.index,  # This index is a unique list of household ids
+            additional_key="household_age_perturbation",
+        )
+        # Map age_shift to households so each member's age is perturbed the same amount
+        mapped_age = pd.Series(
+            data=simulants["household_id"].map(age_shift), index=simulants.index
         )
         # Convert to normal distribution with mean=0 and sd=10
-        perturbed_age = stats.norm.ppf(age_shift, loc=0, scale=10)
+        perturbed_age = stats.norm.ppf(mapped_age, loc=0, scale=10)
         simulants["age"] = simulants["age"] + perturbed_age
-        #todo: Add age bound checks
+
+        # Clip ages at 0 and 125
+        simulants.loc[simulants["age"] < 0, "age"] = 0
+        simulants.loc[simulants["age"] > 99, "age"] = 99
 
         return simulants["age"]
