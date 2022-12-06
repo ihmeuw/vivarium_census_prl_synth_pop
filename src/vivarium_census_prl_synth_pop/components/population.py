@@ -2,6 +2,7 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -131,7 +132,6 @@ class Population:
         pop = pd.concat([pop, first_and_middle, last_names], axis=1)
 
         pop["age"] = pop["age"].astype("float64")
-        #todo: the below line can be dropped after we perturb age
         pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
         pop["date_of_birth"] = self.start_time - pd.to_timedelta(
             np.round(pop["age"] * 365.25), unit="days"
@@ -172,7 +172,6 @@ class Population:
                 ),
             }
         )
-        #todo: Perturb age for household here with new column
 
         # get all simulants per household
         chosen_persons = pd.merge(
@@ -191,7 +190,8 @@ class Population:
             ~chosen_persons["household_id"].isin(households_to_discard)
         ]
         chosen_persons["housing_type"] = "Standard"
-        #todo: Use age shift to perturb age and drop column.
+        # todo: Perturb age for household here with new column
+        chosen_persons["age"] = self.perturb_household_age(chosen_persons)
 
         return chosen_persons
 
@@ -839,3 +839,18 @@ class Population:
         )
 
         return household_structure
+
+    def perturb_household_age(self, simulants: pd.DataFrame) -> pd.Series:
+        # Takes dataframe of households and returns a series with an applied age shift for each household.
+        household_ids = simulants.loc[
+            simulants["relation_to_household_head"] == "Reference person", "household_id"
+        ]
+        age_shift = self.randomness.get_draw(
+            household_ids.index,
+            additional_key="household_age_perturbation"
+        )
+        # Convert to normal distribution with mean=0 and sd=10
+        perturbed_age = stats.norm.ppf(age_shift, loc=0, scale=10)
+        simulants["age"] = simulants["age"] + perturbed_age
+
+        return simulants["age"]
