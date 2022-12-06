@@ -247,6 +247,7 @@ class Population:
             data_values.GQ_HOUSING_TYPE_MAP
         )
         # todo: Add function that perturbs age for indvidisual that will also be used for immigrants.
+        group_quarters["age"] = self.perturb_group_quarters_age(group_quarters["age"])
 
         return group_quarters
 
@@ -868,3 +869,35 @@ class Population:
         simulants.loc[simulants["age"] > 99, "age"] = 99
 
         return simulants["age"]
+
+    def perturb_group_quarters_age(self, ages: pd.Series) -> pd.Series:
+        # Takes series of ages and returns a series of ages shifted with truncnorm mean=0 and sd=10 years clipped at 0.
+
+        def perturb_age(ages: pd.Series, additional_key: str) -> pd.Series:
+            age_shift_propensity = self.randomness.get_draw(
+                ages.index,
+                additional_key=additional_key,
+            )
+            # Convert to truncnorm distribution with mean=0 and sd=10
+            age_shift = pd.Series(
+                data=stats.norm.ppf(age_shift_propensity, loc=0, scale=10),
+                index=age_shift_propensity.index,
+            )
+            perturbed_ages = ages + age_shift
+            return perturbed_ages
+
+        # Get age shift and redraw for simulants who get negative ages
+        to_generate = pd.Series(True, index=ages.index)
+        # todo: get this to work, index with bool not working when other while loop did
+        while_key = 1
+        while to_generate.any():
+            ages.loc[to_generate] = perturb_age(
+                ages[to_generate],
+                additional_key=f"individual_age_perturbation_{while_key}"
+            )
+            while_key += 1
+            negative_ages = ages.loc[ages < 0]
+            ages = pd.concat([ages, ages.loc[to_generate & ~negative_ages]])
+            to_generate = negative_ages
+
+        return ages
