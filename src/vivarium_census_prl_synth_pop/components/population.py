@@ -852,5 +852,6 @@ class Population:
         # Convert to normal distribution with mean=0 and sd=10
         perturbed_age = stats.norm.ppf(age_shift, loc=0, scale=10)
         simulants["age"] = simulants["age"] + perturbed_age
+        #todo: Add age bound checks
 
         return simulants["age"]
