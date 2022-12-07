@@ -844,7 +844,7 @@ class Population:
         # Takes dataframe of households and returns a series with an applied age shift for each household.
         household_ids = simulants.loc[
             simulants["relation_to_household_head"] == "Reference person", "household_id"
-        ]  # Series with index for each refernce person and value is household id
+        ]  # Series with index for each reference person and value is household id
         # Flip index and values to map age shift later
         reference_person_ids = pd.Series(data=household_ids.index, index=household_ids)
         age_shift_propensity = self.randomness.get_draw(
@@ -863,7 +863,7 @@ class Population:
 
         simulants["age"] = simulants["age"] + mapped_age_shift
 
-        # Clip ages at 0 and 125
+        # Clip ages at 0 and 99
         simulants.loc[simulants["age"] < 0, "age"] = 0
         simulants.loc[simulants["age"] > 99, "age"] = 99
 
