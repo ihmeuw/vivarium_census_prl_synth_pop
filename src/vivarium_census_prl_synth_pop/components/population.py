@@ -2,6 +2,7 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -15,7 +16,6 @@ from vivarium_census_prl_synth_pop.components.synthetic_pii import (
 )
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
-
 
 # Family/household relationships helper lists
 NON_RELATIVES = ["Roommate", "Other nonrelative"]
@@ -246,7 +246,7 @@ class Population:
         group_quarters["housing_type"] = group_quarters["household_id"].map(
             data_values.GQ_HOUSING_TYPE_MAP
         )
-        # todo: Add function that perturbs age for indvidisual that will also be used for immigrants.
+        group_quarters["age"] = self.perturb_individual_age(group_quarters)
 
         return group_quarters
 
@@ -868,3 +868,45 @@ class Population:
         simulants.loc[simulants["age"] > 99, "age"] = 99
 
         return simulants["age"]
+
+    def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
+        # Takes dataframe containing a column "age" and returns a series of ages shifted with a normal distribution
+        #   with mean=0 and sd=10 years.  If a simulant's age shift results in a negative age their perturbed age will
+        #   be redrawn from the distribution. pop will be the population for group quarters or immigrants migrating to
+        #   the US.
+        # todo: Consider changing this function to build a distribution for each simulan instead of resampling.
+
+        # Get age shift and redraw for simulants who get negative ages
+        to_shift = pd.Series(True, index=pop.index)
+        max_iterations = 10
+        for i in range(max_iterations):
+            if to_shift.sum() == 0:
+                break
+            age_shift_propensity = self.randomness.get_draw(
+                pop.loc[to_shift, "age"].index,
+                additional_key=f"individual_age_perturbation_{i}",
+            )
+            # Convert to normal distribution with mean=0 and sd=10
+            age_shift = pd.Series(
+                data=stats.norm.ppf(age_shift_propensity, loc=0, scale=10),
+                index=age_shift_propensity.index,
+            )
+
+            # Calculate shifted ages and see if any are negative and need to be resampled.
+            shifted_ages = pop.loc[to_shift, "age"] + age_shift
+            negative_ages_mask = shifted_ages < 0
+            pop.loc[~negative_ages_mask & to_shift, "age"] = shifted_ages.loc[
+                ~negative_ages_mask & to_shift
+            ]
+            to_shift = negative_ages_mask
+
+        # Check if any simulants did not have their age shifted
+        if to_shift.sum() > 0:
+            logger.info(
+                f"Maximum iterations for resampling of age perturbation reached.  The number of simulants whose age"
+                f"was not perturbed is {to_shift.sum()}"
+            )
+
+        # Clip ages above 99 at 99
+        pop.loc[pop["age"] > 99, "age"] = 99
+        return pop["age"]
