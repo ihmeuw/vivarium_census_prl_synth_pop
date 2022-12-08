@@ -16,7 +16,6 @@ from vivarium_census_prl_synth_pop.components.synthetic_pii import (
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
-
 # Family/household relationships helper lists
 NON_RELATIVES = ["Roommate", "Other nonrelative"]
 CHILDREN = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
@@ -246,8 +245,7 @@ class Population:
         group_quarters["housing_type"] = group_quarters["household_id"].map(
             data_values.GQ_HOUSING_TYPE_MAP
         )
-        # todo: Add function that perturbs age for indvidisual that will also be used for immigrants.
-        group_quarters["age"] = self.perturb_group_quarters_age(group_quarters["age"])
+        group_quarters["age"] = self.perturb_individual_age(group_quarters)
 
         return group_quarters
 
@@ -870,12 +868,16 @@ class Population:
 
         return simulants["age"]
 
-    def perturb_group_quarters_age(self, ages: pd.Series) -> pd.Series:
-        # Takes series of ages and returns a series of ages shifted with truncnorm mean=0 and sd=10 years clipped at 0.
+    def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
+        # Takes dataframe containing a column "age" and returns a series of ages shifted with truncnorm mean=0 and
+        #  sd=10 years.  If a simulant's age shift results in a negative age their perturbed age will be redrawn from
+        #  the distribution.
+        # pop will be the population for group quarters or immigrants migrating to the US.
+        # todo: Consider changing this function to build a distribution for each simulan instead of using recursion.
 
-        def perturb_age(ages: pd.Series, additional_key: str) -> pd.Series:
+        def perturb_age(ages_to_shift: pd.Series, additional_key: str) -> pd.Series:
             age_shift_propensity = self.randomness.get_draw(
-                ages.index,
+                ages_to_shift.index,
                 additional_key=additional_key,
             )
             # Convert to truncnorm distribution with mean=0 and sd=10
@@ -883,21 +885,25 @@ class Population:
                 data=stats.norm.ppf(age_shift_propensity, loc=0, scale=10),
                 index=age_shift_propensity.index,
             )
-            perturbed_ages = ages + age_shift
-            return perturbed_ages
+            return age_shift
 
         # Get age shift and redraw for simulants who get negative ages
-        to_generate = pd.Series(True, index=ages.index)
-        # todo: get this to work, index with bool not working when other while loop did
+        to_shift = pd.Series(True, index=pop.index)
         while_key = 1
-        while to_generate.any():
-            ages.loc[to_generate] = perturb_age(
-                ages[to_generate],
-                additional_key=f"individual_age_perturbation_{while_key}"
+        while to_shift.any():
+            age_shift = perturb_age(
+                pop.loc[to_shift, "age"],
+                additional_key=f"individual_age_perturbation_{while_key}",
             )
             while_key += 1
-            negative_ages = ages.loc[ages < 0]
-            ages = pd.concat([ages, ages.loc[to_generate & ~negative_ages]])
-            to_generate = negative_ages
+            # Calculate shifted ages and see if any are negative and need to be resampled.
+            shifted_ages = pop.loc[to_shift, "age"] + age_shift
+            negative_ages_mask = shifted_ages < 0
+            pop.loc[~negative_ages_mask & to_shift, "age"] = shifted_ages.loc[
+                ~negative_ages_mask & to_shift
+            ]
+            to_shift = negative_ages_mask
 
-        return ages
+        # Clip ages above 99 at 99
+        pop.loc[pop["age"] > 99, "age"] = 99
+        return pop["age"]
