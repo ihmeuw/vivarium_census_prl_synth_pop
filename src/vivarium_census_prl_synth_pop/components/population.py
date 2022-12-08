@@ -899,11 +899,13 @@ class Population:
                 ~negative_ages_mask & to_shift
             ]
             to_shift = negative_ages_mask
-            if i == (max_iterations - 1) and to_shift.sum() > 0:
-                logger.info(
-                    f"Maximum iterations for resampling of age perturbation reached.  The number of simulants whose age"
-                    f"was not perturbed is {to_shift.sum()}"
-                )
+
+        # Check if any simulants did not have their age shifted
+        if to_shift.sum() > 0:
+            logger.info(
+                f"Maximum iterations for resampling of age perturbation reached.  The number of simulants whose age"
+                f"was not perturbed is {to_shift.sum()}"
+            )
 
         # Clip ages above 99 at 99
         pop.loc[pop["age"] > 99, "age"] = 99
