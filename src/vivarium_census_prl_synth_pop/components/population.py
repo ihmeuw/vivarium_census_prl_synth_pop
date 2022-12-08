@@ -869,33 +869,26 @@ class Population:
         return simulants["age"]
 
     def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
-        # Takes dataframe containing a column "age" and returns a series of ages shifted with truncnorm mean=0 and
-        #  sd=10 years.  If a simulant's age shift results in a negative age their perturbed age will be redrawn from
-        #  the distribution.
-        # pop will be the population for group quarters or immigrants migrating to the US.
-        # todo: Consider changing this function to build a distribution for each simulan instead of using recursion.
+        # Takes dataframe containing a column "age" and returns a series of ages shifted with tr a normal distribution
+        #   with mean=0 and sd=10 years.  If a simulant's age shift results in a negative age their perturbed age will
+        #   be redrawn from the distribution. pop will be the population for group quarters or immigrants migrating to
+        #   the US.
+        # todo: Consider changing this function to build a distribution for each simulan instead of resampling.
 
-        def perturb_age(ages_to_shift: pd.Series, additional_key: str) -> pd.Series:
+        # Get age shift and redraw for simulants who get negative ages
+        to_shift = pd.Series(True, index=pop.index)
+        max_iterations = 10
+        for i in range(max_iterations):
             age_shift_propensity = self.randomness.get_draw(
-                ages_to_shift.index,
-                additional_key=additional_key,
+                pop.loc[to_shift, "age"].index,
+                additional_key=f"individual_age_perturbation_{i}",
             )
-            # Convert to truncnorm distribution with mean=0 and sd=10
+            # Convert to normal distribution with mean=0 and sd=10
             age_shift = pd.Series(
                 data=stats.norm.ppf(age_shift_propensity, loc=0, scale=10),
                 index=age_shift_propensity.index,
             )
-            return age_shift
 
-        # Get age shift and redraw for simulants who get negative ages
-        to_shift = pd.Series(True, index=pop.index)
-        while_key = 1
-        while to_shift.any():
-            age_shift = perturb_age(
-                pop.loc[to_shift, "age"],
-                additional_key=f"individual_age_perturbation_{while_key}",
-            )
-            while_key += 1
             # Calculate shifted ages and see if any are negative and need to be resampled.
             shifted_ages = pop.loc[to_shift, "age"] + age_shift
             negative_ages_mask = shifted_ages < 0
@@ -903,6 +896,14 @@ class Population:
                 ~negative_ages_mask & to_shift
             ]
             to_shift = negative_ages_mask
+            if i == (max_iterations - 1) and len(to_shift) > 0:
+                print(
+                    "Maximum iterations of resampling of age perturbation reach.  The number of simulants who's age"
+                    "was not perturbed is",
+                    len(to_shift),
+                )
+            elif to_shift.sum() == 0:
+                break
 
         # Clip ages above 99 at 99
         pop.loc[pop["age"] > 99, "age"] = 99
