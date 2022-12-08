@@ -2,6 +2,7 @@ from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -869,7 +870,7 @@ class Population:
         return simulants["age"]
 
     def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
-        # Takes dataframe containing a column "age" and returns a series of ages shifted with tr a normal distribution
+        # Takes dataframe containing a column "age" and returns a series of ages shifted with a normal distribution
         #   with mean=0 and sd=10 years.  If a simulant's age shift results in a negative age their perturbed age will
         #   be redrawn from the distribution. pop will be the population for group quarters or immigrants migrating to
         #   the US.
@@ -879,6 +880,8 @@ class Population:
         to_shift = pd.Series(True, index=pop.index)
         max_iterations = 10
         for i in range(max_iterations):
+            if to_shift.sum() == 0:
+                break
             age_shift_propensity = self.randomness.get_draw(
                 pop.loc[to_shift, "age"].index,
                 additional_key=f"individual_age_perturbation_{i}",
@@ -896,14 +899,11 @@ class Population:
                 ~negative_ages_mask & to_shift
             ]
             to_shift = negative_ages_mask
-            if i == (max_iterations - 1) and len(to_shift) > 0:
-                print(
-                    "Maximum iterations of resampling of age perturbation reach.  The number of simulants who's age"
-                    "was not perturbed is",
-                    len(to_shift),
+            if i == (max_iterations - 1) and to_shift.sum() > 0:
+                logger.info(
+                    f"Maximum iterations for resampling of age perturbation reached.  The number of simulants whose age"
+                    f"was not perturbed is {to_shift.sum()}"
                 )
-            elif to_shift.sum() == 0:
-                break
 
         # Clip ages above 99 at 99
         pop.loc[pop["age"] > 99, "age"] = 99
