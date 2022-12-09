@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -5,7 +6,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_and_zipcode,
+    update_address_id,
 )
 from vivarium_census_prl_synth_pop.constants import (
     data_keys,
@@ -75,12 +76,11 @@ class HouseholdMigration:
 
         self.randomness = builder.randomness.get_stream(self.name)
         self.addresses = builder.components.get_component("Address")
-        self.columns_created = ["address", "zipcode"]
+        self.columns_created = ["address_id"]
         self.columns_used = [
             "household_id",
             "relation_to_household_head",
-            "address",
-            "zipcode",
+            "address_id",
             "tracked",
             "exit_time",
         ]
@@ -103,17 +103,16 @@ class HouseholdMigration:
         """
         if pop_data.creation_time < self.start_time:
             households = self.population_view.subview(["household_id"]).get(pop_data.index)
-            address_assignments = self.addresses.generate(
-                pd.Index(households["household_id"].drop_duplicates()),
-                state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
+            household_ids = households["household_id"].unique()
+            n = np.float64(len(household_ids))
+            address_assignments = {household: address_id for (household, address_id) in zip(
+                household_ids,
+                np.arange(n)
+            )}
+            households["address_id"] = households["household_id"].map(
+                address_assignments
             )
-            households["address"] = households["household_id"].map(
-                address_assignments["address"]
-            )
-            households["zipcode"] = households["household_id"].map(
-                address_assignments["zipcode"]
-            )
-
+            self.max_household_address_id = n
             self.population_view.update(households)
         else:
             parent_ids = pop_data.user_data["parent_ids"]
@@ -167,19 +166,17 @@ class HouseholdMigration:
             households.loc[abroad_households_idx, "tracked"] = False
 
         # Process households moving domestic
-        # Make new address map
-        if len(domestic_households_idx) > 0:
-            address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                domestic_household_ids,
-                state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
-            )
+            # Make new address map
+            if len(domestic_households_idx) > 0:
+                address_id_map = self.addresses.get_new_address_ids(domestic_household_ids,
+                                                                    self.max_household_address_id)
 
-            households = update_address_and_zipcode(
-                df=households,
-                rows_to_update=domestic_households_idx,
-                id_key=households["household_id"],
-                address_map=address_map,
-                zipcode_map=zipcode_map,
-            )
+                households = update_address_id(
+                    df=households,
+                    rows_to_update=domestic_households_idx,
+                    id_key=households["household_id"],
+                    address_id_map=address_id_map,
+                )
+                self.max_household_address_id += len(domestic_households_idx)
 
-        self.population_view.update(households)
+            self.population_view.update(households)
