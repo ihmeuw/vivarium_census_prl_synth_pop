@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
@@ -425,29 +424,4 @@ def update_address_and_zipcode(
     """
     df.loc[rows_to_update, address_col_name] = id_key.map(address_map)
     df.loc[rows_to_update, zipcode_col_name] = id_key.map(zipcode_map)
-    return df
-
-
-def update_address_id(
-    df: pd.DataFrame,
-    rows_to_update: pd.Index,
-    id_key: pd.Series,
-    address_id_map: Dict,
-    address_id_col_name: str = "address_id",
-) -> pd.DataFrame:
-    """
-    Parameters
-    ----------
-    df: the pd.DataFrame to update
-    rows_to_update: a pd.Index of the rows of df to update
-    id_key: the id values corresponding to the rows_to_update.
-            should be the key for address_map and zipcode_map
-    address_id_map: a Dict from id_key values to address_ids
-    zipcode_map: a Dict from id_key values to zipcodes
-    address_id_col_name: a string. the name of the column in df to hold addresses.
-    Returns
-    -------
-    df with appropriately updated addresses and zipcodes
-    """
-    df.loc[rows_to_update, address_id_col_name] = id_key.map(address_id_map)
     return df

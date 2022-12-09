@@ -5,16 +5,15 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_id,
-)
 from vivarium_census_prl_synth_pop.constants import (
     data_keys,
     data_values,
-    metadata,
     paths,
 )
-from vivarium_census_prl_synth_pop.utilities import filter_by_rate
+from vivarium_census_prl_synth_pop.utilities import (
+    filter_by_rate,
+    update_address_id,
+)
 
 
 class HouseholdMigration:

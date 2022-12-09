@@ -1,15 +1,12 @@
-from typing import Dict
-
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_and_zipcode,
-)
 from vivarium_census_prl_synth_pop.constants import data_values, paths
-from vivarium_census_prl_synth_pop.utilities import filter_by_rate
+from vivarium_census_prl_synth_pop.utilities import (
+    filter_by_rate,
+    update_address_id,
+)
 
 
 class PersonMigration:
@@ -43,8 +40,7 @@ class PersonMigration:
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
-            "address",
-            "zipcode",
+            "address_id",
             "exit_time",
             "tracked",
             "housing_type",
@@ -118,7 +114,7 @@ class PersonMigration:
 
         # get address and zipcode corresponding to selected households
         new_household_data = (
-            self.population_view.subview(["household_id", "address", "zipcode"])
+            self.population_view.subview(["household_id", "address_id"])
             .get(index=event.index)
             .drop_duplicates()
         )
@@ -132,12 +128,11 @@ class PersonMigration:
 
         # update household data for domestic movers
         persons.loc[domestic_movers_idx, "household_id"] = new_households
-        persons = update_address_and_zipcode(
+        persons = update_address_id(
             df=persons,
             rows_to_update=domestic_movers_idx,
             id_key=new_households,
-            address_map=new_household_data_map["address"],
-            zipcode_map=new_household_data_map["zipcode"],
+            address_id_map=new_household_data_map["address_id"],
         )
 
         # update relation to head of household data
