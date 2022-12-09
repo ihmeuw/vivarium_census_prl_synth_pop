@@ -8,15 +8,12 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_and_zipcode,
-)
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
-from vivarium_census_prl_synth_pop.constants.data_values import (
-    UNEMPLOYED_ID,
-    WORKING_AGE,
+import vivarium_census_prl_synth_pop.constants.data_values
+from vivarium_census_prl_synth_pop.utilities import (
+    filter_by_rate,
+    update_address_id,
 )
-from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
 class Businesses:
@@ -56,18 +53,17 @@ class Businesses:
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.randomness = builder.randomness.get_stream(self.name)
+        self.max_employer_address_id = 0.0
         self.columns_created = [
             "employer_id",
             "employer_name",
-            "employer_address",
-            "employer_zipcode",
+            "employer_address_id",
             "income",
         ]
         self.columns_used = [
-            "address",
+            "address_id",
             "age",
             "household_id",
-            "zipcode",
         ] + self.columns_created
         self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
@@ -103,8 +99,8 @@ class Businesses:
             self.businesses = self.generate_businesses(pop_data)
 
             pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
-            pop["employer_id"] = UNEMPLOYED_ID
-            working_age = pop.loc[pop.age >= data_values.WORKING_AGE].index
+            pop["employer_id"] = data_values.UNEMPLOYED_ID
+            working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
             # merge on employer addresses and names
@@ -128,15 +124,14 @@ class Businesses:
 
             # Update income
             pop["income"] = 0
-            pop.loc[pop["employer_id"] != UNEMPLOYED_ID, "income"] = 29_000
+            pop.loc[pop["employer_id"] != data_values.UNEMPLOYED_ID, "income"] = 29_000
             self.population_view.update(pop)
         else:
             new_births = self.population_view.get(pop_data.index)
 
-            new_births["employer_id"] = UNEMPLOYED_ID
+            new_births["employer_id"] = data_values.UNEMPLOYED_ID
             new_births["employer_name"] = "unemployed"
-            new_births["employer_address"] = "NA"
-            new_births["employer_zipcode"] = "NA"
+            new_births["employer_address_id"] = data_values.UNEMPLOYED_ADDRESS_ID
             new_births["income"] = 0
 
             self.population_view.update(new_births)
@@ -151,7 +146,7 @@ class Businesses:
             self.columns_created + ["age", "household_id"]
         ).get(event.index)
 
-        all_businesses = self.businesses.loc[self.businesses["employer_id"] != UNEMPLOYED_ID][
+        all_businesses = self.businesses.loc[self.businesses["employer_id"] != data_values.UNEMPLOYED_ID][
             "employer_id"
         ]
         businesses_that_move_idx = filter_by_rate(
@@ -162,44 +157,42 @@ class Businesses:
         )
 
         if len(businesses_that_move_idx) > 0:
-            # update the employer address and zipcode in self.businesses
-            address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                all_businesses.loc[businesses_that_move_idx],
-                state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
-            )
+            # update the employer address_id in self.businesses
+            n = len(businesses_that_move_idx)
+            address_id_map = {
+                employer_id: new_employer_id
+                for (employer_id, new_employer_id) in zip(
+                    all_businesses,
+                    np.arange(self.max_employer_address_id, self.max_employer_address_id + n),
+                )
+            }
             # todo:  Should add income/salarary to mapping function here
-            self.businesses = update_address_and_zipcode(
+            self.businesses = update_address_id(
                 df=self.businesses,
                 rows_to_update=businesses_that_move_idx,
                 id_key=all_businesses,
-                address_map=address_map,
-                zipcode_map=zipcode_map,
-                address_col_name="employer_address",
-                zipcode_col_name="employer_zipcode",
+                address_id_map=address_id_map,
+                address_id_col_name="employer_address_id",
             )
+            self.max_employer_address_id += n
 
-            # update employer address and zipcode in the pop table
+            # update employer address_id in the pop table
             rows_changing_addresses = pop.loc[
                 pop.employer_id.isin(all_businesses.loc[businesses_that_move_idx])
             ]
-            # todo:  Should add income/salarary to mapping function here
-            pop = update_address_and_zipcode(
+            # todo:  Should add income/salary to mapping function here
+            pop = update_address_id(
                 df=pop,
                 rows_to_update=rows_changing_addresses.index,
                 id_key=rows_changing_addresses["employer_id"],
-                address_map=address_map,
-                zipcode_map=zipcode_map,
-                address_col_name="employer_address",
-                zipcode_col_name="employer_zipcode",
+                address_id_map=address_id_map,
+                address_id_col_name="employer_address_id",
             )
 
         # change jobs if of working age already
-        working_age_idx = pop.loc[pop.age >= WORKING_AGE].index
+        working_age_idx = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
         changing_jobs_idx = filter_by_rate(
-            working_age_idx,
-            self.randomness,
-            self.job_change_rate,
-            "changing jobs"
+            working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
         if len(changing_jobs_idx) > 0:
             pop.loc[changing_jobs_idx, "employer_id"] = self.assign_different_employer(
@@ -209,11 +202,8 @@ class Businesses:
 
         # assign job if turning working age
         turning_working_age = pop.loc[
-            (
-                pop.age
-                >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR
-            )
-            & (pop.age < data_values.WORKING_AGE)
+            (pop["age"] >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR)
+            & (pop["age"] < data_values.WORKING_AGE)
         ].index
         if len(turning_working_age) > 0:
             pop.loc[turning_working_age, "employer_id"] = self.assign_random_employer(
@@ -234,8 +224,8 @@ class Businesses:
             pop = self._update_employer_metadata(pop, military_index)
 
         # Update income
-        pop.loc[pop["employer_id"] == UNEMPLOYED_ID, "income"] = 0
-        pop.loc[pop["employer_id"] != UNEMPLOYED_ID, "income"] = 29_000
+        pop.loc[pop["employer_id"] == data_values.UNEMPLOYED_ID, "income"] = 0
+        pop.loc[pop["employer_id"] != data_values.UNEMPLOYED_ID, "income"] = 29_000
         self.population_view.update(pop)
 
     ##################
@@ -243,20 +233,12 @@ class Businesses:
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["address", "age", "household_id", "zipcode"]).get(
+        pop = self.population_view.subview(["address_id", "age", "household_id"]).get(
             pop_data.index
         )
-        n_working_age = len(pop.loc[pop.age >= data_values.WORKING_AGE])
+        n_working_age = len(pop.loc[pop["age"] >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
-        military_address = pop.loc[
-            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"],
-            "address",
-        ].iloc[0]
-        military_zipcode = pop.loc[
-            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"],
-            "zipcode",
-        ].iloc[0]
         known_employers = pd.DataFrame(
             {
                 "employer_id": [
@@ -264,12 +246,11 @@ class Businesses:
                     data_values.MilitaryEmployer.EMPLOYER_ID,
                 ],
                 "employer_name": ["unemployed", data_values.MilitaryEmployer.EMPLOYER_NAME],
-                "employer_address": ["NA", military_address],
+                "employer_address_id": [0.0, 1.0],
                 "prevalence": [
                     1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
                     data_values.MilitaryEmployer.PROPORTION_WORKFORCE_EMPLOYED,
                 ],
-                "employer_zipcode": ["NA", military_zipcode],
             }
         )
 
@@ -286,19 +267,12 @@ class Businesses:
                 "prevalence": employee_counts
                 / employee_counts.sum()
                 * pct_adults_needing_employers,
+                "employer_address_id": np.arange(2, n_businesses + 2),
             }
-        )
-        address_assignments = self.addresses.generate(
-            random_employers.index, state=metadata.US_STATE_ABBRV_MAP[self.location].lower()
-        )
-        random_employers["employer_address"] = random_employers.index.map(
-            address_assignments["address"]
-        )
-        random_employers["employer_zipcode"] = random_employers.index.map(
-            address_assignments["zipcode"]
         )
 
         businesses = pd.concat([known_employers, random_employers], ignore_index=True)
+        self.max_employer_address_id = businesses.employer_address_id.max()
         return businesses
 
     def assign_random_employer(
@@ -333,11 +307,8 @@ class Businesses:
     ) -> pd.DataFrame:
         employer_ids = pop.loc[rows_to_update, "employer_id"]
 
-        pop.loc[rows_to_update, "employer_address"] = employer_ids.map(
-            self.businesses.set_index("employer_id")["employer_address"].to_dict()
-        )
-        pop.loc[rows_to_update, "employer_zipcode"] = employer_ids.map(
-            self.businesses.set_index("employer_id")["employer_zipcode"].to_dict()
+        pop.loc[rows_to_update, "employer_address_id"] = employer_ids.map(
+            self.businesses.set_index("employer_id")["employer_address_id"].to_dict()
         )
         pop.loc[rows_to_update, "employer_name"] = employer_ids.map(
             self.businesses.set_index("employer_id")["employer_name"].to_dict()

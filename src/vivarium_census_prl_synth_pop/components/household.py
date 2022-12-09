@@ -12,6 +12,7 @@ from vivarium_census_prl_synth_pop.constants import (
 )
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
+    get_new_address_ids,
     update_address_id,
 )
 
@@ -45,6 +46,7 @@ class HouseholdMigration:
         self.config = builder.configuration
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.max_household_address_id = 0.0
 
         # TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
         move_rate_data = pd.read_csv(
@@ -165,17 +167,18 @@ class HouseholdMigration:
             households.loc[abroad_households_idx, "tracked"] = False
 
         # Process households moving domestic
-            # Make new address map
-            if len(domestic_households_idx) > 0:
-                address_id_map = self.addresses.get_new_address_ids(domestic_household_ids,
-                                                                    self.max_household_address_id)
+        # Make new address map
+        if len(domestic_households_idx) > 0:
+            address_id_map = get_new_address_ids(domestic_household_ids,
+                                                 self.max_household_address_id
+                                                 )
 
-                households = update_address_id(
-                    df=households,
-                    rows_to_update=domestic_households_idx,
-                    id_key=households["household_id"],
-                    address_id_map=address_id_map,
-                )
-                self.max_household_address_id += len(domestic_households_idx)
+            households = update_address_id(
+                df=households,
+                rows_to_update=domestic_households_idx,
+                id_key=households["household_id"],
+                address_id_map=address_id_map,
+            )
+            self.max_household_address_id += len(domestic_household_ids)
 
-            self.population_view.update(households)
+        self.population_view.update(households)
