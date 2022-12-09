@@ -639,6 +639,7 @@ class Population:
             mothers_households.loc[mother_partner_idx.intersection(ref_person_idx)]
             .reset_index()
             .set_index("mother_id")["person_id"]
+            .drop_duplicates()  # Checks for duplicates caused by twins in new_births
         )
         new_births.loc[
             new_births["parent_id"].isin(reference_person_ids.index), "guardian_2"
