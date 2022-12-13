@@ -9,7 +9,6 @@ components:
             - Mortality()
             - Fertility()
             - Businesses()
-            - TestObserver()  # FIXME: Replace with actual observer
 
 configuration:
     input_data:
