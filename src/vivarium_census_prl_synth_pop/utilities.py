@@ -1,14 +1,15 @@
 from pathlib import Path
-from typing import Any, List, Tuple, Union
-
+from typing import Any, List, Optional, Tuple, Union
 import click
 import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
+from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash
 from vivarium.framework.values import Pipeline
+from vivarium_cluster_tools import mkdir
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -273,3 +274,11 @@ def filter_by_rate(
         entity_to_filter, rate_producer(idx), additional_key
     )
     return filtered_sims
+
+
+def build_output_dir(builder: Builder, subdir: Optional[Union[str, Path]] = None) -> Path:
+    output_dir = Path(builder.configuration.output_data.results_directory)
+    if subdir:
+        output_dir = output_dir / subdir
+    mkdir(output_dir, exists_ok=True)
+    return output_dir
