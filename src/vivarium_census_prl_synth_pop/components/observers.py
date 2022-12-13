@@ -93,54 +93,6 @@ class BaseObserver(ABC):
         pass
 
 
-class TestObserver(BaseObserver):
-    """test"""
-
-    def __repr__(self):
-        return "TestObserver()"
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self):
-        return "test_observer"
-
-    #################
-    # Setup methods #
-    #################
-
-    def get_output_filename(self):
-        return "test_file.hdf"
-
-    def setup(self, builder: Builder):
-        super().setup(builder)
-
-    def get_population_view(self, builder) -> PopulationView:
-        """Returns the population view of interest to the observer"""
-        population_view = builder.population.get_view(columns=[])
-        return population_view
-
-    def get_responses(self) -> pd.DataFrame:
-        """Returns the response schema"""
-        pass
-
-    ########################
-    # Event-driven methods #
-    ########################
-    
-    def do_observation(self, event) -> None:
-        """Define the observations in the concrete class"""
-        new_responses = self.population_view.get(event.index)[0:2]
-        new_responses['response_date'] = event.time.date()
-        self.responses = pd.concat([self.responses, new_responses])
-
-    def get_hdf_key(self) -> "str":
-        """Define the output hdf key in the concrete class"""
-        return "test_observation"
-
-
 # FIXME: give this a more descriptive name (eg CensusObserver)
 class Observers:
     # FIXME: the docstring is no longer correct; update it
