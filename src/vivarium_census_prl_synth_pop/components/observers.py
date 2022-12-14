@@ -81,7 +81,7 @@ class BaseObserver(ABC):
         return True
 
     @abstractmethod
-    def do_observation(self) -> None:
+    def do_observation(self, event: Event) -> None:
         """Define the observations in the concrete class"""
         pass
 
