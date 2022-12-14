@@ -4,6 +4,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.values import Pipeline
+from vivarium.framework.randomness import RESIDUAL_CHOICE
 
 from vivarium_census_prl_synth_pop.components.synthetic_pii import (
     update_address_and_zipcode,
@@ -51,27 +52,20 @@ class PersonMigration:
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
 
-        move_rate_data = builder.lookup.build_table(
+        move_rates_data = builder.lookup.build_table(
             data=pd.read_csv(
-                paths.HOUSEHOLD_MOVE_RATE_PATH,
-                usecols=[
-                    "sex",
-                    "race_ethnicity",
-                    "age_start",
-                    "age_end",
-                    "person_rate",
-                    "housing_type",
-                ],
+                paths.INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH,
             ),
-            key_columns=["sex", "race_ethnicity", "housing_type"],
+            key_columns=["sex", "race_ethnicity"],
             parameter_columns=["age"],
-            value_columns=["person_rate"],
+            value_columns=[
+                "gq_person_migration_rate",
+                "new_household_migration_rate",
+                "non_reference_person_migration_rate",
+            ],
         )
-        self.person_move_rate = builder.value.register_rate_producer(
-            f"{self.name}.move_rate", source=move_rate_data
-        )
-        self.proportion_simulants_leaving_country = builder.lookup.build_table(
-            data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
+        self.person_move_rates = builder.value.register_rate_producer(
+            f"{self.name}.move_rates", source=move_rates_data
         )
 
         builder.event.register_listener("time_step", self.on_time_step)
@@ -88,30 +82,23 @@ class PersonMigration:
         """
 
         persons = self.population_view.get(event.index)
-        non_household_heads = persons.loc[
-            persons.relation_to_household_head != "Reference person"
-        ]
 
-        # Get subsets of possible simulants that can move
-        persons_who_move_idx = self.randomness.filter_for_rate(
-            non_household_heads.index,
-            self.person_move_rate(non_household_heads.index),
-            "all_movers",
+        # Get subsets of simulants that do each move type on this timestep
+        move_type_probabilities = (
+            self.person_move_rates(persons.index)
+            .rename(columns=lambda c: c.replace("_migration_rate", ""))
+            .assign(no_move=RESIDUAL_CHOICE)
         )
-        # Find simulants that move out of the country and those that move domestically
-        abroad_movers_idx = filter_by_rate(
-            persons_who_move_idx,
-            self.randomness,
-            self.proportion_simulants_leaving_country,
-            "abroad_movers",
+        move_types_chosen = self.randomness.choice(
+            persons.index,
+            choices=move_type_probabilities.columns,
+            p=move_type_probabilities.values,
         )
-        domestic_movers_idx = persons.loc[
-            persons.index.isin(persons_who_move_idx.difference(abroad_movers_idx))
-        ].index
-        # Process simulants moving abroad
-        if len(abroad_movers_idx) > 0:
-            persons.loc[abroad_movers_idx, "exit_time"] = event.time
-            persons.loc[abroad_movers_idx, "tracked"] = False
+
+        domestic_movers_idx = persons.index[move_types_chosen != "no_move"]
+
+        # TODO: Handle move types correctly -- this is code from the previous migration implementation
+        # which only had a single type of individual move.
 
         # Get series of new household_ids the domestic_movers_idx will move to
         new_households = self._get_new_household_ids(persons, domestic_movers_idx)
