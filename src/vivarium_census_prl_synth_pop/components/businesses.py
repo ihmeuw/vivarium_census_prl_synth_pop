@@ -8,11 +8,10 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
-import vivarium_census_prl_synth_pop.constants.data_values
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
-    update_address_id,
+    update_address_id_for_unit_and_sims,
 )
 
 
@@ -53,7 +52,7 @@ class Businesses:
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.randomness = builder.randomness.get_stream(self.name)
-        self.max_employer_address_id = 0.0
+        self.employer_address_id_count = 0
         self.columns_created = [
             "employer_id",
             "employer_name",
@@ -156,38 +155,14 @@ class Businesses:
             "moving_businesses",
         )
 
-        if len(businesses_that_move_idx) > 0:
-            # update the employer address_id in self.businesses
-            n = len(businesses_that_move_idx)
-            address_id_map = {
-                employer_id: new_employer_id
-                for (employer_id, new_employer_id) in zip(
-                    all_businesses,
-                    np.arange(self.max_employer_address_id, self.max_employer_address_id + n),
-                )
-            }
-            # todo:  Should add income/salarary to mapping function here
-            self.businesses = update_address_id(
-                df=self.businesses,
-                rows_to_update=businesses_that_move_idx,
-                id_key=all_businesses,
-                address_id_map=address_id_map,
-                address_id_col_name="employer_address_id",
-            )
-            self.max_employer_address_id += n
-
-            # update employer address_id in the pop table
-            rows_changing_addresses = pop.loc[
-                pop.employer_id.isin(all_businesses.loc[businesses_that_move_idx])
-            ]
-            # todo:  Should add income/salary to mapping function here
-            pop = update_address_id(
-                df=pop,
-                rows_to_update=rows_changing_addresses.index,
-                id_key=rows_changing_addresses["employer_id"],
-                address_id_map=address_id_map,
-                address_id_col_name="employer_address_id",
-            )
+        pop, self.businesses, self.employer_address_id_count = update_address_id_for_unit_and_sims(
+            pop,
+            moving_units=self.businesses,
+            units_that_move_ids=businesses_that_move_idx,
+            total_address_id_count=self.employer_address_id_count,
+            unit_id_col_name="employer_id",
+            address_id_col_name="employer_address_id",
+        )
 
         # change jobs if of working age already
         working_age_idx = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
@@ -233,7 +208,7 @@ class Businesses:
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["address_id", "age", "household_id"]).get(
+        pop = self.population_view.subview(["age", "household_id"]).get(
             pop_data.index
         )
         n_working_age = len(pop.loc[pop["age"] >= data_values.WORKING_AGE])
@@ -246,7 +221,9 @@ class Businesses:
                     data_values.MilitaryEmployer.EMPLOYER_ID,
                 ],
                 "employer_name": ["unemployed", data_values.MilitaryEmployer.EMPLOYER_NAME],
-                "employer_address_id": [0.0, 1.0],
+                "employer_address_id": [
+                    data_values.UNEMPLOYED_ADDRESS_ID, data_values.MilitaryEmployer.EMPLOYER_ADDRESS_ID
+                ],
                 "prevalence": [
                     1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
                     data_values.MilitaryEmployer.PROPORTION_WORKFORCE_EMPLOYED,
@@ -262,7 +239,7 @@ class Businesses:
         n_businesses = len(employee_counts)
         random_employers = pd.DataFrame(
             {
-                "employer_id": np.arange(n_businesses),
+                "employer_id": np.arange(2, n_businesses + 2),
                 "employer_name": ["not implemented"] * n_businesses,
                 "prevalence": employee_counts
                 / employee_counts.sum()
@@ -272,7 +249,7 @@ class Businesses:
         )
 
         businesses = pd.concat([known_employers, random_employers], ignore_index=True)
-        self.max_employer_address_id = businesses.employer_address_id.max()
+        self.employer_address_id_count = businesses.employer_address_id.max() + 1  # So next address will be unique
         return businesses
 
     def assign_random_employer(

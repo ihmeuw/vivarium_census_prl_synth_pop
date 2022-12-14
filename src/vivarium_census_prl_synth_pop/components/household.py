@@ -12,8 +12,7 @@ from vivarium_census_prl_synth_pop.constants import (
 )
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
-    get_new_address_ids,
-    update_address_id,
+    update_address_id_for_unit_and_sims,
 )
 
 
@@ -46,7 +45,7 @@ class HouseholdMigration:
         self.config = builder.configuration
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
-        self.max_household_address_id = 0.0
+        self.household_address_id_count = 0
 
         # TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
         move_rate_data = pd.read_csv(
@@ -76,7 +75,6 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.addresses = builder.components.get_component("Address")
         self.columns_created = ["address_id"]
         self.columns_used = [
             "household_id",
@@ -113,7 +111,7 @@ class HouseholdMigration:
             households["address_id"] = households["household_id"].map(
                 address_assignments
             )
-            self.max_household_address_id = n
+            self.household_address_id_count = n
             self.population_view.update(households)
         else:
             parent_ids = pop_data.user_data["parent_ids"]
@@ -131,10 +129,10 @@ class HouseholdMigration:
         choose which households move;
         move those households to a new address
         """
-        households = self.population_view.get(event.index)
-        household_ids = households.loc[
-            households["relation_to_household_head"] == "Reference person"
-        ]["household_id"]
+        pop = self.population_view.get(event.index)
+        household_ids = pop.loc[
+            pop["relation_to_household_head"] == "Reference person", "household_id"
+        ]
 
         all_household_ids_that_move = self.randomness.filter_for_rate(
             household_ids,
@@ -153,32 +151,31 @@ class HouseholdMigration:
             ~all_household_ids_that_move.isin(abroad_household_ids)
         ]
 
-        # Get index of all simulants in households moving abroad and domestic
-        abroad_households_idx = households.loc[
-            households["household_id"].isin(abroad_household_ids)
-        ].index
-        domestic_households_idx = households.loc[
-            households["household_id"].isin(domestic_household_ids)
-        ].index
-
         # Process households moving abroad
+        abroad_households_idx = pop.loc[
+            pop["household_id"].isin(abroad_household_ids)
+        ].index
         if len(abroad_households_idx) > 0:
-            households.loc[abroad_households_idx, "exit_time"] = event.time
-            households.loc[abroad_households_idx, "tracked"] = False
+            pop.loc[abroad_households_idx, "exit_time"] = event.time
+            pop.loc[abroad_households_idx, "tracked"] = False
 
         # Process households moving domestic
         # Make new address map
-        if len(domestic_households_idx) > 0:
-            address_id_map = get_new_address_ids(domestic_household_ids,
-                                                 self.max_household_address_id
-                                                 )
+        households = pop.loc[
+            household_ids.index, ["household_id", "address_id"]
+        ].set_index("household_id")
+        domestic_households_idx = households.loc[domestic_household_ids].index
+        # This is the same thing as domestic_household_ids but is a df with columns="address_id" with household_id as
+        #   the index to match how we handle businesses in the following function
 
-            households = update_address_id(
-                df=households,
-                rows_to_update=domestic_households_idx,
-                id_key=households["household_id"],
-                address_id_map=address_id_map,
-            )
-            self.max_household_address_id += len(domestic_household_ids)
+        # Update address_id for households and all simulants in those households
+        pop, households, self.household_address_id_count = update_address_id_for_unit_and_sims(
+            pop,
+            moving_units=households,
+            units_that_move_ids=domestic_households_idx,
+            total_address_id_count=self.household_address_id_count,
+            unit_id_col_name="household_id",
+            address_id_col_name="address_id",
+        )
 
-        self.population_view.update(households)
+        self.population_view.update(pop)

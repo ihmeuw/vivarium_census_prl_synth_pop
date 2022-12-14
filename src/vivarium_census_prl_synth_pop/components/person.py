@@ -83,9 +83,9 @@ class PersonMigration:
         Assigns those simulants relationship to head of household 'Other nonrelative'
         """
 
-        persons = self.population_view.get(event.index)
-        non_household_heads = persons.loc[
-            persons.relation_to_household_head != "Reference person"
+        pop = self.population_view.get(event.index)
+        non_household_heads = pop.loc[
+            pop.relation_to_household_head != "Reference person"
         ]
 
         # Get subsets of possible simulants that can move
@@ -101,16 +101,16 @@ class PersonMigration:
             self.proportion_simulants_leaving_country,
             "abroad_movers",
         )
-        domestic_movers_idx = persons.loc[
-            persons.index.isin(persons_who_move_idx.difference(abroad_movers_idx))
+        domestic_movers_idx = pop.loc[
+            pop.index.isin(persons_who_move_idx.difference(abroad_movers_idx))
         ].index
         # Process simulants moving abroad
         if len(abroad_movers_idx) > 0:
-            persons.loc[abroad_movers_idx, "exit_time"] = event.time
-            persons.loc[abroad_movers_idx, "tracked"] = False
+            pop.loc[abroad_movers_idx, "exit_time"] = event.time
+            pop.loc[abroad_movers_idx, "tracked"] = False
 
         # Get series of new household_ids the domestic_movers_idx will move to
-        new_households = self._get_new_household_ids(persons, domestic_movers_idx)
+        new_households = self._get_new_household_ids(pop, domestic_movers_idx)
 
         # get address and zipcode corresponding to selected households
         new_household_data = (
@@ -120,36 +120,27 @@ class PersonMigration:
         )
         new_household_data = new_household_data.loc[
             new_household_data.household_id.isin(new_households)
-        ]
-
-        # create map from household_ids to addresses and zipcodes
-        new_household_data["household_id"] = new_household_data["household_id"].astype(int)
-        new_household_data_map = new_household_data.set_index("household_id")
+        ].set_index("household_id")
 
         # update household data for domestic movers
-        persons.loc[domestic_movers_idx, "household_id"] = new_households
-        persons = update_address_id(
-            df=persons,
-            rows_to_update=domestic_movers_idx,
-            id_key=new_households,
-            address_id_map=new_household_data_map["address_id"],
-        )
+        pop.loc[domestic_movers_idx, "household_id"] = new_households
+        pop.loc[domestic_movers_idx, "address_id" ] = new_household_data
 
         # update relation to head of household data
-        persons.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"
-        persons.loc[
-            (persons.index.isin(domestic_movers_idx))
+        pop.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"
+        pop.loc[
+            (pop.index.isin(domestic_movers_idx))
             & (
-                persons["household_id"].isin(
+                pop["household_id"].isin(
                     data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
                 )
             ),
             "relation_to_household_head",
         ] = "Noninstitutionalized GQ pop"
-        persons.loc[
-            (persons.index.isin(domestic_movers_idx))
+        pop.loc[
+            (pop.index.isin(domestic_movers_idx))
             & (
-                persons["household_id"].isin(
+                pop["household_id"].isin(
                     data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
                 )
             ),
@@ -157,18 +148,18 @@ class PersonMigration:
         ] = "Institutionalized GQ pop"
 
         # Update housing type
-        persons.loc[
-            (persons.index.isin(domestic_movers_idx))
-            & (persons["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
+        pop.loc[
+            (pop.index.isin(domestic_movers_idx))
+            & (pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
             "housing_type",
-        ] = persons["household_id"].map(data_values.GQ_HOUSING_TYPE_MAP)
-        persons.loc[
-            (persons.index.isin(domestic_movers_idx))
-            & (~persons["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
+        ] = pop["household_id"].map(data_values.GQ_HOUSING_TYPE_MAP)
+        pop.loc[
+            (pop.index.isin(domestic_movers_idx))
+            & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
             "housing_type",
         ] = "Standard"
 
-        self.population_view.update(persons)
+        self.population_view.update(pop)
 
     ##################
     # Helper methods #

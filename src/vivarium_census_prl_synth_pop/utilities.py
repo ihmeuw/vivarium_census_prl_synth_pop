@@ -287,3 +287,62 @@ def build_output_dir(builder: Builder, subdir: Optional[Union[str, Path]] = None
         output_dir = output_dir / subdir
     mkdir(output_dir, exists_ok=True)
     return output_dir
+
+
+def update_address_id(
+    df: pd.DataFrame,
+    rows_to_update: pd.Index,
+    starting_address_id: int,
+    address_id_col_name: str = "address_id",
+) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    df: the pd.DataFrame to update, business table
+    rows_to_update: a pd.Index of the rows of df to update
+    starting_address_id: int that is tracking value for business or household_ids max value.:
+    address_id_col_name: a string. the name of the column in df to hold addresses.
+    Returns
+    -------
+    df with appropriately updated address_ids
+    """
+    df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(len(rows_to_update))
+    return df
+
+
+def update_address_id_for_unit_and_sims(
+        pop: pd.DataFrame,
+        moving_units: pd.DataFrame,
+        units_that_move_ids: Union[List, pd.Index],
+        total_address_id_count: int,
+        unit_id_col_name: str,
+        address_id_col_name: str,
+
+):
+    # todo: add docstring
+    if len(units_that_move_ids) > 0:
+        # update the employer address_id in self.businesses
+        # this will update address_id in a households dataframe we are not tracking like we are businesses
+        # todo:  Should add income/salary to mapping function here
+        moving_units = update_address_id(
+            df=moving_units,
+            rows_to_update=units_that_move_ids,
+            starting_address_id=total_address_id_count,
+            address_id_col_name=address_id_col_name,
+        )
+        total_address_id_count += len(units_that_move_ids)
+
+        # update address_id column in the pop table
+        rows_changing_address_id_idx = pop.loc[
+            pop[unit_id_col_name].isin(units_that_move_ids)
+        ].index
+        # todo:  Should add income/salary to mapping function here
+        updated_address_ids = pop[[unit_id_col_name]].merge(
+            moving_units,
+            how="left",
+            left_on=unit_id_col_name,
+            right_on=moving_units.index
+        )[address_id_col_name]
+        pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
+
+        return pop, moving_units, total_address_id_count
