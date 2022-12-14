@@ -109,7 +109,7 @@ Running Simulations
 
 You can then run simulations by, e.g.::
 
-   (vivarium_census_prl_synth_pop) :~$ simulate run --pdb -v src/vivarium_census_prl_synth_pop/model_specifications/model_spec.yaml
+   (vivarium_census_prl_synth_pop) :~$ simulate run -v src/vivarium_census_prl_synth_pop/model_specifications/model_spec.yaml
 
 The ``-v`` flag will log verbosely, so you will get log messages every time
 step. For more ways to run simulations, see the tutorials at
