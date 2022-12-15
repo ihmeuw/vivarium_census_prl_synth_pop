@@ -89,23 +89,19 @@ class BaseObserver(ABC):
         self.responses.to_hdf(self.output_dir / self.output_filename, key="responses")
 
 
-class CensusObserver(BaseObserver):
+class DecennialCensusObserver(BaseObserver):
     """TODO: docstring
     """
-    def __init__(self, census_date : str):
-        self.census_date = pd.Timestamp(census_date)
-        self.census_date_str = self.census_date.strftime('%Y_%m_%d')
-
     def __repr__(self):
-        return f"CensusObserver({self.census_date_str})"
+        return f"DecennialCensusObserver()"
 
     @property
     def name(self):
-        return f"census_observer_{self.census_date_str}"
+        return f"decennial_census_observer"
     
     @property
     def output_filename(self):
-        return f"decennial_census_{self.census_date_str}.hdf"
+        return f"decennial_census.hdf"
 
     def setup(self, builder: Builder):
         super().setup(builder)
@@ -116,7 +112,7 @@ class CensusObserver(BaseObserver):
         return builder.population.get_view(columns=metadata.DECENNIAL_CENSUS_COLUMNS_USED)
 
     def get_responses(self) -> pd.DataFrame:
-        return pd.DataFrame()
+        return pd.DataFrame()  # TODO: include schema here, including column for census year
 
     def to_observe(self, event: Event) -> bool:
         if (self.clock().year % 10 == 0) & (self.clock().month == 4):
