@@ -112,12 +112,25 @@ class DecennialCensusObserver(BaseObserver):
         return builder.population.get_view(columns=metadata.DECENNIAL_CENSUS_COLUMNS_USED)
 
     def get_responses(self) -> pd.DataFrame:
-        return pd.DataFrame()  # TODO: include schema here, including column for census year
+        return pd.DataFrame(columns=[
+            "first_name",
+            "middle_initial",
+            "last_name",
+            "age",
+            "date_of_birth",
+            "address",
+            "zipcode",
+            "relation_to_household_head",
+            "sex",
+            "race_ethnicity",
+            "census_year",
+        ])
 
     def to_observe(self, event: Event) -> bool:
         if (self.clock().year % 10 == 0) & (self.clock().month == 4):
             if self.clock().day < 29:  # because we only want one observation in April  FIXME: cooler to do this with the timestep
                 return True
+        return False
 
     def do_observation(self, event) -> None:
         pop = self.population_view.get(
