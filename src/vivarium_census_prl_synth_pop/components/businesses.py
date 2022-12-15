@@ -146,8 +146,9 @@ class Businesses:
         ).get(event.index)
 
         all_businesses = self.businesses.loc[
-            self.businesses["employer_id"] != data_values.UNEMPLOYED_ID
-        ]["employer_id"]
+            self.businesses["employer_id"] != data_values.UNEMPLOYED_ID,
+            "employer_id"
+        ]
         businesses_that_move_idx = filter_by_rate(
             all_businesses.index,
             self.randomness,
@@ -251,14 +252,12 @@ class Businesses:
                 "prevalence": employee_counts
                 / employee_counts.sum()
                 * pct_adults_needing_employers,
-                "employer_address_id": np.arange(2, n_businesses + 2),
+                "employer_address_id": np.arange(len(known_employers), n_businesses + len(known_employers)),
             }
         )
 
         businesses = pd.concat([known_employers, random_employers], ignore_index=True)
-        self.employer_address_id_count = (
-            businesses.employer_address_id.max() + 1
-        )  # So next address will be unique
+        self.employer_address_id_count = len(businesses)  # So next address will be unique
         return businesses
 
     def assign_random_employer(
