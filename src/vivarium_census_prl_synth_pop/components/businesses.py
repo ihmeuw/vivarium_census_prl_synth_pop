@@ -155,6 +155,7 @@ class Businesses:
             "moving_businesses",
         )
 
+        # Update both state tables and address_id tracker.
         pop, self.businesses, self.employer_address_id_count = update_address_id_for_unit_and_sims(
             pop,
             moving_units=self.businesses,

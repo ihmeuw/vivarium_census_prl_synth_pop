@@ -168,7 +168,7 @@ class HouseholdMigration:
         # This is the same thing as domestic_household_ids but is a df with columns="address_id" with household_id as
         #   the index to match how we handle businesses in the following function
 
-        # Update address_id for households and all simulants in those households
+        # Update both state tables and address_id tracker.
         pop, households, self.household_address_id_count = update_address_id_for_unit_and_sims(
             pop,
             moving_units=households,

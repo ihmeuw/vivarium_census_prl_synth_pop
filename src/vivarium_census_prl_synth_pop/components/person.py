@@ -112,19 +112,26 @@ class PersonMigration:
         # Get series of new household_ids the domestic_movers_idx will move to
         new_households = self._get_new_household_ids(pop, domestic_movers_idx)
 
-        # get address and zipcode corresponding to selected households
+        # get address_id for new households being moved to
         new_household_data = (
             self.population_view.subview(["household_id", "address_id"])
             .get(index=event.index)
             .drop_duplicates()
+            .set_index("household_id")
         )
-        new_household_data = new_household_data.loc[
-            new_household_data.household_id.isin(new_households)
-        ].set_index("household_id")
 
         # update household data for domestic movers
         pop.loc[domestic_movers_idx, "household_id"] = new_households
-        pop.loc[domestic_movers_idx, "address_id" ] = new_household_data
+        # Get map for new_address_ids and assign new address_id
+        pop = pop.reset_index().rename(columns={"index": "simulant_id"})  # Preserve index in merge
+        new_address_ids = pop[["simulant_id", "household_id"]].merge(
+            new_household_data[["address_id"]],
+            how="left",
+            left_on="household_id",
+            right_on=new_household_data.index,
+        ).set_index("simulant_id")["address_id"]
+        pop = pop.set_index("simulant_id")
+        pop.loc[domestic_movers_idx, "address_id" ] = new_address_ids
 
         # update relation to head of household data
         pop.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"
