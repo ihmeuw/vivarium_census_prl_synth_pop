@@ -70,15 +70,15 @@ EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
 
 YEARLY_JOB_CHANGE_RATE = 0.5  # 50 changes per 100 py
 
-UNEMPLOYED_ID = -1
+UNEMPLOYED_ID = 0
+UNEMPLOYED_ADDRESS_ID = 0
 
 BUSINESS_MOVE_RATE_YEARLY = 0.1  # 10 changes per 100 py
 
 
 class MilitaryEmployer(NamedTuple):
-    EMPLOYER_ID = -3
-    EMPLOYER_ADDRESS = "military address"
-    EMPLOYER_ZIPCODE = "military zipcode"
+    EMPLOYER_ID = 1
+    EMPLOYER_ADDRESS_ID = 1
     EMPLOYER_NAME = "military"
     PROPORTION_WORKFORCE_EMPLOYED = 0.03
 

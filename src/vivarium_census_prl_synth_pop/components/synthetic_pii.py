@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
