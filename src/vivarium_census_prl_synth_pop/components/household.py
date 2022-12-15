@@ -5,11 +5,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    paths,
-)
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, paths
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
     update_address_id_for_unit_and_sims,
@@ -104,13 +100,11 @@ class HouseholdMigration:
             households = self.population_view.subview(["household_id"]).get(pop_data.index)
             household_ids = households["household_id"].unique()
             n = np.float64(len(household_ids))
-            address_assignments = {household: address_id for (household, address_id) in zip(
-                household_ids,
-                np.arange(n)
-            )}
-            households["address_id"] = households["household_id"].map(
-                address_assignments
-            )
+            address_assignments = {
+                household: address_id
+                for (household, address_id) in zip(household_ids, np.arange(n))
+            }
+            households["address_id"] = households["household_id"].map(address_assignments)
             self.household_address_id_count = n
             self.population_view.update(households)
         else:
@@ -152,24 +146,26 @@ class HouseholdMigration:
         ]
 
         # Process households moving abroad
-        abroad_households_idx = pop.loc[
-            pop["household_id"].isin(abroad_household_ids)
-        ].index
+        abroad_households_idx = pop.loc[pop["household_id"].isin(abroad_household_ids)].index
         if len(abroad_households_idx) > 0:
             pop.loc[abroad_households_idx, "exit_time"] = event.time
             pop.loc[abroad_households_idx, "tracked"] = False
 
         # Process households moving domestic
         # Make new address map
-        households = pop.loc[
-            household_ids.index, ["household_id", "address_id"]
-        ].set_index("household_id")
+        households = pop.loc[household_ids.index, ["household_id", "address_id"]].set_index(
+            "household_id"
+        )
         domestic_households_idx = households.loc[domestic_household_ids].index
         # This is the same thing as domestic_household_ids but is a df with columns="address_id" with household_id as
         #   the index to match how we handle businesses in the following function
 
         # Update both state tables and address_id tracker.
-        pop, households, self.household_address_id_count = update_address_id_for_unit_and_sims(
+        (
+            pop,
+            households,
+            self.household_address_id_count,
+        ) = update_address_id_for_unit_and_sims(
             pop,
             moving_units=households,
             units_that_move_ids=domestic_households_idx,

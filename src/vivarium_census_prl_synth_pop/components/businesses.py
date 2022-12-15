@@ -145,9 +145,9 @@ class Businesses:
             self.columns_created + ["age", "household_id"]
         ).get(event.index)
 
-        all_businesses = self.businesses.loc[self.businesses["employer_id"] != data_values.UNEMPLOYED_ID][
-            "employer_id"
-        ]
+        all_businesses = self.businesses.loc[
+            self.businesses["employer_id"] != data_values.UNEMPLOYED_ID
+        ]["employer_id"]
         businesses_that_move_idx = filter_by_rate(
             all_businesses.index,
             self.randomness,
@@ -156,7 +156,11 @@ class Businesses:
         )
 
         # Update both state tables and address_id tracker.
-        pop, self.businesses, self.employer_address_id_count = update_address_id_for_unit_and_sims(
+        (
+            pop,
+            self.businesses,
+            self.employer_address_id_count,
+        ) = update_address_id_for_unit_and_sims(
             pop,
             moving_units=self.businesses,
             units_that_move_ids=businesses_that_move_idx,
@@ -178,7 +182,10 @@ class Businesses:
 
         # assign job if turning working age
         turning_working_age = pop.loc[
-            (pop["age"] >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR)
+            (
+                pop["age"]
+                >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR
+            )
             & (pop["age"] < data_values.WORKING_AGE)
         ].index
         if len(turning_working_age) > 0:
@@ -209,9 +216,7 @@ class Businesses:
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["age", "household_id"]).get(
-            pop_data.index
-        )
+        pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
         n_working_age = len(pop.loc[pop["age"] >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
@@ -223,7 +228,8 @@ class Businesses:
                 ],
                 "employer_name": ["unemployed", data_values.MilitaryEmployer.EMPLOYER_NAME],
                 "employer_address_id": [
-                    data_values.UNEMPLOYED_ADDRESS_ID, data_values.MilitaryEmployer.EMPLOYER_ADDRESS_ID
+                    data_values.UNEMPLOYED_ADDRESS_ID,
+                    data_values.MilitaryEmployer.EMPLOYER_ADDRESS_ID,
                 ],
                 "prevalence": [
                     1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
@@ -250,7 +256,9 @@ class Businesses:
         )
 
         businesses = pd.concat([known_employers, random_employers], ignore_index=True)
-        self.employer_address_id_count = businesses.employer_address_id.max() + 1  # So next address will be unique
+        self.employer_address_id_count = (
+            businesses.employer_address_id.max() + 1
+        )  # So next address will be unique
         return businesses
 
     def assign_random_employer(

@@ -220,7 +220,11 @@ def vectorized_choice(
 
 
 def random_integers(
-    min_val: int, max_val: int, index: pd.Index, randomness: RandomnessStream, additional_key: Any,
+    min_val: int,
+    max_val: int,
+    index: pd.Index,
+    randomness: RandomnessStream,
+    additional_key: Any,
 ) -> pd.Series:
     """
 
@@ -243,7 +247,11 @@ def random_integers(
     pandas.Series
         An indexed set of integers in the interval [a,b]
     """
-    return np.floor(randomness.get_draw(index=index, additional_key=additional_key) * (max_val + 1 - min_val) + min_val).astype(int)
+    return np.floor(
+        randomness.get_draw(index=index, additional_key=additional_key)
+        * (max_val + 1 - min_val)
+        + min_val
+    ).astype(int)
 
 
 def filter_by_rate(
@@ -302,18 +310,19 @@ def update_address_id(
     -------
     df with appropriately updated address_ids
     """
-    df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(len(rows_to_update))
+    df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(
+        len(rows_to_update)
+    )
     return df
 
 
 def update_address_id_for_unit_and_sims(
-        pop: pd.DataFrame,
-        moving_units: pd.DataFrame,
-        units_that_move_ids: pd.Index,
-        total_address_id_count: int,
-        unit_id_col_name: str,
-        address_id_col_name: str,
-
+    pop: pd.DataFrame,
+    moving_units: pd.DataFrame,
+    units_that_move_ids: pd.Index,
+    total_address_id_count: int,
+    unit_id_col_name: str,
+    address_id_col_name: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
     """
     Units are multiperson groups tracked in the simulation.  Examples being households and employers.
@@ -353,12 +362,16 @@ def update_address_id_for_unit_and_sims(
         # Preserve pop index
         pop = pop.reset_index().rename(columns={"index": "simulant_id"})
         # todo:  Should add income/salary to mapping function here
-        updated_address_ids = pop[["simulant_id", unit_id_col_name]].merge(
-            moving_units[[address_id_col_name]],
-            how="left",
-            left_on=unit_id_col_name,
-            right_on=moving_units.index,
-        ).set_index("simulant_id")[address_id_col_name]
+        updated_address_ids = (
+            pop[["simulant_id", unit_id_col_name]]
+            .merge(
+                moving_units[[address_id_col_name]],
+                how="left",
+                left_on=unit_id_col_name,
+                right_on=moving_units.index,
+            )
+            .set_index("simulant_id")[address_id_col_name]
+        )
         pop = pop.set_index("simulant_id")
         pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
 

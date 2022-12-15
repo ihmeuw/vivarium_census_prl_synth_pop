@@ -3,10 +3,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
-from vivarium_census_prl_synth_pop.utilities import (
-    filter_by_rate,
-    update_address_id,
-)
+from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
 class PersonMigration:
@@ -84,9 +81,7 @@ class PersonMigration:
         """
 
         pop = self.population_view.get(event.index)
-        non_household_heads = pop.loc[
-            pop.relation_to_household_head != "Reference person"
-        ]
+        non_household_heads = pop.loc[pop.relation_to_household_head != "Reference person"]
 
         # Get subsets of possible simulants that can move
         persons_who_move_idx = self.randomness.filter_for_rate(
@@ -123,15 +118,21 @@ class PersonMigration:
         # update household data for domestic movers
         pop.loc[domestic_movers_idx, "household_id"] = new_households
         # Get map for new_address_ids and assign new address_id
-        pop = pop.reset_index().rename(columns={"index": "simulant_id"})  # Preserve index in merge
-        new_address_ids = pop[["simulant_id", "household_id"]].merge(
-            new_household_data[["address_id"]],
-            how="left",
-            left_on="household_id",
-            right_on=new_household_data.index,
-        ).set_index("simulant_id")["address_id"]
+        pop = pop.reset_index().rename(
+            columns={"index": "simulant_id"}
+        )  # Preserve index in merge
+        new_address_ids = (
+            pop[["simulant_id", "household_id"]]
+            .merge(
+                new_household_data[["address_id"]],
+                how="left",
+                left_on="household_id",
+                right_on=new_household_data.index,
+            )
+            .set_index("simulant_id")["address_id"]
+        )
         pop = pop.set_index("simulant_id")
-        pop.loc[domestic_movers_idx, "address_id" ] = new_address_ids
+        pop.loc[domestic_movers_idx, "address_id"] = new_address_ids
 
         # update relation to head of household data
         pop.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"
@@ -147,9 +148,7 @@ class PersonMigration:
         pop.loc[
             (pop.index.isin(domestic_movers_idx))
             & (
-                pop["household_id"].isin(
-                    data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()
-                )
+                pop["household_id"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())
             ),
             "relation_to_household_head",
         ] = "Institutionalized GQ pop"
