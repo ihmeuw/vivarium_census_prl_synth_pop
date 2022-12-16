@@ -5,8 +5,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
 
-from vivarium_census_prl_synth_pop.constants import data_values, metadata
-from vivarium_census_prl_synth_pop.utilities import build_output_dir
+from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop import utilities
 
 
 class BaseObserver(ABC):
@@ -26,7 +26,7 @@ class BaseObserver(ABC):
     @property
     def name(self):
         return "base_observer"
-    
+
     @property
     @abstractmethod
     def output_filename(self):
@@ -39,20 +39,20 @@ class BaseObserver(ABC):
     def setup(self, builder: Builder):
         # FIXME: move filepaths to data container
         # FIXME: settle on output dirs
-        self.output_dir = build_output_dir(builder, subdir="results")
+        self.output_dir = utilities.build_output_dir(builder, subdir="results")
         self.population_view = self.get_population_view(builder)
         self.responses = self.get_responses()
-        
+
         # Register the listener to update the responses
         builder.event.register_listener(
             "collect_metrics",
             self.on_collect_metrics,
         )
-        
+
         # Register the listener for final write-out
         builder.event.register_listener(
-        	"simulation_end",
-        	self.on_simulation_end,
+            "simulation_end",
+            self.on_simulation_end,
         )
 
     @abstractmethod
@@ -72,7 +72,7 @@ class BaseObserver(ABC):
     def on_collect_metrics(self, event: Event) -> None:
         if self.to_observe(event):
             self.do_observation(event)
-        
+
     def to_observe(self, event: Event) -> bool:
         """If True, will make an observation. This defaults to always True
         (ie record at every time step) and should be overwritten in each
@@ -85,9 +85,126 @@ class BaseObserver(ABC):
         """Define the observations in the concrete class"""
         pass
 
+    # TODO: consider using compressed csv instead of hdf
     def on_simulation_end(self, event: Event) -> None:
-        self.responses.to_hdf(self.output_dir / self.output_filename, key="responses")
+        self.responses.to_hdf(self.output_dir / self.output_filename, key="data")
 
+
+class HouseholdSurveyObserver(BaseObserver):
+
+    # FIXME: Do we want these household survey constants here or in constants.metadata?
+    INPUT_COLS = [
+        "alive",
+        "household_id",
+        "housing_type",
+        "first_name",
+        "middle_name",
+        "last_name",
+        "age",
+        "sex",
+        "race_ethnicity",  # For simulant omission
+        "date_of_birth",
+        "address_id",
+        "state",
+        "puma",
+        "guardian_1",  # For noise functions
+        "guardian_2",  # For noise functions
+    ]
+    OUTPUT_COLS = [
+        "survey",
+        "survey_date",
+        "household_id",
+        "housing_type",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "sex",
+        "race_ethnicity",  # For simulant omission
+        "date_of_birth",
+        "address_id",
+        "state",
+        "puma",
+        "guardian_1",  # For noise functions
+        "guardian_2",  # For noise functions
+        "guardian_1_address_id",  # For noise functions 
+        "guardian_2_address_id",  # For noise functions 
+    ]
+    SAMPLING_RATE = {
+        "ACS": 12,  # FIXME: 12000
+        "CPS": 60,  # FIXME: 60000
+    }
+    OVERSAMPLE_FACTOR = 2
+
+    def __init__(self, survey):
+        self.survey = survey
+
+    def __repr__(self):
+        return f"HouseholdSurveyObserver({self.survey})"
+
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def name(self):
+        return f"HouseholdSurveyObserver.{self.survey}"
+
+    @property
+    def output_filename(self):
+        return f"{self.survey}.hdf"
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.randomness = builder.randomness.get_stream(self.name)
+        # FIXME: Should we adjust to get exactly the right amount after 1 year?
+        self.samples_per_timestep = int(
+            HouseholdSurveyObserver.SAMPLING_RATE[self.survey]  # households per month
+            * HouseholdSurveyObserver.OVERSAMPLE_FACTOR
+            * 12  # months per year
+            / (365.25 / builder.configuration.time.step_size)  # timesteps per year
+        )
+
+    def get_population_view(self, builder) -> PopulationView:
+        """Returns the population view of interest to the observer"""
+        cols = HouseholdSurveyObserver.INPUT_COLS
+        population_view = builder.population.get_view(columns=cols)
+        return population_view
+
+    def get_responses(self) -> pd.DataFrame:
+        """Returns the response schema"""
+        cols = HouseholdSurveyObserver.OUTPUT_COLS
+        return pd.DataFrame(columns=cols)
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def do_observation(self, event) -> None:
+        """Records the survey responses on this time step."""
+        new_responses = self.population_view.get(
+            event.index, query='alive == "alive"'
+        )
+        respondent_households = utilities.vectorized_choice(
+            options=list(set(new_responses["household_id"])),
+            n_to_choose=self.samples_per_timestep,
+            randomness_stream=self.randomness,
+            additional_key="sampling_households",
+        )
+
+        breakpoint()
+        new_responses = new_responses[new_responses["household_id"].isin(respondent_households)]
+        new_responses["survey"] = self.survey
+        new_responses["survey_date"] = event.time.date()
+        new_responses["middle_initial"] = new_responses["middle_name"].str[0]
+        new_responses = utilities.add_guardian_address_ids(new_responses)
+        # Apply column schema and concatenate
+        new_responses = new_responses[self.responses.columns]
+        self.responses = pd.concat([self.responses, new_responses])
 
 class DecennialCensusObserver(BaseObserver):
     """Class for observing columns relevant to a decennial census on April
@@ -155,13 +272,6 @@ class DecennialCensusObserver(BaseObserver):
         )
         pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
         pop = pop.drop(columns="middle_name")
-
-        # merge address ids for guardian_1 and guardian_2 for the rows with guardians
-        for i in [1,2]:
-            s_guardian_id = pop[f"guardian_{i}"].dropna()
-            s_guardian_id = s_guardian_id[s_guardian_id != -1] # is it faster to remove the negative values?
-            pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
-
+        pop = utilities.add_guardian_address_ids(pop)
         pop["census_year"] = event.time.year
-
         self.responses = pd.concat([self.responses, pop])
