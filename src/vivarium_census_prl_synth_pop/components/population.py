@@ -753,11 +753,11 @@ class Population:
                     "reference_person_id",
                 ]
                 if (
-                    race_reference_person_ids.empty & len(race_college_sims_with_guardian_idx)
+                    race_reference_person_ids.empty and len(race_college_sims_with_guardian_idx)
                     > 0
                 ):
-                    # Get ids of for all other race reference persons if guardian type has no reference persons
-                    # This handles an unlikely edge case
+                    # Get all ids for race reference person who are not guardian_type
+                    # This handles an unlikely edge case - leaving additional key attached to guardian_type
                     race_reference_person_ids = pd.concat(
                         [
                             df
@@ -769,17 +769,11 @@ class Population:
                         race_reference_person_ids["race_ethnicity"] == race,
                         "reference_person_id",
                     ]
-                    race_guardian_ids = self.randomness.choice(
-                        race_college_sims_with_guardian_idx,
-                        choices=race_reference_person_ids,
-                        additional_key=f"{race}_combined_guardian_ids",
-                    )
-                else:
-                    race_guardian_ids = self.randomness.choice(
-                        race_college_sims_with_guardian_idx,
-                        choices=race_reference_person_ids,
-                        additional_key=f"{race}_{guardian_type}_guardian_ids",
-                    )
+                race_guardian_ids = self.randomness.choice(
+                    race_college_sims_with_guardian_idx,
+                    choices=race_reference_person_ids,
+                    additional_key=f"{race}_{guardian_type}_guardian_ids",
+                )
 
                 pop.loc[race_guardian_ids.index, "guardian_1"] = race_guardian_ids
 
