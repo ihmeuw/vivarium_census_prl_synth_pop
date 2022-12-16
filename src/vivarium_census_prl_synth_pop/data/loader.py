@@ -118,7 +118,7 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     data["immigrated_in_last_year"] = data["immigrated_in_last_year"].map(metadata.MIGRATION_MAP)
 
     # put all non-draw columns in the index, else vivarium will drop them
-    data = data.set_index(data.columns)
+    data = data.set_index(list(data.columns))
     return data
 
 
