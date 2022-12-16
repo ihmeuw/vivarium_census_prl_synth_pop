@@ -752,11 +752,27 @@ class Population:
                     households_guardian_types[guardian_type]["race_ethnicity"] == race,
                     "reference_person_id",
                 ]
-                race_guardian_ids = self.randomness.choice(
-                    race_college_sims_with_guardian_idx,
-                    choices=race_reference_person_ids,
-                    additional_key=f"{race}_{guardian_type}_guardian_ids",
-                )
+                if race_reference_person_ids.empty & len(race_college_sims_with_guardian_idx) > 0:
+                    # Get ids of for all other race reference persons if guardian type has no reference persons
+                    # This handles an unlikely edge case
+                    race_reference_person_ids = pd.concat(
+                        [df for gt, df in households_guardian_types.items() if gt != guardian_type]
+                    )
+                    race_reference_person_ids = race_reference_person_ids.loc[
+                        race_reference_person_ids["race_ethnicity"] == race,
+                        "reference_person_id",
+                    ]
+                    race_guardian_ids = self.randomness.choice(
+                        race_college_sims_with_guardian_idx,
+                        choices=race_reference_person_ids,
+                        additional_key=f"{race}_combined_guardian_ids",
+                    )
+                else:
+                    race_guardian_ids = self.randomness.choice(
+                        race_college_sims_with_guardian_idx,
+                        choices=race_reference_person_ids,
+                        additional_key=f"{race}_{guardian_type}_guardian_ids",
+                    )
 
                 pop.loc[race_guardian_ids.index, "guardian_1"] = race_guardian_ids
 
