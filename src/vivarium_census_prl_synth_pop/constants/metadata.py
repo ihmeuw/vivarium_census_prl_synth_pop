@@ -230,6 +230,9 @@ DECENNIAL_CENSUS_COLUMNS_USED = [
     "relation_to_household_head",
     "sex",
     "race_ethnicity",
+    "guardian_1",
+    "guardian_2",
+    "housing_type",
 ]
 
 

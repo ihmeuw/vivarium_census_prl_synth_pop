@@ -90,8 +90,12 @@ class BaseObserver(ABC):
 
 
 class DecennialCensusObserver(BaseObserver):
-    """TODO: docstring
+    """Class for observing columns relevant to a decennial census on April
+    1 of each decadal year (2020, 2030, etc).  Resulting table
+    includes columns about guardian and group quarters type that are
+    relevant to adding row noise.
     """
+
     def __repr__(self):
         return f"DecennialCensusObserver()"
 
@@ -106,6 +110,8 @@ class DecennialCensusObserver(BaseObserver):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
+        self.time_step = builder.configuration.time.step_size  # in days
+        assert self.time_step <= 30, 'DecennialCensusObserver requires model specification configuration with time.step_size <= 30'
         
     def get_population_view(self, builder) -> PopulationView:
         """Get the population view to be used for observations"""
@@ -118,27 +124,44 @@ class DecennialCensusObserver(BaseObserver):
             "last_name",
             "age",
             "date_of_birth",
-            "address",
-            "zipcode",
+            "address_id",
             "relation_to_household_head",
             "sex",
             "race_ethnicity",
             "census_year",
+            "guardian_1",
+            "guardian_1_address_id",
+            "guardian_2",
+            "guardian_2_address_id",
+            "housing_type",
         ])
 
     def to_observe(self, event: Event) -> bool:
-        if (self.clock().year % 10 == 0) & (self.clock().month == 4):
-            if self.clock().day < 29:  # because we only want one observation in April  FIXME: cooler to do this with the timestep
-                return True
-        return False
+        """Note: this method uses self.clock instead of event.time to handle
+        the case where the sim starts on census day, e.g.  start time
+        of 2020-04-01; in that case, the first event.time to appear in
+        this function is 2020-04-29 (because the time.step_size is 28
+        days)
+        """
+        return ((self.clock().year % 10 == 0)  # decennial year
+                and (self.clock().month == 4)  # month of April
+                and (self.clock().day <= self.time_step)  # time step containing first day of month
+               )
 
     def do_observation(self, event) -> None:
         pop = self.population_view.get(
-            event.index, # query="alive == 'alive'",  # TODO: uncomment this to include only living simulants in census
+            event.index,
+            query="alive == 'alive'",  # census should include only living simulants
         )
         pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
         pop = pop.drop(columns="middle_name")
 
-        # TODO: include additional columns specified in MIC-3642
+        # merge address ids for guardian_1 and guardian_2 for the rows with guardians
+        for i in [1,2]:
+            s_guardian_id = pop[f"guardian_{i}"].dropna()
+            s_guardian_id = s_guardian_id[s_guardian_id != -1] # is it faster to remove the negative values?
+            pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
+
+        pop["census_year"] = event.time.year
 
         self.responses = pd.concat([self.responses, pop])
