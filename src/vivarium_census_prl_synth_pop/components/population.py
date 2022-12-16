@@ -753,8 +753,8 @@ class Population:
                     "reference_person_id",
                 ]
                 if (
-                    race_reference_person_ids.empty and len(race_college_sims_with_guardian_idx)
-                    > 0
+                    race_reference_person_ids.empty
+                    and len(race_college_sims_with_guardian_idx) > 0
                 ):
                     # Get all ids for race reference person who are not guardian_type
                     # This handles an unlikely edge case - leaving additional key attached to guardian_type
