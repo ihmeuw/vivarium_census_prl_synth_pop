@@ -1,19 +1,15 @@
+import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_and_zipcode,
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, paths
+from vivarium_census_prl_synth_pop.utilities import (
+    filter_by_rate,
+    update_address_id_for_unit_and_sims,
 )
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    metadata,
-    paths,
-)
-from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
 class HouseholdMigration:
@@ -45,6 +41,7 @@ class HouseholdMigration:
         self.config = builder.configuration
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.household_address_id_count = 0
 
         # TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
         move_rate_data = pd.read_csv(
@@ -74,13 +71,11 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.addresses = builder.components.get_component("Address")
-        self.columns_created = ["address", "zipcode"]
+        self.columns_created = ["address_id"]
         self.columns_used = [
             "household_id",
             "relation_to_household_head",
-            "address",
-            "zipcode",
+            "address_id",
             "tracked",
             "exit_time",
         ]
@@ -103,17 +98,14 @@ class HouseholdMigration:
         """
         if pop_data.creation_time < self.start_time:
             households = self.population_view.subview(["household_id"]).get(pop_data.index)
-            address_assignments = self.addresses.generate(
-                pd.Index(households["household_id"].drop_duplicates()),
-                state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
-            )
-            households["address"] = households["household_id"].map(
-                address_assignments["address"]
-            )
-            households["zipcode"] = households["household_id"].map(
-                address_assignments["zipcode"]
-            )
-
+            household_ids = households["household_id"].unique()
+            n = np.float64(len(household_ids))
+            address_assignments = {
+                household: address_id
+                for (household, address_id) in zip(household_ids, np.arange(n))
+            }
+            households["address_id"] = households["household_id"].map(address_assignments)
+            self.household_address_id_count = n
             self.population_view.update(households)
         else:
             parent_ids = pop_data.user_data["parent_ids"]
@@ -131,10 +123,10 @@ class HouseholdMigration:
         choose which households move;
         move those households to a new address
         """
-        households = self.population_view.get(event.index)
-        household_ids = households.loc[
-            households["relation_to_household_head"] == "Reference person"
-        ]["household_id"]
+        pop = self.population_view.get(event.index)
+        household_ids = pop.loc[
+            pop["relation_to_household_head"] == "Reference person", "household_id"
+        ]
 
         all_household_ids_that_move = self.randomness.filter_for_rate(
             household_ids,
@@ -153,33 +145,33 @@ class HouseholdMigration:
             ~all_household_ids_that_move.isin(abroad_household_ids)
         ]
 
-        # Get index of all simulants in households moving abroad and domestic
-        abroad_households_idx = households.loc[
-            households["household_id"].isin(abroad_household_ids)
-        ].index
-        domestic_households_idx = households.loc[
-            households["household_id"].isin(domestic_household_ids)
-        ].index
-
         # Process households moving abroad
+        abroad_households_idx = pop.loc[pop["household_id"].isin(abroad_household_ids)].index
         if len(abroad_households_idx) > 0:
-            households.loc[abroad_households_idx, "exit_time"] = event.time
-            households.loc[abroad_households_idx, "tracked"] = False
+            pop.loc[abroad_households_idx, "exit_time"] = event.time
+            pop.loc[abroad_households_idx, "tracked"] = False
 
         # Process households moving domestic
         # Make new address map
-        if len(domestic_households_idx) > 0:
-            address_map, zipcode_map = self.addresses.get_new_addresses_and_zipcodes(
-                domestic_household_ids,
-                state=metadata.US_STATE_ABBRV_MAP[self.location].lower(),
-            )
+        households = pop.loc[household_ids.index, ["household_id", "address_id"]].set_index(
+            "household_id"
+        )
+        domestic_households_idx = households.loc[domestic_household_ids].index
+        # This is the same thing as domestic_household_ids but is a df with columns="address_id" with household_id as
+        #   the index to match how we handle businesses in the following function
 
-            households = update_address_and_zipcode(
-                df=households,
-                rows_to_update=domestic_households_idx,
-                id_key=households["household_id"],
-                address_map=address_map,
-                zipcode_map=zipcode_map,
-            )
+        # Update both state tables and address_id tracker.
+        (
+            pop,
+            households,
+            self.household_address_id_count,
+        ) = update_address_id_for_unit_and_sims(
+            pop,
+            moving_units=households,
+            units_that_move_ids=domestic_households_idx,
+            total_address_id_count=self.household_address_id_count,
+            unit_id_col_name="household_id",
+            address_id_col_name="address_id",
+        )
 
-        self.population_view.update(households)
+        self.population_view.update(pop)

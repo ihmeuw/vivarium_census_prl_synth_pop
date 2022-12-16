@@ -1,5 +1,3 @@
-from typing import Dict
-
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -7,9 +5,6 @@ from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.utilities import from_yearly
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.components.synthetic_pii import (
-    update_address_and_zipcode,
-)
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
@@ -45,8 +40,7 @@ class PersonMigration:
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
-            "address",
-            "zipcode",
+            "address_id",
             "exit_time",
             "tracked",
             "housing_type",
@@ -112,29 +106,32 @@ class PersonMigration:
         # Get series of new household_ids the domestic_movers_idx will move to
         new_households = self._get_new_household_ids(pop, domestic_movers_idx)
 
-        # get address and zipcode corresponding to selected households
+        # get address_id for new households being moved to
         new_household_data = (
-            self.population_view.subview(["household_id", "address", "zipcode"])
+            self.population_view.subview(["household_id", "address_id"])
             .get(index=event.index)
             .drop_duplicates()
+            .set_index("household_id")
         )
-        new_household_data = new_household_data.loc[
-            new_household_data.household_id.isin(new_households)
-        ]
-
-        # create map from household_ids to addresses and zipcodes
-        new_household_data["household_id"] = new_household_data["household_id"].astype(int)
-        new_household_data_map = new_household_data.set_index("household_id")
 
         # update household data for domestic movers
         pop.loc[domestic_movers_idx, "household_id"] = new_households
-        pop = update_address_and_zipcode(
-            df=pop,
-            rows_to_update=domestic_movers_idx,
-            id_key=new_households,
-            address_map=new_household_data_map["address"],
-            zipcode_map=new_household_data_map["zipcode"],
+        # Get map for new_address_ids and assign new address_id
+        pop = pop.reset_index().rename(
+            columns={"index": "simulant_id"}
+        )  # Preserve index in merge
+        new_address_ids = (
+            pop[["simulant_id", "household_id"]]
+            .merge(
+                new_household_data[["address_id"]],
+                how="left",
+                left_on="household_id",
+                right_on=new_household_data.index,
+            )
+            .set_index("simulant_id")["address_id"]
         )
+        pop = pop.set_index("simulant_id")
+        pop.loc[domestic_movers_idx, "address_id"] = new_address_ids
 
         # update relation to head of household data
         pop.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"

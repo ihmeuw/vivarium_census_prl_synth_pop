@@ -5,7 +5,7 @@ components:
             - Address()
             - HouseholdMigration()
             - PersonMigration()
-            - Observers()
+            - DecennialCensusObserver()
             - Mortality()
             - Fertility()
             - Businesses()
