@@ -124,26 +124,30 @@ class DecennialCensusObserver(BaseObserver):
             "last_name",
             "age",
             "date_of_birth",
-            "address",
-            "zipcode",
+            "address_id",
             "relation_to_household_head",
             "sex",
             "race_ethnicity",
             "census_year",
             "guardian_1",
-            "guardian_1_address",
+            "guardian_1_address_id",
             "guardian_2",
-            "guardian_2_address",
+            "guardian_2_address_id",
             "housing_type",
         ])
 
     def to_observe(self, event: Event) -> bool:
+        """Note: this method uses self.clock instead of event.time to handle
+        the case where the sim starts on census day, e.g.  start time
+        of 2020-04-01; in that case, the first event.time to appear in
+        this function is 2020-04-29 (because the time.step_size is 28
+        days)
+        """
         return ((self.clock().year % 10 == 0)  # decennial year
                 and (self.clock().month == 4)  # month of April
                 and (self.clock().day <= self.time_step)  # time step containing first day of month
-                      # with current model spec, on first time step, event.time equals 2020-04-29
-                      # but self.clock() equals 2020-04-01
                )
+
     def do_observation(self, event) -> None:
         pop = self.population_view.get(
             event.index,
@@ -152,11 +156,11 @@ class DecennialCensusObserver(BaseObserver):
         pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
         pop = pop.drop(columns="middle_name")
 
-        # merge addresses for guardian_1 and guardian_2 for the rows with guardians
+        # merge address ids for guardian_1 and guardian_2 for the rows with guardians
         for i in [1,2]:
             s_guardian_id = pop[f"guardian_{i}"].dropna()
             s_guardian_id = s_guardian_id[s_guardian_id != -1] # is it faster to remove the negative values?
-            pop[f"guardian_{i}_address"] = s_guardian_id.map(pop.address)
+            pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
 
         pop["census_year"] = event.time.year
 
