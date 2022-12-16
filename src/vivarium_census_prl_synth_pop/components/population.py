@@ -177,7 +177,7 @@ class Population:
         # get all simulants per household
         chosen_persons = pd.merge(
             chosen_households,
-            self.population_data["persons"],
+            self.population_data["persons"][metadata.PERSONS_COLUMNS_TO_INITIALIZE],
             on="census_household_id",
             how="left",
         )
@@ -213,7 +213,7 @@ class Population:
         # get simulants per GQ unit
         chosen_persons = pd.merge(
             chosen_units,
-            self.population_data["persons"],
+            self.population_data["persons"][metadata.PERSONS_COLUMNS_TO_INITIALIZE],
             on="census_household_id",
             how="left",
         )

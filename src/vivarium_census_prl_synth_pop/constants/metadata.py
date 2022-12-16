@@ -29,6 +29,13 @@ HOUSEHOLDS_COLUMN_MAP = {
     "PUMA": "puma",
     "WGTP": "household_weight",
 }
+PERSONS_COLUMNS_TO_INITIALIZE = [
+    'census_household_id',
+    'age',
+    'relation_to_household_head',
+    'sex',
+    'race_ethnicity',
+]
 
 CENSUS_STATE_IDS = {
     "NA": -1,
