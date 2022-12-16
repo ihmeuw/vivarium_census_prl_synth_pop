@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
+
 import click
 import numpy as np
 import pandas as pd
@@ -219,7 +220,11 @@ def vectorized_choice(
 
 
 def random_integers(
-    min_val: int, max_val: int, index: pd.Index, randomness: RandomnessStream, additional_key: Any,
+    min_val: int,
+    max_val: int,
+    index: pd.Index,
+    randomness: RandomnessStream,
+    additional_key: Any,
 ) -> pd.Series:
     """
 
@@ -242,7 +247,11 @@ def random_integers(
     pandas.Series
         An indexed set of integers in the interval [a,b]
     """
-    return np.floor(randomness.get_draw(index=index, additional_key=additional_key) * (max_val + 1 - min_val) + min_val).astype(int)
+    return np.floor(
+        randomness.get_draw(index=index, additional_key=additional_key)
+        * (max_val + 1 - min_val)
+        + min_val
+    ).astype(int)
 
 
 def filter_by_rate(
@@ -282,3 +291,88 @@ def build_output_dir(builder: Builder, subdir: Optional[Union[str, Path]] = None
         output_dir = output_dir / subdir
     mkdir(output_dir, exists_ok=True)
     return output_dir
+
+
+def update_address_id(
+    df: pd.DataFrame,
+    rows_to_update: pd.Index,
+    starting_address_id: int,
+    address_id_col_name: str = "address_id",
+) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    df: the pd.DataFrame to update, business table
+    rows_to_update: a pd.Index of the rows of df to update
+    starting_address_id: int that is tracking value for business or household_ids max value.:
+    address_id_col_name: a string. the name of the column in df to hold addresses.
+    Returns
+    -------
+    df with appropriately updated address_ids
+    """
+    df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(
+        len(rows_to_update)
+    )
+    return df
+
+
+def update_address_id_for_unit_and_sims(
+    pop: pd.DataFrame,
+    moving_units: pd.DataFrame,
+    units_that_move_ids: pd.Index,
+    total_address_id_count: int,
+    unit_id_col_name: str,
+    address_id_col_name: str,
+) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
+    """
+    Units are multiperson groups tracked in the simulation.  Examples being households and employers.
+
+    Parameters
+    ----------
+    pop: population table
+    moving_units: Dataframe with column address_id_col_name.
+    units_that_move_ids: IDs of moving units.  This is a subset of moving_units.index
+    total_address_id_count: Tracking number to update to preserver unique address_ids.
+    unit_id_col_name: Column name in state table where ids for the unit are stored.
+    address_id_col_name: Column name in state table where address_id for the unit is stored.
+
+    Returns
+    -------
+    pop: Updated version of the state table.
+    moving_units: Updated version of units dataframe.  This is done for the purpose of the businesses table.
+    total_address_id_count: Updated tracking number for address_id.
+    """
+
+    if len(units_that_move_ids) > 0:
+        # update the employer address_id in self.businesses
+        # this will update address_id in a households dataframe we are not tracking like we are businesses
+        # todo:  Should add income/salary to mapping function here
+        moving_units = update_address_id(
+            df=moving_units,
+            rows_to_update=units_that_move_ids,
+            starting_address_id=total_address_id_count,
+            address_id_col_name=address_id_col_name,
+        )
+        total_address_id_count += len(units_that_move_ids)
+
+        # update address_id column in the pop table
+        rows_changing_address_id_idx = pop.loc[
+            pop[unit_id_col_name].isin(units_that_move_ids)
+        ].index
+        # Preserve pop index
+        pop = pop.reset_index().rename(columns={"index": "simulant_id"})
+        # todo:  Should add income/salary to mapping function here
+        updated_address_ids = (
+            pop[["simulant_id", unit_id_col_name]]
+            .merge(
+                moving_units[[address_id_col_name]],
+                how="left",
+                left_on=unit_id_col_name,
+                right_on=moving_units.index,
+            )
+            .set_index("simulant_id")[address_id_col_name]
+        )
+        pop = pop.set_index("simulant_id")
+        pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
+
+    return pop, moving_units, total_address_id_count
