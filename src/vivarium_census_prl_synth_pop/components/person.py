@@ -1,6 +1,9 @@
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.randomness import RESIDUAL_CHOICE
+from vivarium.framework.utilities import from_yearly
+from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 from vivarium_census_prl_synth_pop.utilities import filter_by_rate
@@ -44,27 +47,32 @@ class PersonMigration:
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
 
-        move_rate_data = builder.lookup.build_table(
-            data=pd.read_csv(
-                paths.HOUSEHOLD_MOVE_RATE_PATH,
-                usecols=[
-                    "sex",
-                    "race_ethnicity",
-                    "age_start",
-                    "age_end",
-                    "person_rate",
-                    "housing_type",
-                ],
-            ),
-            key_columns=["sex", "race_ethnicity", "housing_type"],
+        move_rates_data = pd.read_csv(
+            paths.INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH,
+        )
+
+        value_columns = [
+            "gq_person_migration_rate",
+            "new_household_migration_rate",
+            "non_reference_person_migration_rate",
+        ]
+        move_rates_data[value_columns] = from_yearly(
+            move_rates_data[value_columns],
+            pd.Timedelta(days=builder.configuration.time.step_size),
+        )
+        move_rates_data = move_rates_data.rename(
+            columns=lambda c: c.replace("_migration_rate", "")
+        ).assign(no_move=RESIDUAL_CHOICE)
+
+        move_probabilities_lookup_table = builder.lookup.build_table(
+            data=move_rates_data,
+            key_columns=["sex", "race_ethnicity"],
             parameter_columns=["age"],
-            value_columns=["person_rate"],
+            value_columns=["gq_person", "new_household", "non_reference_person", "no_move"],
         )
-        self.person_move_rate = builder.value.register_rate_producer(
-            f"{self.name}.move_rate", source=move_rate_data
-        )
-        self.proportion_simulants_leaving_country = builder.lookup.build_table(
-            data=data_values.PROPORTION_PERSONS_LEAVING_COUNTRY
+        self.person_move_probabilities = builder.value.register_value_producer(
+            f"{self.name}.move_probabilities",
+            source=move_probabilities_lookup_table,
         )
 
         builder.event.register_listener("time_step", self.on_time_step)
@@ -81,28 +89,19 @@ class PersonMigration:
         """
 
         pop = self.population_view.get(event.index)
-        non_household_heads = pop.loc[pop.relation_to_household_head != "Reference person"]
 
-        # Get subsets of possible simulants that can move
-        persons_who_move_idx = self.randomness.filter_for_rate(
-            non_household_heads.index,
-            self.person_move_rate(non_household_heads.index),
-            "all_movers",
+        # Get subsets of simulants that do each move type on this timestep
+        move_type_probabilities = self.person_move_probabilities(pop.index)
+        move_types_chosen = self.randomness.choice(
+            pop.index,
+            choices=move_type_probabilities.columns,
+            p=move_type_probabilities.values,
         )
-        # Find simulants that move out of the country and those that move domestically
-        abroad_movers_idx = filter_by_rate(
-            persons_who_move_idx,
-            self.randomness,
-            self.proportion_simulants_leaving_country,
-            "abroad_movers",
-        )
-        domestic_movers_idx = pop.loc[
-            pop.index.isin(persons_who_move_idx.difference(abroad_movers_idx))
-        ].index
-        # Process simulants moving abroad
-        if len(abroad_movers_idx) > 0:
-            pop.loc[abroad_movers_idx, "exit_time"] = event.time
-            pop.loc[abroad_movers_idx, "tracked"] = False
+
+        domestic_movers_idx = pop.index[move_types_chosen != "no_move"]
+
+        # TODO: Handle move types correctly -- this is code from the previous migration implementation
+        # which only had a single type of individual move.
 
         # Get series of new household_ids the domestic_movers_idx will move to
         new_households = self._get_new_household_ids(pop, domestic_movers_idx)
