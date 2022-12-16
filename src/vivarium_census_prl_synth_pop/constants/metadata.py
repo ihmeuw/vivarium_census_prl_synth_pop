@@ -95,7 +95,7 @@ PERSONS_COLUMNS_MAP = {
     "HISP": "latino",
     "RAC1P": "race",
     "NATIVITY": "born_in_us",
-    "MIG": "immigrated_in_last_year"
+    "MIG": "immigrated_in_last_year",
 }
 
 SUBSET_PERSONS_COLUMNS_MAP = {
@@ -237,12 +237,10 @@ DECENNIAL_CENSUS_COLUMNS_USED = [
     "housing_type",
 ]
 
-NATIVITY_MAP = {1: True,
-                2: False}
+NATIVITY_MAP = {1: True, 2: False}
 
-MIGRATION_MAP = {1.0: False,
-                 2.0: True,
-                 3.0: False}
+MIGRATION_MAP = {1.0: False, 2.0: True, 3.0: False}
+
 
 class __Scenarios(NamedTuple):
     baseline: str = "baseline"
