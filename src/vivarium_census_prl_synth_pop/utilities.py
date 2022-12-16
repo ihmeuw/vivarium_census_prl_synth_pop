@@ -380,9 +380,19 @@ def update_address_id_for_unit_and_sims(
 
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:
     """Map the address ids of guardians to each simulant's guardian address columns"""
-    for i in [1,2]:
+    for i in [1, 2]:
         s_guardian_id = pop[f"guardian_{i}"].dropna()
-        s_guardian_id = s_guardian_id[s_guardian_id != -1] # is it faster to remove the negative values?
+        s_guardian_id = s_guardian_id[
+            s_guardian_id != -1
+        ]  # is it faster to remove the negative values?
         pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
-        
-        return pop
+    return pop
+
+
+def convert_middle_name_to_initial(pop: pd.DataFrame) -> pd.DataFrame:
+    """Converts middle names to middle initials. Note that this drops
+    the 'middle_name' column altogether and replaces it with 'middle_initial'
+    """
+    pop["middle_initial"] = pop["middle_name"].str[0]
+    pop = pop.drop(columns="middle_name")
+    return pop

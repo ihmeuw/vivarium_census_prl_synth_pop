@@ -5,8 +5,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
 
-from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium_census_prl_synth_pop import utilities
+from vivarium_census_prl_synth_pop.constants import metadata
 
 
 class BaseObserver(ABC):
@@ -41,7 +41,7 @@ class BaseObserver(ABC):
         # FIXME: settle on output dirs
         self.output_dir = utilities.build_output_dir(builder, subdir="results")
         self.population_view = self.get_population_view(builder)
-        self.responses = self.get_responses()
+        self.responses = self.get_response_schema()
 
         # Register the listener to update the responses
         builder.event.register_listener(
@@ -61,7 +61,7 @@ class BaseObserver(ABC):
         pass
 
     @abstractmethod
-    def get_responses(self) -> pd.DataFrame:
+    def get_response_schema(self) -> pd.DataFrame:
         """Initializes the observation/results data structure and schema"""
         pass
 
@@ -127,8 +127,8 @@ class HouseholdSurveyObserver(BaseObserver):
         "puma",
         "guardian_1",  # For noise functions
         "guardian_2",  # For noise functions
-        "guardian_1_address_id",  # For noise functions 
-        "guardian_2_address_id",  # For noise functions 
+        "guardian_1_address_id",  # For noise functions
+        "guardian_2_address_id",  # For noise functions
     ]
     SAMPLING_RATE = {
         "ACS": 12,  # FIXME: 12000
@@ -175,7 +175,7 @@ class HouseholdSurveyObserver(BaseObserver):
         population_view = builder.population.get_view(columns=cols)
         return population_view
 
-    def get_responses(self) -> pd.DataFrame:
+    def get_response_schema(self) -> pd.DataFrame:
         """Returns the response schema"""
         cols = HouseholdSurveyObserver.OUTPUT_COLS
         return pd.DataFrame(columns=cols)
@@ -186,25 +186,24 @@ class HouseholdSurveyObserver(BaseObserver):
 
     def do_observation(self, event) -> None:
         """Records the survey responses on this time step."""
-        new_responses = self.population_view.get(
-            event.index, query='alive == "alive"'
-        )
+        new_responses = self.population_view.get(event.index, query='alive == "alive"')
         respondent_households = utilities.vectorized_choice(
             options=list(set(new_responses["household_id"])),
             n_to_choose=self.samples_per_timestep,
             randomness_stream=self.randomness,
             additional_key="sampling_households",
         )
-
-        breakpoint()
-        new_responses = new_responses[new_responses["household_id"].isin(respondent_households)]
+        new_responses = new_responses[
+            new_responses["household_id"].isin(respondent_households)
+        ]
         new_responses["survey"] = self.survey
         new_responses["survey_date"] = event.time.date()
-        new_responses["middle_initial"] = new_responses["middle_name"].str[0]
+        new_responses = utilities.convert_middle_name_to_initial(new_responses)
         new_responses = utilities.add_guardian_address_ids(new_responses)
         # Apply column schema and concatenate
         new_responses = new_responses[self.responses.columns]
         self.responses = pd.concat([self.responses, new_responses])
+
 
 class DecennialCensusObserver(BaseObserver):
     """Class for observing columns relevant to a decennial census on April
@@ -219,7 +218,7 @@ class DecennialCensusObserver(BaseObserver):
     @property
     def name(self):
         return f"decennial_census_observer"
-    
+
     @property
     def output_filename(self):
         return f"decennial_census.hdf"
@@ -228,30 +227,34 @@ class DecennialCensusObserver(BaseObserver):
         super().setup(builder)
         self.clock = builder.time.clock()
         self.time_step = builder.configuration.time.step_size  # in days
-        assert self.time_step <= 30, 'DecennialCensusObserver requires model specification configuration with time.step_size <= 30'
-        
+        assert (
+            self.time_step <= 30
+        ), "DecennialCensusObserver requires model specification configuration with time.step_size <= 30"
+
     def get_population_view(self, builder) -> PopulationView:
         """Get the population view to be used for observations"""
         return builder.population.get_view(columns=metadata.DECENNIAL_CENSUS_COLUMNS_USED)
 
-    def get_responses(self) -> pd.DataFrame:
-        return pd.DataFrame(columns=[
-            "first_name",
-            "middle_initial",
-            "last_name",
-            "age",
-            "date_of_birth",
-            "address_id",
-            "relation_to_household_head",
-            "sex",
-            "race_ethnicity",
-            "census_year",
-            "guardian_1",
-            "guardian_1_address_id",
-            "guardian_2",
-            "guardian_2_address_id",
-            "housing_type",
-        ])
+    def get_response_schema(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=[
+                "first_name",
+                "middle_initial",
+                "last_name",
+                "age",
+                "date_of_birth",
+                "address_id",
+                "relation_to_household_head",
+                "sex",
+                "race_ethnicity",
+                "census_year",
+                "guardian_1",
+                "guardian_1_address_id",
+                "guardian_2",
+                "guardian_2_address_id",
+                "housing_type",
+            ]
+        )
 
     def to_observe(self, event: Event) -> bool:
         """Note: this method uses self.clock instead of event.time to handle
@@ -260,18 +263,20 @@ class DecennialCensusObserver(BaseObserver):
         this function is 2020-04-29 (because the time.step_size is 28
         days)
         """
-        return ((self.clock().year % 10 == 0)  # decennial year
-                and (self.clock().month == 4)  # month of April
-                and (self.clock().day <= self.time_step)  # time step containing first day of month
-               )
+        return (
+            (self.clock().year % 10 == 0)  # decennial year
+            and (self.clock().month == 4)  # month of April
+            and (
+                self.clock().day <= self.time_step
+            )  # time step containing first day of month
+        )
 
     def do_observation(self, event) -> None:
         pop = self.population_view.get(
             event.index,
             query="alive == 'alive'",  # census should include only living simulants
         )
-        pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
-        pop = pop.drop(columns="middle_name")
+        pop = utilities.convert_middle_name_to_initial(pop)
         pop = utilities.add_guardian_address_ids(pop)
         pop["census_year"] = event.time.year
         self.responses = pd.concat([self.responses, pop])
