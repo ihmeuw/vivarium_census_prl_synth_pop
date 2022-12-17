@@ -161,7 +161,7 @@ class HouseholdMigration:
         max_household_address_id = pop["address_id"].max()
 
         # Update both state tables and address_id tracker.
-        (pop, households, _,) = update_address_id_for_unit_and_sims(
+        (pop, _, _,) = update_address_id_for_unit_and_sims(
             pop,
             moving_units=households,
             units_that_move_ids=domestic_households_idx,
