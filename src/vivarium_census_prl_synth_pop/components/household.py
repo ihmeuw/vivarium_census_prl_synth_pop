@@ -41,7 +41,6 @@ class HouseholdMigration:
         self.config = builder.configuration
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
-        self.household_address_id_count = 0
 
         # TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
         move_rate_data = pd.read_csv(
@@ -105,7 +104,6 @@ class HouseholdMigration:
                 for (household, address_id) in zip(household_ids, np.arange(n))
             }
             households["address_id"] = households["household_id"].map(address_assignments)
-            self.household_address_id_count = n
             self.population_view.update(households)
         else:
             parent_ids = pop_data.user_data["parent_ids"]
@@ -160,16 +158,14 @@ class HouseholdMigration:
         # This is the same thing as domestic_household_ids but is a df with columns="address_id" with household_id as
         #   the index to match how we handle businesses in the following function
 
+        max_household_address_id = pop["address_id"].max()
+
         # Update both state tables and address_id tracker.
-        (
-            pop,
-            households,
-            self.household_address_id_count,
-        ) = update_address_id_for_unit_and_sims(
+        (pop, households, _,) = update_address_id_for_unit_and_sims(
             pop,
             moving_units=households,
             units_that_move_ids=domestic_households_idx,
-            total_address_id_count=self.household_address_id_count,
+            starting_address_id=max_household_address_id + 1,
             unit_id_col_name="household_id",
             address_id_col_name="address_id",
         )
