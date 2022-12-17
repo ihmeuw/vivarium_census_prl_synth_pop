@@ -29,31 +29,39 @@ def generate_business_names_data(n_total_names: str):
     while sets < batch_sets:
         new_names = pd.Series()
         cycles = 1
-        logger.info(f"Running main loop for batch {sets+1} of {batch_sets} for business names generation")
+        logger.info(
+            f"Running main loop for batch {sets+1} of {batch_sets} for business names generation"
+        )
         while len(new_names) < n_total_names:
             n_needed = n_total_names - len(new_names)
             if cycles > 1:
-                logger.info(f"{n_needed} duplicates found.  Generating additional names for the {cycles} time.")
+                logger.info(
+                    f"{n_needed} duplicates found.  Generating additional names for the {cycles} time."
+                )
             start_time = time.time()
             more_names = sample_names(
                 bigrams, n_needed, data_values.BUSINESS_NAMES_MAX_TOKENS_LENGTH
             )
             generation_time = time.time() - start_time
-            logger.info(f"Total time to sample {n_needed} names for {cycles} iteration of name sample was {generation_time}.")
+            logger.info(
+                f"Total time to sample {n_needed} names for {cycles} iteration of name sample was {generation_time}."
+            )
 
             # Check for duplicates
             duplicate_processing_start_time = time.time()
             new_names = pd.concat([new_names, more_names]).drop_duplicates()
             new_names = new_names.loc[~new_names.isin(real_but_uncommon_names)]
             duplicate_processing_time = time.time() - duplicate_processing_start_time
-            logger.info(f"Total time used to check for duplicates was {duplicate_processing_time}.")
+            logger.info(
+                f"Total time used to check for duplicates was {duplicate_processing_time}."
+            )
             cycles += 1
 
         new_names.to_csv(
             f"{paths.BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH}/business_names_list_{sets}.csv.bz2",
             header=["business_names"],
             index=False,
-            compression="bz2"
+            compression="bz2",
         )
         sets += 1
 
@@ -146,7 +154,9 @@ def sample_names(bigrams: defaultdict, n_businesses: int, n_max_tokens: int) -> 
         current_words_count_dict = names[previous_word].value_counts().to_dict()
         for word in current_words_count_dict.keys():
             if word == "<end>":
-                logger.info(f"Generated {current_words_count_dict[word]} business names containing {i} words.")
+                logger.info(
+                    f"Generated {current_words_count_dict[word]} business names containing {i} words."
+                )
             else:
                 vals = list(bigrams[word].keys())
                 freq = np.array(list(bigrams[word].values()))

@@ -27,10 +27,7 @@ PROPORTION_PERSONS_LEAVING_COUNTRY = 0.05
 PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY = 0.05
 
 UNKNOWN_GUARDIAN_IDX = -1
-PROPORTION_GUARDIAN_TYPES = {"single_female": 0.23,
-                             "single_male": 0.05,
-                             "partnered": 0.72
-                             }
+PROPORTION_GUARDIAN_TYPES = {"single_female": 0.23, "single_male": 0.05, "partnered": 0.72}
 
 #########################
 # Synthetic Name Inputs #
