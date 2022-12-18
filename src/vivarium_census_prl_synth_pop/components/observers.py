@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-import pandas as pd
+import numpy as np, pandas as pd
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
@@ -165,3 +166,142 @@ class DecennialCensusObserver(BaseObserver):
         pop["census_year"] = event.time.year
 
         self.responses = pd.concat([self.responses, pop])
+
+
+class WICObserver(BaseObserver):
+    """Class for observing columns relevant to WIC administrative data.
+    """
+
+    def __repr__(self):
+        return f"WICObserver()"
+
+    @property
+    def name(self):
+        return f"wic_observer"
+    
+    @property
+    def output_filename(self):
+        return f"wic.hdf"
+
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.time_step = builder.configuration.time.step_size  # in days
+        assert self.time_step <= 31, 'WICObserver requires model specification configuration with time.step_size <= 31'
+        self.randomness = builder.randomness.get_stream(self.name)
+
+    def get_population_view(self, builder) -> PopulationView:
+        """Get the population view to be used for observations"""
+        return builder.population.get_view(columns=metadata.WIC_OBSERVER_COLUMNS_USED)
+
+    def get_responses(self) -> pd.DataFrame:
+        return pd.DataFrame(columns=[
+            "address_id",
+            "first_name",
+            "middle_initial",
+            "last_name",
+            "age",
+            "date_of_birth",
+            "sex",
+            "race_ethnicity",
+            "wic_year",
+            "guardian_1",
+            "guardian_1_address_id",
+            "guardian_2",
+            "guardian_2_address_id",
+        ])
+
+    def to_observe(self, event: Event) -> bool:
+        return ((event.time.month == 1)  # month of Jan
+                and (event.time.day <= 1+self.time_step)  # time step containing first day of month
+               )
+
+    def do_observation(self, event) -> None:
+        pop = self.population_view.get(
+            event.index,
+            query="alive == 'alive'",  # WIC should include only living simulants
+        )
+
+        # add columns for output
+        pop["wic_year"] = event.time.year
+        pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
+        pop = pop.drop(columns="middle_name")
+
+        # merge address ids for guardian_1 and guardian_2 for the rows with guardians
+        for i in [1,2]:
+            s_guardian_id = pop[f"guardian_{i}"].dropna()
+            s_guardian_id = s_guardian_id[s_guardian_id != -1] # is it faster to remove the negative values?
+            pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
+
+        pop["census_year"] = event.time.year
+
+
+        # add addl columns for simulating coverage
+        pop["nominal_age"] = np.floor(pop["age"])
+        
+        # calculate household size and income for measuring WIC eligibility
+        hh_size = pop.address_id.value_counts()
+        pop["hh_size"] = pop.address_id.map(hh_size)
+
+        hh_income = pop.groupby("address_id").income.sum()
+        pop["hh_income"] = pop.address_id.map(hh_income)
+
+        
+        # income eligibility for WIC is total household income less
+        # than $16,410 + ($8,732 * number of people in the household)
+        pop["wic_eligible"] = pop.eval("hh_income <= 16_410 + 8_732*hh_size")
+        
+        
+        # filter population to mothers and children under 5
+        pop_u1 = pop.query("age < 1 and wic_eligible")
+        pop_1_to_5 = pop.query("(age >= 1) and (age < 5) and wic_eligible")
+
+        guardian_ids = set(pop_u1["guardian_1"]) | set(pop_u1["guardian_2"])
+        pop_mothers = pop[(pop["sex"] == "Female") & pop.index.isin(guardian_ids) & pop.wic_eligible]
+
+
+        # determine who is covered using age/race-specific coverage probabilities
+        # with additional constraint that all under-1 year olds with mother covered are also covered
+        from collections import defaultdict
+        def my_defaultdict(**params):
+            pr_other = params.pop("Other")
+            return defaultdict(lambda: pr_other, **params)
+        
+        pr_covered = my_defaultdict(Latino=.993, Black=.909, White=.671, Other=.882)
+
+        mother_covered_probability = pop_mothers.race_ethnicity.map(pr_covered)
+        pop_included_mothers = self.randomness.filter_for_probability(pop_mothers, mother_covered_probability)
+
+        # same pattern for age 1 to 4
+        pop_included = {}
+        pr_covered = {0: my_defaultdict(Latino=.984, Black=.984, White=.7798, Other=.984),
+                      1: my_defaultdict(Latino=.761, Black=.696, White=.514, Other=.676),
+                      2: my_defaultdict(Latino=.568, Black=.520, White=.384, Other=.505),
+                      3: my_defaultdict(Latino=.512, Black=.469, White=.346, Other=.455),
+                      4: my_defaultdict(Latino=.287, Black=.263, White=.194, Other=.255),
+        }                          
+        for age, pop_age in pop_1_to_5.groupby("nominal_age"):
+            child_covered_pr = pop_age.race_ethnicity.map(pr_covered[age])
+            pop_included[age] = self.randomness.filter_for_probability(pop_age, child_covered_pr)
+
+
+        # selection for age 0 is more complicated, it should include all simulants who have a mother enrolled
+        # and then a random selection of additional simulants to reach the covered probabilities
+        child_covered_pr = (pop_u1.guardian_1.isin(pop_included_mothers.index)
+                            | pop_u1.guardian_2.isin(pop_included_mothers.index)).astype(float)
+        for race_eth in ["Latino", "Black", "White", "Other"]:
+            if race_eth != "Other":
+                race_eth_rows = (pop_u1.race_ethnicity == race_eth)
+            else:
+                race_eth_rows = ~pop_u1.race_ethnicity.isin(["Latino", "Black", "White"])
+            N = np.sum(race_eth_rows)
+            k = np.sum(race_eth_rows & (child_covered_pr==1))
+            if N == k:
+                continue
+            
+            f = pr_covered[0][race_eth]
+            child_covered_pr[race_eth_rows] = np.maximum(child_covered_pr[race_eth_rows],
+                                                         (f*N-k) / (N-k))
+        pop_included[0] = self.randomness.filter_for_probability(pop_u1, child_covered_pr)
+
+        self.responses = pd.concat([self.responses, pop_included_mothers] + list(pop_included.values()))
+        # FIXME: filter responses to include only what it should include

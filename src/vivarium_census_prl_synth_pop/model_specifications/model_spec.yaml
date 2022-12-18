@@ -6,6 +6,7 @@ components:
             - HouseholdMigration()
             - PersonMigration()
             - DecennialCensusObserver()
+            - WICObserver()
             - Mortality()
             - Fertility()
             - Businesses()
