@@ -19,14 +19,13 @@ def observer(mocker):
     tmpdir = tempfile.TemporaryDirectory()
     builder.configuration.output_data.results_directory = tmpdir.name
     observer.setup(builder)
-    tmpdir.cleanup()
     return observer
 
 
 @pytest.fixture
-def mocked_pop_view():
+def mocked_pop_view(observer):
     """Generate a state table view"""
-    cols = HouseholdSurveyObserver.INPUT_COLS
+    cols = observer.input_columns
     df = pd.DataFrame(np.random.randint(0, 100, size=(2, len(cols))), columns=cols)
     df["alive"] = "alive"
     df[["first_name", "middle_name", "last_name"]] = (
@@ -45,14 +44,17 @@ def test_responses_schema(observer):
     """Is the initial self.responses (after setup) the expected schema
     (pd.DataFrame with correct columns)?
     """
-    expected = pd.DataFrame(columns=HouseholdSurveyObserver.OUTPUT_COLS)
-    pd.testing.assert_frame_equal(expected, observer.responses)
+    pd.testing.assert_frame_equal(
+        pd.DataFrame(columns=observer.output_columns), observer.responses
+    )
 
 
 def test_do_observation(observer, mocked_pop_view, mocker):
-    """Are responses recorded and with the the required columns?"""
+    """Are responses recorded correctly (including concatenation after time steps?"""
+    sim_start_date = "2021-01-01"
+    # Simulate first time step
     event = mocker.MagicMock()
-    event.time = pd.to_datetime("2021-01-01")
+    event.time = pd.to_datetime(sim_start_date)
     event.index = pd.Index([0, 1])
     observer.population_view.get.return_value = mocked_pop_view  # FIXME: This returns mocked_pop_view regardless of event.index or alive status
     mocker.patch(
@@ -60,4 +62,17 @@ def test_do_observation(observer, mocked_pop_view, mocker):
         return_value=list(mocked_pop_view["household_id"]),
     )
     observer.do_observation(event)
-    assert set(observer.responses.columns) == set(HouseholdSurveyObserver.OUTPUT_COLS)
+    # Simulate second time step
+    event.time = event.time + pd.Timedelta(28, "days")
+    observer.do_observation(event)
+
+    expected = pd.concat([mocked_pop_view] * 2)
+    expected["middle_initial"] = ["J", "M"] * 2
+    expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
+    expected["survey_date"] = [pd.to_datetime(sim_start_date).date()] * 2 + [
+        event.time.date()
+    ] * 2
+
+    pd.testing.assert_frame_equal(
+        expected[observer.output_columns], observer.responses, check_dtype=False
+    )
