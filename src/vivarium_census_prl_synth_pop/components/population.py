@@ -895,13 +895,13 @@ class Population:
         # todo: Consider changing this function to build a distribution for each simulan instead of resampling.
 
         # Get age shift and redraw for simulants who get negative ages
-        to_shift = pd.Series(True, index=pop.index)
+        to_shift = pd.Index(pop.index)
         max_iterations = 10
         for i in range(max_iterations):
-            if to_shift.sum() == 0:
+            if to_shift.empty:
                 break
             age_shift_propensity = self.randomness.get_draw(
-                pop.loc[to_shift, "age"].index,
+                to_shift,
                 additional_key=f"individual_age_perturbation_{i}",
             )
             # Convert to normal distribution with mean=0 and sd=10
@@ -912,17 +912,17 @@ class Population:
 
             # Calculate shifted ages and see if any are negative and need to be resampled.
             shifted_ages = pop.loc[to_shift, "age"] + age_shift
-            negative_ages_mask = shifted_ages < 0
-            pop.loc[~negative_ages_mask & to_shift, "age"] = shifted_ages.loc[
-                ~negative_ages_mask & to_shift
-            ]
-            to_shift = negative_ages_mask
+            positive_ages_idx = shifted_ages.loc[shifted_ages >= 0].index
+            pop.loc[positive_ages_idx, "age"] = shifted_ages.loc[positive_ages_idx]
+            to_shift = shifted_ages.loc[
+                shifted_ages.index.difference(positive_ages_idx)
+            ].index
 
         # Check if any simulants did not have their age shifted
-        if to_shift.sum() > 0:
+        if len(to_shift) > 0:
             logger.info(
                 f"Maximum iterations for resampling of age perturbation reached.  The number of simulants whose age"
-                f"was not perturbed is {to_shift.sum()}"
+                f"was not perturbed is {len(to_shift)}"
             )
 
         # Clip ages above 99 at 99
