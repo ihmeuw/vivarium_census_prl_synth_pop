@@ -1,5 +1,3 @@
-import tempfile
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,14 +8,11 @@ from vivarium_census_prl_synth_pop.components.observers import HouseholdSurveyOb
 
 
 @pytest.fixture
-def observer(mocker):
+def observer(mocker, tmp_path):
     """Generate post-setup observer with mocked methods to patch as necessary"""
     observer = HouseholdSurveyObserver("ACS")
     builder = mocker.MagicMock()
-
-    # create a temp directory so setup can generate an output directory
-    tmpdir = tempfile.TemporaryDirectory()
-    builder.configuration.output_data.results_directory = tmpdir.name
+    builder.configuration.output_data.results_directory = tmp_path
     observer.setup(builder)
     return observer
 
@@ -47,6 +42,13 @@ def test_responses_schema(observer):
     pd.testing.assert_frame_equal(
         pd.DataFrame(columns=observer.output_columns), observer.responses
     )
+
+
+def test_on_simulation_end(observer, mocker):
+    """Are the final results written out to the expected directory?"""
+    event = mocker.MagicMock()
+    observer.on_simulation_end(event)
+    assert (observer.output_dir / observer.output_filename).is_file()
 
 
 def test_do_observation(observer, mocked_pop_view, mocker):
