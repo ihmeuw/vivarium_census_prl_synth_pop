@@ -91,7 +91,7 @@ class Population:
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
-        persons = builder.data.load(data_keys.POPULATION.PERSONS)
+        persons = builder.data.load(data_keys.POPULATION.PERSONS)[metadata.PERSONS_COLUMNS_TO_INITIALIZE]
         return {"households": households, "persons": persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -177,7 +177,7 @@ class Population:
         # get all simulants per household
         chosen_persons = pd.merge(
             chosen_households,
-            self.population_data["persons"][metadata.PERSONS_COLUMNS_TO_INITIALIZE],
+            self.population_data["persons"],
             on="census_household_id",
             how="left",
         )
