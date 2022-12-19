@@ -324,7 +324,7 @@ def update_address_id_for_unit_and_sims(
     pop: pd.DataFrame,
     moving_units: pd.DataFrame,
     units_that_move_ids: pd.Index,
-    total_address_id_count: int,
+    starting_address_id: int,
     unit_id_col_name: str,
     address_id_col_name: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
@@ -336,7 +336,7 @@ def update_address_id_for_unit_and_sims(
     pop: population table
     moving_units: Dataframe with column address_id_col_name.
     units_that_move_ids: IDs of moving units.  This is a subset of moving_units.index
-    total_address_id_count: Tracking number to update to preserver unique address_ids.
+    starting_address_id: Integer at which to start generating new address_ids, to prevent collisions.
     unit_id_col_name: Column name in state table where ids for the unit are stored.
     address_id_col_name: Column name in state table where address_id for the unit is stored.
 
@@ -344,7 +344,7 @@ def update_address_id_for_unit_and_sims(
     -------
     pop: Updated version of the state table.
     moving_units: Updated version of units dataframe.  This is done for the purpose of the businesses table.
-    total_address_id_count: Updated tracking number for address_id.
+    starting_address_id: Updated integer at which to start when generating more address_ids.
     """
 
     if len(units_that_move_ids) > 0:
@@ -354,10 +354,10 @@ def update_address_id_for_unit_and_sims(
         moving_units = update_address_id(
             df=moving_units,
             rows_to_update=units_that_move_ids,
-            starting_address_id=total_address_id_count,
+            starting_address_id=starting_address_id,
             address_id_col_name=address_id_col_name,
         )
-        total_address_id_count += len(units_that_move_ids)
+        starting_address_id += len(units_that_move_ids)
 
         # update address_id column in the pop table
         rows_changing_address_id_idx = pop.loc[
@@ -379,7 +379,7 @@ def update_address_id_for_unit_and_sims(
         pop = pop.set_index("simulant_id")
         pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
 
-    return pop, moving_units, total_address_id_count
+    return pop, moving_units, starting_address_id
 
 
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:
