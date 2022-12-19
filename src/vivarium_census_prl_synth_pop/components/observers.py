@@ -212,7 +212,7 @@ class WICObserver(BaseObserver):
            # expect this list will be more relevant in the refactored
            # version
         
-        return pd.DataFrame(self.response_columns)
+        return pd.DataFrame(columns=self.response_columns)
 
     def to_observe(self, event: Event) -> bool:
         return ((event.time.month == 1)  # month of Jan
