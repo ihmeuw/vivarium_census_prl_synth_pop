@@ -7,11 +7,10 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
-    # NOTE: If we want to test with 3.6, we cannot run on ubuntu-latest anymore
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8]
     defaults:
       run:
         shell: bash -l {0}
