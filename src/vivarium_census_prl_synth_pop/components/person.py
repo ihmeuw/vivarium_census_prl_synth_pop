@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -6,7 +7,7 @@ from vivarium.framework.utilities import from_yearly
 from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
-from vivarium_census_prl_synth_pop.utilities import filter_by_rate
+from vivarium_census_prl_synth_pop.utilities import update_address_id
 
 
 class PersonMigration:
@@ -40,8 +41,6 @@ class PersonMigration:
             "household_id",
             "relation_to_household_head",
             "address_id",
-            "exit_time",
-            "tracked",
             "housing_type",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
@@ -97,7 +96,12 @@ class PersonMigration:
             p=move_type_probabilities.values,
         )
 
-        domestic_movers_idx = pop.index[move_types_chosen != "no_move"]
+        pop = self._perform_new_household_moves(
+            pop, pop.index[move_types_chosen == "new_household"]
+        )
+
+        # TODO: This old code currently handles all of the *other* types of domestic moves.
+        domestic_movers_idx = pop.index[~move_types_chosen.isin(["no_move", "new_household"])]
 
         # TODO: Handle move types correctly -- this is code from the previous migration implementation
         # which only had a single type of individual move.
@@ -107,10 +111,7 @@ class PersonMigration:
 
         # get address_id for new households being moved to
         new_household_data = (
-            self.population_view.subview(["household_id", "address_id"])
-            .get(index=event.index)
-            .drop_duplicates()
-            .set_index("household_id")
+            pop[["household_id", "address_id"]].drop_duplicates().set_index("household_id")
         )
 
         # update household data for domestic movers
@@ -168,6 +169,27 @@ class PersonMigration:
     ##################
     # Helper methods #
     ##################
+
+    def _perform_new_household_moves(
+        self, pop: pd.DataFrame, movers: pd.Index
+    ) -> pd.DataFrame:
+        """
+        Create a new single-person household for each person in movers and move them to it.
+        """
+        first_new_household_id = pop["household_id"].max() + 1
+        first_new_household_address_id = pop["address_id"].max() + 1
+
+        new_household_ids = first_new_household_id + np.arange(len(movers))
+
+        pop.loc[movers, "household_id"] = new_household_ids
+        pop = update_address_id(
+            pop, movers, starting_address_id=first_new_household_address_id
+        )
+
+        pop.loc[movers, "relation_to_household_head"] = "Reference person"
+        pop.loc[movers, "housing_type"] = "Standard"
+
+        return pop
 
     def _get_new_household_ids(self, pop: pd.DataFrame, sims_who_move: pd.Index) -> pd.Series:
         households = pop["household_id"]
