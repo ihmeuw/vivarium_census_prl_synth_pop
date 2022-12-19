@@ -6,7 +6,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 
 class BaseObserver(ABC):
@@ -32,6 +32,17 @@ class BaseObserver(ABC):
     def output_filename(self):
         pass
 
+    @property
+    @abstractmethod
+    def input_columns(self):
+        pass
+
+    @property
+    @abstractmethod
+    def output_columns(self):
+        pass
+
+
     #################
     # Setup methods #
     #################
@@ -55,15 +66,16 @@ class BaseObserver(ABC):
             self.on_simulation_end,
         )
 
-    @abstractmethod
     def get_population_view(self, builder) -> PopulationView:
-        """Get the population view to be used for observations"""
-        pass
+        """Returns the population view of interest to the observer"""
+        cols = self.input_columns
+        population_view = builder.population.get_view(columns=cols)
+        return population_view
 
-    @abstractmethod
     def get_response_schema(self) -> pd.DataFrame:
-        """Initializes the observation/results data structure and schema"""
-        pass
+        """Returns the response schema"""
+        cols = self.output_columns
+        return pd.DataFrame(columns=cols)
 
     ########################
     # Event-driven methods #
@@ -92,47 +104,9 @@ class BaseObserver(ABC):
 
 class HouseholdSurveyObserver(BaseObserver):
 
-    # FIXME: Do we want these household survey constants here or in constants.metadata?
-    INPUT_COLS = [
-        "alive",
-        "household_id",
-        "housing_type",
-        "first_name",
-        "middle_name",
-        "last_name",
-        "age",
-        "sex",
-        "race_ethnicity",  # For simulant omission
-        "date_of_birth",
-        "address_id",
-        "state",
-        "puma",
-        "guardian_1",  # For noise functions
-        "guardian_2",  # For noise functions
-    ]
-    OUTPUT_COLS = [
-        "survey",
-        "survey_date",
-        "household_id",
-        "housing_type",
-        "first_name",
-        "middle_initial",
-        "last_name",
-        "age",
-        "sex",
-        "race_ethnicity",  # For simulant omission
-        "date_of_birth",
-        "address_id",
-        "state",
-        "puma",
-        "guardian_1",  # For noise functions
-        "guardian_2",  # For noise functions
-        "guardian_1_address_id",  # For noise functions
-        "guardian_2_address_id",  # For noise functions
-    ]
-    SAMPLING_RATE = {
-        "ACS": 12,  # FIXME: 12000
-        "CPS": 60,  # FIXME: 60000
+    SAMPLING_RATE_PER_TIMESTEP = {
+        "ACS": 12000,
+        "CPS": 60000,
     }
     OVERSAMPLE_FACTOR = 2
 
@@ -148,11 +122,53 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def name(self):
-        return f"HouseholdSurveyObserver.{self.survey}"
+        return f"household_survey_observer.{self.survey}"
 
     @property
     def output_filename(self):
         return f"{self.survey}.hdf"
+
+    @property
+    def input_columns(self):
+        return [
+            "alive",
+            "household_id",
+            "housing_type",
+            "first_name",
+            "middle_name",
+            "last_name",
+            "age",
+            "sex",
+            "race_ethnicity",  # For simulant omission
+            "date_of_birth",
+            "address_id",
+            "state",
+            "puma",
+            "guardian_1",  # For noise functions
+            "guardian_2",  # For noise functions
+        ]
+
+    @property
+    def output_columns(self):
+        return [
+            "survey_date",
+            "household_id",
+            "housing_type",
+            "first_name",
+            "middle_initial",
+            "last_name",
+            "age",
+            "sex",
+            "race_ethnicity",  # For simulant omission
+            "date_of_birth",
+            "address_id",
+            "state",
+            "puma",
+            "guardian_1",  # For noise functions
+            "guardian_2",  # For noise functions
+            "guardian_1_address_id",  # For noise functions
+            "guardian_2_address_id",  # For noise functions
+        ]
 
     #################
     # Setup methods #
@@ -161,24 +177,15 @@ class HouseholdSurveyObserver(BaseObserver):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.randomness = builder.randomness.get_stream(self.name)
-        # FIXME: Should we adjust to get exactly the right amount after 1 year?
         self.samples_per_timestep = int(
-            HouseholdSurveyObserver.SAMPLING_RATE[self.survey]  # households per month
-            * HouseholdSurveyObserver.OVERSAMPLE_FACTOR
+            HouseholdSurveyObserver.OVERSAMPLE_FACTOR
+            * HouseholdSurveyObserver.SAMPLING_RATE_PER_TIMESTEP[self.survey]  # households per month
             * 12  # months per year
-            / (365.25 / builder.configuration.time.step_size)  # timesteps per year
+            * builder.configuration.time.step_size  # days per timestep
+            / data_values.DAYS_PER_YEAR  # days per year
+            * builder.configuration.population.population_size  # sim population
+            / data_values.US_POPULATION  # US population
         )
-
-    def get_population_view(self, builder) -> PopulationView:
-        """Returns the population view of interest to the observer"""
-        cols = HouseholdSurveyObserver.INPUT_COLS
-        population_view = builder.population.get_view(columns=cols)
-        return population_view
-
-    def get_response_schema(self) -> pd.DataFrame:
-        """Returns the response schema"""
-        cols = HouseholdSurveyObserver.OUTPUT_COLS
-        return pd.DataFrame(columns=cols)
 
     ########################
     # Event-driven methods #
@@ -188,7 +195,7 @@ class HouseholdSurveyObserver(BaseObserver):
         """Records the survey responses on this time step."""
         new_responses = self.population_view.get(event.index, query='alive == "alive"')
         respondent_households = utilities.vectorized_choice(
-            options=list(set(new_responses["household_id"])),
+            options=list(new_responses["household_id"].unique()),
             n_to_choose=self.samples_per_timestep,
             randomness_stream=self.randomness,
             additional_key="sampling_households",
@@ -196,7 +203,6 @@ class HouseholdSurveyObserver(BaseObserver):
         new_responses = new_responses[
             new_responses["household_id"].isin(respondent_households)
         ]
-        new_responses["survey"] = self.survey
         new_responses["survey_date"] = event.time.date()
         new_responses = utilities.convert_middle_name_to_initial(new_responses)
         new_responses = utilities.add_guardian_address_ids(new_responses)
@@ -223,6 +229,30 @@ class DecennialCensusObserver(BaseObserver):
     def output_filename(self):
         return f"decennial_census.hdf"
 
+    @property
+    def input_columns(self):
+        return metadata.DECENNIAL_CENSUS_COLUMNS_USED
+    
+    @property
+    def output_columns(self):
+        return [
+            "first_name",
+            "middle_initial",
+            "last_name",
+            "age",
+            "date_of_birth",
+            "address_id",
+            "relation_to_household_head",
+            "sex",
+            "race_ethnicity",
+            "census_year",
+            "guardian_1",
+            "guardian_1_address_id",
+            "guardian_2",
+            "guardian_2_address_id",
+            "housing_type",
+        ]
+
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
@@ -230,31 +260,6 @@ class DecennialCensusObserver(BaseObserver):
         assert (
             self.time_step <= 30
         ), "DecennialCensusObserver requires model specification configuration with time.step_size <= 30"
-
-    def get_population_view(self, builder) -> PopulationView:
-        """Get the population view to be used for observations"""
-        return builder.population.get_view(columns=metadata.DECENNIAL_CENSUS_COLUMNS_USED)
-
-    def get_response_schema(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            columns=[
-                "first_name",
-                "middle_initial",
-                "last_name",
-                "age",
-                "date_of_birth",
-                "address_id",
-                "relation_to_household_head",
-                "sex",
-                "race_ethnicity",
-                "census_year",
-                "guardian_1",
-                "guardian_1_address_id",
-                "guardian_2",
-                "guardian_2_address_id",
-                "housing_type",
-            ]
-        )
 
     def to_observe(self, event: Event) -> bool:
         """Note: this method uses self.clock instead of event.time to handle

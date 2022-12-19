@@ -1,8 +1,14 @@
 from typing import NamedTuple
 
+
+DAYS_PER_YEAR = 365.25
+
 #########################
 # Population parameters #
 #########################
+
+# TODO: implement gbd call (vivarium_inputs.get_population_structure("United States"))
+US_POPULATION = 333339776
 
 PROP_POPULATION_IN_GQ = 0.03
 PROBABILITY_OF_TWINS = 0.04
