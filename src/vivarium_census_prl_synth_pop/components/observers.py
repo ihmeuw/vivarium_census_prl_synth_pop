@@ -42,7 +42,6 @@ class BaseObserver(ABC):
     def output_columns(self):
         pass
 
-
     #################
     # Setup methods #
     #################
@@ -84,6 +83,14 @@ class BaseObserver(ABC):
     def on_collect_metrics(self, event: Event) -> None:
         if self.to_observe(event):
             self.do_observation(event)
+            if not pd.Series(self.output_columns).isin(self.responses.columns).all():
+                raise RuntimeError(
+                    f"{self.name} missing required column(s): {set(self.output_columns) - set(self.responses.columns)}"
+                )
+            if not pd.Series(self.responses.columns).isin(self.output_columns).all():
+                raise RuntimeError(
+                    f"{self.name} contains extra unexpected column(s): {set(self.responses.columns) - set(self.output_columns)}"
+                )
 
     def to_observe(self, event: Event) -> bool:
         """If True, will make an observation. This defaults to always True
@@ -179,7 +186,9 @@ class HouseholdSurveyObserver(BaseObserver):
         self.randomness = builder.randomness.get_stream(self.name)
         self.samples_per_timestep = int(
             HouseholdSurveyObserver.OVERSAMPLE_FACTOR
-            * HouseholdSurveyObserver.SAMPLING_RATE_PER_TIMESTEP[self.survey]  # households per month
+            * HouseholdSurveyObserver.SAMPLING_RATE_PER_TIMESTEP[
+                self.survey
+            ]  # households per month
             * 12  # months per year
             * builder.configuration.time.step_size  # days per timestep
             / data_values.DAYS_PER_YEAR  # days per year
@@ -232,7 +241,7 @@ class DecennialCensusObserver(BaseObserver):
     @property
     def input_columns(self):
         return metadata.DECENNIAL_CENSUS_COLUMNS_USED
-    
+
     @property
     def output_columns(self):
         return [
