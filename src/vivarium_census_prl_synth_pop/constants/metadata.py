@@ -29,6 +29,13 @@ HOUSEHOLDS_COLUMN_MAP = {
     "PUMA": "puma",
     "WGTP": "household_weight",
 }
+PERSONS_COLUMNS_TO_INITIALIZE = [
+    'census_household_id',
+    'age',
+    'relation_to_household_head',
+    'sex',
+    'race_ethnicity',
+]
 
 CENSUS_STATE_IDS = {
     "NA": -1,
@@ -94,6 +101,8 @@ PERSONS_COLUMNS_MAP = {
     "SEX": "sex",
     "HISP": "latino",
     "RAC1P": "race",
+    "NATIVITY": "born_in_us",
+    "MIG": "immigrated_in_last_year",
 }
 
 SUBSET_PERSONS_COLUMNS_MAP = {
@@ -245,6 +254,10 @@ WIC_OBSERVER_COLUMNS_USED = (
         "income",
     ]
 )
+
+NATIVITY_MAP = {1: True, 2: False}
+
+MIGRATION_MAP = {1.0: False, 2.0: True, 3.0: False}
 
 class __Scenarios(NamedTuple):
     baseline: str = "baseline"
