@@ -91,7 +91,9 @@ class Population:
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
-        persons = builder.data.load(data_keys.POPULATION.PERSONS)[metadata.PERSONS_COLUMNS_TO_INITIALIZE]
+        persons = builder.data.load(data_keys.POPULATION.PERSONS)[
+            metadata.PERSONS_COLUMNS_TO_INITIALIZE
+        ]
         return {"households": households, "persons": persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
