@@ -112,12 +112,19 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     data.relation_to_household_head = data.relation_to_household_head.map(
         metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP
     )
+    # Map native born persons and if person has migrated in last year
+    data["born_in_us"] = data["born_in_us"].map(
+        metadata.NATIVITY_MAP
+    )  # True for native born persons
+    data["immigrated_in_last_year"] = data["immigrated_in_last_year"].map(
+        metadata.MIGRATION_MAP
+    )
+    data.loc[
+        data["immigrated_in_last_year"].isnull(), "immigrated_in_last_year"
+    ] = False  # Make Nulls map to False
 
     # put all non-draw columns in the index, else vivarium will drop them
-    data = data.set_index(
-        ["census_household_id", "age", "relation_to_household_head", "sex", "race_ethnicity"]
-    )
-
+    data = data.set_index(list(data.columns))
     return data
 
 

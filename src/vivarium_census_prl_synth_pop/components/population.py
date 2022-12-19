@@ -91,7 +91,7 @@ class Population:
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
-        persons = builder.data.load(data_keys.POPULATION.PERSONS)
+        persons = builder.data.load(data_keys.POPULATION.PERSONS)[metadata.PERSONS_COLUMNS_TO_INITIALIZE]
         return {"households": households, "persons": persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -213,7 +213,7 @@ class Population:
         # get simulants per GQ unit
         chosen_persons = pd.merge(
             chosen_units,
-            self.population_data["persons"],
+            self.population_data["persons"][metadata.PERSONS_COLUMNS_TO_INITIALIZE],
             on="census_household_id",
             how="left",
         )
@@ -753,8 +753,8 @@ class Population:
                     "reference_person_id",
                 ]
                 if (
-                    race_reference_person_ids.empty and len(race_college_sims_with_guardian_idx)
-                    > 0
+                    race_reference_person_ids.empty
+                    and len(race_college_sims_with_guardian_idx) > 0
                 ):
                     # Get all ids for race reference person who are not guardian_type
                     # This handles an unlikely edge case - leaving additional key attached to guardian_type
