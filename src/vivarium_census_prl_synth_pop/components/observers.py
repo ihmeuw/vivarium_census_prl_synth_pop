@@ -236,31 +236,29 @@ class WICObserver(BaseObserver):
             s_guardian_id = s_guardian_id[s_guardian_id != -1] # is it faster to remove the negative values?
             pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
 
-        pop["census_year"] = event.time.year
-
-
-        # add addl columns for simulating coverage
+        # add additional columns for simulating coverage
         pop["nominal_age"] = np.floor(pop["age"])
+
         
         # calculate household size and income for measuring WIC eligibility
-        hh_size = pop.address_id.value_counts()
-        pop["hh_size"] = pop.address_id.map(hh_size)
+        hh_size = pop["address_id"].value_counts()
+        pop["hh_size"] = pop["address_id"].map(hh_size)
 
         hh_income = pop.groupby("address_id").income.sum()
-        pop["hh_income"] = pop.address_id.map(hh_income)
+        pop["hh_income"] = pop["address_id"].map(hh_income)
 
         
         # income eligibility for WIC is total household income less
         # than $16,410 + ($8,732 * number of people in the household)
-        pop["wic_eligible"] = pop.eval("hh_income <= 16_410 + 8_732*hh_size")
+        pop["wic_eligible"] = (pop["hh_income"] <= (16_410 + 8_732*pop["hh_size"]))
         
         
         # filter population to mothers and children under 5
-        pop_u1 = pop.query("age < 1 and wic_eligible")
-        pop_1_to_5 = pop.query("(age >= 1) and (age < 5) and wic_eligible")
+        pop_u1 = pop[(pop["age"] < 1) & pop["wic_eligible"]]
+        pop_1_to_5 = pop[(pop["age"] >= 1) & (pop["age"] < 5) & pop["wic_eligible"]]
 
-        guardian_ids = set(pop_u1["guardian_1"]) | set(pop_u1["guardian_2"])
-        pop_mothers = pop[(pop["sex"] == "Female") & pop.index.isin(guardian_ids) & pop.wic_eligible]
+        guardian_ids = np.union1d(pop_u1["guardian_1"], pop_u1["guardian_2"])
+        pop_mothers = pop[(pop["sex"] == "Female") & pop.index.isin(guardian_ids) & pop["wic_eligible"]]
 
 
         # determine who is covered using age/race-specific coverage probabilities
@@ -272,7 +270,7 @@ class WICObserver(BaseObserver):
         pop_included_mothers = self.randomness.filter_for_probability(pop_mothers, mother_covered_probability)
 
         # then use same pattern for children aged 1 to 4
-        pop_included = {}
+        pop_included = {}  # this dict will hold a pd.DataFrame for each age group
         for age, pop_age in pop_1_to_5.groupby("nominal_age"):
             pr_covered = data_values.COVERAGE_PROBABILITY_WIC[age]
             child_covered_pr = pop_age.race_ethnicity.map(pr_covered)
@@ -283,20 +281,24 @@ class WICObserver(BaseObserver):
         # all simulants who have a mother enrolled and then a random
         # selection of additional simulants to reach the covered
         # probabilities
+
+        simplified_race_ethnicity = pop_u1["race_ethnicity"].copy()
+        simplified_race_ethnicity[~pop_u1["race_ethnicity"].isin(["Latino", "Black", "White"])] = "Other"
+
         child_covered_pr = (pop_u1.guardian_1.isin(pop_included_mothers.index)
-                            | pop_u1.guardian_2.isin(pop_included_mothers.index)).astype(float)
+                            | pop_u1.guardian_2.isin(pop_included_mothers.index)).astype(float)  # pr is 1.0 for infants with mother on WIC
         for race_eth in ["Latino", "Black", "White", "Other"]:
-            if race_eth != "Other":
-                race_eth_rows = (pop_u1.race_ethnicity == race_eth)
-            else:
-                race_eth_rows = ~pop_u1.race_ethnicity.isin(["Latino", "Black", "White"])
-            N = np.sum(race_eth_rows)
-            k = np.sum(race_eth_rows & (child_covered_pr==1))
-            if N == k:
-                continue
-            pr_covered = data_values.COVERAGE_PROBABILITY_WIC[0]
-            child_covered_pr[race_eth_rows] = np.maximum(child_covered_pr[race_eth_rows],
-                                                         (pr_covered[race_eth]*N-k) / (N-k))
+            race_eth_rows = (simplified_race_ethnicity == race_eth)
+
+            N = np.sum(race_eth_rows)  # total number of infants in this race group
+            k = np.sum(race_eth_rows & (child_covered_pr==1))  # number included because their mother is on WIC
+            if k < N:
+                pr_covered = data_values.COVERAGE_PROBABILITY_WIC[0]
+                child_covered_pr[race_eth_rows] = np.maximum(
+                    child_covered_pr[race_eth_rows],  # keep pr of 1.0 for the k infants with mother on WIC
+                    (pr_covered[race_eth]*N - k) / (N-k)  # rescale probability for the remaining individuals
+                                                          # so that expected number of infants on WIC matches target
+                )
         pop_included[0] = self.randomness.filter_for_probability(pop_u1, child_covered_pr)
 
         self.responses = pd.concat([self.responses, pop_included_mothers] + list(pop_included.values()))

@@ -1,5 +1,4 @@
 from typing import NamedTuple
-from collections import defaultdict
 
 #########################
 # Population parameters #
@@ -88,17 +87,13 @@ class MilitaryEmployer(NamedTuple):
 # Observer Values #
 ###################
 
-def wic_defaultdict(**params):
-    pr_other = params.pop("Other")
-    return defaultdict(lambda: pr_other, **params)
-
 COVERAGE_PROBABILITY_WIC = {
-    'mothers': wic_defaultdict(Latino=.993, Black=.909, White=.671, Other=.882),
-    0: wic_defaultdict(Latino=.984, Black=.984, White=.7798, Other=.984),
-    1: wic_defaultdict(Latino=.761, Black=.696, White=.514, Other=.676),
-    2: wic_defaultdict(Latino=.568, Black=.520, White=.384, Other=.505),
-    3: wic_defaultdict(Latino=.512, Black=.469, White=.346, Other=.455),
-    4: wic_defaultdict(Latino=.287, Black=.263, White=.194, Other=.255),
+    'mothers': dict(Latino=.993, Black=.909, White=.671, Other=.882),
+    0: dict(Latino=.984, Black=.984, White=.7798, Other=.984),
+    1: dict(Latino=.761, Black=.696, White=.514, Other=.676),
+    2: dict(Latino=.568, Black=.520, White=.384, Other=.505),
+    3: dict(Latino=.512, Black=.469, White=.346, Other=.455),
+    4: dict(Latino=.287, Black=.263, White=.194, Other=.255),
 }
 
 
