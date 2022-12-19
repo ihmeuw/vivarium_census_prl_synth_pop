@@ -178,7 +178,7 @@ class WICObserver(BaseObserver):
     @property
     def name(self):
         return f"wic_observer"
-    
+
     @property
     def output_filename(self):
         return f"wic.hdf"
@@ -186,7 +186,7 @@ class WICObserver(BaseObserver):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.time_step = builder.configuration.time.step_size  # in days
-        assert self.time_step <= 31, 'WICObserver requires model specification configuration with time.step_size <= 31'
+        assert 1 <= self.time_step <= 30, 'WICObserver requires model specification configuration with 1 <= time.step_size <= 30'
         self.randomness = builder.randomness.get_stream(self.name)
 
     def get_population_view(self, builder) -> PopulationView:
@@ -194,7 +194,7 @@ class WICObserver(BaseObserver):
         return builder.population.get_view(columns=metadata.WIC_OBSERVER_COLUMNS_USED)
 
     def get_responses(self) -> pd.DataFrame:
-        return pd.DataFrame(columns=[
+        self.response_columns = [
             "address_id",
             "first_name",
             "middle_initial",
@@ -208,11 +208,15 @@ class WICObserver(BaseObserver):
             "guardian_1_address_id",
             "guardian_2",
             "guardian_2_address_id",
-        ])
+        ]  # NOTE: Steve is going to refactor this method, and I
+           # expect this list will be more relevant in the refactored
+           # version
+        
+        return pd.DataFrame(self.response_columns)
 
     def to_observe(self, event: Event) -> bool:
         return ((event.time.month == 1)  # month of Jan
-                and (event.time.day <= 1+self.time_step)  # time step containing first day of month
+                and (1 < event.time.day <= 1+self.time_step)  # time step containing first day of month
                )
 
     def do_observation(self, event) -> None:
@@ -261,31 +265,24 @@ class WICObserver(BaseObserver):
 
         # determine who is covered using age/race-specific coverage probabilities
         # with additional constraint that all under-1 year olds with mother covered are also covered
-        from collections import defaultdict
-        def my_defaultdict(**params):
-            pr_other = params.pop("Other")
-            return defaultdict(lambda: pr_other, **params)
-        
-        pr_covered = my_defaultdict(Latino=.993, Black=.909, White=.671, Other=.882)
 
+        # first include some mothers
+        pr_covered = data_values.COVERAGE_PROBABILITY_WIC['mothers']
         mother_covered_probability = pop_mothers.race_ethnicity.map(pr_covered)
         pop_included_mothers = self.randomness.filter_for_probability(pop_mothers, mother_covered_probability)
 
-        # same pattern for age 1 to 4
+        # then use same pattern for children aged 1 to 4
         pop_included = {}
-        pr_covered = {0: my_defaultdict(Latino=.984, Black=.984, White=.7798, Other=.984),
-                      1: my_defaultdict(Latino=.761, Black=.696, White=.514, Other=.676),
-                      2: my_defaultdict(Latino=.568, Black=.520, White=.384, Other=.505),
-                      3: my_defaultdict(Latino=.512, Black=.469, White=.346, Other=.455),
-                      4: my_defaultdict(Latino=.287, Black=.263, White=.194, Other=.255),
-        }                          
         for age, pop_age in pop_1_to_5.groupby("nominal_age"):
-            child_covered_pr = pop_age.race_ethnicity.map(pr_covered[age])
+            pr_covered = data_values.COVERAGE_PROBABILITY_WIC[age]
+            child_covered_pr = pop_age.race_ethnicity.map(pr_covered)
             pop_included[age] = self.randomness.filter_for_probability(pop_age, child_covered_pr)
 
 
-        # selection for age 0 is more complicated, it should include all simulants who have a mother enrolled
-        # and then a random selection of additional simulants to reach the covered probabilities
+        # selection for age 0 is more complicated; it should include
+        # all simulants who have a mother enrolled and then a random
+        # selection of additional simulants to reach the covered
+        # probabilities
         child_covered_pr = (pop_u1.guardian_1.isin(pop_included_mothers.index)
                             | pop_u1.guardian_2.isin(pop_included_mothers.index)).astype(float)
         for race_eth in ["Latino", "Black", "White", "Other"]:
@@ -297,11 +294,10 @@ class WICObserver(BaseObserver):
             k = np.sum(race_eth_rows & (child_covered_pr==1))
             if N == k:
                 continue
-            
-            f = pr_covered[0][race_eth]
+            pr_covered = data_values.COVERAGE_PROBABILITY_WIC[0]
             child_covered_pr[race_eth_rows] = np.maximum(child_covered_pr[race_eth_rows],
-                                                         (f*N-k) / (N-k))
+                                                         (pr_covered[race_eth]*N-k) / (N-k))
         pop_included[0] = self.randomness.filter_for_probability(pop_u1, child_covered_pr)
 
         self.responses = pd.concat([self.responses, pop_included_mothers] + list(pop_included.values()))
-        # FIXME: filter responses to include only what it should include
+        self.responses = self.responses.filter(self.response_columns)
