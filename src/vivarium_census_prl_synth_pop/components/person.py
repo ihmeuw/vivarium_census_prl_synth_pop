@@ -95,6 +95,7 @@ class PersonMigration:
             pop.index,
             choices=move_type_probabilities.columns,
             p=move_type_probabilities.values,
+            additional_key="move_types",
         )
 
         pop = self._perform_new_household_moves(
@@ -219,6 +220,7 @@ class PersonMigration:
         housing_type_category_values = self.randomness.choice(
             movers,
             choices=categories,
+            additional_key="gq_person_move_housing_type_categories",
         )
         pop.loc[movers, "relation_to_household_head"] = housing_type_category_values
 
@@ -229,18 +231,17 @@ class PersonMigration:
             if len(movers_in_category) == 0:
                 continue
 
-            additional_seed = 0
-            household_id_values = pop.loc[movers_in_category, "household_id"]
-
-            # Ensure all moves are actually moves -- i.e. a simulant cannot "move" into a GQ type
-            # that they are already living in.
-            while (household_id_values == pop.loc[movers_in_category, "household_id"]).any():
-                household_id_values = self.randomness.choice(
-                    movers_in_category,
-                    choices=list(housing_types.values()),
-                    additional_key=f"household_ids_{additional_seed}",
-                )
-                additional_seed += 1
+            # NOTE: In rare cases, simulants will "move" to the same GQ type they are
+            # already living in.
+            # We allow this -- the underlying rate data from ACS is the rate of any
+            # move in the last year, even e.g. between nursing homes.
+            # Of course in our case it's a bit weird because there is only one household/
+            # address for nursing homes, but that isn't a migration-specific issue.
+            household_id_values = self.randomness.choice(
+                movers_in_category,
+                choices=list(housing_types.values()),
+                additional_key="gq_person_move_household_ids",
+            )
 
             pop.loc[movers_in_category, "household_id"] = household_id_values
             pop.loc[movers_in_category, "housing_type"] = household_id_values.map(
