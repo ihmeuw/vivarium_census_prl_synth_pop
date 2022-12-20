@@ -85,12 +85,10 @@ class MilitaryEmployer(NamedTuple):
 ###################
 
 COVERAGE_PROBABILITY_WIC = {
-    'mothers': dict(Latino=.993, Black=.909, White=.671, Other=.882),
-    0: dict(Latino=.984, Black=.984, White=.7798, Other=.984),
-    1: dict(Latino=.761, Black=.696, White=.514, Other=.676),
-    2: dict(Latino=.568, Black=.520, White=.384, Other=.505),
-    3: dict(Latino=.512, Black=.469, White=.346, Other=.455),
-    4: dict(Latino=.287, Black=.263, White=.194, Other=.255),
+    "mothers": dict(Latino=0.993, Black=0.909, White=0.671, Other=0.882),
+    0: dict(Latino=0.984, Black=0.984, White=0.7798, Other=0.984),
+    1: dict(Latino=0.761, Black=0.696, White=0.514, Other=0.676),
+    2: dict(Latino=0.568, Black=0.520, White=0.384, Other=0.505),
+    3: dict(Latino=0.512, Black=0.469, White=0.346, Other=0.455),
+    4: dict(Latino=0.287, Black=0.263, White=0.194, Other=0.255),
 }
-
-
