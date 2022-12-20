@@ -139,12 +139,12 @@ class Population:
 
         # Deterimne if simulants have SSN
         pop["ssn"] = False
-        # Give native born simulants a SSN
+        # Give native born simulants a SSN  
         non_natives_idx = pop.loc[pop["born_in_us"] == False].index
         pop.loc[~non_natives_idx, "ssn"] = True
         # Choose which non-native simulants get a SSN
         ssn_idx = self.randomness.filter_for_probability(
-            non_natives_idx, self.proportion_with_ssn(non_natives_idx)
+            non_natives_idx, self.proportion_with_ssn(non_natives_idx), "ssn"
         ).index
         pop.loc[ssn_idx, "ssn"] = True
 
