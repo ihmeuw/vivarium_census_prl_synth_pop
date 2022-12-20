@@ -148,7 +148,6 @@ class PersonMigration:
         gq_address_ids = self._get_address_ids_by_household_id(
             pop[pop["relation_to_household_head"].isin(categories)]
         )
-        assert gq_address_ids.index.is_unique
 
         housing_type_category_values = self.randomness.choice(
             movers,
@@ -223,8 +222,10 @@ class PersonMigration:
         return pop
 
     def _get_address_ids_by_household_id(self, df: pd.DataFrame) -> pd.Series:
-        return (
+        result = (
             df[["household_id", "address_id"]]
             .drop_duplicates()
             .set_index("household_id")["address_id"]
         )
+        assert result.index.is_unique
+        return result
