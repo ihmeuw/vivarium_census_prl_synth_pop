@@ -5,6 +5,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
+from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_values
@@ -197,7 +198,7 @@ class HouseholdSurveyObserver(BaseObserver):
             ]  # households per month
             * 12  # months per year
             * builder.configuration.time.step_size  # days per timestep
-            / data_values.DAYS_PER_YEAR  # days per year
+            / DAYS_PER_YEAR  # days per year
             * builder.configuration.population.population_size  # sim population
             / data_values.US_POPULATION  # US population
         )

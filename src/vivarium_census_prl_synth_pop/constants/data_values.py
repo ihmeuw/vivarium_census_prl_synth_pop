@@ -1,8 +1,5 @@
 from typing import NamedTuple
 
-
-DAYS_PER_YEAR = 365.25
-
 #########################
 # Population parameters #
 #########################
