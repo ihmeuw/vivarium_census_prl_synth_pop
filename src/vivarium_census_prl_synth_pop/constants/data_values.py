@@ -87,5 +87,13 @@ class MilitaryEmployer(NamedTuple):
 # Observer Values #
 ###################
 
+COVERAGE_PROBABILITY_WIC = {
+    'mothers': dict(Latino=.993, Black=.909, White=.671, Other=.882),
+    0: dict(Latino=.984, Black=.984, White=.7798, Other=.984),
+    1: dict(Latino=.761, Black=.696, White=.514, Other=.676),
+    2: dict(Latino=.568, Black=.520, White=.384, Other=.505),
+    3: dict(Latino=.512, Black=.469, White=.346, Other=.455),
+    4: dict(Latino=.287, Black=.263, White=.194, Other=.255),
+}
 
-RESPONSE_PROBABILITY_DECENNIAL = 0.95
+
