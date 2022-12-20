@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 #   - invoked on push, pull_request, or manual trigger
-#   - test under 3 versions of python
+#   - test under 2 versions of python
 # -----------------------------------------------------------------------------
 name: build
 on: [push, pull_request, workflow_dispatch]
@@ -13,7 +13,7 @@ jobs:
         python-version: [3.7, 3.8]
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -le {0}
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}

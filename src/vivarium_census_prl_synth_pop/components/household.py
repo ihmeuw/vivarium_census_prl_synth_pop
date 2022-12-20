@@ -45,15 +45,15 @@ class HouseholdMigration:
 
         # TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
         move_rate_data = pd.read_csv(
-            paths.HOUSEHOLD_MOVE_RATE_PATH,
-            usecols=[
-                "sex",
-                "race_ethnicity",
-                "age_start",
-                "age_end",
-                "household_rate",
-                "housing_type",
-            ],
+                paths.HOUSEHOLD_MOVE_RATE_PATH,
+                usecols=[
+                    "sex",
+                    "race_ethnicity",
+                    "age_start",
+                    "age_end",
+                    "household_rate",
+                    "housing_type",
+                ],
         )
         move_rate_data = builder.lookup.build_table(
             data=move_rate_data.loc[move_rate_data["housing_type"] == "Standard"].drop(
