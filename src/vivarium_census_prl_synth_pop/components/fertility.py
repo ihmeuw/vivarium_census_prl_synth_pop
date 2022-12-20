@@ -75,7 +75,7 @@ class Fertility(FertilityAgeSpecificRates):
                     "age_end": 0,
                     "sim_state": "time_step",
                     "parent_ids": had_children.index,
-                    "current_population_index": event.index
+                    "current_population_index": event.index,
                 },
             )
 

@@ -36,7 +36,8 @@ if __name__ == "__main__":
         "vivarium_inputs[data]==4.0.9",
     ]
     test_requirements = [
-        "pytest", "pytest-mock",
+        "pytest",
+        "pytest-mock",
     ]
 
     setup(

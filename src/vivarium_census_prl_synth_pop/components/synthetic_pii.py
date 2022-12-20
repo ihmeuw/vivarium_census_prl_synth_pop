@@ -56,21 +56,30 @@ class SSNGenerator(GenericGenerator):
             df = pd.DataFrame(index=df_in.index)
 
             area = random_integers(
-                min_val=1, max_val=899, index=df.index, randomness=self.randomness,
+                min_val=1,
+                max_val=899,
+                index=df.index,
+                randomness=self.randomness,
                 additional_key=f"{additional_key}_ssn_area",
             )
             area = np.where(area == 666, 667, area)
             df["ssn_area"] = area
 
             group = random_integers(
-                min_val=1, max_val=99, index=df.index, randomness=self.randomness,
-                additional_key=f"{additional_key}_ssn_group"
+                min_val=1,
+                max_val=99,
+                index=df.index,
+                randomness=self.randomness,
+                additional_key=f"{additional_key}_ssn_group",
             )
             df["ssn_group"] = group
 
             serial = random_integers(
-                min_val=1, max_val=9999, index=df.index, randomness=self.randomness,
-                additional_key=f"{additional_key}_ssn_serial"
+                min_val=1,
+                max_val=9999,
+                index=df.index,
+                randomness=self.randomness,
+                additional_key=f"{additional_key}_ssn_serial",
             )
             df["ssn_serial"] = serial
 
@@ -90,7 +99,9 @@ class SSNGenerator(GenericGenerator):
         duplicate_mask = df.duplicated(subset=["ssn"])
         while sum(duplicate_mask) > 0:
             additional_key += 1
-            df.loc[duplicate_mask, "ssn"] = generate_ssn(df_in.loc[duplicate_mask], additional_key)["ssn"]
+            df.loc[duplicate_mask, "ssn"] = generate_ssn(
+                df_in.loc[duplicate_mask], additional_key
+            )["ssn"]
             duplicate_mask = df.duplicated(subset=["ssn"])
         return df
 
@@ -208,7 +219,10 @@ class NameGenerator(GenericGenerator):
 
         # for some names, add a hyphen between two randomly samples last names
         probability_of_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
-        hyphen_rows = self.randomness.get_draw(last_names.index, "choose_hyphen_sims") < probability_of_hyphen
+        hyphen_rows = (
+            self.randomness.get_draw(last_names.index, "choose_hyphen_sims")
+            < probability_of_hyphen
+        )
         if hyphen_rows.sum() > 0:
             last_names[hyphen_rows] += (
                 "-"
@@ -217,13 +231,15 @@ class NameGenerator(GenericGenerator):
                     n_to_choose=hyphen_rows.sum(),
                     randomness_stream=self.randomness,
                     weights=df_census_names[race_eth],
-                    additional_key="hyphen_last_names"
+                    additional_key="hyphen_last_names",
                 ).to_numpy()
             )
 
         # add spaces to some names
         probability_of_space = data_values.PROBABILITY_OF_SPACE_IN_NAME[race_eth]
-        space_rows = self.randomness.get_draw(last_names.index, "choose_space_sims") < probability_of_space * (
+        space_rows = self.randomness.get_draw(
+            last_names.index, "choose_space_sims"
+        ) < probability_of_space * (
             1 - hyphen_rows
         )  # HACK: don't put spaces in names that are already hyphenated
         if space_rows.sum() > 0:
@@ -234,7 +250,7 @@ class NameGenerator(GenericGenerator):
                     n_to_choose=space_rows.sum(),
                     randomness_stream=self.randomness,
                     weights=df_census_names[race_eth],
-                    additional_key="space_last_names"
+                    additional_key="space_last_names",
                 ).to_numpy()
             )
 

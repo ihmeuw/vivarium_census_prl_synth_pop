@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
@@ -10,7 +11,6 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash
 from vivarium.framework.values import Pipeline
-from vivarium_cluster_tools import mkdir
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -289,7 +289,13 @@ def build_output_dir(builder: Builder, subdir: Optional[Union[str, Path]] = None
     output_dir = Path(builder.configuration.output_data.results_directory)
     if subdir:
         output_dir = output_dir / subdir
-    mkdir(output_dir, exists_ok=True)
+
+    old_umask = os.umask(0o002)
+    try:
+        output_dir.mkdir(exist_ok=True)
+    finally:
+        os.umask(old_umask)
+
     return output_dir
 
 

@@ -146,8 +146,7 @@ class Businesses:
         ).get(event.index)
 
         all_businesses = self.businesses.loc[
-            self.businesses["employer_id"] != data_values.UNEMPLOYED_ID,
-            "employer_id"
+            self.businesses["employer_id"] != data_values.UNEMPLOYED_ID, "employer_id"
         ]
         businesses_that_move_idx = filter_by_rate(
             all_businesses.index,
@@ -252,7 +251,9 @@ class Businesses:
                 "prevalence": employee_counts
                 / employee_counts.sum()
                 * pct_adults_needing_employers,
-                "employer_address_id": np.arange(len(known_employers), n_businesses + len(known_employers)),
+                "employer_address_id": np.arange(
+                    len(known_employers), n_businesses + len(known_employers)
+                ),
             }
         )
 
