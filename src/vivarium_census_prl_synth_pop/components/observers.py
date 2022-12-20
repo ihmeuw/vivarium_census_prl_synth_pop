@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import datetime as dt
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -6,7 +7,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_values, metadata
+from vivarium_census_prl_synth_pop.constants import data_values
 
 
 class BaseObserver(ABC):
@@ -111,7 +112,7 @@ class BaseObserver(ABC):
 
 class HouseholdSurveyObserver(BaseObserver):
 
-    SAMPLING_RATE_PER_TIMESTEP = {
+    SAMPLING_RATE_PER_MONTH = {
         "ACS": 12000,
         "CPS": 60000,
     }
@@ -186,7 +187,7 @@ class HouseholdSurveyObserver(BaseObserver):
         self.randomness = builder.randomness.get_stream(self.name)
         self.samples_per_timestep = int(
             HouseholdSurveyObserver.OVERSAMPLE_FACTOR
-            * HouseholdSurveyObserver.SAMPLING_RATE_PER_TIMESTEP[
+            * HouseholdSurveyObserver.SAMPLING_RATE_PER_MONTH[
                 self.survey
             ]  # households per month
             * 12  # months per year
@@ -240,7 +241,20 @@ class DecennialCensusObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return metadata.DECENNIAL_CENSUS_COLUMNS_USED
+        return [
+            "first_name",
+            "middle_name",
+            "last_name",
+            "age",
+            "date_of_birth",
+            "address_id",
+            "relation_to_household_head",
+            "sex",
+            "race_ethnicity",
+            "guardian_1",
+            "guardian_2",
+            "housing_type",
+        ]
 
     @property
     def output_columns(self):
@@ -266,24 +280,14 @@ class DecennialCensusObserver(BaseObserver):
         super().setup(builder)
         self.clock = builder.time.clock()
         self.time_step = builder.configuration.time.step_size  # in days
-        assert (
-            self.time_step <= 30
-        ), "DecennialCensusObserver requires model specification configuration with time.step_size <= 30"
+        if self.time_step > 30:
+            raise RuntimeError("DecennialCensusObserver requires model specification configuration with time.step_size <= 30")
 
     def to_observe(self, event: Event) -> bool:
-        """Note: this method uses self.clock instead of event.time to handle
-        the case where the sim starts on census day, e.g.  start time
-        of 2020-04-01; in that case, the first event.time to appear in
-        this function is 2020-04-29 (because the time.step_size is 28
-        days)
-        """
-        return (
-            (self.clock().year % 10 == 0)  # decennial year
-            and (self.clock().month == 4)  # month of April
-            and (
-                self.clock().day <= self.time_step
-            )  # time step containing first day of month
-        )
+        """Only observe if the census date falls during the time step"""
+        census_year = 10 * (event.time.year // 10)
+        census_date = dt.datetime(census_year, 4, 1)
+        return self.clock() <= census_date < event.time
 
     def do_observation(self, event) -> None:
         pop = self.population_view.get(

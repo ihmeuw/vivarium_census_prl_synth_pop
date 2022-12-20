@@ -32,8 +32,8 @@ configuration:
             month: 4
             day: 1
         end:
-            year: 2020
-            month: 6
+            year: 2030
+            month: 5
             day: 1
         step_size: 28 # Days
     population:

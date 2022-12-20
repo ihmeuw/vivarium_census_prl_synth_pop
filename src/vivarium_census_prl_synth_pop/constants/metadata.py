@@ -220,21 +220,6 @@ US_STATE_ABBRV_MAP = {
 
 P_GROUP_QUARTERS = 0.03
 
-DECENNIAL_CENSUS_COLUMNS_USED = [
-    "first_name",
-    "middle_name",
-    "last_name",
-    "age",
-    "date_of_birth",
-    "address_id",
-    "relation_to_household_head",
-    "sex",
-    "race_ethnicity",
-    "guardian_1",
-    "guardian_2",
-    "housing_type",
-]
-
 
 class __Scenarios(NamedTuple):
     baseline: str = "baseline"
