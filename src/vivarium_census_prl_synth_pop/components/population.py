@@ -897,7 +897,7 @@ class Population:
         # todo: Consider changing this function to build a distribution for each simulan instead of resampling.
 
         # Get age shift and redraw for simulants who get negative ages
-        to_shift = pd.Index(pop.index)
+        to_shift = pop.index
         max_iterations = 10
         for i in range(max_iterations):
             if to_shift.empty:
@@ -914,11 +914,9 @@ class Population:
 
             # Calculate shifted ages and see if any are negative and need to be resampled.
             shifted_ages = pop.loc[to_shift, "age"] + age_shift
-            positive_ages_idx = shifted_ages.loc[shifted_ages >= 0].index
-            pop.loc[positive_ages_idx, "age"] = shifted_ages.loc[positive_ages_idx]
-            to_shift = shifted_ages.loc[
-                shifted_ages.index.difference(positive_ages_idx)
-            ].index
+            non_negative_ages_idx = shifted_ages.loc[shifted_ages >= 0].index
+            pop.loc[non_negative_ages_idx, "age"] = shifted_ages.loc[non_negative_ages_idx]
+            to_shift = shifted_ages.index.difference(non_negative_ages_idx)
 
         # Check if any simulants did not have their age shifted
         if len(to_shift) > 0:
