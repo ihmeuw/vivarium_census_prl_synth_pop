@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import datetime as dt
+from abc import ABC, abstractmethod
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -16,6 +16,20 @@ class BaseObserver(ABC):
     recording/updating on some subset of timesteps (defaults to every time step)
     and then writing out the results at the end of the sim.
     """
+
+    DEFAULT_INPUT_COLUMNS = [
+        "first_name",
+        "middle_name",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "address_id",
+        "sex",
+        "race_ethnicity",
+        "guardian_1",
+        "guardian_2",
+        "housing_type",
+    ]
 
     def __repr__(self):
         return "BaseObserver()"
@@ -118,6 +132,13 @@ class HouseholdSurveyObserver(BaseObserver):
     }
     OVERSAMPLE_FACTOR = 2
 
+    ADDITIONAL_INPUT_COLUMNS = [
+        "alive",
+        "household_id",
+        "state",
+        "puma",
+    ]
+
     def __init__(self, survey):
         self.survey = survey
 
@@ -138,23 +159,7 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return [
-            "alive",
-            "household_id",
-            "housing_type",
-            "first_name",
-            "middle_name",
-            "last_name",
-            "age",
-            "sex",
-            "race_ethnicity",  # For simulant omission
-            "date_of_birth",
-            "address_id",
-            "state",
-            "puma",
-            "guardian_1",  # For noise functions
-            "guardian_2",  # For noise functions
-        ]
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
     @property
     def output_columns(self):
@@ -167,15 +172,15 @@ class HouseholdSurveyObserver(BaseObserver):
             "last_name",
             "age",
             "sex",
-            "race_ethnicity",  # For simulant omission
+            "race_ethnicity",
             "date_of_birth",
             "address_id",
             "state",
             "puma",
-            "guardian_1",  # For noise functions
-            "guardian_2",  # For noise functions
-            "guardian_1_address_id",  # For noise functions
-            "guardian_2_address_id",  # For noise functions
+            "guardian_1",
+            "guardian_2",
+            "guardian_1_address_id",
+            "guardian_2_address_id",
         ]
 
     #################
@@ -228,6 +233,8 @@ class DecennialCensusObserver(BaseObserver):
     relevant to adding row noise.
     """
 
+    ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
+
     def __repr__(self):
         return f"DecennialCensusObserver()"
 
@@ -241,20 +248,7 @@ class DecennialCensusObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return [
-            "first_name",
-            "middle_name",
-            "last_name",
-            "age",
-            "date_of_birth",
-            "address_id",
-            "relation_to_household_head",
-            "sex",
-            "race_ethnicity",
-            "guardian_1",
-            "guardian_2",
-            "housing_type",
-        ]
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
     @property
     def output_columns(self):
@@ -280,8 +274,6 @@ class DecennialCensusObserver(BaseObserver):
         super().setup(builder)
         self.clock = builder.time.clock()
         self.time_step = builder.configuration.time.step_size  # in days
-        if self.time_step > 30:
-            raise RuntimeError("DecennialCensusObserver requires model specification configuration with time.step_size <= 30")
 
     def to_observe(self, event: Event) -> bool:
         """Only observe if the census date falls during the time step"""

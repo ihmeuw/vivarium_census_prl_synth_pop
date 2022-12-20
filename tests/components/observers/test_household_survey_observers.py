@@ -27,6 +27,8 @@ def mocked_pop_view(observer):
         ["Alex", "J", "Honnold"],
         ["Carolynn", "Marie", "Hill"],
     )
+    # Ensure there are no guardians in this dataset
+    df[["guardian_1", "guardian_2"]] = np.random.randint(len(df), 100, size=(len(df), 2))
 
     return df
 
