@@ -49,11 +49,8 @@ class Population:
         self.randomness = builder.randomness.get_stream(
             "household_sampling", for_initialization=True
         )
-        self.proportion_with_no_ssn = builder.lookup.build_table(
-            data=data_values.PROPORTION_INITIALIZATION_NO_SSN
-        )
-        self.proportion_newborns_no_ssn = builder.lookup.build_table(
-            data=data_values.PROPORTION_NEWBORNS_NO_SSN
+        self.proportion_with_ssn = builder.lookup.build_table(
+            data=data_values.PROPORTION_INITIALIZATION_WITH_SSN
         )
 
         self.start_time = get_time_stamp(builder.configuration.time.start)
@@ -140,9 +137,16 @@ class Population:
             np.round(pop["age"] * 365.25), unit="days"
         )
 
-        # Add Social Security Numbers
-        pop["ssn"] = self.ssn_generator.generate(pop).ssn
-        pop["ssn"] = self.ssn_generator.remove_ssn(pop["ssn"], self.proportion_with_no_ssn)
+        # Deterimne if simulants have SSN
+        pop["ssn"] = False
+        # Give native born simulants a SSN
+        non_natives_idx = pop.loc[pop["born_in_us"] == False].index
+        pop.loc[~non_natives_idx, "ssn"] = True
+        # Choose which non-native simulants get a SSN
+        ssn_idx = self.randomness.filter_for_probability(
+            non_natives_idx, self.proportion_with_ssn(non_natives_idx)
+        ).index
+        pop.loc[ssn_idx, "ssn"] = True
 
         pop["entrance_time"] = pop_data.creation_time
         pop["exit_time"] = pd.NaT
@@ -186,8 +190,8 @@ class Population:
 
         # get rid simulants in excess of desired pop size
         households_to_discard = chosen_persons.loc[
-            target_number_sims:, "household_id"
-        ].unique()
+                                target_number_sims:, "household_id"
+                                ].unique()
 
         chosen_persons = chosen_persons.loc[
             ~chosen_persons["household_id"].isin(households_to_discard)
@@ -222,10 +226,10 @@ class Population:
 
         noninstitutionalized = chosen_persons.loc[
             chosen_persons["relation_to_household_head"] == "Noninstitutionalized GQ pop"
-        ]
+            ]
         institutionalized = chosen_persons.loc[
             chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"
-        ]
+            ]
         noninstitutionalized = noninstitutionalized.copy()
         institutionalized = institutionalized.copy()
 
@@ -301,14 +305,14 @@ class Population:
         new_births["date_of_birth"] = new_births["parent_id"].map(dob_map)
 
         new_births["age"] = (
-            pop_data.creation_time - new_births["date_of_birth"]
-        ).dt.days / DAYS_PER_YEAR
+                                    pop_data.creation_time - new_births["date_of_birth"]
+                            ).dt.days / DAYS_PER_YEAR
 
         # add some noise because our randomness keys on entrance time and age,
         # so don't want people born same day to have same exact age
         # make birth-times between [0, 0.9*one_day] so that rounding will never push sims to be born the next day
         new_births["age"] += self.randomness.get_draw(new_births.index, "age") * (
-            0.9 / DAYS_PER_YEAR
+                0.9 / DAYS_PER_YEAR
         )
 
         new_births["sex"] = self.randomness.choice(
@@ -320,24 +324,7 @@ class Population:
         new_births["alive"] = "alive"
         new_births["entrance_time"] = pop_data.creation_time
         new_births["exit_time"] = pd.NaT
-
-        # Generate SSNs for newborns
-        # Check for SSN duplicates with existing SSNs
-        to_generate = pd.Series(True, index=new_births.index)
-        additional_key = 1
-        while to_generate.any():
-            new_births.loc[to_generate, "ssn"] = self.ssn_generator.generate(
-                new_births.loc[to_generate], additional_key
-            ).ssn
-            additional_key += 1
-            duplicate_mask = to_generate & new_births["ssn"].isin(ssns)
-            ssns = pd.concat([ssns, new_births.loc[to_generate & ~duplicate_mask, "ssn"]])
-            # Adds SSNs from new births to population SSNs series that are not duplicates
-            to_generate = duplicate_mask
-
-        new_births["ssn"] = self.ssn_generator.remove_ssn(
-            new_births["ssn"], self.proportion_newborns_no_ssn
-        )
+        new_births["ssn"] = True
 
         # add first and middle names
         names = self.name_generator.generate_first_and_middle_names(new_births)
@@ -388,7 +375,7 @@ class Population:
         gen_population = pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
         under_18_idx = pop.loc[
             (pop["age"] < 18) & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
-        ].index
+            ].index
         new_column_names = {
             "age_x": "child_age",
             "relation_to_household_head_x": "child_relation_to_household_head",
@@ -406,7 +393,7 @@ class Population:
         )
         # Add age difference column to lookup age bounds for potential guardians
         child_households["age_difference"] = (
-            child_households["member_age"] - child_households["child_age"]
+                child_households["member_age"] - child_households["child_age"]
         )
 
         # Children helper index groups
@@ -422,7 +409,7 @@ class Population:
         ].index
         child_ref_person_idx = child_households.loc[
             child_households["child_relation_to_household_head"] == "Reference person"
-        ].index
+            ].index
 
         # Potential guardian/household member index groups
         relatives_of_ref_person_idx = child_households.loc[
@@ -436,14 +423,14 @@ class Population:
         age_bound_idx = child_households.loc[
             (child_households["age_difference"] >= 18)
             & (child_households["age_difference"] < 46)
-        ].index
+            ].index
         parents_of_ref_person_idx = child_households.loc[
             child_households["member_relation_to_household_head"].isin(PARENTS)
         ].index
         over_18_idx = child_households.loc[child_households["member_age"] >= 18].index
         ref_person_idx = child_households.loc[
             child_households["member_relation_to_household_head"] == "Reference person"
-        ].index
+            ].index
         partners_of_ref_person_idx = child_households.loc[
             child_households["member_relation_to_household_head"].isin(PARTNERS)
         ].index
@@ -585,7 +572,7 @@ class Population:
         return member_ids
 
     def assign_second_guardian_to_newborns(
-        self, new_births: pd.DataFrame, households: pd.DataFrame
+            self, new_births: pd.DataFrame, households: pd.DataFrame
     ) -> pd.DataFrame:
         """
         Parameters
@@ -617,7 +604,7 @@ class Population:
         # Mother index groups
         mother_ref_person_idx = mothers_households.loc[
             mothers_households["mother_relation_to_household_head"] == "Reference person"
-        ].index
+            ].index
         mother_partner_idx = mothers_households.loc[
             mothers_households["mother_relation_to_household_head"].isin(PARTNERS)
         ].index
@@ -627,7 +614,7 @@ class Population:
         ].index
         ref_person_idx = mothers_households.loc[
             mothers_households["member_relation_to_household_head"] == "Reference person"
-        ].index
+            ].index
 
         # Assign second guardian to random partner of mothers
         partner_ids = mothers_households.loc[mother_ref_person_idx.intersection(partners_idx)]
@@ -688,11 +675,11 @@ class Population:
         households_with_single_female_reference_person = potential_guardians_data.loc[
             (potential_guardians_data["sex"] == "Female")
             & (potential_guardians_data["partner_id"].isnull())
-        ]
+            ]
         households_with_single_male_reference_person = potential_guardians_data.loc[
             (potential_guardians_data["sex"] == "Male")
             & (potential_guardians_data["partner_id"].isnull())
-        ]
+            ]
 
         # Handle percentage of single reference guardians vs reference persons with partners
         guardian_type_for_college_sims = self.randomness.choice(
@@ -710,11 +697,11 @@ class Population:
         # Handle "Multiracial or Other" and other since we do not subset for that race
         other_college_sims_idx = college_sims.loc[
             college_sims["race_ethnicity"] == "Multiracial or Other"
-        ].index
+            ].index
         for guardian_type in data_values.PROPORTION_GUARDIAN_TYPES:
             college_sims_with_guardian_idx = guardian_type_for_college_sims.loc[
                 guardian_type_for_college_sims == guardian_type
-            ].index
+                ].index
             other_college_sims_with_guardian_idx = other_college_sims_idx.intersection(
                 college_sims_with_guardian_idx
             )
@@ -746,7 +733,7 @@ class Population:
             for race in races:
                 race_college_sims_idx = college_sims.loc[
                     college_sims["race_ethnicity"] == race
-                ].index
+                    ].index
                 race_college_sims_with_guardian_idx = race_college_sims_idx.intersection(
                     college_sims_with_guardian_idx
                 )
@@ -755,8 +742,8 @@ class Population:
                     "reference_person_id",
                 ]
                 if (
-                    race_reference_person_ids.empty
-                    and len(race_college_sims_with_guardian_idx) > 0
+                        race_reference_person_ids.empty
+                        and len(race_college_sims_with_guardian_idx) > 0
                 ):
                     # Get all ids for race reference person who are not guardian_type
                     # This handles an unlikely edge case - leaving additional key attached to guardian_type
@@ -791,11 +778,11 @@ class Population:
 
     @staticmethod
     def get_household_structure(
-        pop: pd.DataFrame,
-        query_sims: Union[pd.Series, pd.Index],
-        key_columns: List,
-        column_names: Dict,
-        lookup_id_level_name: str,
+            pop: pd.DataFrame,
+            query_sims: Union[pd.Series, pd.Index],
+            key_columns: List,
+            column_names: Dict,
+            lookup_id_level_name: str,
     ) -> pd.DataFrame:
         """
 
