@@ -4,6 +4,9 @@ from typing import NamedTuple
 # Population parameters #
 #########################
 
+# TODO: implement gbd call (vivarium_inputs.get_population_structure("United States"))
+US_POPULATION = 333339776
+
 PROP_POPULATION_IN_GQ = 0.03
 PROBABILITY_OF_TWINS = 0.04
 N_GROUP_QUARTER_TYPES = 6

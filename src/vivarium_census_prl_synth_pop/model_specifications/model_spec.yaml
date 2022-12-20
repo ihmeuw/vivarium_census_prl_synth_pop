@@ -5,11 +5,14 @@ components:
             - Address()
             - HouseholdMigration()
             - PersonMigration()
-            - DecennialCensusObserver()
-            - WICObserver()
             - Mortality()
             - Fertility()
             - Businesses()
+
+            - DecennialCensusObserver()
+            - HouseholdSurveyObserver("ACS")
+            - HouseholdSurveyObserver("CPS")
+            - WICObserver()
 
 configuration:
     input_data:
