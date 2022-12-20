@@ -82,9 +82,8 @@ class PersonMigration:
 
     def on_time_step(self, event: Event) -> None:
         """
-        Determines which simulants will move to a new household
-        Moves those simulants to a new household_id
-        Assigns those simulants relationship to head of household 'Other nonrelative'
+        Determines which simulants will move with which move type
+        and performs those move operations.
         """
 
         pop = self.population_view.get(event.index)
@@ -104,71 +103,9 @@ class PersonMigration:
 
         pop = self._perform_gq_person_moves(pop, pop.index[move_types_chosen == "gq_person"])
 
-        # TODO: This old code currently handles all of the *other* types of domestic moves.
-        domestic_movers_idx = pop.index[
-            ~move_types_chosen.isin(["no_move", "new_household", "gq_person"])
-        ]
-
-        # TODO: Handle move types correctly -- this is code from the previous migration implementation
-        # which only had a single type of individual move.
-
-        # Get series of new household_ids the domestic_movers_idx will move to
-        new_households = self._get_new_household_ids(pop, domestic_movers_idx)
-
-        # get address_id for new households being moved to
-        new_household_data = (
-            pop[["household_id", "address_id"]].drop_duplicates().set_index("household_id")
+        pop = self._perform_non_reference_person_moves(
+            pop, pop.index[move_types_chosen == "non_reference_person"]
         )
-
-        # update household data for domestic movers
-        pop.loc[domestic_movers_idx, "household_id"] = new_households
-        # Get map for new_address_ids and assign new address_id
-        pop = pop.reset_index().rename(
-            columns={"index": "simulant_id"}
-        )  # Preserve index in merge
-        new_address_ids = (
-            pop[["simulant_id", "household_id"]]
-            .merge(
-                new_household_data[["address_id"]],
-                how="left",
-                left_on="household_id",
-                right_on=new_household_data.index,
-            )
-            .set_index("simulant_id")["address_id"]
-        )
-        pop = pop.set_index("simulant_id")
-        pop.loc[domestic_movers_idx, "address_id"] = new_address_ids
-
-        # update relation to head of household data
-        pop.loc[domestic_movers_idx, "relation_to_household_head"] = "Other nonrelative"
-        pop.loc[
-            (pop.index.isin(domestic_movers_idx))
-            & (
-                pop["household_id"].isin(
-                    data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()
-                )
-            ),
-            "relation_to_household_head",
-        ] = "Noninstitutionalized GQ pop"
-        pop.loc[
-            (pop.index.isin(domestic_movers_idx))
-            & (
-                pop["household_id"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())
-            ),
-            "relation_to_household_head",
-        ] = "Institutionalized GQ pop"
-
-        # Update housing type
-        pop.loc[
-            (pop.index.isin(domestic_movers_idx))
-            & (pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
-            "housing_type",
-        ] = pop["household_id"].map(data_values.GQ_HOUSING_TYPE_MAP)
-        pop.loc[
-            (pop.index.isin(domestic_movers_idx))
-            & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())),
-            "housing_type",
-        ] = "Standard"
 
         self.population_view.update(pop)
 
@@ -208,12 +145,8 @@ class PersonMigration:
         # tracked in the "relation_to_household_head" column, even though
         # that column name doesn't really make sense in a GQ setting.
         categories = list(data_values.GROUP_QUARTER_IDS.keys())
-        gq_address_ids = (
-            pop[pop["relation_to_household_head"].isin(categories)][
-                ["household_id", "address_id"]
-            ]
-            .drop_duplicates()
-            .set_index("household_id")["address_id"]
+        gq_address_ids = self._get_address_ids_by_household_id(
+            pop[pop["relation_to_household_head"].isin(categories)]
         )
         assert gq_address_ids.index.is_unique
 
@@ -253,25 +186,45 @@ class PersonMigration:
 
         return pop
 
-    def _get_new_household_ids(self, pop: pd.DataFrame, sims_who_move: pd.Index) -> pd.Series:
-        households = pop["household_id"]
-        all_household_ids = list(
-            households.squeeze().drop_duplicates()
-        )  # all household_ids in simulation
+    def _perform_non_reference_person_moves(
+        self, pop: pd.DataFrame, movers: pd.Index
+    ) -> pd.DataFrame:
+        """
+        Move each simulant in movers to a random (different) non-GQ household
+        with relationship "Other nonrelative".
+        """
+        if len(movers) == 0:
+            return pop
 
-        new_household_ids = pop.loc[
-            sims_who_move, "household_id"
-        ].copy()  # People who move household_ids
+        non_gq_address_ids = self._get_address_ids_by_household_id(
+            pop[pop["housing_type"] == "Standard"]
+        )
 
+        # NOTE: Unlike in GQ person moves, we require that a "move"
+        # not start and end in the same household.
+        to_move = movers
+        household_id_values = pop.loc[movers, "household_id"]
         additional_seed = 0
-        while (new_household_ids == pop.loc[sims_who_move, "household_id"]).any():
-            unchanged_households = new_household_ids == pop.loc[sims_who_move, "household_id"]
-            new_household_ids[unchanged_households] = self.randomness.choice(
-                new_household_ids.loc[unchanged_households].index,
-                all_household_ids,
-                additional_key=f"newHousehold_ids_{additional_seed}",
+
+        while not to_move.empty:
+            household_id_values[to_move] = self.randomness.choice(
+                to_move,
+                choices=list(non_gq_address_ids.index),
+                additional_key=f"non_reference_person_move_household_ids_{additional_seed}",
             )
-            # Some sims can move to the same house from randomness
+            to_move = movers[household_id_values == pop.loc[movers, "household_id"]]
             additional_seed += 1
 
-        return pd.Series(new_household_ids)
+        pop.loc[movers, "household_id"] = household_id_values
+        pop.loc[movers, "housing_type"] = "Standard"
+        pop.loc[movers, "address_id"] = household_id_values.map(non_gq_address_ids)
+        pop.loc[movers, "relation_to_household_head"] = "Other nonrelative"
+
+        return pop
+
+    def _get_address_ids_by_household_id(self, df: pd.DataFrame) -> pd.Series:
+        return (
+            df[["household_id", "address_id"]]
+            .drop_duplicates()
+            .set_index("household_id")["address_id"]
+        )
