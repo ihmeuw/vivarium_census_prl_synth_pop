@@ -16,7 +16,7 @@ def test_generic():
     df_in = pd.DataFrame(index=index)
     df = g.generate(df_in)
 
-    assert len(df) == 4, "expect result to be a dataframe with 4 rows"
+    assert len(df) == 3, "expect result to be a dataframe with 4 rows"
     assert np.all(df.index == index), "expect index of result to match initial index"
 
     df2 = g.noise(df)
