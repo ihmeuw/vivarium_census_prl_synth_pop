@@ -94,14 +94,19 @@ class PersonMigration:
             pop.index,
             choices=move_type_probabilities.columns,
             p=move_type_probabilities.values,
+            additional_key="move_types",
         )
 
         pop = self._perform_new_household_moves(
             pop, pop.index[move_types_chosen == "new_household"]
         )
 
+        pop = self._perform_gq_person_moves(pop, pop.index[move_types_chosen == "gq_person"])
+
         # TODO: This old code currently handles all of the *other* types of domestic moves.
-        domestic_movers_idx = pop.index[~move_types_chosen.isin(["no_move", "new_household"])]
+        domestic_movers_idx = pop.index[
+            ~move_types_chosen.isin(["no_move", "new_household", "gq_person"])
+        ]
 
         # TODO: Handle move types correctly -- this is code from the previous migration implementation
         # which only had a single type of individual move.
@@ -188,6 +193,62 @@ class PersonMigration:
 
         pop.loc[movers, "relation_to_household_head"] = "Reference person"
         pop.loc[movers, "housing_type"] = "Standard"
+
+        return pop
+
+    def _perform_gq_person_moves(self, pop: pd.DataFrame, movers: pd.Index) -> pd.DataFrame:
+        """
+        Move each simulant in movers to a random GQ type.
+        """
+        if len(movers) == 0:
+            return pop
+
+        # The two GQ housing type categories (institutional, non-institutional) are
+        # tracked in the "relation_to_household_head" column, even though
+        # that column name doesn't really make sense in a GQ setting.
+        categories = list(data_values.GROUP_QUARTER_IDS.keys())
+        gq_address_ids = (
+            pop[pop["relation_to_household_head"].isin(categories)][
+                ["household_id", "address_id"]
+            ]
+            .drop_duplicates()
+            .set_index("household_id")["address_id"]
+        )
+        assert gq_address_ids.index.is_unique
+
+        housing_type_category_values = self.randomness.choice(
+            movers,
+            choices=categories,
+            additional_key="gq_person_move_housing_type_categories",
+        )
+        pop.loc[movers, "relation_to_household_head"] = housing_type_category_values
+
+        for category, housing_types in data_values.GROUP_QUARTER_IDS.items():
+            movers_in_category = movers.intersection(
+                pop.index[pop["relation_to_household_head"] == category]
+            )
+            if len(movers_in_category) == 0:
+                continue
+
+            # NOTE: In rare cases, simulants will "move" to the same GQ type they are
+            # already living in.
+            # We allow this -- the underlying rate data from ACS is the rate of any
+            # move in the last year, even e.g. between nursing homes.
+            # Of course in our case it's a bit weird because there is only one household/
+            # address for nursing homes, but that isn't a migration-specific issue.
+            household_id_values = self.randomness.choice(
+                movers_in_category,
+                choices=list(housing_types.values()),
+                additional_key="gq_person_move_household_ids",
+            )
+
+            pop.loc[movers_in_category, "household_id"] = household_id_values
+            pop.loc[movers_in_category, "housing_type"] = household_id_values.map(
+                data_values.GQ_HOUSING_TYPE_MAP
+            )
+            pop.loc[movers_in_category, "address_id"] = household_id_values.map(
+                gq_address_ids
+            )
 
         return pop
 
