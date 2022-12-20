@@ -230,28 +230,6 @@ US_STATE_ABBRV_MAP = {
 
 P_GROUP_QUARTERS = 0.03
 
-CORE_OBSERVER_COLUMNS = [
-    "first_name_id",
-    "middle_name_id",
-    "last_name_id",
-    "age",
-    "date_of_birth",
-    "address_id",
-    "sex",
-    "race_ethnicity",
-    "guardian_1",
-    "guardian_2",
-]
-
-DECENNIAL_CENSUS_COLUMNS_USED = CORE_OBSERVER_COLUMNS + [
-    "relation_to_household_head",
-    "housing_type",
-]
-
-WIC_OBSERVER_COLUMNS_USED = CORE_OBSERVER_COLUMNS + [
-    "income",
-]
-
 NATIVITY_MAP = {1: True, 2: False}
 
 MIGRATION_MAP = {1.0: False, 2.0: True, 3.0: False}
