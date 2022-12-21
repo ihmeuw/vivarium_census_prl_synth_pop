@@ -129,8 +129,8 @@ class BaseObserver(ABC):
 class HouseholdSurveyObserver(BaseObserver):
 
     SAMPLING_RATE_PER_MONTH = {
-        "ACS": 12000,
-        "CPS": 60000,
+        "acs": 12000,
+        "cps": 60000,
     }
     OVERSAMPLE_FACTOR = 2
 
@@ -196,12 +196,12 @@ class HouseholdSurveyObserver(BaseObserver):
             HouseholdSurveyObserver.OVERSAMPLE_FACTOR
             * HouseholdSurveyObserver.SAMPLING_RATE_PER_MONTH[
                 self.survey
-            ]  # households per month
+            ]
             * 12  # months per year
-            * builder.configuration.time.step_size  # days per timestep
-            / DAYS_PER_YEAR  # days per year
-            * builder.configuration.population.population_size  # sim population
-            / data_values.US_POPULATION  # US population
+            * builder.configuration.time.step_size
+            / DAYS_PER_YEAR
+            * builder.configuration.population.population_size
+            / data_values.US_POPULATION
         )
 
     ########################
@@ -297,6 +297,11 @@ class DecennialCensusObserver(BaseObserver):
 class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
+    ADDITIONAL_INPUT_COLUMNS = ["income"]
+
+    WIC_BASELINE_SALARY = 16_410
+    WIC_PER_HOUSEHOLD_SALARY = 8_732
+
     def __repr__(self):
         return f"WICObserver()"
 
@@ -308,20 +313,13 @@ class WICObserver(BaseObserver):
     def output_filename(self):
         return f"wic.hdf"
 
-    def setup(self, builder: Builder):
-        super().setup(builder)
-        self.time_step = builder.configuration.time.step_size  # in days
-        assert (
-            1 <= self.time_step <= 30
-        ), "WICObserver requires model specification configuration with 1 <= time.step_size <= 30"
-        self.randomness = builder.randomness.get_stream(self.name)
+    @property
+    def input_columns(self):
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
-    def get_population_view(self, builder) -> PopulationView:
-        """Get the population view to be used for observations"""
-        return builder.population.get_view(columns=metadata.WIC_OBSERVER_COLUMNS_USED)
-
-    def get_responses(self) -> pd.DataFrame:
-        self.response_columns = [
+    @property
+    def output_columns(self):
+        return [
             "address_id",
             "first_name",
             "middle_initial",
@@ -335,16 +333,18 @@ class WICObserver(BaseObserver):
             "guardian_1_address_id",
             "guardian_2",
             "guardian_2_address_id",
-        ]  # NOTE: Steve is going to refactor this method, and I
-        # expect this list will be more relevant in the refactored
-        # version
+        ]
 
-        return pd.DataFrame(columns=self.response_columns)
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.clock = builder.time.clock()
+        self.time_step = builder.configuration.time.step_size  # in days
+        self.randomness = builder.randomness.get_stream(self.name)
 
     def to_observe(self, event: Event) -> bool:
-        return (event.time.month == 1) and (  # month of Jan
-            1 < event.time.day <= 1 + self.time_step
-        )  # time step containing first day of month
+        """Only observe if Jan 1 occurs during the time step"""
+        survey_date = dt.datetime(event.time.year, 1, 1)
+        return self.clock() <= survey_date < event.time
 
     def do_observation(self, event) -> None:
         pop = self.population_view.get(
@@ -354,16 +354,8 @@ class WICObserver(BaseObserver):
 
         # add columns for output
         pop["wic_year"] = event.time.year
-        pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
-        pop = pop.drop(columns="middle_name")
-
-        # merge address ids for guardian_1 and guardian_2 for the rows with guardians
-        for i in [1, 2]:
-            s_guardian_id = pop[f"guardian_{i}"].dropna()
-            s_guardian_id = s_guardian_id[
-                s_guardian_id != -1
-            ]  # is it faster to remove the negative values?
-            pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
+        pop = utilities.convert_middle_name_to_initial(pop)
+        pop = utilities.add_guardian_address_ids(pop)
 
         # add additional columns for simulating coverage
         pop["nominal_age"] = np.floor(pop["age"])
@@ -377,7 +369,9 @@ class WICObserver(BaseObserver):
 
         # income eligibility for WIC is total household income less
         # than $16,410 + ($8,732 * number of people in the household)
-        pop["wic_eligible"] = pop["hh_income"] <= (16_410 + 8_732 * pop["hh_size"])
+        pop["wic_eligible"] = pop["hh_income"] <= (
+            self.WIC_BASELINE_SALARY + self.WIC_PER_HOUSEHOLD_SALARY * pop["hh_size"]
+        )
 
         # filter population to mothers and children under 5
         pop_u1 = pop[(pop["age"] < 1) & pop["wic_eligible"]]
@@ -444,5 +438,4 @@ class WICObserver(BaseObserver):
 
         self.responses = pd.concat(
             [self.responses, pop_included_mothers] + list(pop_included.values())
-        )
-        self.responses = self.responses.filter(self.response_columns)
+        )[self.output_columns]

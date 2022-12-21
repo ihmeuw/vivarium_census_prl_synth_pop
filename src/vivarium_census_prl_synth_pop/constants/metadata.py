@@ -229,13 +229,10 @@ US_STATE_ABBRV_MAP = {
 
 P_GROUP_QUARTERS = 0.03
 
-WIC_OBSERVER_COLUMNS_USED = CORE_OBSERVER_COLUMNS + [
-    "income",
-]
-
 NATIVITY_MAP = {1: True, 2: False}
 
 MIGRATION_MAP = {1.0: False, 2.0: True, 3.0: False}
+
 
 class __Scenarios(NamedTuple):
     baseline: str = "baseline"

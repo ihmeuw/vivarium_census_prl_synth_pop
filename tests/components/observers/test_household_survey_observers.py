@@ -10,7 +10,7 @@ from vivarium_census_prl_synth_pop.components.observers import HouseholdSurveyOb
 @pytest.fixture
 def observer(mocker, tmp_path):
     """Generate post-setup observer with mocked methods to patch as necessary"""
-    observer = HouseholdSurveyObserver("ACS")
+    observer = HouseholdSurveyObserver("acs")
     builder = mocker.MagicMock()
     builder.configuration.output_data.results_directory = tmp_path
     observer.setup(builder)
@@ -34,7 +34,7 @@ def mocked_pop_view(observer):
 
 
 def test_instantiate(observer):
-    assert str(observer) == "HouseholdSurveyObserver(ACS)"
+    assert str(observer) == "HouseholdSurveyObserver(acs)"
 
 
 def test_responses_schema(observer):

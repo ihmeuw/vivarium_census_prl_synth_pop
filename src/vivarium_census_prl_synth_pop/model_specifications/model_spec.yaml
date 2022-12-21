@@ -10,8 +10,8 @@ components:
             - Businesses()
 
             - DecennialCensusObserver()
-            - HouseholdSurveyObserver("ACS")
-            - HouseholdSurveyObserver("CPS")
+            - HouseholdSurveyObserver("acs")
+            - HouseholdSurveyObserver("cps")
             - WICObserver()
 
 configuration:
