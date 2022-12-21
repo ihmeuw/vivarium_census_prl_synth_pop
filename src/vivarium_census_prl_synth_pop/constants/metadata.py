@@ -35,6 +35,7 @@ PERSONS_COLUMNS_TO_INITIALIZE = [
     "relation_to_household_head",
     "sex",
     "race_ethnicity",
+    "born_in_us",
 ]
 
 CENSUS_STATE_IDS = {
