@@ -31,17 +31,10 @@ PARTNERS = [
 
 
 class Population:
-    def __init__(self):
-        self.name_generator = NameGenerator()
-        self.ssn_generator = SSNGenerator()
 
     @property
     def name(self):
         return "population"
-
-    @property
-    def sub_components(self):
-        return [self.name_generator, self.ssn_generator]
 
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
@@ -65,9 +58,9 @@ class Population:
             "age",
             "date_of_birth",
             "race_ethnicity",
-            "first_name",
-            "middle_name",
-            "last_name",
+            "first_name_id",
+            "middle_name_id",
+            "last_name_id",
             "ssn",
             "alive",
             "entrance_time",
@@ -126,10 +119,11 @@ class Population:
         # drop non-unique household_id
         pop = pop.drop(columns="census_household_id")
 
-        # give names
-        first_and_middle = self.name_generator.generate_first_and_middle_names(pop)
-        last_names = self.name_generator.generate_last_names(pop)
-        pop = pd.concat([pop, first_and_middle, last_names], axis=1)
+        # give name ids
+        pop["first_name_id"] = pop.index
+        pop["middle_name_id"] = pop.index
+        pop["last_name_id"] = pop.index
+        # Todo: Match names for family members: MIC-3529
 
         pop["age"] = pop["age"].astype("float64")
         # Shift age so all households do not have the same birthday
@@ -277,7 +271,7 @@ class Population:
             "puma",
             "race_ethnicity",
             "relation_to_household_head",
-            "last_name",
+            "last_name_id",
             "alive",
         ]
 
@@ -331,8 +325,8 @@ class Population:
         new_births["born_in_us"] = True
 
         # add first and middle names
-        names = self.name_generator.generate_first_and_middle_names(new_births)
-        new_births = pd.concat([new_births, names], axis=1)
+        new_births["first_name_id"] = new_births.index
+        new_births["middle_name_id"] = new_births.index
 
         # typing
         new_births["household_id"] = new_births["household_id"].astype(int)
