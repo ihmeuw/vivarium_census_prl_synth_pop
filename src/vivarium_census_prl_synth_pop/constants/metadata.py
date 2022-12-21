@@ -231,9 +231,9 @@ US_STATE_ABBRV_MAP = {
 P_GROUP_QUARTERS = 0.03
 
 CORE_OBSERVER_COLUMNS = [
-    "first_name",
-    "middle_name",
-    "last_name",
+    "first_name_id",
+    "middle_name_id",
+    "last_name_id",
     "age",
     "date_of_birth",
     "address_id",

@@ -123,9 +123,9 @@ class DecennialCensusObserver(BaseObserver):
     def get_responses(self) -> pd.DataFrame:
         return pd.DataFrame(
             columns=[
-                "first_name",
-                "middle_initial",
-                "last_name",
+                "first_name_id",
+                "middle_name_id",
+                "last_name_id",
                 "age",
                 "date_of_birth",
                 "address_id",
@@ -161,8 +161,6 @@ class DecennialCensusObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # census should include only living simulants
         )
-        pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
-        pop = pop.drop(columns="middle_name")
 
         # merge address ids for guardian_1 and guardian_2 for the rows with guardians
         for i in [1, 2]:
@@ -206,9 +204,9 @@ class WICObserver(BaseObserver):
     def get_responses(self) -> pd.DataFrame:
         self.response_columns = [
             "address_id",
-            "first_name",
-            "middle_initial",
-            "last_name",
+            "first_name_id",
+            "middle_name_id",
+            "last_name_id",
             "age",
             "date_of_birth",
             "sex",
@@ -237,8 +235,6 @@ class WICObserver(BaseObserver):
 
         # add columns for output
         pop["wic_year"] = event.time.year
-        pop["middle_initial"] = pop["middle_name"].astype(str).str[0]
-        pop = pop.drop(columns="middle_name")
 
         # merge address ids for guardian_1 and guardian_2 for the rows with guardians
         for i in [1, 2]:
