@@ -77,7 +77,6 @@ class Businesses:
             f"{self.name}.move_rate", source=move_rate_data
         )
 
-        self.addresses = builder.components.get_component("Address")
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             requires_columns=["age"],

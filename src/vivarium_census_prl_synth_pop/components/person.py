@@ -33,7 +33,6 @@ class PersonMigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.addresses = builder.components.get_component("Address")
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
