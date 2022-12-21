@@ -298,7 +298,7 @@ class WICObserver(BaseObserver):
     ADDITIONAL_INPUT_COLUMNS = ["income"]
 
     WIC_BASELINE_SALARY = 16_410
-    WIC_PER_HOUSEHOLD_SALARY = 8_732
+    WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
 
     def __repr__(self):
         return f"WICObserver()"
@@ -368,7 +368,7 @@ class WICObserver(BaseObserver):
         # income eligibility for WIC is total household income less
         # than $16,410 + ($8,732 * number of people in the household)
         pop["wic_eligible"] = pop["hh_income"] <= (
-            self.WIC_BASELINE_SALARY + self.WIC_PER_HOUSEHOLD_SALARY * pop["hh_size"]
+            self.WIC_BASELINE_SALARY + self.WIC_SALARY_PER_HOUSEHOLD_MEMBER * pop["hh_size"]
         )
 
         # filter population to mothers and children under 5
