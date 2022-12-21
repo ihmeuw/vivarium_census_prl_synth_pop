@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.randomness import RESIDUAL_CHOICE
@@ -145,7 +146,7 @@ class PersonMigration:
         # tracked in the "relation_to_household_head" column, even though
         # that column name doesn't really make sense in a GQ setting.
         categories = list(data_values.GROUP_QUARTER_IDS.keys())
-        gq_address_ids = self._get_address_ids_by_household_id(
+        gq_address_ids = self._get_household_id_to_address_id_mapping(
             pop[pop["relation_to_household_head"].isin(categories)]
         )
 
@@ -195,7 +196,7 @@ class PersonMigration:
         if len(movers) == 0:
             return pop
 
-        non_gq_address_ids = self._get_address_ids_by_household_id(
+        non_gq_address_ids = self._get_household_id_to_address_id_mapping(
             pop[pop["housing_type"] == "Standard"]
         )
 
@@ -203,16 +204,23 @@ class PersonMigration:
         # not start and end in the same household.
         to_move = movers
         household_id_values = pop.loc[movers, "household_id"]
-        additional_seed = 0
 
-        while not to_move.empty:
+        for iteration in range(10):
+            if to_move.empty:
+                break
+
             household_id_values[to_move] = self.randomness.choice(
                 to_move,
                 choices=list(non_gq_address_ids.index),
-                additional_key=f"non_reference_person_move_household_ids_{additional_seed}",
+                additional_key=f"non_reference_person_move_household_ids_{iteration}",
             )
             to_move = movers[household_id_values == pop.loc[movers, "household_id"]]
-            additional_seed += 1
+
+        if len(to_move) > 0:
+            logger.info(
+                f"Maximum iterations for resampling of household_id reached. The number of simulants whose household_id"
+                f"was not changed despite being selected for a non-reference-person move is {len(to_move)}"
+            )
 
         pop.loc[movers, "household_id"] = household_id_values
         pop.loc[movers, "housing_type"] = "Standard"
@@ -221,11 +229,10 @@ class PersonMigration:
 
         return pop
 
-    def _get_address_ids_by_household_id(self, df: pd.DataFrame) -> pd.Series:
+    def _get_household_id_to_address_id_mapping(self, df: pd.DataFrame) -> pd.Series:
         result = (
             df[["household_id", "address_id"]]
             .drop_duplicates()
             .set_index("household_id")["address_id"]
         )
-        assert result.index.is_unique
         return result
