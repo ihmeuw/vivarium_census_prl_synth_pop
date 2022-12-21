@@ -13,12 +13,16 @@ from vivarium_census_prl_synth_pop.utilities import update_address_id
 
 class PersonMigration:
     """
-    - needs to be able to update a household_id (to an existing id)
-    - needs to be able to update a relationship to head of household (to other nonrelative)
-    - on_time_step, needs to be able to look up probability of moving and determine if moving
-    - needs to be able to choose a new household at random
-    ASSUMPTIONS:
-    - head of household never moves to new household_id
+    Handles domestic (within the US) migration of individuals (not in household groups).
+
+    There are three types of individual moves in domestic migration:
+    - New-household moves, where the individual establishes a new single-person household.
+    - GQ person moves, where the individual moves into a GQ type.
+    - Non-reference-person moves, where the individual joins an existing household.
+
+    Note that the names of these move types refer to the living situation *after* the move
+    is complete.
+    The population at risk for all three move types is all simulants.
     """
 
     def __repr__(self) -> str:
