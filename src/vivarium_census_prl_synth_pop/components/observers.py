@@ -32,6 +32,20 @@ class BaseObserver(ABC):
         "guardian_2",
         "housing_type",
     ]
+    DEFAULT_OUTPUT_COLUMNS = [
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "sex",
+        "race_ethnicity",
+        "date_of_birth",
+        "address_id",
+        "guardian_1",
+        "guardian_2",
+        "guardian_1_address_id",
+        "guardian_2_address_id",
+    ]
 
     def __repr__(self):
         return "BaseObserver()"
@@ -128,18 +142,24 @@ class BaseObserver(ABC):
 
 class HouseholdSurveyObserver(BaseObserver):
 
-    SAMPLING_RATE_PER_MONTH = {
-        "acs": 12000,
-        "cps": 60000,
-    }
-    OVERSAMPLE_FACTOR = 2
-
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "household_id",
         "state",
         "puma",
     ]
+    ADDITIONAL_OUTPUT_COLUMNS = [
+        "survey_date",
+        "household_id",
+        "housing_type",
+        "state",
+        "puma",
+    ]
+    SAMPLING_RATE_PER_MONTH = {
+        "acs": 12000,
+        "cps": 60000,
+    }
+    OVERSAMPLE_FACTOR = 2
 
     def __init__(self, survey):
         self.survey = survey
@@ -165,25 +185,7 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def output_columns(self):
-        return [
-            "survey_date",
-            "household_id",
-            "housing_type",
-            "first_name",
-            "middle_initial",
-            "last_name",
-            "age",
-            "sex",
-            "race_ethnicity",
-            "date_of_birth",
-            "address_id",
-            "state",
-            "puma",
-            "guardian_1",
-            "guardian_2",
-            "guardian_1_address_id",
-            "guardian_2_address_id",
-        ]
+        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
     #################
     # Setup methods #
@@ -234,6 +236,11 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
+    ADDITIONAL_OUTPUT_COLUMNS = [
+        "relation_to_household_head",
+        "census_year",
+        "housing_type",
+    ]
 
     def __repr__(self):
         return f"DecennialCensusObserver()"
@@ -252,23 +259,7 @@ class DecennialCensusObserver(BaseObserver):
 
     @property
     def output_columns(self):
-        return [
-            "first_name",
-            "middle_initial",
-            "last_name",
-            "age",
-            "date_of_birth",
-            "address_id",
-            "relation_to_household_head",
-            "sex",
-            "race_ethnicity",
-            "census_year",
-            "guardian_1",
-            "guardian_1_address_id",
-            "guardian_2",
-            "guardian_2_address_id",
-            "housing_type",
-        ]
+        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
     def setup(self, builder: Builder):
         super().setup(builder)
@@ -296,7 +287,7 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     ADDITIONAL_INPUT_COLUMNS = ["income"]
-
+    ADDITIONAL_OUTPUT_COLUMNS = ["wic_year"]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
 
@@ -317,21 +308,7 @@ class WICObserver(BaseObserver):
 
     @property
     def output_columns(self):
-        return [
-            "address_id",
-            "first_name",
-            "middle_initial",
-            "last_name",
-            "age",
-            "date_of_birth",
-            "sex",
-            "race_ethnicity",
-            "wic_year",
-            "guardian_1",
-            "guardian_1_address_id",
-            "guardian_2",
-            "guardian_2_address_id",
-        ]
+        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
     def setup(self, builder: Builder):
         super().setup(builder)
