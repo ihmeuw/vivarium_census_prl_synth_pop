@@ -14,7 +14,9 @@ RESULTS_ROOT = PROJECT_ROOT / "results/"
 HOUSEHOLDS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 PERSONS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 
-INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH = BASE_DIR / "data/raw_data/individual_domestic_migration_rates.csv"
+INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH = (
+    BASE_DIR / "data/raw_data/individual_domestic_migration_rates.csv"
+)
 HOUSEHOLD_MOVE_RATE_PATH = BASE_DIR / "data/raw_data/move_rates_including_gq.csv"
 BUSINESS_NAMES_DATA = PROJECT_ROOT / "data/raw_data/business_names.csv.bz2"
 BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH = (
