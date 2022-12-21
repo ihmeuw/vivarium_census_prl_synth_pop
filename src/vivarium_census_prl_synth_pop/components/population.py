@@ -255,8 +255,6 @@ class Population:
         households = self.population_view.subview(
             ["household_id", "relation_to_household_head"]
         ).get(pop_index)
-        # Making separate subviews because SSNS will be moved to post-processing
-        ssns = self.population_view.subview(["ssn"]).get(pop_index).squeeze()
         new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
 
         inherited_traits = [
