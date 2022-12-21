@@ -205,7 +205,7 @@ class Population:
             options=group_quarters,
             n_to_choose=target_number_sims,
             randomness_stream=self.randomness,
-            weights=self.population_data["households"][["person_weight"]],
+            weights=self.population_data["households"]["person_weight"],
         )
 
         # get simulants per GQ unit

@@ -214,8 +214,7 @@ def vectorized_choice(
     cdf = np.cumsum(pmf)
 
     # for each p_i in probs, count how many elements of cdf for which p_i >= cdf_i
-    vect_find_index = np.vectorize(lambda p_i: (p_i >= cdf).sum())
-    chosen_indices = vect_find_index(probs)
+    chosen_indices = np.searchsorted(cdf[~pd.isnull(cdf)], probs, side="right")
     return np.take(options, chosen_indices)
 
 
