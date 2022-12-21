@@ -194,9 +194,7 @@ class HouseholdSurveyObserver(BaseObserver):
         self.randomness = builder.randomness.get_stream(self.name)
         self.samples_per_timestep = int(
             HouseholdSurveyObserver.OVERSAMPLE_FACTOR
-            * HouseholdSurveyObserver.SAMPLING_RATE_PER_MONTH[
-                self.survey
-            ]
+            * HouseholdSurveyObserver.SAMPLING_RATE_PER_MONTH[self.survey]
             * 12  # months per year
             * builder.configuration.time.step_size
             / DAYS_PER_YEAR
