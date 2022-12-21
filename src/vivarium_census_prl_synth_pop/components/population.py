@@ -117,7 +117,7 @@ class Population:
         # give name ids
         pop["first_name_id"] = pop.index
         pop["middle_name_id"] = pop.index
-        pop["last_name_id"] = pop.index
+        pop["last_name_id"] = self.assign_last_name_ids(pop)
         # Todo: Match names for family members: MIC-3529
 
         pop["age"] = pop["age"].astype("float64")
@@ -905,3 +905,30 @@ class Population:
         # Clip ages above 99 at 99
         pop.loc[pop["age"] > 99, "age"] = 99
         return pop["age"]
+
+    def assign_last_name_ids(self, pop: pd.DataFrame) -> pd.Series:
+        # Assigns index value as last name id
+        # Matches last name id for relatives of a reference person within a household
+        # Note: Group quarters are ignored for matching last name ids
+
+        pop["last_name_id"] = pop.index
+
+        # Match last names for relatives of reference person
+        relatives_idx = pop.loc[
+            (~pop["relation_to_household_head"].isin(NON_RELATIVES))
+            & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+        ].index
+        # Get series to map to with household_ids and reference person last name id
+        reference_person_last_name_ids = (
+            pop.loc[
+                pop["relation_to_household_head"] == "Reference person",
+                ["household_id", "last_name_id"],
+            ]
+            .reset_index()
+            .set_index("household_id")["last_name_id"]
+        )
+        pop.loc[relatives_idx, "last_name_id"] = pop["household_id"].map(
+            reference_person_last_name_ids
+        )
+
+        return pop["last_name_id"]
