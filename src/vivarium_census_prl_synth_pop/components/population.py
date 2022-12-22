@@ -194,18 +194,17 @@ class Population:
         return chosen_persons
 
     def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
-        group_quarters = self.population_data["households"]["census_household_id"]
-        group_quarters = group_quarters.loc[
-            ["GQ" in household_id for household_id in group_quarters]
-        ]
+        group_quarters = self.population_data["households"].pipe(
+            lambda df: df[df["census_household_id"].str.contains("GQ")]
+        )
 
         # group quarters each house one person per census_household_id
         # they have NA household weights, but appropriately weighted person weights.
         chosen_units = vectorized_choice(
-            options=group_quarters,
+            options=group_quarters["census_household_id"],
             n_to_choose=target_number_sims,
             randomness_stream=self.randomness,
-            weights=self.population_data["households"][["person_weight"]],
+            weights=group_quarters["person_weight"],
         )
 
         # get simulants per GQ unit
