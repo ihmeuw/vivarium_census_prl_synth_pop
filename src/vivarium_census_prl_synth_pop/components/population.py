@@ -118,7 +118,6 @@ class Population:
         pop["first_name_id"] = pop.index
         pop["middle_name_id"] = pop.index
         pop["last_name_id"] = self.assign_last_name_ids(pop)
-        # Todo: Match names for family members: MIC-3529
 
         pop["age"] = pop["age"].astype("float64")
         # Shift age so all households do not have the same birthday
