@@ -2,14 +2,16 @@ components:
     vivarium_census_prl_synth_pop:
         components:
             - Population()
-            - Address()
             - HouseholdMigration()
             - PersonMigration()
-            - DecennialCensusObserver()
-            - WICObserver()
             - Mortality()
             - Fertility()
             - Businesses()
+
+            - DecennialCensusObserver()
+            - HouseholdSurveyObserver("acs")
+            - HouseholdSurveyObserver("cps")
+            - WICObserver()
 
 configuration:
     input_data:
