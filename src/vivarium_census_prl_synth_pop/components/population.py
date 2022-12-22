@@ -913,19 +913,15 @@ class Population:
         pop["last_name_id"] = pop.index
 
         # Match last names for relatives of reference person
-        relatives_idx = pop.loc[
-            (~pop["relation_to_household_head"].isin(NON_RELATIVES))
+        relatives_idx = pop.index[
+            (~pop["relation_to_household_head"].isin(NON_RELATIVES + ["Reference person"]))
             & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
-        ].index
+        ]
         # Get series to map to with household_ids and reference person last name id
-        reference_person_last_name_ids = (
-            pop.loc[
-                pop["relation_to_household_head"] == "Reference person",
-                ["household_id", "last_name_id"],
-            ]
-            .reset_index()
-            .set_index("household_id")["last_name_id"]
-        )
+        reference_person_last_name_ids = pop.loc[
+            pop["relation_to_household_head"] == "Reference person",
+            ["household_id", "last_name_id"],
+        ].set_index("household_id")["last_name_id"]
         pop.loc[relatives_idx, "last_name_id"] = pop["household_id"].map(
             reference_person_last_name_ids
         )
