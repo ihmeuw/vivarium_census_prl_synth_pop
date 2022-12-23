@@ -284,8 +284,7 @@ def filter_by_rate(
     return filtered_sims
 
 
-def build_output_dir(builder: Builder, subdir: Optional[Union[str, Path]] = None) -> Path:
-    output_dir = Path(builder.configuration.output_data.results_directory)
+def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None) -> Path:
     if subdir:
         output_dir = output_dir / subdir
 
