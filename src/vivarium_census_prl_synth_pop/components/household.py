@@ -3,7 +3,9 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.time import get_time_stamp
+from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, paths
 from vivarium_census_prl_synth_pop.utilities import (
@@ -42,31 +44,16 @@ class HouseholdMigration:
         self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
-        # TODO: consider subsetting to housing_type=="standard" rows if abie decides GQ never moves addresses
-        move_rate_data = pd.read_csv(
-            paths.HOUSEHOLD_MOVE_RATE_PATH,
-            usecols=[
-                "sex",
-                "race_ethnicity",
-                "age_start",
-                "age_end",
-                "household_rate",
-                "housing_type",
-            ],
-        )
         move_rate_data = builder.lookup.build_table(
-            data=move_rate_data.loc[move_rate_data["housing_type"] == "Standard"].drop(
-                columns="housing_type"
+            data=pd.read_csv(
+                paths.HOUSEHOLD_DOMESTIC_MIGRATION_RATES_PATH,
             ),
             key_columns=["sex", "race_ethnicity"],
             parameter_columns=["age"],
-            value_columns=["household_rate"],
+            value_columns=["household_domestic_migration_rate"],
         )
         self.household_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
-        )
-        self.proportion_households_leaving_country = builder.lookup.build_table(
-            data=data_values.PROPORTION_HOUSEHOLDS_LEAVING_COUNTRY
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
@@ -121,50 +108,32 @@ class HouseholdMigration:
         choose which households move;
         move those households to a new address
         """
+        # NOTE: Currently, it is possible for a household not to have a reference person;
+        # in this case, that household can no longer move.
         pop = self.population_view.get(event.index)
         household_ids = pop.loc[
             pop["relation_to_household_head"] == "Reference person", "household_id"
         ]
 
-        all_household_ids_that_move = self.randomness.filter_for_rate(
+        household_ids_that_move = self.randomness.filter_for_rate(
             household_ids,
             self.household_move_rate(household_ids.index),
-            "all_moving_households",
+            "moving_households",
         )
 
-        # Determine which households move abroad
-        abroad_household_ids = filter_by_rate(
-            all_household_ids_that_move,
-            self.randomness,
-            self.proportion_households_leaving_country,
-            "abroad_households",
+        # Make household ID -> address ID map
+        households = (
+            pop[["household_id", "address_id"]]
+            .drop_duplicates()
+            .set_index("household_id")[["address_id"]]
         )
-        domestic_household_ids = all_household_ids_that_move.loc[
-            ~all_household_ids_that_move.isin(abroad_household_ids)
-        ]
-
-        # Process households moving abroad
-        abroad_households_idx = pop.loc[pop["household_id"].isin(abroad_household_ids)].index
-        if len(abroad_households_idx) > 0:
-            pop.loc[abroad_households_idx, "exit_time"] = event.time
-            pop.loc[abroad_households_idx, "tracked"] = False
-
-        # Process households moving domestic
-        # Make new address map
-        households = pop.loc[household_ids.index, ["household_id", "address_id"]].set_index(
-            "household_id"
-        )
-        domestic_households_idx = households.loc[domestic_household_ids].index
-        # This is the same thing as domestic_household_ids but is a df with columns="address_id" with household_id as
-        #   the index to match how we handle businesses in the following function
 
         max_household_address_id = pop["address_id"].max()
 
-        # Update both state tables and address_id tracker.
         (pop, _, _,) = update_address_id_for_unit_and_sims(
             pop,
             moving_units=households,
-            units_that_move_ids=domestic_households_idx,
+            units_that_move_ids=household_ids_that_move,
             starting_address_id=max_household_address_id + 1,
             unit_id_col_name="household_id",
             address_id_col_name="address_id",
