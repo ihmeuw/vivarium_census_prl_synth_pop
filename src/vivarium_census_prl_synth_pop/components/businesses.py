@@ -2,13 +2,14 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, paths
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
     update_address_id_for_unit_and_sims,
@@ -57,7 +58,9 @@ class Businesses:
             "employer_id",
             "employer_name",
             "employer_address_id",
-            "income",
+            "personal_income_quantile",
+            "employer_income_quantile",
+            "income_propensity",
         ]
         self.columns_used = [
             "address_id",
@@ -77,11 +80,28 @@ class Businesses:
         self.businesses_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
+        # todo: add lookup table that has distribution parameters for age/sex/race/ethnicity
+        income_distributions_data = builder.lookup.build_table(
+            data=pd.read_csv(
+                paths.INCOME_DISTRIBUTIONS_DATA_PATH,
+            ),
+            key_columns=["sex", "race_ethnicity"],
+            parameter_columns=["age_end"],
+            value_columns=["s", "scale"],
+        )
+        self.income_distributions_modifier = builder.value.register_value_modifier(
+            "income",
+            modifier=income_distributions_data,
+            requires_columns=["personal_income_quantile", "employer_income_quantile"]
+        )
+        self.income = builder.value.get_value("income")
+        values_required = ["income"]
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             requires_columns=["age"],
             creates_columns=self.columns_created,
+            requires_values=values_required,
         )
         # note: priority must be later than that of migration components
         builder.event.register_listener(
@@ -105,6 +125,9 @@ class Businesses:
             pop["employer_id"] = data_values.UNEMPLOYED_ID
             working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
+            # Update income
+            # todo: add method that determines income here
+            pop = self.determine_income(pop, working_age)
 
             # merge on employer addresses and names
             pop = pop.merge(
@@ -125,17 +148,19 @@ class Businesses:
                 ] = data_values.MilitaryEmployer.EMPLOYER_ID
                 pop = self._update_employer_metadata(pop, military_index)
 
-            # Update income
+
             pop["income"] = 0
             pop.loc[pop["employer_id"] != data_values.UNEMPLOYED_ID, "income"] = 29_000
             self.population_view.update(pop)
         else:
             new_births = self.population_view.get(pop_data.index)
 
+            # Update employment and income
+            # todo: update personal income quantile for newborns
+            new_births = self.determine_income(new_births, pd.Index([]))
             new_births["employer_id"] = data_values.UNEMPLOYED_ID
             new_births["employer_name"] = "unemployed"
             new_births["employer_address_id"] = data_values.UNEMPLOYED_ADDRESS_ID
-            new_births["income"] = 0
 
             self.population_view.update(new_births)
 
@@ -186,7 +211,6 @@ class Businesses:
             pop.loc[changing_jobs_idx, "employer_id"] = self.assign_different_employer(
                 changing_jobs_idx
             )
-            pop = self._update_employer_metadata(pop, changing_jobs_idx)
 
         # assign job if turning working age
         turning_working_age = pop.loc[
@@ -200,7 +224,14 @@ class Businesses:
             pop.loc[turning_working_age, "employer_id"] = self.assign_random_employer(
                 turning_working_age
             )
-            pop = self._update_employer_metadata(pop, turning_working_age)
+
+        # todo: add method to determine income
+        # Update income
+        # Get new income propensity and update income for simulants who have new employers or joined the workforce
+        employment_changing_sims_idx = changing_jobs_idx.union(turning_working_age)
+        pop = self._update_employer_metadata(pop, employment_changing_sims_idx)
+        pop = self.determine_income(pop, employment_changing_sims_idx)
+        # todo: Add method for simulants turning new age on time step
 
         # Give military gq sims military employment
         military_index = pop.loc[
@@ -214,9 +245,6 @@ class Businesses:
             pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
             pop = self._update_employer_metadata(pop, military_index)
 
-        # Update income
-        pop.loc[pop["employer_id"] == data_values.UNEMPLOYED_ID, "income"] = 0
-        pop.loc[pop["employer_id"] != data_values.UNEMPLOYED_ID, "income"] = 29_000
         self.population_view.update(pop)
 
     ##################
@@ -309,3 +337,32 @@ class Businesses:
         )
 
         return pop
+
+    def determine_income(self, pop: pd.DataFrame, employment_simss_idx: pd.Index) -> pd.DataFrame:
+        # Draw personal income quantile for all of population
+        pop["personal_income_quantile"] = self.get_percentile_for_income(pop.index, personal_percentile=True)
+        # Draw employer income quantile for sims in working force on initialization and for sims who either change jobs
+        #   or join the workforce on time step
+        pop.loc[
+            employment_simss_idx, "employer_income_quantile"
+        ] = self.get_percentile_for_income(employment_simss_idx, personal_percentile=False)
+        pop["income_propensity"] = pd.Series(
+                data=stats.norm.ppf(pop["personal_income_quantile"] + pop["employer_income_quantile"]),
+                index=pop.index,
+        )
+        # Note this can add floats to NaNs resulting in NaNs in income propensity so we will set those to 0 so all the
+        #  simulants who are unemployed have a income propensity of 0.
+        pop.loc[pop["income_propensity"].isnull(), "income_propensity"] = 0.0
+        # todo: use income distirubtion lookup table to calculate income here
+
+        return pop
+
+    def get_percentile_for_income(self, sims_idx: pd.Index, personal_percentile: bool = True) -> pd.Series:
+        if personal_percentile:
+            # Draw for personal income quantile
+            pass
+        else:
+            # Draw for employer income quantile
+            pass
+
+
