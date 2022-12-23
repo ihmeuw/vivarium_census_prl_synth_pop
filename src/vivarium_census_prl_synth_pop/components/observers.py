@@ -1,5 +1,6 @@
 import datetime as dt
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -80,7 +81,7 @@ class BaseObserver(ABC):
     def setup(self, builder: Builder):
         # FIXME: move filepaths to data container
         # FIXME: settle on output dirs
-        self.output_dir = utilities.build_output_dir(builder, subdir="results")
+        self.output_dir = Path(builder.configuration.output_data.results_directory)
         self.population_view = self.get_population_view(builder)
         self.responses = self.get_response_schema()
 
@@ -137,7 +138,8 @@ class BaseObserver(ABC):
 
     # TODO: consider using compressed csv instead of hdf
     def on_simulation_end(self, event: Event) -> None:
-        self.responses.to_hdf(self.output_dir / self.output_filename, key="data")
+        output_dir = utilities.build_output_dir(self.output_dir, subdir="results")
+        self.responses.to_hdf(output_dir / self.output_filename, key="data")
 
 
 class HouseholdSurveyObserver(BaseObserver):

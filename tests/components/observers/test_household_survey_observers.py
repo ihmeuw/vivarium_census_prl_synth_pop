@@ -50,7 +50,7 @@ def test_on_simulation_end(observer, mocker):
     """Are the final results written out to the expected directory?"""
     event = mocker.MagicMock()
     observer.on_simulation_end(event)
-    assert (observer.output_dir / observer.output_filename).is_file()
+    assert (observer.output_dir / "results" / observer.output_filename).is_file()
 
 
 def test_do_observation(observer, mocked_pop_view, mocker):
