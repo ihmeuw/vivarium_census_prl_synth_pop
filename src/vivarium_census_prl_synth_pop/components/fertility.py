@@ -54,7 +54,7 @@ class Fertility(FertilityAgeSpecificRates):
         rate_series = self.fertility_rate(eligible_women.index)
         had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
 
-        had_children.loc[:, "last_birth_time"] = event.time
+        had_children["last_birth_time"] = event.time
         self.population_view.update(had_children["last_birth_time"])
 
         # decide which births are twins
