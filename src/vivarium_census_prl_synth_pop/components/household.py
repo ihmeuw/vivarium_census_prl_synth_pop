@@ -111,13 +111,19 @@ class HouseholdMigration:
         # NOTE: Currently, it is possible for a household not to have a reference person;
         # in this case, that household can no longer move.
         pop = self.population_view.get(event.index)
-        household_ids = pop.loc[
-            pop["relation_to_household_head"] == "Reference person", "household_id"
+        reference_people = pop[pop["relation_to_household_head"] == "Reference person"]
+
+        household_sizes = pop.groupby("household_id").size()
+
+        multi_person_household_ids = household_sizes.index[household_sizes > 1]
+
+        reference_people_eligible_to_move = reference_people[
+            reference_people["household_id"].isin(multi_person_household_ids)
         ]
 
-        household_ids_that_move = self.randomness.filter_for_rate(
-            household_ids,
-            self.household_move_rate(household_ids.index),
+        movers = self.randomness.filter_for_rate(
+            reference_people_eligible_to_move,
+            self.household_move_rate(reference_people_eligible_to_move.index),
             "moving_households",
         )
 
@@ -128,12 +134,12 @@ class HouseholdMigration:
             .set_index("household_id")[["address_id"]]
         )
 
-        max_household_address_id = pop["address_id"].max()
+        max_household_address_id = households["address_id"].max()
 
         (pop, _, _,) = update_address_id_for_unit_and_sims(
             pop,
             moving_units=households,
-            units_that_move_ids=household_ids_that_move,
+            units_that_move_ids=movers["household_id"],
             starting_address_id=max_household_address_id + 1,
             unit_id_col_name="household_id",
             address_id_col_name="address_id",
