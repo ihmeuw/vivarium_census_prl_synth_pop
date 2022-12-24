@@ -62,8 +62,6 @@ class HouseholdMigration:
             "household_id",
             "relation_to_household_head",
             "address_id",
-            "tracked",
-            "exit_time",
         ]
         self.population_view = builder.population.get_view(self.columns_used)
 
