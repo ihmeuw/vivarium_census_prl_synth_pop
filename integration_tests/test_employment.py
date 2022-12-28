@@ -45,3 +45,14 @@ def test_employed_have_income(tracked_live_populations, time_step):
     # All people in military group quarters are
     employed = pop[pop["employer_id"] != data_values.UNEMPLOYED_ID]
     assert (employed["income"] > 0).all()
+
+
+def test_only_living_change_employment(populations):
+    for before, after in zip(populations, populations[1:]):
+        common_simulants = before.index.intersection(after.index)
+        before = before.loc[common_simulants]
+        after = after.loc[common_simulants]
+
+        employment_changers = before["employer_id"] != after["employer_id"]
+        assert after[employment_changers]["tracked"].all()
+        assert (after[employment_changers]["alive"] == "alive").all()
