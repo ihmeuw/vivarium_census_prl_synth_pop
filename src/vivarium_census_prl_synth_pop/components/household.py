@@ -106,9 +106,12 @@ class HouseholdMigration:
         choose which households move;
         move those households to a new address
         """
-        # NOTE: Currently, it is possible for a household not to have a reference person;
+        # NOTE: Currently, it is possible for a household not to have a living reference person;
         # in this case, that household can no longer move.
-        pop = self.population_view.get(event.index)
+        pop = self.population_view.get(
+            event.index,
+            query="alive == 'alive'",
+        )
         reference_people = pop[pop["relation_to_household_head"] == "Reference person"]
 
         household_sizes = pop.groupby("household_id").size()

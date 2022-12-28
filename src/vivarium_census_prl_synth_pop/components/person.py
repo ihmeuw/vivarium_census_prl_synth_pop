@@ -89,8 +89,10 @@ class PersonMigration:
         Determines which simulants will move with which move type
         and performs those move operations.
         """
-
-        pop = self.population_view.get(event.index)
+        pop = self.population_view.get(
+            event.index,
+            query="alive == 'alive'",
+        )
 
         # Get subsets of simulants that do each move type on this timestep
         move_type_probabilities = self.person_move_probabilities(pop.index)
