@@ -3,11 +3,11 @@ import pandas as pd
 from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.utilities import from_yearly
-from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.constants import data_values, paths
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 from vivarium_census_prl_synth_pop.utilities import update_address_id
 
 
@@ -46,6 +46,7 @@ class PersonMigration:
             "household_id",
             "relation_to_household_head",
             "address_id",
+            "previous_timestep_address_id",
             "housing_type",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
@@ -78,11 +79,36 @@ class PersonMigration:
             source=move_probabilities_lookup_table,
         )
 
-        builder.event.register_listener("time_step", self.on_time_step)
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=["previous_timestep_address_id"],
+        )
+        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
+        builder.event.register_listener(
+            "time_step",
+            self.on_time_step,
+            priority=metadata.PRIORITY_MAP["person.on_time_step"],
+        )
 
     ########################
     # Event-driven methods #
     ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        pop_update = pd.DataFrame(
+            {
+                "previous_timestep_address_id": np.nan,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(pop_update)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        pop = self.population_view.subview(
+            ["address_id", "previous_timestep_address_id"]
+        ).get(event.index)
+        pop["previous_timestep_address_id"] = pop["address_id"]
+        self.population_view.update(pop)
 
     def on_time_step(self, event: Event) -> None:
         """

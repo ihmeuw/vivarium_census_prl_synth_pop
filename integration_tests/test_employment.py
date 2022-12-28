@@ -45,3 +45,27 @@ def test_employed_have_income(tracked_live_populations, time_step):
     # All people in military group quarters are
     employed = pop[pop["employer_id"] != data_values.UNEMPLOYED_ID]
     assert (employed["income"] > 0).all()
+
+
+def test_movers_change_employment(sim):
+    pop_prev = sim.get_population()
+    sim.step()
+
+    for _ in range(10):
+        pop = sim.get_population()
+
+        common_working_age_simulants = pop_prev.index[pop_prev.age >= 18].intersection(
+            pop.index[pop.age >= 18]
+        )
+        before = pop_prev.loc[common_working_age_simulants]
+        after = pop.loc[common_working_age_simulants]
+
+        moved = before["address_id"] != after["address_id"]
+        moved_to_military_gq = moved & (after["housing_type"] == "Military")
+        previously_military_employed = before["employer_id"] == 1
+        should_change = moved & (~moved_to_military_gq | ~previously_military_employed)
+        assert (
+            before[should_change]["employer_id"] != after[should_change]["employer_id"]
+        ).all()
+        pop_prev = pop
+        sim.step()

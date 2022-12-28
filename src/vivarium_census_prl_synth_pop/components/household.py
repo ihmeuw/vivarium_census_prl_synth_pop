@@ -7,7 +7,12 @@ from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.time import get_time_stamp
 from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values, paths
+from vivarium_census_prl_synth_pop.constants import (
+    data_keys,
+    data_values,
+    metadata,
+    paths,
+)
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
     update_address_id_for_unit_and_sims,
@@ -70,7 +75,11 @@ class HouseholdMigration:
             requires_columns=["household_id"],
             creates_columns=self.columns_created,
         )
-        builder.event.register_listener("time_step", self.on_time_step)
+        builder.event.register_listener(
+            "time_step",
+            self.on_time_step,
+            priority=metadata.PRIORITY_MAP["household.on_time_step"],
+        )
 
     ########################
     # Event-driven methods #
