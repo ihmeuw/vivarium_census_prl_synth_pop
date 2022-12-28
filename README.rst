@@ -23,7 +23,7 @@ Once you have all three installed, you should open up your normal shell
 You'll then make an environment, clone this repository, then install
 all necessary requirements as follows::
 
-  :~$ conda create --name=vivarium_census_prl_synth_pop python=3.8
+  :~$ conda create --name=vivarium_census_prl_synth_pop python=3.10
   ...conda will download python and base dependencies...
   :~$ conda activate vivarium_census_prl_synth_pop
   (vivarium_census_prl_synth_pop) :~$ git clone https://github.com/ihmeuw/vivarium_census_prl_synth_pop.git

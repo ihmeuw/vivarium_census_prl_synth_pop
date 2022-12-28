@@ -16,10 +16,10 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium==0.10.19",
-        "vivarium_public_health==0.10.21",
+        "vivarium==1.0.2",
+        "vivarium_public_health==0.10.22",
         "click",
-        "gbd_mapping>=3.0.5, <4.0.0",
+        "gbd_mapping>=3.0.6, <4.0.0",
         "jinja2",
         "loguru",
         "numpy",
@@ -32,8 +32,8 @@ if __name__ == "__main__":
 
     # use "pip install -e .[dev]" to install required components + extra components
     data_requires = [
-        "vivarium_cluster_tools>=1.3.7",
-        "vivarium_inputs[data]==4.0.9",
+        "vivarium_cluster_tools>=1.3.8",
+        "vivarium_inputs[data]==4.0.10",
     ]
     test_requirements = [
         "pytest",
