@@ -178,7 +178,8 @@ class Businesses:
             working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
         moved_idx = pop.index[pop["address_id"] != pop["previous_timestep_address_id"]]
-        changing_jobs_idx = changing_jobs_idx.union(moved_idx.intersection(working_age_idx))
+        moved_working_age_idx = moved_idx.intersection(working_age_idx)
+        changing_jobs_idx = changing_jobs_idx.union(moved_working_age_idx)
         if len(changing_jobs_idx) > 0:
             pop.loc[changing_jobs_idx, "employer_id"] = self.assign_different_employer(
                 changing_jobs_idx
