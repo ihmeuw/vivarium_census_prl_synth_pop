@@ -47,8 +47,8 @@ def test_employed_have_income(tracked_live_populations, time_step):
     assert (employed["income"] > 0).all()
 
 
-def test_movers_change_employment(tracked_live_populations):
-    for before, after in zip(tracked_live_populations, tracked_live_populations[1:]):
+def test_movers_change_employment(populations):
+    for before, after in zip(populations, populations[1:]):
         common_working_age_simulants = before.index[before.age >= 18].intersection(
             after.index[after.age >= 18]
         )
