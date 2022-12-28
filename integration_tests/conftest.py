@@ -23,7 +23,7 @@ TIME_STEPS_TO_TEST = [0, 1, 10]
 def populations(sim) -> List[pd.DataFrame]:
     population_states = []
     for _ in range(max(TIME_STEPS_TO_TEST) + 1):
-        pop = sim.get_population()
+        pop = sim.get_population(untracked=True)
         population_states.append(pop)
 
         sim.step()
@@ -32,5 +32,10 @@ def populations(sim) -> List[pd.DataFrame]:
 
 
 @pytest.fixture(scope="session")
-def tracked_live_populations(populations) -> List[pd.DataFrame]:
-    return [pop[pop["alive"] == "alive"] for pop in populations]
+def tracked_populations(populations) -> List[pd.DataFrame]:
+    return [pop[pop["tracked"]] for pop in populations]
+
+
+@pytest.fixture(scope="session")
+def tracked_live_populations(tracked_populations) -> List[pd.DataFrame]:
+    return [pop[pop["alive"] == "alive"] for pop in tracked_populations]
