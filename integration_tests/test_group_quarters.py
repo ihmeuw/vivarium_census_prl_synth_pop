@@ -7,13 +7,16 @@ from vivarium_census_prl_synth_pop.constants import data_values
 # TODO: Broader test coverage
 
 
-def test_gq_proportion(tracked_live_populations):
+def test_gq_proportion(sim, tracked_live_populations):
+    pop_size = sim.configuration.population.population_size
     pop = tracked_live_populations[0]
+    expected_gq_population = pop_size * data_values.PROP_POPULATION_IN_GQ
+    min_gq_population = expected_gq_population - (data_values.MAX_HOUSEHOLD_SIZE - 1)
+    max_gq_population = expected_gq_population + (data_values.MAX_HOUSEHOLD_SIZE - 1)
+    actual_gq_population = pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).sum()
+
     # GQ proportion matches expectation
-    assert np.isclose(
-        pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).mean(),
-        data_values.PROP_POPULATION_IN_GQ,
-    )
+    assert min_gq_population <= actual_gq_population <= max_gq_population
 
 
 @pytest.mark.parametrize("time_step", TIME_STEPS_TO_TEST)
