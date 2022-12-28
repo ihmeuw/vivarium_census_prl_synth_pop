@@ -142,8 +142,10 @@ class Businesses:
         """
         pop = self.population_view.subview(
             self.columns_created + ["age", "household_id"]
-        ).get(event.index)
-
+        ).get(
+            event.index,
+            query="alive == 'alive'",
+        )
         all_businesses = self.businesses.loc[
             self.businesses["employer_id"] != data_values.UNEMPLOYED_ID, "employer_id"
         ]
