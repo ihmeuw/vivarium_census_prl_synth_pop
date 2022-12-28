@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import List
 
 import pandas as pd
 import pytest
@@ -20,14 +20,17 @@ TIME_STEPS_TO_TEST = [0, 1, 10]
 
 
 @pytest.fixture(scope="session")
-def tracked_live_populations(sim) -> Dict[int, pd.DataFrame]:
-    previous_step_number = 0
-    population_states = {}
-    for step in TIME_STEPS_TO_TEST:
-        sim.take_steps(step - previous_step_number)
-
+def populations(sim) -> List[pd.DataFrame]:
+    population_states = []
+    for _ in range(max(TIME_STEPS_TO_TEST) + 1):
         pop = sim.get_population()
-        population_states[step] = pop[pop["alive"] == "alive"]
+        population_states.append(pop)
 
-        previous_step_number = step
+        sim.step()
+
     return population_states
+
+
+@pytest.fixture(scope="session")
+def tracked_live_populations(populations) -> List[pd.DataFrame]:
+    return [pop[pop["alive"] == "alive"] for pop in populations]
