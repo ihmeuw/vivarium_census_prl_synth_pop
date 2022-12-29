@@ -6,6 +6,7 @@ from vivarium_census_prl_synth_pop.components.observers import (
     DecennialCensusObserver,
     HouseholdSurveyObserver,
     WICObserver,
+    SocialSecurityObserver,
 )
 from vivarium_census_prl_synth_pop.components.person import PersonMigration
 from vivarium_census_prl_synth_pop.components.population import Population
