@@ -420,7 +420,7 @@ class SocialSecurityObserver(BaseObserver):
 
     """
 
-    ADDITIONAL_INPUT_COLUMNS = ["alive", "entrance_time", "exit_time", "ssn"]
+    ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "ssn"]
     OUTPUT_COLUMNS = [
         "first_name_id",
         "middle_name_id",
@@ -452,11 +452,12 @@ class SocialSecurityObserver(BaseObserver):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
+        self.start_time = dt.datetime(**builder.configuration.time.start)
         self.end_time = dt.datetime(**builder.configuration.time.end)
 
     def to_observe(self, event: Event) -> bool:
         """Only observe if this is the final time step of the sim"""
-        return self.clock() <= self.end_time < event.time
+        return self.clock() < self.end_time <= event.time
 
     def do_observation(self, event) -> None:
         pop = self.population_view.get(
@@ -469,7 +470,9 @@ class SocialSecurityObserver(BaseObserver):
             "last_name_id",
             "date_of_birth"])
         df_creation["event_type"] = "creation"
-        df_creation["event_date"] = pop["entrance_time"]
+        df_creation["event_date"] = np.where(pop["entrance_time"] <= self.start_time,
+                                             pop["date_of_birth"],
+                                             pop["entrance_time"])
 
         df_death = pop[pop["alive"] == "dead"].filter([
             "first_name_id",
