@@ -34,4 +34,6 @@ SYNTHETIC_DATA_INPUTS_ROOT = Path(
 LAST_NAME_DATA_PATH = SYNTHETIC_DATA_INPUTS_ROOT / "Names_2010Census.csv"
 ADDRESS_DATA_PATH = SYNTHETIC_DATA_INPUTS_ROOT / "deepparse_address_data_usa.csv.bz2"
 
-INCOME_DISTRIBUTIONS_DATA_PATH = BASE_DIR / "data/raw_data/income_scipy_lognorm_distribution_parameters.csv"
+INCOME_DISTRIBUTIONS_DATA_PATH = (
+    BASE_DIR / "data/raw_data/income_scipy_lognorm_distribution_parameters.csv"
+)

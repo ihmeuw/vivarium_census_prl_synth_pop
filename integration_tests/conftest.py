@@ -24,8 +24,11 @@ def populations(sim) -> List[pd.DataFrame]:
     population_states = []
     for _ in range(max(TIME_STEPS_TO_TEST) + 1):
         pop = sim.get_population(untracked=True)
+        pipelines = sim.list_values()
+        for pipeline in pipelines:
+            p = sim.get_value(pipeline)(pop.index)
+            pop = pd.concat([pop, p], axis=1)
         population_states.append(pop)
-
         sim.step()
 
     return population_states

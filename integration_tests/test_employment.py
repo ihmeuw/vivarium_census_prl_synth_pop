@@ -1,3 +1,4 @@
+import pandas as pd
 import pytest
 
 from vivarium_census_prl_synth_pop.constants import data_values
@@ -69,3 +70,109 @@ def test_movers_change_employment(populations):
         assert (
             before[should_change]["employer_id"] != after[should_change]["employer_id"]
         ).all()
+
+
+def test_employment_income_propensity_updates(tracked_live_populations):
+    for time_step in range(max(TIME_STEPS_TO_TEST)):
+        (
+            employer_ids_before,
+            employer_propensity_before,
+            employer_ids_after,
+            employer_propensity_after,
+        ) = get_consecutive_time_step_employer_ids_and_test_column(
+            tracked_live_populations, time_step, "employer_income_propensity"
+        )
+
+        # Find those that change employers
+        changed_jobs_idx = employer_ids_before.index[
+            employer_ids_before != employer_ids_after
+        ]
+
+        assert (
+            employer_propensity_before.loc[changed_jobs_idx]
+            != employer_propensity_after.loc[changed_jobs_idx]
+        ).all()
+
+
+def test_no_employment_income_propensity_updates(tracked_live_populations):
+    for time_step in range(max(TIME_STEPS_TO_TEST)):
+        (
+            employer_ids_before,
+            employer_propensity_before,
+            employer_ids_after,
+            employer_propensity_after,
+        ) = get_consecutive_time_step_employer_ids_and_test_column(
+            tracked_live_populations, time_step, "employer_income_propensity"
+        )
+
+        # Find those that change employers
+        static_jobs_idx = employer_ids_before.index[employer_ids_before == employer_ids_after]
+
+        assert (
+            employer_propensity_before.loc[static_jobs_idx]
+            == employer_propensity_after.loc[static_jobs_idx]
+        ).all()
+
+
+def test_personal_income_propensity_is_constant(tracked_live_populations):
+    starting_personal_income_propensity = tracked_live_populations[min(TIME_STEPS_TO_TEST)][
+        "personal_income_propensity"
+    ]
+    ending_personal_income_propensity = tracked_live_populations[max(TIME_STEPS_TO_TEST)][
+        "personal_income_propensity"
+    ]
+
+    assert (starting_personal_income_propensity == ending_personal_income_propensity).all()
+
+
+def test_income_updates(tracked_live_populations):
+    for time_step in range(max(TIME_STEPS_TO_TEST)):
+        (
+            employer_ids_before,
+            income_before,
+            employer_ids_after,
+            income_after,
+        ) = get_consecutive_time_step_employer_ids_and_test_column(
+            tracked_live_populations, time_step, "employer_income_propensity"
+        )
+
+        # Find those that change employers
+        changed_jobs_idx = employer_ids_before.index[
+            employer_ids_before != employer_ids_after
+        ]
+
+        assert (
+            income_before.loc[changed_jobs_idx] == income_after.loc[changed_jobs_idx]
+        ).all()
+
+
+def test_no_income_uupdate(tracked_live_populations):
+    for time_step in range(max(TIME_STEPS_TO_TEST)):
+        (
+            employer_ids_before,
+            income_before,
+            employer_ids_after,
+            income_after,
+        ) = get_consecutive_time_step_employer_ids_and_test_column(
+            tracked_live_populations, time_step, "employer_income_propensity"
+        )
+
+        # Find those that change employers
+        static_jobs_idx = employer_ids_before.index[employer_ids_before == employer_ids_after]
+
+        assert (income_before.loc[static_jobs_idx] == income_after.loc[static_jobs_idx]).all()
+
+
+def get_consecutive_time_step_employer_ids_and_test_column(
+    tracked_live_populations,
+    time_step,
+    test_column,
+) -> tuple:
+    pop_before = tracked_live_populations[time_step]
+    pop_after = tracked_live_populations[time_step + 1]
+    employer_ids_before = pop_before["employer_id"]
+    test_column_before = pop_before[test_column]
+    employer_ids_after = pop_after["employer_id"]
+    test_column_after = pop_after[test_column]
+
+    return employer_ids_before, test_column_before, employer_ids_after, test_column_after
