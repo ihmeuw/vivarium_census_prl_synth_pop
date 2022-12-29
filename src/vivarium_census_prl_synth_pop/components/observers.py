@@ -413,3 +413,71 @@ class WICObserver(BaseObserver):
         self.responses = pd.concat(
             [self.responses, pop_included_mothers] + list(pop_included.values())
         )[self.output_columns]
+
+
+class SocialSecurityObserver(BaseObserver):
+    """Class for observing columns relevant to Social Security registry."""
+
+    ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "ssn"]
+    OUTPUT_COLUMNS = [
+        "first_name_id",
+        "middle_name_id",
+        "last_name_id",
+        "date_of_birth",
+        "event_type",
+        "event_date",
+    ]
+
+    def __repr__(self):
+        return f"SocialSecurityObserver()"
+
+    @property
+    def name(self):
+        return f"social_security_observer"
+
+    @property
+    def output_filename(self):
+        return f"social_security.hdf"
+
+    @property
+    def input_columns(self):
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+
+    @property
+    def output_columns(self):
+        return self.OUTPUT_COLUMNS
+
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.clock = builder.time.clock()
+        self.start_time = dt.datetime(**builder.configuration.time.start)
+        self.end_time = dt.datetime(**builder.configuration.time.end)
+
+    def to_observe(self, event: Event) -> bool:
+        """Only observe if this is the final time step of the sim"""
+        return self.clock() < self.end_time <= event.time
+
+    def do_observation(self, event) -> None:
+        pop = self.population_view.get(
+            event.index,
+            query="ssn == True",  # only include simulants with a SSN
+        )
+        df_creation = pop.filter(
+            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
+        )
+        df_creation["event_type"] = "creation"
+        df_creation["event_date"] = np.where(
+            pop["entrance_time"] <= self.start_time,
+            pop["date_of_birth"],
+            pop["entrance_time"],
+        )
+
+        df_death = pop[pop["alive"] == "dead"].filter(
+            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
+        )
+        df_death["event_type"] = "death"
+        df_death["event_date"] = pop["exit_time"]
+
+        self.responses = pd.concat([self.responses, df_creation, df_death]).sort_values(
+            ["event_date", "date_of_birth"]
+        )

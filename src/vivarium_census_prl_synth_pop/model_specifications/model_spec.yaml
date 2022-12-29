@@ -12,6 +12,7 @@ components:
             - HouseholdSurveyObserver("acs")
             - HouseholdSurveyObserver("cps")
             - WICObserver()
+            - SocialSecurityObserver()
 
 configuration:
     input_data:
