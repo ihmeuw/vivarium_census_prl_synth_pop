@@ -241,3 +241,12 @@ class __Scenarios(NamedTuple):
 
 
 SCENARIOS = __Scenarios()
+
+PRIORITY_MAP = {
+    # 5 is the default, but we are explicit here to show ordering.
+    # Businesses must come after migration
+    # components, so that migration can trigger employment change.
+    "person.on_time_step": 5,
+    "household.on_time_step": 5,
+    "businesses.on_time_step": 6,
+}

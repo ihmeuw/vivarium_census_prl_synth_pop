@@ -8,7 +8,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
     update_address_id_for_unit_and_sims,
@@ -61,6 +61,7 @@ class Businesses:
         ]
         self.columns_used = [
             "address_id",
+            "previous_timestep_address_id",
             "age",
             "household_id",
         ] + self.columns_created
@@ -82,8 +83,12 @@ class Businesses:
             requires_columns=["age"],
             creates_columns=self.columns_created,
         )
-        # note: priority must be later than that of persons.on_time_step
-        builder.event.register_listener("time_step", self.on_time_step, priority=6)
+        # note: priority must be later than that of migration components
+        builder.event.register_listener(
+            "time_step",
+            self.on_time_step,
+            priority=metadata.PRIORITY_MAP["businesses.on_time_step"],
+        )
 
     ########################
     # Event-driven methods #
@@ -140,9 +145,7 @@ class Businesses:
         change jobs at rate of 50 changes / 100 person-years
         businesses change addresses at rate of 10 changes / 100 person-years
         """
-        pop = self.population_view.subview(
-            self.columns_created + ["age", "household_id"]
-        ).get(
+        pop = self.population_view.get(
             event.index,
             query="alive == 'alive'",
         )
@@ -170,11 +173,15 @@ class Businesses:
             address_id_col_name="employer_address_id",
         )
 
-        # change jobs if of working age already
+        # change jobs if of working age already and either selected by rate or moved
+        # on this timestep
         working_age_idx = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
         changing_jobs_idx = filter_by_rate(
             working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
+        moved_idx = pop.index[pop["address_id"] != pop["previous_timestep_address_id"]]
+        moved_working_age_idx = moved_idx.intersection(working_age_idx)
+        changing_jobs_idx = changing_jobs_idx.union(moved_working_age_idx)
         if len(changing_jobs_idx) > 0:
             pop.loc[changing_jobs_idx, "employer_id"] = self.assign_different_employer(
                 changing_jobs_idx

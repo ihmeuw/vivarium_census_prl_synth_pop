@@ -56,3 +56,20 @@ def test_only_living_change_employment(populations):
         employment_changers = before["employer_id"] != after["employer_id"]
         assert after[employment_changers]["tracked"].all()
         assert (after[employment_changers]["alive"] == "alive").all()
+
+
+def test_movers_change_employment(populations):
+    for before, after in zip(populations, populations[1:]):
+        common_working_age_simulants = before.index[before.age >= 18].intersection(
+            after.index[after.age >= 18]
+        )
+        before = before.loc[common_working_age_simulants]
+        after = after.loc[common_working_age_simulants]
+
+        moved = before["address_id"] != after["address_id"]
+        moved_to_military_gq = moved & (after["housing_type"] == "Military")
+        previously_military_employed = before["employer_id"] == 1
+        should_change = moved & (~moved_to_military_gq | ~previously_military_employed)
+        assert (
+            before[should_change]["employer_id"] != after[should_change]["employer_id"]
+        ).all()
