@@ -416,9 +416,7 @@ class WICObserver(BaseObserver):
 
 
 class SocialSecurityObserver(BaseObserver):
-    """Class for observing columns relevant to Social Security registry.
-
-    """
+    """Class for observing columns relevant to Social Security registry."""
 
     ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "ssn"]
     OUTPUT_COLUMNS = [
@@ -464,22 +462,22 @@ class SocialSecurityObserver(BaseObserver):
             event.index,
             query="ssn == True",  # only include simulants with a SSN
         )
-        df_creation = pop.filter([
-            "first_name_id",
-            "middle_name_id",
-            "last_name_id",
-            "date_of_birth"])
+        df_creation = pop.filter(
+            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
+        )
         df_creation["event_type"] = "creation"
-        df_creation["event_date"] = np.where(pop["entrance_time"] <= self.start_time,
-                                             pop["date_of_birth"],
-                                             pop["entrance_time"])
+        df_creation["event_date"] = np.where(
+            pop["entrance_time"] <= self.start_time,
+            pop["date_of_birth"],
+            pop["entrance_time"],
+        )
 
-        df_death = pop[pop["alive"] == "dead"].filter([
-            "first_name_id",
-            "middle_name_id",
-            "last_name_id",
-            "date_of_birth"])
+        df_death = pop[pop["alive"] == "dead"].filter(
+            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
+        )
         df_death["event_type"] = "death"
         df_death["event_date"] = pop["exit_time"]
 
-        self.responses = pd.concat([self.responses, df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
+        self.responses = pd.concat([self.responses, df_creation, df_death]).sort_values(
+            ["event_date", "date_of_birth"]
+        )
