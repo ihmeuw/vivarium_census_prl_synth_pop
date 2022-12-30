@@ -37,5 +37,16 @@ def tracked_populations(populations) -> List[pd.DataFrame]:
 
 
 @pytest.fixture(scope="session")
+def simulants_on_adjacent_timesteps(populations) -> List[pd.DataFrame]:
+    timestep_pairs = []
+
+    for before, after in zip(populations, populations[1:]):
+        common_simulants = before.index.intersection(after.index)
+        timestep_pairs.append((before.loc[common_simulants], after.loc[common_simulants]))
+
+    return timestep_pairs
+
+
+@pytest.fixture(scope="session")
 def tracked_live_populations(tracked_populations) -> List[pd.DataFrame]:
     return [pop[pop["alive"] == "alive"] for pop in tracked_populations]
