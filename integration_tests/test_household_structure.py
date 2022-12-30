@@ -39,3 +39,14 @@ def test_all_households_have_reference_person(tracked_live_populations):
         # Assert these two sets are identical
         assert non_gq_household_ids.size == reference_person_household_ids.size
         assert np.setxor1d(non_gq_household_ids, reference_person_household_ids).size == 0
+
+
+def test_household_id_and_address_id_correspond(tracked_live_populations):
+    for pop in tracked_live_populations:
+        # 1-to-1 at any given point in time
+        assert (pop.groupby("household_id")["address_id"].nunique() == 1).all()
+        assert (pop.groupby("address_id")["household_id"].nunique() == 1).all()
+
+    # Even over time, there is only 1 household_id for each address_id -- they are not reused
+    all_time_pop = pd.concat(tracked_live_populations, ignore_index=True)
+    assert (all_time_pop.groupby("address_id")["household_id"].nunique() == 1).all()
