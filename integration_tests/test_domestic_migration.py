@@ -12,6 +12,29 @@ def test_individuals_move(simulants_on_adjacent_timesteps):
         ).all()
 
 
+def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        new_household_movers = (
+            (before["household_id"] != after["household_id"])
+            & (after["housing_type"] == "Standard")
+            & (after["relation_to_household_head"] == "Reference person")
+        )
+        assert new_household_movers.any()
+
+        # Household IDs moved to are unique and new
+        new_households = after[new_household_movers]["household_id"]
+        assert new_households.nunique() == len(new_households)
+        assert not new_households.isin(before["household_id"]).any()
+
+        # Address IDs moved to are unique and new
+        new_addresses = after[new_household_movers]["address_id"]
+        assert new_addresses.nunique() == len(new_addresses)
+        assert not before["address_id"].isin(new_addresses).any()
+
+        # Households are single-person
+        assert not after[~new_household_movers]["household_id"].isin(new_households).any()
+
+
 def test_households_move(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         household_movers = (before["household_id"] == after["household_id"]) & (
