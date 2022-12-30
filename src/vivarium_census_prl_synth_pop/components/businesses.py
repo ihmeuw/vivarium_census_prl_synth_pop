@@ -79,7 +79,6 @@ class Businesses:
         self.businesses_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
-        # todo: add lookup table that has distribution parameters for age/sex/race/ethnicity
         self.income_distributions_data = builder.lookup.build_table(
             data=pd.read_csv(paths.INCOME_DISTRIBUTIONS_DATA_PATH),
             key_columns=["sex", "race_ethnicity"],
@@ -121,7 +120,6 @@ class Businesses:
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
             # Create income propensity columns
-            # todo: add method that determines income here
             pop["personal_income_propensity"] = self.randomness.get_draw(
                 pop.index,
                 additional_key="personal_income_propensity",
@@ -155,7 +153,6 @@ class Businesses:
             new_births = self.population_view.get(pop_data.index)
 
             # Update employment and income
-            # todo: update personal income propensity for newborns
             new_births["personal_income_propensity"] = self.randomness.get_draw(
                 new_births.index,
                 additional_key="personal_income_propensity",
@@ -202,9 +199,14 @@ class Businesses:
             address_id_col_name="employer_address_id",
         )
 
-        # change jobs if of working age already and either selected by rate or moved
-        # on this timestep
-        working_age_idx = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
+        # change jobs if of working age already but exclude simulants living in military group quarters
+        working_age_idx = pop.index[
+            (pop["age"] >= data_values.WORKING_AGE)
+            & (
+                pop["household_id"]
+                != data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
+            )
+        ]
         changing_jobs_idx = filter_by_rate(
             working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
@@ -229,10 +231,23 @@ class Businesses:
                 turning_working_age
             )
 
-        # todo: update income
+        # Give military gq sims military employment
+        military_index = pop.index[
+            (
+                pop["household_id"]
+                == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
+            )
+            & (pop["age"] >= data_values.WORKING_AGE)
+            & (pop["employer_id"] != data_values.MilitaryEmployer.EMPLOYER_ID)
+        ]
+        if len(military_index) > 0:
+            pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
+
         # Update income
         # Get new income propensity and update income for simulants who have new employers or joined the workforce
-        employment_changing_sims_idx = changing_jobs_idx.union(turning_working_age)
+        employment_changing_sims_idx = changing_jobs_idx.union(turning_working_age).union(
+            military_index
+        )
         pop = self._update_employer_metadata(pop, employment_changing_sims_idx)
         pop.loc[
             employment_changing_sims_idx, "employer_income_propensity"
@@ -240,18 +255,6 @@ class Businesses:
             employment_changing_sims_idx,
             additional_key="employer_income_propensity",
         )
-
-        # Give military gq sims military employment
-        military_index = pop.loc[
-            (
-                pop["household_id"]
-                == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
-            )
-            & (pop["age"] >= data_values.WORKING_AGE)
-        ].index
-        if len(military_index) > 0:
-            pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
-            pop = self._update_employer_metadata(pop, military_index)
 
         self.population_view.update(pop)
 
@@ -361,7 +364,7 @@ class Businesses:
         )
         # Income propensity = probit(personal_component + employer_component)
         income_propensity = pd.Series(
-            data=stats.norm.ppf(personal_income_component + employer_income_component),
+            data=stats.norm.cdf(personal_income_component + employer_income_component),
             index=employed_idx,
         )
         # Get distributions from lookup table

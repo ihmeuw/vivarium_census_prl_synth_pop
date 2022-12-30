@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -79,7 +80,7 @@ def test_employment_income_propensity_updates(tracked_live_populations):
             employer_propensity_before,
             employer_ids_after,
             employer_propensity_after,
-        ) = get_consecutive_time_step_employer_ids_and_test_column(
+        ) = get_consecutive_time_step_employer_ids_and_test_column_for_comparable_sims(
             tracked_live_populations, time_step, "employer_income_propensity"
         )
 
@@ -101,7 +102,7 @@ def test_no_employment_income_propensity_updates(tracked_live_populations):
             employer_propensity_before,
             employer_ids_after,
             employer_propensity_after,
-        ) = get_consecutive_time_step_employer_ids_and_test_column(
+        ) = get_consecutive_time_step_employer_ids_and_test_column_for_comparable_sims(
             tracked_live_populations, time_step, "employer_income_propensity"
         )
 
@@ -121,8 +122,15 @@ def test_personal_income_propensity_is_constant(tracked_live_populations):
     ending_personal_income_propensity = tracked_live_populations[max(TIME_STEPS_TO_TEST)][
         "personal_income_propensity"
     ]
+    # Get index for sims that exist in both state tables
+    present_sims_idx = starting_personal_income_propensity.index.intersection(
+        ending_personal_income_propensity.index
+    )
 
-    assert (starting_personal_income_propensity == ending_personal_income_propensity).all()
+    assert (
+        starting_personal_income_propensity.loc[present_sims_idx]
+        == ending_personal_income_propensity.loc[present_sims_idx]
+    ).all()
 
 
 def test_income_updates(tracked_live_populations):
@@ -132,8 +140,8 @@ def test_income_updates(tracked_live_populations):
             income_before,
             employer_ids_after,
             income_after,
-        ) = get_consecutive_time_step_employer_ids_and_test_column(
-            tracked_live_populations, time_step, "employer_income_propensity"
+        ) = get_consecutive_time_step_employer_ids_and_test_column_for_comparable_sims(
+            tracked_live_populations, time_step, "income"
         )
 
         # Find those that change employers
@@ -142,7 +150,7 @@ def test_income_updates(tracked_live_populations):
         ]
 
         assert (
-            income_before.loc[changed_jobs_idx] == income_after.loc[changed_jobs_idx]
+            income_before.loc[changed_jobs_idx] != income_after.loc[changed_jobs_idx]
         ).all()
 
 
@@ -153,8 +161,8 @@ def test_no_income_uupdate(tracked_live_populations):
             income_before,
             employer_ids_after,
             income_after,
-        ) = get_consecutive_time_step_employer_ids_and_test_column(
-            tracked_live_populations, time_step, "employer_income_propensity"
+        ) = get_consecutive_time_step_employer_ids_and_test_column_for_comparable_sims(
+            tracked_live_populations, time_step, "income"
         )
 
         # Find those that change employers
@@ -163,16 +171,53 @@ def test_no_income_uupdate(tracked_live_populations):
         assert (income_before.loc[static_jobs_idx] == income_after.loc[static_jobs_idx]).all()
 
 
-def get_consecutive_time_step_employer_ids_and_test_column(
+def test_income_updates_when_age_changes(tracked_live_populations):
+    # This test checks whether simulants who have a birthdays and therefore will have a new income distribution
+    # Note: The other tests for income implementation are contigent on comparing simulants who are the same age and
+    #  therefore ignore this edge case.
+    for time_step in range(max(TIME_STEPS_TO_TEST)):
+        pop_before = tracked_live_populations[time_step]
+        pop_after = tracked_live_populations[time_step]
+        common_sims_idx = pop_before.index.intersection(pop_after.index)
+        age_before = np.floor(pop_before.loc[common_sims_idx, "age"])
+        age_after = np.floor(pop_after.loc[common_sims_idx, "age"])
+        birthday_sims_idx = age_before.index[age_before != age_after]
+        common_sims_idx = common_sims_idx.intersection(birthday_sims_idx)
+
+        # Get sims with same jobs but exclude unemployed
+        employer_ids_before = pop_before.loc[common_sims_idx, "employer_id"]
+        employer_ids_after = pop_after.loc[common_sims_idx, "employer_id"]
+        same_jobs_idx = employer_ids_before.index[employer_ids_before == employer_ids_after]
+
+        assert (
+            pop_before.loc[same_jobs_idx, "income"] != pop_after.loc[same_jobs_idx, "income"]
+        ).all()
+
+
+def get_consecutive_time_step_employer_ids_and_test_column_for_comparable_sims(
     tracked_live_populations,
     time_step,
     test_column,
 ) -> tuple:
     pop_before = tracked_live_populations[time_step]
     pop_after = tracked_live_populations[time_step + 1]
-    employer_ids_before = pop_before["employer_id"]
-    test_column_before = pop_before[test_column]
-    employer_ids_after = pop_after["employer_id"]
-    test_column_after = pop_after[test_column]
+    common_sims_idx = pop_before.index.intersection(pop_after.index)
 
-    return employer_ids_before, test_column_before, employer_ids_after, test_column_after
+    # Deal with sims who change age bins on time step
+    # This is handling the cases where simulants enter the next age pin so their distribution for income changes
+    age_before = np.floor(pop_before.loc[common_sims_idx, "age"])
+    age_after = np.floor(pop_after.loc[common_sims_idx, "age"])
+    same_age_idx = age_before.index[age_before == age_after]
+    common_sims_idx = common_sims_idx.intersection(same_age_idx)
+
+    employer_ids_before = pop_before.loc[common_sims_idx, "employer_id"]
+    test_column_before = pop_before.loc[common_sims_idx, test_column]
+    employer_ids_after = pop_after.loc[common_sims_idx, "employer_id"]
+    test_column_after = pop_after.loc[common_sims_idx, test_column]
+
+    return (
+        employer_ids_before,
+        test_column_before,
+        employer_ids_after,
+        test_column_after,
+    )

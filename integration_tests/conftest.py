@@ -16,7 +16,7 @@ def sim() -> InteractiveContext:
     return simulation
 
 
-TIME_STEPS_TO_TEST = [0, 1, 10]
+TIME_STEPS_TO_TEST = [0, 1]
 
 
 @pytest.fixture(scope="session")
@@ -30,6 +30,8 @@ def populations(sim) -> List[pd.DataFrame]:
             if pipeline == "metrics":
                 continue
             pop = pd.concat([pop, sim.get_value(pipeline)(pop.index)], axis=1)
+            # Handle column names for pipelines
+            pop = pop.set_axis([*pop.columns[:-1], pipeline], axis=1, inplace=False)
         population_states.append(pop)
         sim.step()
 
