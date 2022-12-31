@@ -43,6 +43,8 @@ def test_all_households_have_reference_person(tracked_live_populations):
 
 def test_household_id_and_address_id_correspond(tracked_live_populations):
     for pop in tracked_live_populations:
+        assert pop["household_id"].notnull().all()
+        assert pop["address_id"].notnull().all()
         # 1-to-1 at any given point in time
         assert (pop.groupby("household_id")["address_id"].nunique() == 1).all()
         assert (pop.groupby("address_id")["household_id"].nunique() == 1).all()
