@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import pandas as pd
 import pytest
@@ -37,7 +37,7 @@ def tracked_populations(populations) -> List[pd.DataFrame]:
 
 
 @pytest.fixture(scope="session")
-def simulants_on_adjacent_timesteps(populations) -> List[pd.DataFrame]:
+def simulants_on_adjacent_timesteps(populations) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
     timestep_pairs = []
 
     for before, after in zip(populations, populations[1:]):
