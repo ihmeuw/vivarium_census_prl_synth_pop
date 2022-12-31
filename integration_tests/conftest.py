@@ -16,7 +16,7 @@ def sim() -> InteractiveContext:
     return simulation
 
 
-TIME_STEPS_TO_TEST = [0, 1]
+TIME_STEPS_TO_TEST = [0, 1, 10]
 
 
 @pytest.fixture(scope="session")
