@@ -106,7 +106,7 @@ def test_no_employment_income_propensity_updates(tracked_live_populations):
             tracked_live_populations, time_step, "employer_income_propensity"
         )
 
-        # Find those that change employers
+        # Find those that don't change employers
         static_jobs_idx = employer_ids_before.index[employer_ids_before == employer_ids_after]
 
         assert (
@@ -204,7 +204,7 @@ def get_consecutive_time_step_employer_ids_and_test_column_for_comparable_sims(
     common_sims_idx = pop_before.index.intersection(pop_after.index)
 
     # Deal with sims who change age bins on time step
-    # This is handling the cases where simulants enter the next age pin so their distribution for income changes
+    # This is handling the cases where simulants enter the next age bin so their distribution for income changes
     age_before = np.floor(pop_before.loc[common_sims_idx, "age"])
     age_after = np.floor(pop_after.loc[common_sims_idx, "age"])
     same_age_idx = age_before.index[age_before == age_after]

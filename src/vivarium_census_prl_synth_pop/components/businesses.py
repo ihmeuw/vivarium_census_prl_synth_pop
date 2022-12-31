@@ -367,7 +367,7 @@ class Businesses:
         employer_income_component = data_values.EMPLOYER_INCOME_PROPENSITY_DISTRIBUTION.ppf(
             pop.loc[employed_idx, "employer_income_propensity"]
         )
-        # Income propensity = probit(personal_component + employer_component)
+        # Income propensity = cdf(personal_component + employer_component)
         income_propensity = pd.Series(
             data=stats.norm.cdf(personal_income_component + employer_income_component),
             index=employed_idx,
