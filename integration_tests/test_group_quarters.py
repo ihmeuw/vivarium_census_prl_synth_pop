@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from integration_tests.conftest import TIME_STEPS_TO_TEST
@@ -19,14 +18,13 @@ def test_gq_proportion(sim, tracked_live_populations):
     assert min_gq_population <= actual_gq_population <= max_gq_population
 
 
-@pytest.mark.parametrize("time_step", TIME_STEPS_TO_TEST)
-def test_gq_relationship_column(tracked_live_populations, time_step):
-    pop = tracked_live_populations[time_step]
-    # All people in institutional GQ have the correct "relation to household head"
-    assert (
-        (pop.household_id.isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()))
-        == (pop.relation_to_household_head == "Institutionalized GQ pop")
-    ).all()
+def test_gq_relationship_column(tracked_live_populations):
+    for pop in tracked_live_populations:
+        # All people in institutional GQ have the correct "relation to household head"
+        assert (
+            (pop["household_id"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()))
+            == (pop["relation_to_household_head"] == "Institutionalized GQ pop")
+        ).all()
 
     # All people in non-institutional GQ have the correct "relation to household head"
     assert (
