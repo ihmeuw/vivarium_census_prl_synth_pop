@@ -114,6 +114,7 @@ SUBSET_PERSONS_COLUMNS_MAP = {
 
 LATINO_VAR_MAP = {i: (1 if i == 1 else 0) for i in range(1, 25)}
 
+
 RACE_ETHNICITY_VAR_MAP = {
     0: "Latino",
     1: "White",
@@ -126,8 +127,11 @@ RACE_ETHNICITY_VAR_MAP = {
     8: "Multiracial or Other",
     9: "Multiracial or Other",
 }
+RACE_ETHNICITIES = list({race: None for race in RACE_ETHNICITY_VAR_MAP.values()})
+
 
 SEX_VAR_MAP = {1: "Male", 2: "Female"}
+SEXES = list(SEX_VAR_MAP.values())
 
 RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     20: "Reference person",
@@ -150,6 +154,7 @@ RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     37: "Institutionalized GQ pop",
     38: "Noninstitutionalized GQ pop",
 }
+RELATIONSHIPS = list(RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values())
 
 NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP = {
     "Reference person": "Biological child",

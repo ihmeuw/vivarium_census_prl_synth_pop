@@ -1,17 +1,29 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 from integration_tests.conftest import TIME_STEPS_TO_TEST
-from vivarium_census_prl_synth_pop.constants import data_values
-
+from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 # TODO: Broader test coverage
-def test_initial_population_size(sim, tracked_live_populations):
-    pop_size = sim.configuration.population.population_size
-    pop = tracked_live_populations[0]
 
-    assert pop.index.size == pop_size
-    assert (pop["alive"] == "dead").sum() == 0
+
+def test_housing_type_is_categorical(tracked_live_populations):
+    for pop in tracked_live_populations:
+        housing_type = pop["housing_type"]
+
+        # Assert the dtype is correct and that there are no NaNs
+        assert housing_type.dtype == pd.CategoricalDtype(categories=data_values.HOUSING_TYPES)
+        assert not housing_type.isnull().any()
+
+
+def test_relationship_is_categorical(tracked_live_populations):
+    for pop in tracked_live_populations:
+        relationship = pop["relation_to_household_head"]
+
+        # Assert the dtype is correct and that there are no NaNs
+        assert relationship.dtype == pd.CategoricalDtype(categories=metadata.RELATIONSHIPS)
+        assert not relationship.isnull().any()
 
 
 # TODO stop skipping once MIC-3527 and MIC-3714 have been implemented

@@ -140,7 +140,8 @@ class BaseObserver(ABC):
     # TODO: consider using compressed csv instead of hdf
     def on_simulation_end(self, event: Event) -> None:
         output_dir = utilities.build_output_dir(self.output_dir, subdir="results")
-        self.responses.to_hdf(output_dir / self.output_filename, key="data")
+        # 'fixed' format is not compatible with categorical data
+        self.responses.to_hdf(output_dir / self.output_filename, key="data", format="t")
 
 
 class HouseholdSurveyObserver(BaseObserver):
@@ -290,6 +291,7 @@ class WICObserver(BaseObserver):
     ADDITIONAL_OUTPUT_COLUMNS = ["wic_year"]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
+    WIC_RACE_ETHNICITIES = ["White", "Black", "Latino", "Other"]
 
     def __repr__(self):
         return f"WICObserver()"
@@ -380,10 +382,10 @@ class WICObserver(BaseObserver):
         # selection of additional simulants to reach the covered
         # probabilities
 
-        simplified_race_ethnicity = pop_u1["race_ethnicity"].copy()
-        simplified_race_ethnicity[
-            ~pop_u1["race_ethnicity"].isin(["Latino", "Black", "White"])
-        ] = "Other"
+        simplified_race_ethnicity = pop_u1["race_ethnicity"].astype(
+            pd.CategoricalDtype(categories=self.WIC_RACE_ETHNICITIES)
+        )
+        simplified_race_ethnicity[simplified_race_ethnicity.isnull()] = "Other"
 
         child_covered_pr = (
             pop_u1.guardian_1.isin(pop_included_mothers.index)
@@ -391,8 +393,8 @@ class WICObserver(BaseObserver):
         ).astype(
             float
         )  # pr is 1.0 for infants with mother on WIC
-        for race_eth in ["Latino", "Black", "White", "Other"]:
-            race_eth_rows = simplified_race_ethnicity == race_eth
+        for race_ethnicity in self.WIC_RACE_ETHNICITIES:
+            race_eth_rows = simplified_race_ethnicity == race_ethnicity
 
             N = np.sum(race_eth_rows)  # total number of infants in this race group
             k = np.sum(
@@ -404,7 +406,7 @@ class WICObserver(BaseObserver):
                     child_covered_pr[
                         race_eth_rows
                     ],  # keep pr of 1.0 for the k infants with mother on WIC
-                    (pr_covered[race_eth] * N - k)
+                    (pr_covered[race_ethnicity] * N - k)
                     / (N - k)  # rescale probability for the remaining individuals
                     # so that expected number of infants on WIC matches target
                 )
