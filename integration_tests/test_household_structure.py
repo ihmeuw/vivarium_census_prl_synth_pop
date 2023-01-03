@@ -49,8 +49,8 @@ def test_household_id_and_address_id_correspond(tracked_live_populations):
         assert (pop.groupby("household_id")["address_id"].nunique() == 1).all()
         assert (pop.groupby("address_id")["household_id"].nunique() == 1).all()
 
-    # Even over time, there is only 1 household_id for each address_id -- they are not reused
-    # Note, however, that the reverse is not true: a household_id can span multiple address_ids
-    # when the whole house moved as a unit.
+    # Even over time, there is only 1 household_id for each address_id -- address_ids are not reused.
     all_time_pop = pd.concat(tracked_live_populations, ignore_index=True)
     assert (all_time_pop.groupby("address_id")["household_id"].nunique() == 1).all()
+    # Note, however, that the reverse is not true: a household_id can span multiple address_ids
+    # (over multiple time steps) when the whole house moved as a unit between those time steps.
