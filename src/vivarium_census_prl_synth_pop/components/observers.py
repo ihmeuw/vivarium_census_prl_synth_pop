@@ -83,7 +83,7 @@ class BaseObserver(ABC):
         # FIXME: settle on output dirs
         self.output_dir = Path(builder.configuration.output_data.results_directory)
         self.population_view = self.get_population_view(builder)
-        self.responses = self.get_response_schema()
+        self.responses = None
 
         # Register the listener to update the responses
         builder.event.register_listener(
@@ -103,26 +103,27 @@ class BaseObserver(ABC):
         population_view = builder.population.get_view(columns=cols)
         return population_view
 
-    def get_response_schema(self) -> pd.DataFrame:
-        """Returns the response schema"""
-        cols = self.output_columns
-        return pd.DataFrame(columns=cols)
-
     ########################
     # Event-driven methods #
     ########################
 
     def on_collect_metrics(self, event: Event) -> None:
         if self.to_observe(event):
-            self.do_observation(event)
-            if not pd.Series(self.output_columns).isin(self.responses.columns).all():
+            observation = self.get_observation(event)
+            if not pd.Series(self.output_columns).isin(observation.columns).all():
                 raise RuntimeError(
-                    f"{self.name} missing required column(s): {set(self.output_columns) - set(self.responses.columns)}"
+                    f"{self.name} missing required column(s): "
+                    f"{set(self.output_columns) - set(observation.columns)}"
                 )
-            if not pd.Series(self.responses.columns).isin(self.output_columns).all():
+            if not pd.Series(observation.columns).isin(self.output_columns).all():
                 raise RuntimeError(
-                    f"{self.name} contains extra unexpected column(s): {set(self.responses.columns) - set(self.output_columns)}"
+                    f"{self.name} contains extra unexpected column(s): "
+                    f"{set(observation.columns) - set(self.output_columns)}"
                 )
+            if self.responses is None:
+                self.responses = observation
+            else:
+                self.responses = pd.concat([self.responses, observation])
 
     def to_observe(self, event: Event) -> bool:
         """If True, will make an observation. This defaults to always True
@@ -132,7 +133,7 @@ class BaseObserver(ABC):
         return True
 
     @abstractmethod
-    def do_observation(self, event: Event) -> None:
+    def get_observation(self, event: Event) -> pd.DataFrame:
         """Define the observations in the concrete class"""
         pass
 
@@ -210,7 +211,7 @@ class HouseholdSurveyObserver(BaseObserver):
     # Event-driven methods #
     ########################
 
-    def do_observation(self, event) -> None:
+    def get_observation(self, event: Event) -> pd.DataFrame:
         """Records the survey responses on this time step."""
         new_responses = self.population_view.get(event.index, query='alive == "alive"')
         respondent_households = utilities.vectorized_choice(
@@ -225,8 +226,7 @@ class HouseholdSurveyObserver(BaseObserver):
         new_responses["survey_date"] = event.time.date()
         new_responses = utilities.add_guardian_address_ids(new_responses)
         # Apply column schema and concatenate
-        new_responses = new_responses[self.responses.columns]
-        self.responses = pd.concat([self.responses, new_responses])
+        return new_responses[self.output_columns]
 
 
 class DecennialCensusObserver(BaseObserver):
@@ -273,14 +273,14 @@ class DecennialCensusObserver(BaseObserver):
         census_date = dt.datetime(census_year, 4, 1)
         return self.clock() <= census_date < event.time
 
-    def do_observation(self, event) -> None:
+    def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(
             event.index,
             query="alive == 'alive'",  # census should include only living simulants
         )
         pop = utilities.add_guardian_address_ids(pop)
         pop["census_year"] = event.time.year
-        self.responses = pd.concat([self.responses, pop])
+        return pop
 
 
 class WICObserver(BaseObserver):
@@ -321,7 +321,7 @@ class WICObserver(BaseObserver):
         survey_date = dt.datetime(event.time.year, 1, 1)
         return self.clock() <= survey_date < event.time
 
-    def do_observation(self, event) -> None:
+    def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(
             event.index,
             query="alive == 'alive'",  # WIC should include only living simulants
@@ -410,9 +410,9 @@ class WICObserver(BaseObserver):
                 )
         pop_included[0] = self.randomness.filter_for_probability(pop_u1, child_covered_pr)
 
-        self.responses = pd.concat(
-            [self.responses, pop_included_mothers] + list(pop_included.values())
-        )[self.output_columns]
+        return pd.concat([pop_included_mothers] + list(pop_included.values()))[
+            self.output_columns
+        ]
 
 
 class SocialSecurityObserver(BaseObserver):
@@ -457,7 +457,7 @@ class SocialSecurityObserver(BaseObserver):
         """Only observe if this is the final time step of the sim"""
         return self.clock() < self.end_time <= event.time
 
-    def do_observation(self, event) -> None:
+    def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(
             event.index,
             query="ssn == True",  # only include simulants with a SSN
@@ -478,6 +478,4 @@ class SocialSecurityObserver(BaseObserver):
         df_death["event_type"] = "death"
         df_death["event_date"] = pop["exit_time"]
 
-        self.responses = pd.concat([self.responses, df_creation, df_death]).sort_values(
-            ["event_date", "date_of_birth"]
-        )
+        return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
