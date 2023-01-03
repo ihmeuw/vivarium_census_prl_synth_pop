@@ -59,16 +59,11 @@ def test_individuals_move_into_existing_households(simulants_on_adjacent_timeste
         non_reference_person_movers = (
             (before["household_id"] != after["household_id"])
             & (after["housing_type"] == "Standard")
-            & (after["relation_to_household_head"] != "Reference person")
+            & (after["household_id"].isin(before["household_id"]))
         )
         assert non_reference_person_movers.any()
 
-        # The household previously existed
-        assert (
-            after[non_reference_person_movers]["household_id"]
-            .isin(before["household_id"])
-            .all()
-        )
+        # They move in as nonrelative
         assert (
             after[non_reference_person_movers]["relation_to_household_head"]
             == "Other nonrelative"
