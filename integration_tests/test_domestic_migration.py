@@ -1,5 +1,7 @@
 import pytest
 
+from vivarium_census_prl_synth_pop.constants import data_values
+
 # TODO: Broader test coverage
 
 
@@ -35,6 +37,21 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         assert (
             after[new_household_movers]["relation_to_household_head"] == "Reference person"
         ).all()
+
+
+def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        gq_movers = (before["household_id"] != after["household_id"]) & (
+            after["housing_type"] != "Standard"
+        )
+        assert gq_movers.any()
+        assert (before[gq_movers]["housing_type"] == "Standard").any()
+        assert after[gq_movers]["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).all()
+        assert (
+            after[gq_movers]["relation_to_household_head"]
+            .isin(["Institutionalized GQ pop", "Noninstitutionalized GQ pop"])
+            .all()
+        )
 
 
 def test_households_move(simulants_on_adjacent_timesteps):

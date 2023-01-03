@@ -33,3 +33,29 @@ def test_gq_relationship_column(tracked_live_populations, time_step):
         (pop.household_id.isin(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()))
         == (pop.relation_to_household_head == "Noninstitutionalized GQ pop")
     ).all()
+
+
+@pytest.mark.parametrize("time_step", TIME_STEPS_TO_TEST)
+def test_gq_housing_type_column(tracked_live_populations, time_step):
+    pop = tracked_live_populations[time_step]
+    # All people in institutional GQ have a correct housing type
+    assert (
+        (pop["housing_type"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.keys()))
+        == (pop["relation_to_household_head"] == "Institutionalized GQ pop")
+    ).all()
+
+    # All people in non-institutional GQ have a correct housing type
+    assert (
+        (pop["housing_type"].isin(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.keys()))
+        == (pop["relation_to_household_head"] == "Noninstitutionalized GQ pop")
+    ).all()
+
+    # All non-GQ people have standard housing type
+    assert (
+        (pop["housing_type"] == "Standard")
+        == (
+            ~pop["relation_to_household_head"].isin(
+                ["Institutionalized GQ pop", "Noninstitutionalized GQ pop"]
+            )
+        )
+    ).all()
