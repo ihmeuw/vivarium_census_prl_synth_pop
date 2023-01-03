@@ -26,10 +26,19 @@ def populations(sim) -> List[pd.DataFrame]:
         pop = sim.get_population(untracked=True)
         pipelines = sim.list_values()
         for pipeline in pipelines:
+            p = sim.get_value(pipeline)(pop.index)
             # Metrics is a dict we cannot concat and do not want to
-            if pipeline == "metrics":
+            if isinstance(p, dict):
                 continue
-            pop = pd.concat([pop, sim.get_value(pipeline)(pop.index)], axis=1)
+            elif isinstance(p, pd.DataFrame):
+                renamed_cols = [f"{pipeline}.{col}" for col in p.columns]
+                rename_dict = dict(zip(p.columns, renamed_cols))
+                p = p.rename(columns=rename_dict)
+                pop = pd.concat([pop, p], axis=1)
+            else:
+                # Pipeline is a Series
+                pop[pipeline] = p
+
             # Handle column names for pipelines
             pop = pop.set_axis([*pop.columns[:-1], pipeline], axis=1, inplace=False)
         population_states.append(pop)
