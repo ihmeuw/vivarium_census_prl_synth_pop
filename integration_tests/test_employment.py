@@ -4,7 +4,6 @@ import pytest
 
 from vivarium_census_prl_synth_pop.constants import data_values
 
-
 # TODO: Broader test coverage
 
 
@@ -70,61 +69,64 @@ def test_movers_change_employment(populations):
         previously_military_employed = before["employer_id"] == 1
         should_change = moved & (~moved_to_military_gq | ~previously_military_employed)
         assert (
-                before[should_change]["employer_id"] != after[should_change]["employer_id"]
+            before[should_change]["employer_id"] != after[should_change]["employer_id"]
         ).all()
 
 
 def test_employment_income_propensity_updates(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        changed_jobs_idx = before.index[(before["employer_id"] != after["employer_id"])
-                                        & (np.floor(before["age"]) == np.floor(after["age"]))
-                                        ]
+        changed_jobs_idx = before.index[
+            (before["employer_id"] != after["employer_id"])
+            & (np.floor(before["age"]) == np.floor(after["age"]))
+        ]
 
         assert (
-                before.loc
-                [changed_jobs_idx, "employer_income_propensity"] != after.loc
-                [changed_jobs_idx, "employer_income_propensity"]
+            before.loc[changed_jobs_idx, "employer_income_propensity"]
+            != after.loc[changed_jobs_idx, "employer_income_propensity"]
         ).all()
 
 
 def test_no_employment_income_propensity_updates(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        static_jobs_idx = before.index[(before["employer_id"] == after["employer_id"])
-                                       & (np.floor(before["age"]) == np.floor(after["age"]))
-                                       ]
+        static_jobs_idx = before.index[
+            (before["employer_id"] == after["employer_id"])
+            & (np.floor(before["age"]) == np.floor(after["age"]))
+        ]
 
-        assert (before.loc[static_jobs_idx, "employer_income_propensity"] == after.loc[
-            static_jobs_idx, "employer_income_propensity"]).all()
+        assert (
+            before.loc[static_jobs_idx, "employer_income_propensity"]
+            == after.loc[static_jobs_idx, "employer_income_propensity"]
+        ).all()
 
 
 def test_personal_income_propensity_is_constant(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        assert (before["personal_income_propensity"] == after["personal_income_propensity"]).all()
+        assert (
+            before["personal_income_propensity"] == after["personal_income_propensity"]
+        ).all()
 
 
 def test_income_updates(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        changed_jobs_idx = before.index[(before["employer_id"] != after["employer_id"])
-                                        & (np.floor(before["age"]) == np.floor(after["age"]))
-                                        ]
+        changed_jobs_idx = before.index[
+            (before["employer_id"] != after["employer_id"])
+            & (np.floor(before["age"]) == np.floor(after["age"]))
+        ]
 
         assert (
-                before.loc
-                [changed_jobs_idx, "income"] != after.loc
-                [changed_jobs_idx, "income"]
+            before.loc[changed_jobs_idx, "income"] != after.loc[changed_jobs_idx, "income"]
         ).all()
 
 
 def test_no_income_uupdate(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        static_jobs_idx = before.index[(before["employer_id"] == after["employer_id"])
-                                       & (np.floor(before["age"]) == np.floor(after["age"]))
-                                       ]
+        static_jobs_idx = before.index[
+            (before["employer_id"] == after["employer_id"])
+            & (np.floor(before["age"]) == np.floor(after["age"]))
+        ]
 
         assert (
-                before.loc
-                [static_jobs_idx, "income"] == after.loc
-                [static_jobs_idx, "income"]
+            before.loc[static_jobs_idx, "income"] == after.loc[static_jobs_idx, "income"]
         ).all()
 
 
@@ -136,10 +138,13 @@ def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):
     ages = [20, 30, 40, 50]
     for before, after in simulants_on_adjacent_timesteps:
         for age in ages:
-            birthdays_idx = before.index[(before["employer_id"] == after["employer_id"])
-                                        & (before["employer_id"] != data_values.UNEMPLOYED_ID)
-                                        & (np.floor(before["age"]) == age - 1)
-                                        & (np.floor(after["age"]) == age)
-                                        ]
+            birthdays_idx = before.index[
+                (before["employer_id"] == after["employer_id"])
+                & (before["employer_id"] != data_values.UNEMPLOYED_ID)
+                & (np.floor(before["age"]) == age - 1)
+                & (np.floor(after["age"]) == age)
+            ]
 
-            assert (before.loc[birthdays_idx, "income"] != after.loc[birthdays_idx, "income"]).all()
+            assert (
+                before.loc[birthdays_idx, "income"] != after.loc[birthdays_idx, "income"]
+            ).all()
