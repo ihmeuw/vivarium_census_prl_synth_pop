@@ -23,6 +23,8 @@ class __Population(NamedTuple):
     def log_name(self):
         return "population"
 
+POPULATION = __Population()
+
 
 class __SyntheticData(NamedTuple):
     FIRST_NAMES: str = "synthetic_data.first_names"
@@ -37,9 +39,10 @@ class __SyntheticData(NamedTuple):
     def log_name(self):
         return "synthetic_data"
 
-
-POPULATION = __Population()
 SYNTHETIC_DATA = __SyntheticData()
 
 
-MAKE_ARTIFACT_KEY_GROUPS = [POPULATION, SYNTHETIC_DATA]
+MAKE_ARTIFACT_KEY_GROUPS = [
+    POPULATION,
+    # SYNTHETIC_DATA,  Will be moved into separate artifact later
+]

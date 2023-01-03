@@ -12,7 +12,8 @@ for an example.
 
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
-from typing import Dict
+from pathlib import Path
+from typing import Dict, List
 
 import pandas as pd
 from vivarium.framework.artifact import EntityKey
@@ -49,9 +50,10 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.LOCATION: load_location,
         data_keys.POPULATION.ASFR: load_asfr,
-        data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
-        data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
-        data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
+        # Comment out synthetic_data to be moved into different artifact
+        # data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
+        # data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
+        # data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -59,7 +61,9 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
 def load_standard_data(key: str, location: str) -> pd.DataFrame:
     key = EntityKey(key)
     entity = get_entity(key)
-    data = interface.get_measure(entity, key.measure, location).droplevel("location")
+    data = interface.get_measure(entity, key.measure, location).droplevel(
+        "location"
+    )
     return data
 
 
@@ -69,30 +73,19 @@ def load_theoretical_minimum_risk_life_expectancy(key: str, location: str) -> pd
 
 
 def load_raw_persons_data(column_map: Dict[str, str], location: str) -> pd.DataFrame:
-    data_dir = paths.PERSONS_DATA_DIR
-    data = pd.concat(
-        [
-            pd.read_csv(data_dir / file, usecols=column_map.keys())
-            for file in paths.PERSONS_FILENAMES
-        ]
+    data = _read_and_format_raw_data(
+        data_dir=paths.PERSONS_DATA_DIR,
+        filenames=paths.PERSONS_FILENAMES,
+        column_map=column_map,
+        location=location,
     )
-    data.SERIALNO = data.SERIALNO.astype(str)
-
-    # map ACS vars to human-readable
-    data = data.rename(columns=column_map)
-
-    if location != "United States":
-        data = data.query(f"state == {metadata.CENSUS_STATE_IDS[location]}")
-    data = data.drop(columns=["state"])
-
-    return data
+    return data.drop(columns=["state"])
 
 
 def load_persons(key: str, location: str) -> pd.DataFrame:
     if key != data_keys.POPULATION.PERSONS:
         raise ValueError(f"Unrecognized key {key}")
     # read in data
-    location = str.replace(location, " ", "_")
     data = load_raw_persons_data(metadata.PERSONS_COLUMNS_MAP, location)
 
     # map race and ethnicity to one var
@@ -142,21 +135,13 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
 def load_households(key: str, location: str) -> pd.DataFrame:
     if key != data_keys.POPULATION.HOUSEHOLDS:
         raise ValueError(f"Unrecognized key {key}")
-    # read in data
-    data_dir = paths.HOUSEHOLDS_DATA_DIR
-    data = pd.concat(
-        [
-            pd.read_csv(data_dir / file, usecols=metadata.HOUSEHOLDS_COLUMN_MAP.keys())
-            for file in paths.HOUSEHOLDS_FILENAMES
-        ]
+
+    data = _read_and_format_raw_data(
+        data_dir=paths.HOUSEHOLDS_DATA_DIR,
+        filenames=paths.HOUSEHOLDS_FILENAMES,
+        column_map=metadata.HOUSEHOLDS_COLUMN_MAP,
+        location=location,
     )
-    data.SERIALNO = data.SERIALNO.astype(str)
-
-    # reshape
-    data = data.rename(columns=metadata.HOUSEHOLDS_COLUMN_MAP)
-
-    if location != "United States":
-        data = data.query(f"state == {metadata.CENSUS_STATE_IDS[location]}")
 
     # read in persons file to find which household_ids it contains
     persons = load_raw_persons_data(metadata.SUBSET_PERSONS_COLUMNS_MAP, location)
@@ -189,7 +174,7 @@ def load_asfr(key: str, location: str):
 
     # pivot
     asfr = asfr.reset_index()
-    asfr = asfr[(asfr.year_start == 2019)]  # NOTE: this is the latest year available from GBD
+    asfr = asfr[(asfr["year_start"] == 2019)]  # NOTE: this is the latest year available from GBD
     asfr_pivot = asfr.pivot(
         index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
         columns="parameter",
@@ -318,3 +303,30 @@ def create_draws(df: pd.DataFrame, key: str, location: str):
     )
 
     return draws
+
+
+#####################
+#  Helper functions #
+#####################
+
+def _read_and_format_raw_data(
+    data_dir: Path, filenames: List[str], column_map: List[str], location: str
+) -> pd.DataFrame:
+    data = pd.concat([pd.read_csv(data_dir / file, usecols=column_map.keys()) for file in filenames])
+
+    data["SERIALNO"] = data["SERIALNO"].astype(str)
+    data = data.rename(columns=column_map)
+
+    if location == "United States of America":
+        location_ids = [
+            v
+            for k, v in metadata.CENSUS_STATE_IDS.items()
+            if k in metadata.UNITED_STATES_LOCATIONS
+        ]
+        data = data.query(f"state in {location_ids}")
+    elif location in metadata.CENSUS_STATE_IDS.keys():
+        data = data.query(f"state == {metadata.CENSUS_STATE_IDS[location]}")
+    else:
+        raise RuntimeError(f"location {location} not found in metadata.CENSUS_STATE_IDS")
+
+    return data

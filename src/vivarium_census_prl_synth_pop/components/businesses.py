@@ -50,7 +50,6 @@ class Businesses:
 
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
-        self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.randomness = builder.randomness.get_stream(self.name)
         self.employer_address_id_count = 0
         self.columns_created = [
@@ -240,7 +239,7 @@ class Businesses:
                     data_values.MilitaryEmployer.EMPLOYER_ADDRESS_ID,
                 ],
                 "prevalence": [
-                    1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
+                    1 - data_values.PROPORTION_WORKFORCE_EMPLOYED,
                     data_values.MilitaryEmployer.PROPORTION_WORKFORCE_EMPLOYED,
                 ],
             }
