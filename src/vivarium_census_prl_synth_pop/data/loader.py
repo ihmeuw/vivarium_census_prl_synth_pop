@@ -18,8 +18,8 @@ import pandas as pd
 from vivarium.framework.artifact import EntityKey
 from vivarium_inputs import interface
 
-from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
+from vivarium_census_prl_synth_pop.data.utilities import get_entity
 from vivarium_census_prl_synth_pop.utilities import (
     get_norm_from_quantiles,
     get_random_variable_draws_for_location,
@@ -58,7 +58,7 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
 
 def load_standard_data(key: str, location: str) -> pd.DataFrame:
     key = EntityKey(key)
-    entity = utilities.get_entity(key)
+    entity = get_entity(key)
     data = interface.get_measure(entity, key.measure, location).droplevel("location")
     return data
 
@@ -68,7 +68,7 @@ def load_theoretical_minimum_risk_life_expectancy(key: str, location: str) -> pd
     return interface.get_theoretical_minimum_risk_life_expectancy()
 
 
-def load_raw_persons_data(column_map: Dict[str, str], location):
+def load_raw_persons_data(column_map: Dict[str, str], location: str) -> pd.DataFrame:
     data_dir = paths.PERSONS_DATA_DIR
     data = pd.concat(
         [
@@ -96,21 +96,32 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     data = load_raw_persons_data(metadata.PERSONS_COLUMNS_MAP, location)
 
     # map race and ethnicity to one var
-    data["race_ethnicity"] = data.latino.map(metadata.LATINO_VAR_MAP)
-    data.loc[data.race_ethnicity == 1, "race_ethnicity"] = data.loc[
-        data.race_ethnicity == 1
-    ].race
+    data["race_ethnicity"] = data["latino"].map(metadata.LATINO_VAR_MAP)
+    data.loc[data["race_ethnicity"] == 1, "race_ethnicity"] = data.loc[
+        data["race_ethnicity"] == 1, "race"
+    ]
 
     # label each race/eth
-    data.race_ethnicity = data.race_ethnicity.map(metadata.RACE_ETHNICITY_VAR_MAP)
+    data["race_ethnicity"] = (
+        data["race_ethnicity"]
+        .map(metadata.RACE_ETHNICITY_VAR_MAP)
+        .astype(pd.CategoricalDtype(categories=metadata.RACE_ETHNICITIES))
+    )
+
     data = data.drop(columns=["latino", "race"])
 
     # map sexes
-    data.sex = data.sex.map(metadata.SEX_VAR_MAP)
+    data["sex"] = (
+        data["sex"]
+        .map(metadata.SEX_VAR_MAP)
+        .astype(pd.CategoricalDtype(categories=metadata.SEXES))
+    )
 
     # map relationship to household head
-    data.relation_to_household_head = data.relation_to_household_head.map(
-        metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP
+    data["relation_to_household_head"] = (
+        data["relation_to_household_head"]
+        .map(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP)
+        .astype(pd.CategoricalDtype(categories=metadata.RELATIONSHIPS))
     )
     # Map native born persons and if person has migrated in last year
     data["born_in_us"] = data["born_in_us"].map(

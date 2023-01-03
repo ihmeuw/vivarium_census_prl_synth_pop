@@ -114,6 +114,11 @@ class Population:
         # drop non-unique household_id
         pop = pop.drop(columns="census_household_id")
 
+        # set housing type dtype
+        pop["housing_type"] = pop["housing_type"].astype(
+            pd.CategoricalDtype(categories=data_values.HOUSING_TYPES)
+        )
+
         # give name ids
         pop["first_name_id"] = pop.index
         pop["middle_name_id"] = pop.index
@@ -270,9 +275,11 @@ class Population:
         new_births = new_births.merge(
             mothers[inherited_traits], left_on="parent_id", right_index=True
         )
-        new_births["relation_to_household_head"] = new_births[
-            "relation_to_household_head"
-        ].map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
+        new_births["relation_to_household_head"] = (
+            new_births["relation_to_household_head"]
+            .map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
+            .astype(new_births["relation_to_household_head"].dtype)
+        )
 
         # birthday map between parent_ids and DOB (so twins get same bday)
         # note we use np.floor to guarantee birth at midnight
@@ -308,7 +315,7 @@ class Population:
             choices=["Female", "Male"],
             p=[0.5, 0.5],
             additional_key="sex_of_child",
-        )
+        ).astype(pd.CategoricalDtype(categories=metadata.SEXES))
         new_births["alive"] = "alive"
         new_births["entrance_time"] = pop_data.creation_time
         new_births["exit_time"] = pd.NaT
