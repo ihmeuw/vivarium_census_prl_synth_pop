@@ -23,6 +23,7 @@ class __Population(NamedTuple):
     def log_name(self):
         return "population"
 
+
 POPULATION = __Population()
 
 
@@ -38,6 +39,7 @@ class __SyntheticData(NamedTuple):
     @property
     def log_name(self):
         return "synthetic_data"
+
 
 SYNTHETIC_DATA = __SyntheticData()
 

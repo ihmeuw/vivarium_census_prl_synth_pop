@@ -61,9 +61,7 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
 def load_standard_data(key: str, location: str) -> pd.DataFrame:
     key = EntityKey(key)
     entity = get_entity(key)
-    data = interface.get_measure(entity, key.measure, location).droplevel(
-        "location"
-    )
+    data = interface.get_measure(entity, key.measure, location).droplevel("location")
     return data
 
 
@@ -174,7 +172,9 @@ def load_asfr(key: str, location: str):
 
     # pivot
     asfr = asfr.reset_index()
-    asfr = asfr[(asfr["year_start"] == 2019)]  # NOTE: this is the latest year available from GBD
+    asfr = asfr[
+        (asfr["year_start"] == 2019)
+    ]  # NOTE: this is the latest year available from GBD
     asfr_pivot = asfr.pivot(
         index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
         columns="parameter",
@@ -309,10 +309,13 @@ def create_draws(df: pd.DataFrame, key: str, location: str):
 #  Helper functions #
 #####################
 
+
 def _read_and_format_raw_data(
     data_dir: Path, filenames: List[str], column_map: List[str], location: str
 ) -> pd.DataFrame:
-    data = pd.concat([pd.read_csv(data_dir / file, usecols=column_map.keys()) for file in filenames])
+    data = pd.concat(
+        [pd.read_csv(data_dir / file, usecols=column_map.keys()) for file in filenames]
+    )
 
     data["SERIALNO"] = data["SERIALNO"].astype(str)
     data = data.rename(columns=column_map)
