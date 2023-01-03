@@ -39,8 +39,6 @@ def populations(sim) -> List[pd.DataFrame]:
                 # Pipeline is a Series
                 pop[pipeline] = p
 
-            # Handle column names for pipelines
-            pop = pop.set_axis([*pop.columns[:-1], pipeline], axis=1, inplace=False)
         population_states.append(pop)
         sim.step()
 
