@@ -117,7 +117,7 @@ def test_income_updates(simulants_on_adjacent_timesteps):
         ).all()
 
 
-def test_no_income_uupdate(simulants_on_adjacent_timesteps):
+def test_no_income_update(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         static_jobs_idx = before.index[
             (before["employer_id"] == after["employer_id"])
