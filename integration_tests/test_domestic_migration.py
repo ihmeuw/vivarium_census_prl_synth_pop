@@ -39,6 +39,13 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
             after["relation_to_household_head"] == "Reference person"
         )
         assert new_household_movers.any()
+        # There is exactly one new-household mover for each new household.
+        assert (
+            new_household_movers[movers_into_new_households]
+            .groupby(after[movers_into_new_households]["household_id"])
+            .sum()
+            == 1
+        ).all()
         # These should be the vast majority, since non-reference-person moves to
         # new households will be quite rare.
         assert new_household_movers.sum() / movers_into_new_households.sum() > 0.95
