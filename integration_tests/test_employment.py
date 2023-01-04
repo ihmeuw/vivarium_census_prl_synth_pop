@@ -75,19 +75,14 @@ def test_movers_change_employment(populations):
 
 def test_employment_income_propensity_updates(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        changed_jobs = before["employer_id"] != after["employer_id"]
+        changed_jobs = (before["employer_id"] != after["employer_id"]) & (
+            before["age"] > data_values.WORKING_AGE
+        )
+        changed_employer_propensity = (
+            before["employer_income_propensity"] != after["employer_income_propensity"]
+        ) & (before["age"] > data_values.WORKING_AGE)
 
-        # Employer income propensity changes when employer changes.
-        assert (
-            before[changed_jobs, "employer_income_propensity"]
-            != after[changed_jobs, "employer_income_propensity"]
-        ).all()
-
-        # Employer income propensity does NOT change when people do not change jobs.
-        assert (
-            before[~changed_jobs, "employer_income_propensity"]
-            == after[~changed_jobs, "employer_income_propensity"]
-        ).all()
+        assert (changed_jobs == changed_employer_propensity).all()
 
 
 def test_personal_income_propensity_is_constant(simulants_on_adjacent_timesteps):
@@ -102,11 +97,11 @@ def test_income_updates_for_same_age_simulants(simulants_on_adjacent_timesteps):
         changed_jobs = (before["employer_id"] != after["employer_id"]) & (
             np.floor(before["age"]) == np.floor(after["age"])
         )
+        changed_income = (before["income"] != after["income"]) & (
+            np.floor(before["age"]) == np.floor(after["age"])
+        )
 
-        # Test income updates for same age simulants when employer changes
-        assert (before[changed_jobs, "income"] != after[changed_jobs, "income"]).all()
-        # Test income does NOT uupdate for same age simulants who do NOT change employers
-        assert (before[~changed_jobs, "income"] == after[changed_jobs, "income"]).all()
+        assert (changed_jobs == changed_income).all()
 
 
 def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):

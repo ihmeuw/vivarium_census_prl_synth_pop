@@ -124,16 +124,6 @@ class Businesses:
             working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
-            # Create income propensity columns
-            pop["personal_income_propensity"] = self.randomness.get_draw(
-                pop.index,
-                additional_key="personal_income_propensity",
-            )
-            pop["employer_income_propensity"] = self.randomness.get_draw(
-                pop.index,
-                additional_key="employer_income_propensity",
-            )
-
             # merge on employer addresses and names
             pop = pop.merge(
                 self.businesses[["employer_id", "employer_name", "employer_address_id"]],
@@ -157,20 +147,23 @@ class Businesses:
 
             self.population_view.update(pop)
         else:
-            new_births = self.population_view.get(pop_data.index)
+            pop = self.population_view.get(pop_data.index)
 
-            # Update employment and income
-            new_births["personal_income_propensity"] = self.randomness.get_draw(
-                new_births.index,
-                additional_key="personal_income_propensity",
-            )
-            # Setting employment income propensity to 0 since we will redraw it when sims turn 18.
-            new_births["employer_income_propensity"] = 0.0
-            new_births["employer_id"] = data_values.UNEMPLOYED_ID
-            new_births["employer_name"] = "unemployed"
-            new_births["employer_address_id"] = data_values.UNEMPLOYED_ADDRESS_ID
+            pop["employer_id"] = data_values.UNEMPLOYED_ID
+            pop["employer_name"] = "unemployed"
+            pop["employer_address_id"] = data_values.UNEMPLOYED_ADDRESS_ID
 
-            self.population_view.update(new_births)
+        # Create income propensity columns
+        pop["personal_income_propensity"] = self.randomness.get_draw(
+            pop.index,
+            additional_key="personal_income_propensity",
+        )
+        pop["employer_income_propensity"] = self.randomness.get_draw(
+            pop.index,
+            additional_key="employer_income_propensity",
+        )
+
+        self.population_view.update(pop)
 
     def on_time_step(self, event: Event):
         """
