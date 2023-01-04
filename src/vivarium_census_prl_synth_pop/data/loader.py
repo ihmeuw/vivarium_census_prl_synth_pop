@@ -172,9 +172,8 @@ def load_asfr(key: str, location: str):
 
     # pivot
     asfr = asfr.reset_index()
-    asfr = asfr[
-        (asfr["year_start"] == 2019)
-    ]  # NOTE: this is the latest year available from GBD
+    # NOTE: 2019 is the latest year available from GBD
+    asfr = asfr[(asfr["year_start"] == 2019)]
     asfr_pivot = asfr.pivot(
         index=[col for col in metadata.ARTIFACT_INDEX_COLUMNS if col != "location"],
         columns="parameter",
