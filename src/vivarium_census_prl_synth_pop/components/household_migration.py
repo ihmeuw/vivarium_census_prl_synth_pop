@@ -46,7 +46,6 @@ class HouseholdMigration:
 
     def setup(self, builder: Builder):
         self.config = builder.configuration
-        self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.start_time = get_time_stamp(builder.configuration.time.start)
 
         move_rate_data = builder.lookup.build_table(

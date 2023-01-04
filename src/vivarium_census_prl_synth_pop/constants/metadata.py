@@ -16,7 +16,11 @@ MAKE_ARTIFACT_CPU = "1"
 MAKE_ARTIFACT_RUNTIME = "3:00:00"
 MAKE_ARTIFACT_SLEEP = 10
 
-LOCATIONS = ["Florida"]
+LOCATIONS = ["United States of America", "Florida"]
+UNITED_STATES_LOCATIONS = [
+    "California",
+    "Florida",
+]
 
 ARTIFACT_INDEX_COLUMNS = ["sex", "age_start", "age_end", "year_start", "year_end"]
 
