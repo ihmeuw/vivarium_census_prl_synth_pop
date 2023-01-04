@@ -327,7 +327,7 @@ def _read_and_format_raw_data(
             if k in metadata.UNITED_STATES_LOCATIONS
         ]
         data = data.query(f"state in {location_ids}")
-    elif location in metadata.CENSUS_STATE_IDS.keys():
+    elif location in metadata.CENSUS_STATE_IDS:
         data = data.query(f"state == {metadata.CENSUS_STATE_IDS[location]}")
     else:
         raise RuntimeError(f"location {location} not found in metadata.CENSUS_STATE_IDS")
