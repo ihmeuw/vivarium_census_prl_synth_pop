@@ -136,7 +136,9 @@ class Businesses:
 
             # merge on employer addresses and names
             pop = pop.merge(
-                self.businesses[self.columns_created[:3]], on="employer_id", how="left"
+                self.businesses[["employer_id", "employer_name", "employer_address_id"]],
+                on="employer_id",
+                how="left",
             )
 
             # Give military gq sims military employment
@@ -237,7 +239,7 @@ class Businesses:
             )
 
         # Give military gq sims military employment
-        military_index = pop.index[
+        new_military_idx = pop.index[
             (
                 pop["household_id"]
                 == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
@@ -245,13 +247,15 @@ class Businesses:
             & (pop["age"] >= data_values.WORKING_AGE)
             & (pop["employer_id"] != data_values.MilitaryEmployer.EMPLOYER_ID)
         ]
-        if len(military_index) > 0:
-            pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
+        if len(new_military_idx) > 0:
+            pop.loc[
+                new_military_idx, "employer_id"
+            ] = data_values.MilitaryEmployer.EMPLOYER_ID
 
         # Update income
         # Get new income propensity and update income for simulants who have new employers or joined the workforce
         employment_changing_sims_idx = changing_jobs_idx.union(turning_working_age).union(
-            military_index
+            new_military_idx
         )
         pop = self._update_employer_metadata(pop, employment_changing_sims_idx)
         pop.loc[
