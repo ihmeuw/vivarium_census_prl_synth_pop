@@ -75,9 +75,9 @@ PROBABILITY_OF_SPACE_IN_NAME = {
 # Businesses Values #
 #####################
 
-# data from https://www.jec.senate.gov/public/index.cfm/republicans/fl/
 BUSINESS_NAMES_MAX_TOKENS_LENGTH = 15
-PROPORTION_WORKFORCE_EMPLOYED = {"Florida": 0.576}
+PROPORTION_WORKFORCE_EMPLOYED = 0.6114
+
 WORKING_AGE = 18
 EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
 
@@ -96,7 +96,7 @@ class MilitaryEmployer(NamedTuple):
     EMPLOYER_ID = 1
     EMPLOYER_ADDRESS_ID = 1
     EMPLOYER_NAME = "military"
-    PROPORTION_WORKFORCE_EMPLOYED = 0.03
+    PROPORTION_WORKFORCE_EMPLOYED = 0.0032
 
 
 ###################
