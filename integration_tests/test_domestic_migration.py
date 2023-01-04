@@ -16,12 +16,32 @@ def test_individuals_move(simulants_on_adjacent_timesteps):
 
 def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        new_household_movers = (
+        # NOTE: This set is not exactly the same as "new-household movers," as
+        # implemented in the component, because it can in rare cases include
+        # non-reference-person movers who join a household that was *just*
+        # established by a new-household mover (within the same time step).
+        movers_into_new_households = (
             (before["household_id"] != after["household_id"])
             & (after["housing_type"] == "Standard")
             & (~after["household_id"].isin(before["household_id"]))
         )
+        assert movers_into_new_households.any()
+
+        assert (
+            after[movers_into_new_households]["relation_to_household_head"]
+            # Handling the non-reference-person movers described above.
+            .isin(["Reference person", "Other nonrelative"]).all()
+        )
+
+        # These are the true new-household movers, as that term is used in the
+        # migration component: the movers who establish a new household.
+        new_household_movers = movers_into_new_households & (
+            after["relation_to_household_head"] == "Reference person"
+        )
         assert new_household_movers.any()
+        # These should be the vast majority, since non-reference-person moves to
+        # new households will be quite rare.
+        assert new_household_movers.sum() / movers_into_new_households.sum() > 0.95
 
         # Household IDs moved to are unique
         new_households = after[new_household_movers]["household_id"]
@@ -31,12 +51,6 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         new_addresses = after[new_household_movers]["address_id"]
         assert new_addresses.nunique() == len(new_addresses)
         assert not new_addresses.isin(before["address_id"]).any()
-
-        # Households are single-person
-        assert not after[~new_household_movers]["household_id"].isin(new_households).any()
-        assert (
-            after[new_household_movers]["relation_to_household_head"] == "Reference person"
-        ).all()
 
 
 def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
