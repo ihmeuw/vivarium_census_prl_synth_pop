@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import pytest
 
 from vivarium_census_prl_synth_pop.constants import data_values
