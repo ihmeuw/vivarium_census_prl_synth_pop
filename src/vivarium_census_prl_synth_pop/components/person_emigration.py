@@ -89,7 +89,7 @@ class PersonEmigration:
         # TODO: GQ person moves
 
         # Leaving the US is equivalent to leaving the simulation
-        pop.loc[non_reference_person_movers_idx, "exit_time"] = event.time
+        pop.loc[non_reference_person_movers_idx, "exit_time"] = event.time.to_datetime64()
         pop.loc[non_reference_person_movers_idx, "tracked"] = False
 
         self.population_view.update(pop)
