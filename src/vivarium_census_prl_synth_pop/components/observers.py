@@ -231,7 +231,7 @@ class HouseholdSurveyObserver(BaseObserver):
         new_responses = new_responses[
             new_responses["household_id"].isin(respondent_households)
         ]
-        new_responses["survey_date"] = event.time.date()
+        new_responses["survey_date"] = event.time.floor("D")
         new_responses = utilities.add_guardian_address_ids(new_responses)
         # Apply column schema and concatenate
         return new_responses[self.output_columns]
