@@ -62,7 +62,7 @@ def test_do_observation(observer, mocked_pop_view, mocker):
     expected = mocked_pop_view
     expected["middle_initial"] = ["J", "M"]
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
-    expected["survey_date"] = [pd.to_datetime(sim_start_date).date()] * 2
+    expected["survey_date"] = [pd.to_datetime(sim_start_date).floor("D")] * 2
 
     pd.testing.assert_frame_equal(expected[observer.output_columns], observation)
 
@@ -87,8 +87,8 @@ def test_multiple_observation(observer, mocked_pop_view, mocker):
     expected = pd.concat([mocked_pop_view] * 2)
     expected["middle_initial"] = ["J", "M"] * 2
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
-    expected["survey_date"] = [pd.to_datetime(sim_start_date).date()] * 2 + [
-        event.time.date()
+    expected["survey_date"] = [pd.to_datetime(sim_start_date).floor("D")] * 2 + [
+        event.time.floor("D")
     ] * 2
 
     pd.testing.assert_frame_equal(expected[observer.output_columns], observer.responses)
