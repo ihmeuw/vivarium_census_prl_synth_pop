@@ -31,10 +31,7 @@ def populations(sim) -> List[pd.DataFrame]:
             if isinstance(p, dict):
                 continue
             elif isinstance(p, pd.DataFrame):
-                renamed_cols = [f"{pipeline}.{col}" for col in p.columns]
-                rename_dict = dict(zip(p.columns, renamed_cols))
-                p = p.rename(columns=rename_dict)
-                pop = pd.concat([pop, p], axis=1)
+                pop = pd.concat([pop, p.add_prefix(f"{pipeline}.")], axis=1)
             else:
                 # Pipeline is a Series
                 pop[pipeline] = p
