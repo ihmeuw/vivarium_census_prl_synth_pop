@@ -24,8 +24,19 @@ def populations(sim) -> List[pd.DataFrame]:
     population_states = []
     for _ in range(max(TIME_STEPS_TO_TEST) + 1):
         pop = sim.get_population(untracked=True)
-        population_states.append(pop)
+        pipelines = sim.list_values()
+        for pipeline in pipelines:
+            p = sim.get_value(pipeline)(pop.index)
+            # Metrics is a dict we cannot concat and do not want to
+            if isinstance(p, dict):
+                continue
+            elif isinstance(p, pd.DataFrame):
+                pop = pd.concat([pop, p.add_prefix(f"{pipeline}.")], axis=1)
+            else:
+                # Pipeline is a Series
+                pop[pipeline] = p
 
+        population_states.append(pop)
         sim.step()
 
     return population_states
