@@ -90,3 +90,21 @@ def test_households_only_have_one_reference_person(tracked_live_populations):
         ]
 
         assert len(household_ids) == len(household_ids.unique())
+
+
+def test_initialized_state_complete_coverage(populations, sim):
+    """Initialized states should include all locations from artifact"""
+    initialized_pop = populations[0]
+    states_in_artifact = set(
+        sim._data.artifact.load("population.households").index.unique(level="state")
+    )
+    assert states_in_artifact == set(initialized_pop["state"])
+
+
+def test_initialized_pumas_states(populations):
+    """Each unique non-GQ initialized address_id should have identical puma/state"""
+    initialized_pop = populations[0]
+    non_gq_pop = initialized_pop[
+        ~initialized_pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
+    ]
+    assert (non_gq_pop.groupby("address_id")["state", "puma"].nunique() == 1).values.all()
