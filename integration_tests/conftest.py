@@ -23,7 +23,7 @@ TIME_STEPS_TO_TEST = [0, 1, 10]
 def populations(sim) -> List[pd.DataFrame]:
     population_states = []
     for _ in range(max(TIME_STEPS_TO_TEST) + 1):
-        pop = sim.get_population(untracked=True)
+        pop = sim.get_population(untracked=True).assign(time=sim.current_time)
         population_states.append(pop)
 
         sim.step()

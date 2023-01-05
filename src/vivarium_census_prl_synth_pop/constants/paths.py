@@ -20,6 +20,11 @@ INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH = (
 HOUSEHOLD_DOMESTIC_MIGRATION_RATES_PATH = (
     BASE_DIR / "data/raw_data/household_domestic_migration_rates.csv"
 )
+
+NON_REFERENCE_PERSON_EMIGRATION_RATES_PATH = (
+    BASE_DIR / "data/raw_data/non_reference_person_emigration_rates.csv"
+)
+
 BUSINESS_NAMES_DATA = PROJECT_ROOT / "data/raw_data/business_names.csv.bz2"
 BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH = (
     PROJECT_ROOT / "data/raw_data/business_names_generation/"
