@@ -70,6 +70,10 @@ class BaseObserver(ABC):
         pass
 
     @property
+    def input_values(self):
+        return []
+
+    @property
     @abstractmethod
     def output_columns(self):
         pass
@@ -84,6 +88,9 @@ class BaseObserver(ABC):
         self.output_dir = Path(builder.configuration.output_data.results_directory)
         self.population_view = self.get_population_view(builder)
         self.responses = None
+        self.pipelines = {
+            pipeline: builder.value.get_value(pipeline) for pipeline in self.input_values
+        }
 
         # Register the listener to update the responses
         builder.event.register_listener(
@@ -287,7 +294,7 @@ class DecennialCensusObserver(BaseObserver):
 class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
-    ADDITIONAL_INPUT_COLUMNS = ["income"]
+    INPUT_VALUES = ["income"]
     ADDITIONAL_OUTPUT_COLUMNS = ["wic_year"]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
@@ -306,7 +313,11 @@ class WICObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+        return self.DEFAULT_INPUT_COLUMNS
+
+    @property
+    def input_values(self):
+        return self.INPUT_VALUES
 
     @property
     def output_columns(self):
@@ -328,6 +339,7 @@ class WICObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # WIC should include only living simulants
         )
+        pop["income"] = self.pipelines["income"](pop.index)
 
         # add columns for output
         pop["wic_year"] = event.time.year
@@ -340,7 +352,7 @@ class WICObserver(BaseObserver):
         hh_size = pop["address_id"].value_counts()
         pop["hh_size"] = pop["address_id"].map(hh_size)
 
-        hh_income = pop.groupby("address_id").income.sum()
+        hh_income = pop.groupby("address_id")["income"].sum()
         pop["hh_income"] = pop["address_id"].map(hh_income)
 
         # income eligibility for WIC is total household income less

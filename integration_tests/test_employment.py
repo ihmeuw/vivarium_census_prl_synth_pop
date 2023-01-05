@@ -1,6 +1,8 @@
+import numpy as np
+import pandas as pd
 import pytest
 
-from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.constants import data_values, paths
 
 # TODO: Broader test coverage
 
@@ -69,3 +71,56 @@ def test_movers_change_employment(populations):
         assert (
             before[should_change]["employer_id"] != after[should_change]["employer_id"]
         ).all()
+
+
+def test_employment_income_propensity_updates(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        changed_jobs = (before["employer_id"] != after["employer_id"]) & (
+            before["age"] > data_values.WORKING_AGE
+        )
+        changed_employer_propensity = (
+            before["employer_income_propensity"] != after["employer_income_propensity"]
+        ) & (before["age"] > data_values.WORKING_AGE)
+
+        assert (changed_jobs == changed_employer_propensity).all()
+
+
+def test_personal_income_propensity_is_constant(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        assert (
+            before["personal_income_propensity"] == after["personal_income_propensity"]
+        ).all()
+
+
+def test_income_updates_for_same_age_simulants(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        changed_jobs = (before["employer_id"] != after["employer_id"]) & (
+            np.floor(before["age"]) == np.floor(after["age"])
+        )
+        changed_income = (before["income"] != after["income"]) & (
+            np.floor(before["age"]) == np.floor(after["age"])
+        )
+
+        assert (changed_jobs == changed_income).all()
+
+
+def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):
+    # Checks whether simulants who age into the next income age bin and therefore will have a new income distribution
+    # Note: The other tests for income implementation are contigent on comparing simulants who are the same age and
+    #  therefore ignore this edge case.
+    # Uses age bins from income distribution CSV
+    income_distributions = pd.read_csv(paths.INCOME_DISTRIBUTIONS_DATA_PATH)
+    ages = income_distributions["age_end"]
+
+    for before, after in simulants_on_adjacent_timesteps:
+        for age in ages:
+            birthdays_idx = before.index[
+                (before["employer_id"] == after["employer_id"])
+                & (before["employer_id"] != data_values.UNEMPLOYED_ID)
+                & (before["age"] < age)
+                & (after["age"] > age)
+            ]
+
+            assert (
+                before.loc[birthdays_idx, "income"] != after.loc[birthdays_idx, "income"]
+            ).all()
