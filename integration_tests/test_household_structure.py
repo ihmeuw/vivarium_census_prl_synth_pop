@@ -54,3 +54,21 @@ def test_household_id_and_address_id_correspond(tracked_live_populations):
     assert (all_time_pop.groupby("address_id")["household_id"].nunique() == 1).all()
     # Note, however, that the reverse is not true: a household_id can span multiple address_ids
     # (over multiple time steps) when the whole house moved as a unit between those time steps.
+
+
+def test_initialized_state_complete_coverage(populations, sim):
+    """Initialized states should include all locations from artifact"""
+    initialized_pop = populations[0]
+    states_in_artifact = set(
+        sim._data.artifact.load("population.households").index.unique(level="state")
+    )
+    assert states_in_artifact == set(initialized_pop["state"])
+
+
+def test_initialized_pumas_states(populations):
+    """Each unique non-GQ initialized address_id should have identical puma/state"""
+    initialized_pop = populations[0]
+    non_gq_pop = initialized_pop[
+        ~initialized_pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
+    ]
+    assert (non_gq_pop.groupby("address_id")["state", "puma"].nunique() == 1).values.all()
