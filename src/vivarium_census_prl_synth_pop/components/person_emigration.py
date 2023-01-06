@@ -2,7 +2,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_census_prl_synth_pop.constants import paths, metadata
+from vivarium_census_prl_synth_pop.constants import metadata, paths
 
 
 class PersonEmigration:
