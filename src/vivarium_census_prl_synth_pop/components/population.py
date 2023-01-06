@@ -337,16 +337,25 @@ class Population:
 
     def on_time_step__cleanup(self, event: Event):
         """Ages simulants each time step.
-
         Parameters
         ----------
         event : vivarium.framework.event.Event
 
         """
-        population = self.population_view.subview(["age"]).get(
-            event.index, query="alive == 'alive'"
-        )
+        population = self.population_view.get(event.index, query="alive == 'alive'")
         population["age"] += to_years(event.step_size)
+
+        # Find standard households that do not have a reference person
+        household_ids_with_reference_person = population.loc[
+            population["relation_to_household_head"] == "Reference person", "household_id"
+        ]
+        standard_household_ids = population.loc[
+            population["housing_type"] == "Standard", "household_id"
+        ].unique()
+        household_ids_without_reference_person = set(standard_household_ids) - set(
+            household_ids_with_reference_person
+        )
+
         self.population_view.update(population)
 
     def assign_general_population_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
