@@ -67,6 +67,22 @@ def test_gq_people_emigrate(simulants_on_adjacent_timesteps):
     assert 0 < all_gq_emigration_status.mean() < 0.1
 
 
+def test_households_emigrate(simulants_on_adjacent_timesteps):
+    all_simulant_links, all_household_emigration_status = all_time_emigration_condition(
+        simulants_on_adjacent_timesteps,
+        lambda before, after: ~before["household_id"].isin(
+            after[after["tracked"]]["household_id"]
+        ),
+    )
+
+    emigrants = all_simulant_links[all_household_emigration_status]
+
+    # Never GQ households
+    assert (emigrants["housing_type_before"] == "Standard").all()
+
+    assert 0 < all_household_emigration_status.mean() < 0.1
+
+
 def test_nothing_happens_to_emigrated_people(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         already_emigrated = ~before["tracked"]

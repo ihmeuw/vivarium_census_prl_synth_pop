@@ -251,6 +251,7 @@ PRIORITY_MAP = {
     # When people emigrate, we no longer do anything else with them, so doing
     # this earlier saves pointless computation.
     "person_emigration.on_time_step": 4,
+    "household_emigration.on_time_step": 4,
     # Businesses must come after domestic migration
     # components, so that domestic migration can trigger employment change.
     # 5 is the default, but we are explicit here to show ordering.
