@@ -59,3 +59,15 @@ def test_non_reference_people_emigrate(simulants_on_adjacent_timesteps):
     # VERY conservative upper bound on how often this should be occurring, as a proportion
     # of living, tracked simulant-steps
     assert 0 < all_nrp_emigration_status.mean() < 0.1
+
+
+def test_nothing_happens_to_emigrated_people(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        already_emigrated = ~before["tracked"]
+        if already_emigrated.sum() == 0:
+            continue
+
+        columns_do_not_change = [c for c in before.columns if c != "time"]
+        assert before.loc[already_emigrated, columns_do_not_change].equals(
+            after.loc[already_emigrated, columns_do_not_change]
+        )
