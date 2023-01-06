@@ -59,8 +59,6 @@ def test_non_reference_people_emigrate(simulants_on_adjacent_timesteps):
 
 
 def test_gq_people_emigrate(simulants_on_adjacent_timesteps):
-    # This is a very rare event, so we can't assert that it happens
-    # on every timestep; instead, we aggregate across all timesteps.
     _, all_gq_emigration_status = all_time_emigration_condition(
         simulants_on_adjacent_timesteps,
         lambda before, after: before["housing_type"] != "Standard",
