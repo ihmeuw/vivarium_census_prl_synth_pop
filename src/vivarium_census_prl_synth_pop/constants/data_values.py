@@ -1,5 +1,7 @@
 from typing import NamedTuple
 
+from scipy import stats
+
 #########################
 # Population parameters #
 #########################
@@ -78,6 +80,9 @@ UNEMPLOYED_ID = 0
 UNEMPLOYED_ADDRESS_ID = 0
 
 BUSINESS_MOVE_RATE_YEARLY = 0.1  # 10 changes per 100 py
+
+PERSONAL_INCOME_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.812309**0.5)
+EMPLOYER_INCOME_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.187691**0.5)
 
 
 class MilitaryEmployer(NamedTuple):
