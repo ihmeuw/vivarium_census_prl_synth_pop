@@ -67,6 +67,18 @@ def test_gq_people_emigrate(simulants_on_adjacent_timesteps):
     assert 0 < all_gq_emigration_status.mean() < 0.1
 
 
+def test_nothing_happens_to_emigrated_people(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        already_emigrated = ~before["tracked"]
+        if already_emigrated.sum() == 0:
+            continue
+
+        columns_do_not_change = [c for c in before.columns if c != "time"]
+        assert before.loc[already_emigrated, columns_do_not_change].equals(
+            after.loc[already_emigrated, columns_do_not_change]
+        )
+
+
 def all_time_emigration_condition(
     simulants_on_adjacent_timesteps,
     condition_func=lambda before, after: True,
