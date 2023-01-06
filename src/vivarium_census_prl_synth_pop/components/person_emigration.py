@@ -2,7 +2,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_census_prl_synth_pop.constants import paths
+from vivarium_census_prl_synth_pop.constants import paths, metadata
 
 
 class PersonEmigration:
@@ -76,6 +76,7 @@ class PersonEmigration:
         builder.event.register_listener(
             "time_step",
             self.on_time_step,
+            priority=metadata.PRIORITY_MAP["person_emigration.on_time_step"],
         )
 
     ########################
