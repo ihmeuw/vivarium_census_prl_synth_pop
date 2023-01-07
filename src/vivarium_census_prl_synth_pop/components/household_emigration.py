@@ -48,6 +48,7 @@ class HouseholdEmigration:
             [
                 "household_id",
                 "relation_to_household_head",
+                "in_united_states",
                 "exit_time",
                 "tracked",
             ]
@@ -71,7 +72,7 @@ class HouseholdEmigration:
         # in this case, that household can no longer emigrate.
         pop = self.population_view.get(
             event.index,
-            query="alive == 'alive' and tracked == True",
+            query="alive == 'alive' and in_united_states == True and tracked == True",
         )
         reference_people = pop[pop["relation_to_household_head"] == "Reference person"]
 
@@ -80,10 +81,11 @@ class HouseholdEmigration:
             self.household_move_rate(reference_people.index),
         )
 
-        # Leaving the US is equivalent to leaving the simulation
         emigrating_idx = pop.index[
             pop["household_id"].isin(emigrating_reference_people["household_id"])
         ]
+        pop.loc[emigrating_idx, "in_united_states"] = False
+        # Leaving the US is equivalent to leaving the simulation
         pop.loc[emigrating_idx, "exit_time"] = event.time
         pop.loc[emigrating_idx, "tracked"] = False
 
