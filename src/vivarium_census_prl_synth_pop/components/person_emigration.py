@@ -90,7 +90,7 @@ class PersonEmigration:
         """
         pop = self.population_view.get(
             event.index,
-            query="alive == 'alive' and tracked == True",
+            query="alive == 'alive' and in_united_states == True and tracked == True",
         )
 
         non_reference_people_idx = pop.index[
