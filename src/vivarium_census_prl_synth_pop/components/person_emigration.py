@@ -1,6 +1,7 @@
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 
@@ -38,6 +39,7 @@ class PersonEmigration:
         self.columns_needed = [
             "relation_to_household_head",
             "housing_type",
+            "in_united_states",
             "exit_time",
             "tracked",
         ]
@@ -58,6 +60,10 @@ class PersonEmigration:
             source=non_reference_person_move_rates_lookup_table,
         )
 
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=["in_united_states"],
+        )
         builder.event.register_listener(
             "time_step",
             self.on_time_step,
@@ -67,6 +73,15 @@ class PersonEmigration:
     ########################
     # Event-driven methods #
     ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        pop_update = pd.DataFrame(
+            {
+                "in_united_states": True,
+            },
+            index=pop_data.index,
+        )
+        self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:
         """
@@ -89,6 +104,7 @@ class PersonEmigration:
 
         # TODO: GQ person moves
 
+        pop.loc[non_reference_person_movers_idx, "in_united_states"] = False
         # Leaving the US is equivalent to leaving the simulation
         pop.loc[non_reference_person_movers_idx, "exit_time"] = event.time
         pop.loc[non_reference_person_movers_idx, "tracked"] = False

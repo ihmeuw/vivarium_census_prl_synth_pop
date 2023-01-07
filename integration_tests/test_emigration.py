@@ -7,10 +7,11 @@ def test_individuals_emigrate(simulants_on_adjacent_timesteps):
     all_individual_emigration_status = []
 
     for before, after in simulants_on_adjacent_timesteps:
+        households_remaining_in_us = after[after["in_united_states"]]["household_id"]
         individual_emigrants = (
-            before["tracked"]
-            & ~after["tracked"]
-            & after["household_id"].isin(after[after["tracked"]]["household_id"])
+            before["in_united_states"]
+            & ~after["in_united_states"]
+            & after["household_id"].isin(households_remaining_in_us)
         )
 
         # Only occurs to living, tracked people
@@ -31,39 +32,41 @@ def test_individuals_emigrate(simulants_on_adjacent_timesteps):
     assert 0 < all_individual_emigration_status.mean() < 0.1
 
 
-def test_non_reference_people_emigrate(simulants_on_adjacent_timesteps):
+def test_non_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
     # This is a very rare event, so we can't assert that it happens
     # on every timestep; instead, we aggregate across all timesteps.
-    all_nrp_emigration_status = []
+    all_non_gq_emigration_status = []
 
     for before, after in simulants_on_adjacent_timesteps:
-        non_reference_people_emigrants = (
-            before["tracked"]
-            & ~after["tracked"]
-            & after["household_id"].isin(after[after["tracked"]]["household_id"])
+        households_remaining_in_us = after[after["in_united_states"]]["household_id"]
+        non_gq_individual_emigrants = (
+            before["in_united_states"]
+            & ~after["in_united_states"]
+            & after["household_id"].isin(households_remaining_in_us)
             & (before["housing_type"] == "Standard")
         )
 
         # Only occurs to living, tracked people
         living_tracked = before["tracked"] & (before["alive"] == "alive")
-        assert living_tracked[non_reference_people_emigrants].all()
+        assert living_tracked[non_gq_individual_emigrants].all()
 
         assert (
-            before[non_reference_people_emigrants]["relation_to_household_head"]
+            before[non_gq_individual_emigrants]["relation_to_household_head"]
             != "Reference person"
         ).all()
 
-        all_nrp_emigration_status.append(non_reference_people_emigrants[living_tracked])
+        all_non_gq_emigration_status.append(non_gq_individual_emigrants[living_tracked])
 
-    all_nrp_emigration_status = pd.concat(all_nrp_emigration_status, ignore_index=True)
+    all_non_gq_emigration_status = pd.concat(all_non_gq_emigration_status, ignore_index=True)
     # VERY conservative upper bound on how often this should be occurring, as a proportion
     # of living, tracked simulant-steps
-    assert 0 < all_nrp_emigration_status.mean() < 0.1
+    assert 0 < all_non_gq_emigration_status.mean() < 0.1
 
 
 def test_nothing_happens_to_emigrated_people(simulants_on_adjacent_timesteps):
+    # For now, those who are outside the US are untracked and nothing happens to them
     for before, after in simulants_on_adjacent_timesteps:
-        already_emigrated = ~before["tracked"]
+        already_emigrated = ~before["in_united_states"]
         if already_emigrated.sum() == 0:
             continue
 
