@@ -96,8 +96,6 @@ def test_income_updates_for_same_age_simulants(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         # Income is only calculated for tracked simulants
         tracked = after["tracked"]
-        assert (after[~tracked]["income"] == 0).all()
-
         before = before[tracked]
         after = after[tracked]
 

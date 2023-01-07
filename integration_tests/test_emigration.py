@@ -43,22 +43,22 @@ def test_individuals_emigrate(simulants_on_adjacent_timesteps):
     assert 0 < all_individual_emigration_status.mean() < 0.1
 
 
-def test_non_reference_people_emigrate(simulants_on_adjacent_timesteps):
-    all_simulant_links, all_nrp_emigration_status = all_time_emigration_condition(
+def test_non_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
+    all_simulant_links, all_non_gq_emigration_status = all_time_emigration_condition(
         simulants_on_adjacent_timesteps,
         lambda before, after: (
-            after["household_id"].isin(after[after["tracked"]]["household_id"])
+            after["household_id"].isin(after[after["in_united_states"]]["household_id"])
             & (before["housing_type"] == "Standard")
         ),
     )
 
-    emigrants = all_simulant_links[all_nrp_emigration_status]
+    emigrants = all_simulant_links[all_non_gq_emigration_status]
     assert (emigrants["relation_to_household_head_before"] != "Reference person").all()
 
-    assert 0 < all_nrp_emigration_status.mean() < 0.1
+    assert 0 < all_non_gq_emigration_status.mean() < 0.1
 
 
-def test_gq_people_emigrate(simulants_on_adjacent_timesteps):
+def test_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
     _, all_gq_emigration_status = all_time_emigration_condition(
         simulants_on_adjacent_timesteps,
         lambda before, after: before["housing_type"] != "Standard",
@@ -68,8 +68,9 @@ def test_gq_people_emigrate(simulants_on_adjacent_timesteps):
 
 
 def test_nothing_happens_to_emigrated_people(simulants_on_adjacent_timesteps):
+    # For now, those who are outside the US are untracked and nothing happens to them
     for before, after in simulants_on_adjacent_timesteps:
-        already_emigrated = ~before["tracked"]
+        already_emigrated = ~before["in_united_states"]
         if already_emigrated.sum() == 0:
             continue
 
@@ -91,7 +92,9 @@ def all_time_emigration_condition(
         assert before.index.equals(after.index)
         all_time_links.append(before.join(after, lsuffix="_before", rsuffix="_after"))
         all_time_condition.append(
-            before["tracked"] & ~after["tracked"] & condition_func(before, after)
+            before["in_united_states"]
+            & ~after["in_united_states"]
+            & condition_func(before, after)
         )
 
     all_time_links = pd.concat(all_time_links, ignore_index=True)
