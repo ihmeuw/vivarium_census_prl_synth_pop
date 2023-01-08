@@ -496,12 +496,27 @@ class SocialSecurityObserver(BaseObserver):
         return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
 
 
+def empty_income_series():
+    return pd.Series(index=pd.MultiIndex.from_arrays(
+                            [[], [], [], []],
+                           names=["simulant_id",
+                                  "employer_id",
+                                  "employer_name",
+                                  "employer_address_id",
+                           ]
+                     ),
+                     dtype="float64",
+                     name="income",
+        )
+empty_income_series()
+
 class TaxW2Observer(BaseObserver):
     """Class for observing columns relevant to W2 and 1099 tax data."""
 
     INPUT_VALUES = ["income"]
     ADDITIONAL_INPUT_COLUMNS = ["ssn", "employer_id", "employer_name", "employer_address_id",]
     OUTPUT_COLUMNS = [
+        "simulant_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -544,7 +559,8 @@ class TaxW2Observer(BaseObserver):
         self.clock = builder.time.clock()
 
         builder.event.register_listener("time_step", self.on_time_step)
-        self.income_to_date = pd.Series(dtype="float64")
+        self.income_to_date = empty_income_series()
+        self.time_step = builder.configuration.time.step_size  # in days
 
     def on_time_step(self, event):
         pop = self.population_view.get(
@@ -552,7 +568,18 @@ class TaxW2Observer(BaseObserver):
         )
         pop["income"] = self.pipelines["income"](pop.index)
 
-        # TODO: increment income for all person/employment pairs
+        # increment income for all person/employment pairs with income > 0
+        income_this_time_step = pd.Series(
+            pop["income"].values * self.time_step / DAYS_PER_YEAR,
+            index=pd.MultiIndex.from_arrays(
+                    [pop.index, pop["employer_id"], pop["employer_name"], pop["employer_address_id"],],
+                    names=["simulant_id", "employer_id", "employer_name", "employer_address_id"]
+                )
+        )
+
+        income_this_time_step = income_this_time_step[income_this_time_step > 0]
+
+        self.income_to_date = self.income_to_date.add(income_this_time_step, fill_value=0.0)
 
     def to_observe(self, event: Event) -> bool:
         """Only observe if this is the final time step of the sim"""
@@ -564,5 +591,21 @@ class TaxW2Observer(BaseObserver):
             event.index,
         )
 
-        # TODO: create dataframe of all person/employment pairs
-        return pd.DataFrame(columns=self.output_columns)
+        ### create dataframe of all person/employment pairs
+
+        # start with income to date, which has simulant_id and employer_id as multi-index
+        # (and other employer stuff comes along for the ride, because that is convenient)
+        self.income_to_date.name = "income"  # HACK: it would be nice if this name stayed
+        # with the pd.Series, but it is getting lost at some point in the computation
+
+        df_w2 = self.income_to_date.reset_index()
+
+        # merge in all simulant columns based on simulant id
+        for col in ["first_name_id", "middle_name_id", "last_name_id",
+                    "age", "date_of_birth", "sex", "ssn", "address_id"]:
+            df_w2[col] = pop.loc[df_w2["simulant_id"], col].values
+
+        # re-initialize income-to-date series for next year of income counting
+        self.income_to_date = empty_income_series()
+
+        return df_w2
