@@ -494,3 +494,75 @@ class SocialSecurityObserver(BaseObserver):
         df_death["event_date"] = pop["exit_time"]
 
         return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
+
+
+class TaxW2Observer(BaseObserver):
+    """Class for observing columns relevant to W2 and 1099 tax data."""
+
+    INPUT_VALUES = ["income"]
+    ADDITIONAL_INPUT_COLUMNS = ["ssn", "employer_id", "employer_name", "employer_address_id",]
+    OUTPUT_COLUMNS = [
+        "first_name_id",
+        "middle_name_id",
+        "last_name_id",
+        "age",
+        "date_of_birth",
+        "sex",
+        "ssn",
+        "address_id",
+        "employer_id",
+        "employer_name",
+        "employer_address_id",
+        "income",
+    ]
+
+    def __repr__(self):
+        return f"TaxW2Observer()"
+
+    @property
+    def name(self):
+        return f"tax_w2_observer"
+
+    @property
+    def output_filename(self):
+        return f"tax_w2.hdf"
+
+    @property
+    def input_columns(self):
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+
+    @property
+    def input_values(self):
+        return self.INPUT_VALUES
+
+    @property
+    def output_columns(self):
+        return self.OUTPUT_COLUMNS
+
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.clock = builder.time.clock()
+
+        builder.event.register_listener("time_step", self.on_time_step)
+        self.income_to_date = pd.Series(dtype="float64")
+
+    def on_time_step(self, event):
+        pop = self.population_view.get(
+            event.index,
+        )
+        pop["income"] = self.pipelines["income"](pop.index)
+
+        # TODO: increment income for all person/employment pairs
+
+    def to_observe(self, event: Event) -> bool:
+        """Only observe if this is the final time step of the sim"""
+        tax_date = dt.datetime(event.time.year, 1, 1)
+        return self.clock() < tax_date <= event.time
+
+    def get_observation(self, event: Event) -> pd.DataFrame:
+        pop = self.population_view.get(
+            event.index,
+        )
+
+        # TODO: create dataframe of all person/employment pairs
+        return pd.DataFrame(columns=self.output_columns)
