@@ -355,6 +355,18 @@ class Population:
         household_ids_without_reference_person = set(standard_household_ids) - set(
             household_ids_with_reference_person
         )
+        households_to_update_idx = population.index[
+            population["household_id"].isin(household_ids_without_reference_person)
+        ]
+
+        # Find oldest member in each household and make them new reference person
+        # This is a series with household_id as the index and the new reference person as the value
+        new_reference_persons = (
+            population.loc[households_to_update_idx].groupby(["household_id"])["age"].idxmax()
+        )
+        population.loc[
+            new_reference_persons, "relation_to_household_head"
+        ] = "Reference person"
 
         self.population_view.update(population)
 

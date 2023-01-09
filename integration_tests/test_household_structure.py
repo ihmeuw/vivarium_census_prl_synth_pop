@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-import pytest
 
+from integration_tests.conftest import TIME_STEPS_TO_TEST
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 # TODO: Broader test coverage
@@ -25,8 +25,6 @@ def test_relationship_is_categorical(tracked_live_populations):
         assert not relationship.isnull().any()
 
 
-# TODO stop skipping once MIC-3527 and MIC-3714 have been implemented
-@pytest.mark.skip
 def test_all_households_have_reference_person(tracked_live_populations):
     for pop in tracked_live_populations:
         non_gq_household_ids = pop[
@@ -54,3 +52,42 @@ def test_household_id_and_address_id_correspond(tracked_live_populations):
     assert (all_time_pop.groupby("address_id")["household_id"].nunique() == 1).all()
     # Note, however, that the reverse is not true: a household_id can span multiple address_ids
     # (over multiple time steps) when the whole house moved as a unit between those time steps.
+
+
+def test_new_reference_person_is_oldest_household_member(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        before_reference_person_idx = before.index[
+            before["relation_to_household_head"] == "Reference person"
+        ]
+        after_reference_person_idx = after.index[
+            (after["relation_to_household_head"] == "Reference person")
+            & (after["household_id"].isin(before["household_id"]))
+        ]
+        new_reference_person_idx = np.setdiff1d(
+            after_reference_person_idx, before_reference_person_idx
+        )
+
+        # Get households with new reference persons
+        household_ids_with_new_reference_person = after.loc[
+            new_reference_person_idx, "household_id"
+        ]
+        households_with_new_reference_person_idx = after.index[
+            after["household_id"].isin(household_ids_with_new_reference_person)
+        ]
+        oldest_members_of_affected_households = (
+            after.loc[households_with_new_reference_person_idx]
+            .groupby(["household_id"])["age"]
+            .idxmax()
+            .values
+        )
+
+        assert new_reference_person_idx.sort() == oldest_members_of_affected_households.sort()
+
+
+def test_households_only_have_one_reference_person(tracked_live_populations):
+    for pop in tracked_live_populations:
+        household_ids = pop.loc[
+            pop["relation_to_household_head"] == "Reference person", "household_id"
+        ]
+
+        assert len(household_ids) == len(household_ids.unique())
