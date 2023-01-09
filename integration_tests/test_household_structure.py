@@ -91,4 +91,3 @@ def test_households_only_have_one_reference_person(tracked_live_populations):
         ]
 
         assert len(household_ids) == len(household_ids.unique())
-
