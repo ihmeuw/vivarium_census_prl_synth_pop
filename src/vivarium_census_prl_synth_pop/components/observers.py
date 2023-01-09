@@ -144,11 +144,10 @@ class BaseObserver(ABC):
         """Define the observations in the concrete class"""
         pass
 
-    # TODO: consider using compressed csv instead of hdf
     def on_simulation_end(self, event: Event) -> None:
         output_dir = utilities.build_output_dir(self.output_dir, subdir="results")
         # 'fixed' format is not compatible with categorical data
-        self.responses.to_hdf(output_dir / self.output_filename, key="data", format="t")
+        self.responses.to_csv(output_dir / self.output_filename)
 
 
 class HouseholdSurveyObserver(BaseObserver):
@@ -188,7 +187,7 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def output_filename(self):
-        return f"{self.survey}.hdf"
+        return f"{self.survey}.csv.bz2"
 
     @property
     def input_columns(self):
@@ -261,7 +260,7 @@ class DecennialCensusObserver(BaseObserver):
 
     @property
     def output_filename(self):
-        return f"decennial_census.hdf"
+        return f"decennial_census.csv.bz2"
 
     @property
     def input_columns(self):
@@ -310,7 +309,7 @@ class WICObserver(BaseObserver):
 
     @property
     def output_filename(self):
-        return f"wic.hdf"
+        return f"wic.csv.bz2"
 
     @property
     def input_columns(self):
@@ -452,7 +451,7 @@ class SocialSecurityObserver(BaseObserver):
 
     @property
     def output_filename(self):
-        return f"social_security.hdf"
+        return f"social_security.csv.bz2"
 
     @property
     def input_columns(self):
@@ -529,6 +528,9 @@ class TaxW2Observer(BaseObserver):
         "employer_name",
         "employer_address_id",
         "income",
+        "dependent_id_list",
+        "dependent_address_id_list",
+        "housing_type",
     ]
 
     def __repr__(self):
@@ -540,7 +542,7 @@ class TaxW2Observer(BaseObserver):
 
     @property
     def output_filename(self):
-        return f"tax_w2.hdf"
+        return f"tax_w2.csv.bz2"
 
     @property
     def input_columns(self):
@@ -600,10 +602,24 @@ class TaxW2Observer(BaseObserver):
 
         df_w2 = self.income_to_date.reset_index()
 
-        # merge in all simulant columns based on simulant id
+        # merge in simulant columns based on simulant id
         for col in ["first_name_id", "middle_name_id", "last_name_id",
-                    "age", "date_of_birth", "sex", "ssn", "address_id"]:
+                    "age", "date_of_birth", "sex", "ssn", "address_id",
+                    "housing_type"]:
             df_w2[col] = pop.loc[df_w2["simulant_id"], col].values
+
+        # create lists of dependent ids and dependent address ids
+        df_dependents = pd.concat([
+            pop[pop["guardian_1"] != -1].assign(guardian_id = lambda x: x["guardian_1"]),
+            pop[pop["guardian_2"] != -1].assign(guardian_id = lambda x: x["guardian_2"]),
+        ])
+        
+        s_dependent_id_list = df_dependents.groupby("guardian_id").apply(lambda df_g: list(df_g.index))
+        s_dependent_address_id_list = df_dependents.groupby("guardian_id").apply(lambda df_g: list(df_g["address_id"]))
+
+        for col, s in [["dependent_id_list", s_dependent_id_list],
+                       ["dependent_address_id_list", s_dependent_address_id_list]]:
+            df_w2[col] = df_w2["simulant_id"].map(s)
 
         # re-initialize income-to-date series for next year of income counting
         self.income_to_date = empty_income_series()
