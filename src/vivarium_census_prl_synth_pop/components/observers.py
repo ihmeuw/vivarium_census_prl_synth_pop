@@ -476,15 +476,12 @@ class SocialSecurityObserver(BaseObserver):
 
 def empty_income_series():
     return pd.Series(index=pd.MultiIndex.from_arrays(
-                            [[], [], [], []],
+                            [[], []],
                            names=["simulant_id",
                                   "employer_id",
-                                  "employer_name",
-                                  "employer_address_id",
                            ]
                      ),
                      dtype="float64",
-                     name="income",
         )
 empty_income_series()
 
@@ -502,6 +499,7 @@ class TaxW2Observer(BaseObserver):
         "date_of_birth",
         "sex",
         "ssn",
+        "ssn_id",  # simulant id for ssn from another simulant
         "address_id",
         "employer_id",
         "employer_name",
@@ -549,9 +547,9 @@ class TaxW2Observer(BaseObserver):
         income_this_time_step = pd.Series(
             pop["income"].values * self.time_step / DAYS_PER_YEAR,
             index=pd.MultiIndex.from_arrays(
-                    [pop.index, pop["employer_id"], pop["employer_name"], pop["employer_address_id"],],
-                    names=["simulant_id", "employer_id", "employer_name", "employer_address_id"]
-                )
+                [pop.index, pop["employer_id"]],
+                names=["simulant_id", "employer_id"]
+            )
         )
 
         income_this_time_step = income_this_time_step[income_this_time_step > 0]
@@ -567,11 +565,11 @@ class TaxW2Observer(BaseObserver):
         pop = self.population_view.get(
             event.index,
         )
+        pop["income"] = self.pipelines["income"](pop.index)
 
         ### create dataframe of all person/employment pairs
 
         # start with income to date, which has simulant_id and employer_id as multi-index
-        # (and other employer stuff comes along for the ride, because that is convenient)
         self.income_to_date.name = "income"  # HACK: it would be nice if this name stayed
         # with the pd.Series, but it is getting lost at some point in the computation
 
@@ -581,13 +579,44 @@ class TaxW2Observer(BaseObserver):
         for col in ["first_name_id", "middle_name_id", "last_name_id",
                     "age", "date_of_birth", "sex", "ssn", "address_id",
                     "housing_type"]:
-            df_w2[col] = pop.loc[df_w2["simulant_id"], col].values
+            df_w2[col] = df_w2["simulant_id"].map(pop[col])
+
+
+        # for simulants without ssn, record a simulant_id for a random household
+        # member with an ssn, if one exists
+
+        simulants_wo_ssn = pd.Series(df_w2[~df_w2["ssn"]].index,
+                                     index=df_w2[~df_w2["ssn"]].index)
+        household_members_w_ssn = pop[pop["ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
+        simulant_from_which_to_borrow_ssn = simulants_wo_ssn.map(household_members_w_ssn)
+        ssn_for_simulants_wo = simulant_from_which_to_borrow_ssn.dropna().map(np.random.choice)  # NOTE: this does not use common random numbers, is that ok here?
+        
+        df_w2["ssn_id"] = ssn_for_simulants_wo
+        df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
+        
+            
+        # merge in employer columns based on employer_id
+        emp = pop.groupby("employer_id").first()
+        for col in ["employer_address_id", "employer_name"]:
+            df_w2[col] = df_w2["employer_id"].map(emp[col])
+
 
         # create lists of dependent ids and dependent address ids
         df_dependents = pd.concat([
             pop[pop["guardian_1"] != -1].assign(guardian_id = lambda x: x["guardian_1"]),
             pop[pop["guardian_2"] != -1].assign(guardian_id = lambda x: x["guardian_2"]),
         ])
+
+        # not all simulants with a guardian are eligible to be dependents
+        df_dependents = df_dependents[
+            # Dependents must qualify as one of the following:
+            # Be under the age of 19 (less than or equal to 18)
+            (df_dependents["age"] < 19)
+            # OR be less than 24, in GQ in college, and earn less than $10,000
+            | ((df_dependents["age"] < 24) & (df_dependents["housing_type"] == "College") & (df_dependents["income"] < 10_000))
+            # OR be any age, but earn less than $4300
+            | (df_dependents["income"] < 4_300)
+        ]
         
         s_dependent_id_list = df_dependents.groupby("guardian_id").apply(lambda df_g: list(df_g.index))
         s_dependent_address_id_list = df_dependents.groupby("guardian_id").apply(lambda df_g: list(df_g["address_id"]))
