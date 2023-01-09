@@ -61,11 +61,6 @@ class BaseObserver(ABC):
 
     @property
     @abstractmethod
-    def output_filename(self):
-        pass
-
-    @property
-    @abstractmethod
     def input_columns(self):
         pass
 
@@ -147,7 +142,7 @@ class BaseObserver(ABC):
     def on_simulation_end(self, event: Event) -> None:
         output_dir = utilities.build_output_dir(self.output_dir, subdir="results")
         # 'fixed' format is not compatible with categorical data
-        self.responses.to_csv(output_dir / self.output_filename)
+        self.responses.to_csv(output_dir / (self.name+'.csv.bz2'))
 
 
 class HouseholdSurveyObserver(BaseObserver):
@@ -184,10 +179,6 @@ class HouseholdSurveyObserver(BaseObserver):
     @property
     def name(self):
         return f"household_survey_observer.{self.survey}"
-
-    @property
-    def output_filename(self):
-        return f"{self.survey}.csv.bz2"
 
     @property
     def input_columns(self):
@@ -259,10 +250,6 @@ class DecennialCensusObserver(BaseObserver):
         return f"decennial_census_observer"
 
     @property
-    def output_filename(self):
-        return f"decennial_census.csv.bz2"
-
-    @property
     def input_columns(self):
         return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
@@ -306,10 +293,6 @@ class WICObserver(BaseObserver):
     @property
     def name(self):
         return f"wic_observer"
-
-    @property
-    def output_filename(self):
-        return f"wic.csv.bz2"
 
     @property
     def input_columns(self):
@@ -450,10 +433,6 @@ class SocialSecurityObserver(BaseObserver):
         return f"social_security_observer"
 
     @property
-    def output_filename(self):
-        return f"social_security.csv.bz2"
-
-    @property
     def input_columns(self):
         return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
@@ -539,10 +518,6 @@ class TaxW2Observer(BaseObserver):
     @property
     def name(self):
         return f"tax_w2_observer"
-
-    @property
-    def output_filename(self):
-        return f"tax_w2.csv.bz2"
 
     @property
     def input_columns(self):
