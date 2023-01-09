@@ -54,51 +54,40 @@ def test_household_id_and_address_id_correspond(tracked_live_populations):
     # (over multiple time steps) when the whole house moved as a unit between those time steps.
 
 
-def test_new_reference_person_is_oldest_household_member(tracked_live_populations):
-    for time_step in range(max(TIME_STEPS_TO_TEST)):
-        before_reference_person_idx = (
-            tracked_live_populations[time_step]
-            .loc[
-                tracked_live_populations[time_step]["relation_to_household_head"]
-                == "Reference person"
-            ]
-            .index
-        )
-        after_reference_person_idx = (
-            tracked_live_populations[time_step + 1]
-            .loc[
-                tracked_live_populations[time_step + 1]["relation_to_household_head"]
-                == "Reference person"
-            ]
-            .index
-        )
+def test_new_reference_person_is_oldest_household_member(simulants_on_adjacent_timesteps):
+    for before, after in simulants_on_adjacent_timesteps:
+        before_reference_person_idx = before.index[
+            before["relation_to_household_head"] == "Reference person"
+        ]
+        after_reference_person_idx = after.index[
+            (after["relation_to_household_head"] == "Reference person")
+            & (after["household_id"].isin(before["household_id"]))
+        ]
         new_reference_person_idx = np.setdiff1d(
             after_reference_person_idx, before_reference_person_idx
         )
 
         # Get households with new reference persons
-        household_ids_with_new_reference_person = tracked_live_populations[time_step + 1].loc[
+        household_ids_with_new_reference_person = after.loc[
             new_reference_person_idx, "household_id"
         ]
-        assert len(household_ids_with_new_reference_person) == len(
-            household_ids_with_new_reference_person.unique()
-        )
-
-        households_with_new_reference_person_idx = (
-            tracked_live_populations[time_step + 1]
-            .loc[
-                tracked_live_populations[time_step + 1]["household_id"].isin(
-                    household_ids_with_new_reference_person
-                )
-            ]
-            .index
-        )
+        households_with_new_reference_person_idx = after.index[
+            after["household_id"].isin(household_ids_with_new_reference_person)
+        ]
         oldest_members_of_affected_households = (
-            tracked_live_populations[time_step + 1]
-            .loc[households_with_new_reference_person_idx]
+            after.loc[households_with_new_reference_person_idx]
             .groupby(["household_id"])["age"]
             .idxmax()
             .values
         )
 
         assert new_reference_person_idx.sort() == oldest_members_of_affected_households.sort()
+
+
+def test_households_only_have_one_reference_person(tracked_live_populations):
+    for pop in tracked_live_populations:
+        household_ids = pop.loc[
+            pop["relation_to_household_head"] == "Reference person", "household_id"
+        ]
+
+        assert len(household_ids) == len(household_ids.unique())
