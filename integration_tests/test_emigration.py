@@ -83,16 +83,22 @@ def test_households_emigrate(simulants_on_adjacent_timesteps):
     assert 0 < all_household_emigration_status.mean() < 0.1
 
 
-def test_nothing_happens_to_emigrated_people(simulants_on_adjacent_timesteps):
+def test_emigrated_people_are_untracked(populations):
     # For now, those who are outside the US are untracked and nothing happens to them
+    # May change if we want to allow emigrants to come *back* into the US
+    for pop in populations:
+        assert not pop[~pop["in_united_states"]]["tracked"].any()
+
+
+def test_nothing_happens_to_untracked_people(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        already_emigrated = ~before["in_united_states"]
-        if already_emigrated.sum() == 0:
+        untracked = ~before["tracked"]
+        if untracked.sum() == 0:
             continue
 
         columns_do_not_change = [c for c in before.columns if c != "time"]
-        assert before.loc[already_emigrated, columns_do_not_change].equals(
-            after.loc[already_emigrated, columns_do_not_change]
+        assert before.loc[untracked, columns_do_not_change].equals(
+            after.loc[untracked, columns_do_not_change]
         )
 
 
