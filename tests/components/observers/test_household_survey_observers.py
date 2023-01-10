@@ -42,7 +42,7 @@ def test_on_simulation_end(observer, mocker):
     event = mocker.MagicMock()
     observer.responses = pd.DataFrame()
     observer.on_simulation_end(event)
-    assert (observer.output_dir / "results" / (observer.name + ".csv.bz2")).is_file()
+    assert (observer.output_dir / "results" / (f"{observer.name}.csv.bz2")).is_file()
 
 
 def test_do_observation(observer, mocked_pop_view, mocker):

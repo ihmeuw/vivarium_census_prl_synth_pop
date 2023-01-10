@@ -142,7 +142,7 @@ class BaseObserver(ABC):
     def on_simulation_end(self, event: Event) -> None:
         output_dir = utilities.build_output_dir(self.output_dir, subdir="results")
         # 'fixed' format is not compatible with categorical data
-        self.responses.to_csv(output_dir / (self.name + ".csv.bz2"))
+        self.responses.to_csv(output_dir / (f"{self.name}.csv.bz2"))
 
 
 class HouseholdSurveyObserver(BaseObserver):
@@ -487,8 +487,6 @@ def empty_income_series():
     )
 
 
-
-
 class TaxW2Observer(BaseObserver):
     """Class for observing columns relevant to W2 and 1099 tax data."""
 
@@ -542,11 +540,20 @@ class TaxW2Observer(BaseObserver):
         super().setup(builder)
         self.clock = builder.time.clock()
 
-        builder.event.register_listener("time_step", self.on_time_step)
+        vivarium_randomness = builder.randomness.get_stream(
+            self.name, for_initialization=True
+        )
+        np_random_seed = 12345 + int(vivarium_randomness.seed)
+        self.np_randomness = np.random.default_rng(np_random_seed)
+
+        # increment income based on the job the simulant has during
+        # the course of the time_step, which might change if we do
+        # this check on_time_step instead of on_time_step__prepare
+        builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
         self.income_to_date = empty_income_series()
         self.time_step = builder.configuration.time.step_size  # in days
 
-    def on_time_step(self, event):
+    def on_time_step__prepare(self, event):
         pop = self.population_view.get(
             event.index,
         )
@@ -606,10 +613,9 @@ class TaxW2Observer(BaseObserver):
         household_members_w_ssn = (
             pop[pop["ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
-        simulant_from_which_to_borrow_ssn = simulants_wo_ssn.map(household_members_w_ssn)
-        ssn_for_simulants_wo = simulant_from_which_to_borrow_ssn.dropna().map(
-            np.random.choice
-        )  # NOTE: this does not use common random numbers, is that ok here?
+        household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
+
+        ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
 
         df_w2["ssn_id"] = ssn_for_simulants_wo
         df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
@@ -622,8 +628,8 @@ class TaxW2Observer(BaseObserver):
         # create lists of dependent ids and dependent address ids
         df_dependents = pd.concat(
             [
-                pop[pop["guardian_1"] != -1].assign(guardian_id=lambda x: x["guardian_1"]),
-                pop[pop["guardian_2"] != -1].assign(guardian_id=lambda x: x["guardian_2"]),
+                pop[pop["guardian_1"] != -1].eval("guardian_id=guardian_1"),
+                pop[pop["guardian_2"] != -1].eval("guardian_id=guardian_2"),
             ]
         )
 
@@ -645,6 +651,7 @@ class TaxW2Observer(BaseObserver):
         s_dependent_id_list = df_dependents.groupby("guardian_id").apply(
             lambda df_g: list(df_g.index)
         )
+
         s_dependent_address_id_list = df_dependents.groupby("guardian_id").apply(
             lambda df_g: list(df_g["address_id"])
         )
