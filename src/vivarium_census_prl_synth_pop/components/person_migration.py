@@ -87,7 +87,7 @@ class PersonMigration:
         builder.event.register_listener(
             "time_step",
             self.on_time_step,
-            priority=metadata.PRIORITY_MAP["person.on_time_step"],
+            priority=metadata.PRIORITY_MAP["person_migration.on_time_step"],
         )
 
     ########################

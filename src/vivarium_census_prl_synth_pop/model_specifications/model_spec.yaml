@@ -4,6 +4,7 @@ components:
             - Population()
             - HouseholdMigration()
             - PersonMigration()
+            - PersonEmigration()
             - Mortality()
             - Fertility()
             - Businesses()

@@ -248,10 +248,13 @@ class __Scenarios(NamedTuple):
 SCENARIOS = __Scenarios()
 
 PRIORITY_MAP = {
+    # When people emigrate, we no longer do anything else with them, so doing
+    # this earlier saves pointless computation.
+    "person_emigration.on_time_step": 4,
+    # Businesses must come after domestic migration
+    # components, so that domestic migration can trigger employment change.
     # 5 is the default, but we are explicit here to show ordering.
-    # Businesses must come after migration
-    # components, so that migration can trigger employment change.
-    "person.on_time_step": 5,
-    "household.on_time_step": 5,
+    "person_migration.on_time_step": 5,
+    "household_migration.on_time_step": 5,
     "businesses.on_time_step": 6,
 }
