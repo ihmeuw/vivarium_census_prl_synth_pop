@@ -78,7 +78,7 @@ class HouseholdMigration:
         builder.event.register_listener(
             "time_step",
             self.on_time_step,
-            priority=metadata.PRIORITY_MAP["household.on_time_step"],
+            priority=metadata.PRIORITY_MAP["household_migration.on_time_step"],
         )
 
     ########################
