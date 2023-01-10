@@ -268,7 +268,7 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
 
 
 def get_state_puma_map(df: pd.DataFrame) -> Dict[int, int]:
-    return df.groupby("state")["puma"].apply(lambda x: list(x.unique())).to_dict()
+    return df.groupby("state")["puma"].unique()
 
 
 def update_address_id(
@@ -299,14 +299,14 @@ def update_state_and_puma(
     units_that_move_ids: pd.Index,
     state_col_name: str,
     puma_col_name: str,
-    state_puma_map: Dict[int, List[int]],
+    state_puma_map: pd.Series,
     randomness,
 ) -> pd.DataFrame:
     """Sample from all states/pumas in the artifact. This adds 'state' and 'puma'
     columns to the units dataframe
     """
     state_puma_options = []
-    for state in state_puma_map:
+    for state in state_puma_map.index:
         state_puma_options.extend([(state, puma) for puma in state_puma_map[state]])
     state_puma_choices = pd.DataFrame(
         vectorized_choice(
@@ -332,7 +332,7 @@ def update_addresses(
     address_id_col_name: str,
     state_col_name: str,
     puma_col_name: str,
-    state_puma_map: Dict[int, List[int]],
+    state_puma_map: pd.Series,
     randomness: RandomnessStream,
     units: Optional[pd.DataFrame] = None,
     unit_id_col_name: Optional[str] = None,
@@ -349,7 +349,7 @@ def update_addresses(
     address_id_col_name: Column name in state table where address_id for the unit is stored.
     state_col_name: Column name for state
     puma_col_name: Column name for puma
-    state_puma_map: dictionary of state-to-puma mapping
+    state_puma_map: pd.Series of state-to-puma mapping
     randomness: Randomness stream
     units: (Optional) Dataframe of units that might move with index unit ID
         (eg household_id) and columns address_id_col_name (eg address_id),
@@ -365,27 +365,6 @@ def update_addresses(
     starting_address_id: Updated integer at which to start when generating more address_ids.
     """
 
-    def _update_address_id_state_puma(
-        df, movers_idx, starting_address_id, address_id_col_name
-    ):
-        df = update_address_id(
-            units=df,
-            units_that_move_ids=movers_idx,
-            starting_address_id=starting_address_id,
-            address_id_col_name=address_id_col_name,
-        )
-        df = update_state_and_puma(
-            units=df,
-            units_that_move_ids=movers_idx,
-            state_col_name=state_col_name,
-            puma_col_name=puma_col_name,
-            state_puma_map=state_puma_map,
-            randomness=randomness,
-        )
-        starting_address_id += len(movers_idx)
-        return df, starting_address_id
-
-    pop0 = pop.copy()
     # Move groups (households or employers), not individuals
     if (units is not None) and (len(movers_idx) > 0):
         address_change_idx = pop.loc[pop[unit_id_col_name].isin(movers_idx)].index
@@ -396,7 +375,11 @@ def update_addresses(
             df=units,
             movers_idx=movers_idx,
             starting_address_id=starting_address_id,
+            state_puma_map=state_puma_map,
             address_id_col_name=address_id_col_name,
+            state_col_name=state_col_name,
+            puma_col_name=puma_col_name,
+            randomness=randomness,
         )
 
         # update address columns in the pop table
@@ -421,10 +404,42 @@ def update_addresses(
             df=pop,
             movers_idx=movers_idx,
             starting_address_id=starting_address_id,
+            state_puma_map=state_puma_map,
             address_id_col_name=address_id_col_name,
+            state_col_name=state_col_name,
+            puma_col_name=puma_col_name,
+            randomness=randomness,
         )
 
     return pop, units, starting_address_id
+
+
+def _update_address_id_state_puma(
+    df: pd.DataFrame,
+    movers_idx: pd.Index,
+    starting_address_id: int,
+    state_puma_map: pd.Series,
+    address_id_col_name: str,
+    state_col_name: str,
+    puma_col_name: str,
+    randomness: RandomnessStream,
+):
+    df = update_address_id(
+        units=df,
+        units_that_move_ids=movers_idx,
+        starting_address_id=starting_address_id,
+        address_id_col_name=address_id_col_name,
+    )
+    df = update_state_and_puma(
+        units=df,
+        units_that_move_ids=movers_idx,
+        state_col_name=state_col_name,
+        puma_col_name=puma_col_name,
+        state_puma_map=state_puma_map,
+        randomness=randomness,
+    )
+    starting_address_id += len(movers_idx)
+    return df, starting_address_id
 
 
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:

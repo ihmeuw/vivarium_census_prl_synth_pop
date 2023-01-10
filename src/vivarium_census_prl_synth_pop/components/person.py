@@ -47,6 +47,7 @@ class PersonMigration:
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
         self.columns_needed = [
+            "alive",
             "household_id",
             "relation_to_household_head",
             "address_id",
@@ -122,14 +123,11 @@ class PersonMigration:
         Determines which simulants will move with which move type
         and performs those move operations.
         """
-        pop = self.population_view.get(
-            event.index,
-            query="alive == 'alive'",
-        )
         # Want all addresses, including from dead simulants
-        address_id_to_state_puma_map = self._get_non_gq_address_id_to_state_puma_mapping(
-            self.population_view.get(event.index)
-        )
+        pop = self.population_view.get(event.index)
+        address_id_to_state_puma_map = self._get_non_gq_address_id_to_state_puma_mapping(pop)
+        # Now filter to only living simulants
+        pop = pop[pop["alive"] == "alive"]
         # Get subsets of simulants that do each move type on this timestep
         move_type_probabilities = self.person_move_probabilities(pop.index)
         move_types_chosen = self.randomness.choice(
@@ -168,7 +166,6 @@ class PersonMigration:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
-        pop0 = pop.copy()
         first_new_household_id = pop["household_id"].max() + 1
         first_new_household_address_id = pop["address_id"].max() + 1
 
@@ -302,10 +299,8 @@ class PersonMigration:
         pop.loc[movers, "relation_to_household_head"] = "Other nonrelative"
         # Update address and enforce address_id-state/puma link
         pop.loc[movers, "address_id"] = household_id_values.map(non_gq_address_ids)
-        pop = pop.reset_index().set_index("address_id")
-        pop.update(address_mapping)
-        pop = pop.reset_index().set_index("index")
-        pop.index.name = None
+        pop.loc[movers, "state"] = pop["address_id"].map(address_mapping["state"])
+        pop.loc[movers, "puma"] = pop["address_id"].map(address_mapping["puma"])
 
         return pop
 

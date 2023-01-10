@@ -126,14 +126,11 @@ def test_only_living_people_move(simulants_on_adjacent_timesteps):
         assert (after[movers]["alive"] == "alive").all()
 
 
-def test_address_ids_states_pumas(simulants_on_adjacent_timesteps, sim) -> None:
-    """Check that address_ids are mapping correctly to states/pumas. Note that
+def test_addresses_during_moves(simulants_on_adjacent_timesteps) -> None:
+    """Check that addresses are handled properly during moves. Note that
     this test does not distinguish between the different types of moves (eg
     household moves, business moves, individual moves, etc)
     """
-    state_puma_map = get_state_puma_map(
-        sim._data.artifact.load("population.households").reset_index()
-    )
     for before, after in simulants_on_adjacent_timesteps:
         mask_movers = before["address_id"] != after["address_id"]
         # TODO: Check that *most* are in a new state when we add all locations
@@ -157,30 +154,24 @@ def test_address_ids_states_pumas(simulants_on_adjacent_timesteps, sim) -> None:
             after.loc[same_non_gq_addresses, ["state", "puma"]],
         )
 
-        # Ensure pumas map to correct state. This will be an imperfect test
-        # because pumas are only unique within states and so one puma can
-        # exist in multiple states. Here we only ensure no impossible pumas
-        # exist in each state
-        for (state, puma) in before[["state", "puma"]].drop_duplicates().values:
-            assert puma in state_puma_map[state]
-        for (state, puma) in after[["state", "puma"]].drop_duplicates().values:
+
+def test_address_uniqueness(populations, sim):
+    # Ensure pumas map to correct state. This will be an imperfect test
+    # because pumas are only unique within states and so one puma can
+    # exist in multiple states. Here we only ensure no impossible pumas
+    # exist in each state
+    state_puma_map = get_state_puma_map(
+        sim._data.artifact.load("population.households").reset_index()
+    )
+    for pop in populations:
+        for (state, puma) in pop[["state", "puma"]].drop_duplicates().values:
             assert puma in state_puma_map[state]
 
         # Each unique address_id has the same puma/state (except for GQ)
         assert (
             (
-                before[before["housing_type"] == "Standard"]
-                .groupby("address_id")["state", "puma"]
-                .nunique()
-                == 1
-            )
-            .all()
-            .all()
-        )
-        assert (
-            (
-                after[after["housing_type"] == "Standard"]
-                .groupby("address_id")["state", "puma"]
+                pop[pop["housing_type"] == "Standard"]
+                .groupby("address_id")[["state", "puma"]]
                 .nunique()
                 == 1
             )

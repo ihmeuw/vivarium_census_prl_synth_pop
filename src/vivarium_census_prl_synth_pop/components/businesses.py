@@ -182,9 +182,9 @@ class Businesses:
             event.index,
             query="alive == 'alive'",
         )
-        all_businesses = self.businesses.loc[
+        all_businesses = self.businesses.index[
             self.businesses.index != data_values.UNEMPLOYED_ID
-        ].index
+        ]
         businesses_that_move_idx = filter_by_rate(
             all_businesses,
             self.randomness,
@@ -359,10 +359,10 @@ class Businesses:
         employer_ids = pop.loc[rows_to_update, "employer_id"]
 
         pop.loc[rows_to_update, "employer_address_id"] = employer_ids.map(
-            self.businesses["employer_address_id"].to_dict()
+            self.businesses["employer_address_id"]
         )
         pop.loc[rows_to_update, "employer_name"] = employer_ids.map(
-            self.businesses["employer_name"].to_dict()
+            self.businesses["employer_name"]
         )
 
         return pop
