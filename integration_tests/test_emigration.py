@@ -77,7 +77,7 @@ def test_households_emigrate(simulants_on_adjacent_timesteps):
 
     emigrants = all_simulant_links[all_household_emigration_status]
 
-    # Never GQ households
+    # GQ households never emigrate
     assert (emigrants["housing_type_before"] == "Standard").all()
 
     assert 0 < all_household_emigration_status.mean() < 0.1
