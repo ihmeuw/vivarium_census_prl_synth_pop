@@ -1,5 +1,3 @@
-from typing import Dict
-
 import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import data_values
@@ -61,8 +59,6 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         new_addresses = after[new_household_movers]["address_id"]
         assert new_addresses.nunique() == len(new_addresses)
         assert not new_addresses.isin(before["address_id"]).any()
-
-        # TODO: Add state/puma tests
 
 
 def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
