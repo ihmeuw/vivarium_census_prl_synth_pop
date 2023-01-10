@@ -94,6 +94,11 @@ def test_personal_income_propensity_is_constant(simulants_on_adjacent_timesteps)
 
 def test_income_updates_for_same_age_simulants(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
+        # Income is only calculated for tracked simulants
+        tracked = after["tracked"]
+        before = before[tracked]
+        after = after[tracked]
+
         changed_jobs = (before["employer_id"] != after["employer_id"]) & (
             np.floor(before["age"]) == np.floor(after["age"])
         )
