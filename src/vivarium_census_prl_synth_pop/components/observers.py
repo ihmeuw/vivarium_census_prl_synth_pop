@@ -487,7 +487,6 @@ def empty_income_series():
     )
 
 
-empty_income_series()
 
 
 class TaxW2Observer(BaseObserver):
