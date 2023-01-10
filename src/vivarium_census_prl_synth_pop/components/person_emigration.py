@@ -56,8 +56,23 @@ class PersonEmigration:
             value_columns=["non_reference_person_emigration_rate"],
         )
         self.non_reference_person_move_rates = builder.value.register_rate_producer(
-            f"{self.name}.move_rates",
+            f"{self.name}.non_reference_person_move_rates",
             source=non_reference_person_move_rates_lookup_table,
+        )
+
+        gq_person_move_rates_data = pd.read_csv(
+            paths.GQ_PERSON_EMIGRATION_RATES_PATH,
+        )
+
+        gq_person_move_rates_lookup_table = builder.lookup.build_table(
+            data=gq_person_move_rates_data,
+            key_columns=["sex", "race_ethnicity", "state", "born_in_us"],
+            parameter_columns=["age"],
+            value_columns=["gq_person_emigration_rate"],
+        )
+        self.gq_person_move_rates = builder.value.register_rate_producer(
+            f"{self.name}.gq_person_move_rates",
+            source=gq_person_move_rates_lookup_table,
         )
 
         builder.population.initializes_simulants(
@@ -102,11 +117,16 @@ class PersonEmigration:
             self.non_reference_person_move_rates(non_reference_people_idx),
         )
 
-        # TODO: GQ person moves
+        gq_people_idx = pop.index[pop["housing_type"] != "Standard"]
+        gq_person_movers_idx = self.randomness.filter_for_rate(
+            gq_people_idx,
+            self.gq_person_move_rates(gq_people_idx),
+        )
 
-        pop.loc[non_reference_person_movers_idx, "in_united_states"] = False
+        emigrating_idx = non_reference_person_movers_idx.union(gq_person_movers_idx)
+        pop.loc[emigrating_idx, "in_united_states"] = False
         # Leaving the US is equivalent to leaving the simulation
-        pop.loc[non_reference_person_movers_idx, "exit_time"] = event.time
-        pop.loc[non_reference_person_movers_idx, "tracked"] = False
+        pop.loc[emigrating_idx, "exit_time"] = event.time
+        pop.loc[emigrating_idx, "tracked"] = False
 
         self.population_view.update(pop)
