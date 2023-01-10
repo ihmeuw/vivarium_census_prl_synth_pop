@@ -67,6 +67,22 @@ def test_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
     assert 0 < all_gq_emigration_status.mean() < 0.1
 
 
+def test_households_emigrate(simulants_on_adjacent_timesteps):
+    all_simulant_links, all_household_emigration_status = all_time_emigration_condition(
+        simulants_on_adjacent_timesteps,
+        lambda before, after: ~before["household_id"].isin(
+            after[after["in_united_states"]]["household_id"]
+        ),
+    )
+
+    emigrants = all_simulant_links[all_household_emigration_status]
+
+    # GQ households never emigrate
+    assert (emigrants["housing_type_before"] == "Standard").all()
+
+    assert 0 < all_household_emigration_status.mean() < 0.1
+
+
 def test_emigrated_people_are_untracked(populations):
     # For now, those who are outside the US are untracked and nothing happens to them
     # May change if we want to allow emigrants to come *back* into the US
