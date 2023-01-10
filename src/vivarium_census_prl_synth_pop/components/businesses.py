@@ -9,15 +9,12 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    metadata,
-    paths,
-)
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
-    update_address_id_for_unit_and_sims,
+    get_state_puma_map,
+    update_addresses,
+    update_state_and_puma,
 )
 
 
@@ -62,6 +59,8 @@ class Businesses:
             "employer_id",
             "employer_name",
             "employer_address_id",
+            "employer_state",
+            "employer_puma",
             "personal_income_propensity",
             "employer_income_propensity",
         ]
@@ -94,6 +93,7 @@ class Businesses:
             source=self.calculate_income,
             requires_columns=["personal_income_propensity", "employer_income_propensity"],
         )
+        self.state_puma_map = get_state_puma_map(builder.data.load("population.households"))
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
@@ -125,8 +125,16 @@ class Businesses:
 
             # merge on employer addresses and names
             pop = pop.merge(
-                self.businesses[["employer_id", "employer_name", "employer_address_id"]],
-                on="employer_id",
+                self.businesses[
+                    [
+                        "employer_name",
+                        "employer_address_id",
+                        "employer_state",
+                        "employer_puma",
+                    ]
+                ],
+                left_on="employer_id",
+                right_on=self.businesses.index,
                 how="left",
             )
 
@@ -175,27 +183,27 @@ class Businesses:
             query="alive == 'alive'",
         )
         all_businesses = self.businesses.loc[
-            self.businesses["employer_id"] != data_values.UNEMPLOYED_ID, "employer_id"
-        ]
+            self.businesses.index != data_values.UNEMPLOYED_ID
+        ].index
         businesses_that_move_idx = filter_by_rate(
-            all_businesses.index,
+            all_businesses,
             self.randomness,
             self.businesses_move_rate,
             "moving_businesses",
         )
 
         # Update both state tables and address_id tracker.
-        (
-            pop,
-            self.businesses,
-            self.employer_address_id_count,
-        ) = update_address_id_for_unit_and_sims(
-            pop,
-            moving_units=self.businesses,
-            units_that_move_ids=businesses_that_move_idx,
+        (pop, self.businesses, self.employer_address_id_count,) = update_addresses(
+            pop=pop,
+            movers_idx=businesses_that_move_idx,
             starting_address_id=self.employer_address_id_count,
-            unit_id_col_name="employer_id",
             address_id_col_name="employer_address_id",
+            state_col_name="employer_state",
+            puma_col_name="employer_puma",
+            state_puma_map=self.state_puma_map,
+            randomness=self.randomness,
+            units=self.businesses,
+            unit_id_col_name="employer_id",
         )
 
         # change jobs if of working age already but exclude simulants living in military group quarters
@@ -306,15 +314,24 @@ class Businesses:
         )
 
         businesses = pd.concat([known_employers, random_employers], ignore_index=True)
+        # Randomly assign puma/state to employers
+        businesses = update_state_and_puma(
+            units=businesses,
+            units_that_move_ids=businesses.index,
+            state_col_name="employer_state",
+            puma_col_name="employer_puma",
+            state_puma_map=self.state_puma_map,
+            randomness=self.randomness,
+        )
         self.employer_address_id_count = len(businesses)  # So next address will be unique
-        return businesses
+        return businesses.set_index("employer_id")
 
     def assign_random_employer(
         self, sim_index: pd.Index, additional_seed: Any = None
     ) -> pd.Series:
         return self.randomness.choice(
             index=sim_index,
-            choices=self.businesses["employer_id"],
+            choices=self.businesses.index,
             p=self.businesses["prevalence"],
             additional_key=additional_seed,
         )
@@ -342,10 +359,10 @@ class Businesses:
         employer_ids = pop.loc[rows_to_update, "employer_id"]
 
         pop.loc[rows_to_update, "employer_address_id"] = employer_ids.map(
-            self.businesses.set_index("employer_id")["employer_address_id"].to_dict()
+            self.businesses["employer_address_id"].to_dict()
         )
         pop.loc[rows_to_update, "employer_name"] = employer_ids.map(
-            self.businesses.set_index("employer_id")["employer_name"].to_dict()
+            self.businesses["employer_name"].to_dict()
         )
 
         return pop

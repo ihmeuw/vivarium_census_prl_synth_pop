@@ -1,3 +1,5 @@
+from typing import Dict, Union
+
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -8,7 +10,11 @@ from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
-from vivarium_census_prl_synth_pop.utilities import update_address_id
+from vivarium_census_prl_synth_pop.utilities import (
+    get_state_puma_map,
+    update_addresses,
+    update_state_and_puma,
+)
 
 
 class PersonMigration:
@@ -46,10 +52,13 @@ class PersonMigration:
             "household_id",
             "relation_to_household_head",
             "address_id",
+            "state",
+            "puma",
             "previous_timestep_address_id",
             "housing_type",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
+        self.state_puma_map = get_state_puma_map(builder.data.load("population.households"))
 
         move_rates_data = pd.read_csv(
             paths.INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH,
@@ -119,7 +128,10 @@ class PersonMigration:
             event.index,
             query="alive == 'alive'",
         )
-
+        # Want all addresses, including from dead simulants
+        address_id_to_state_puma_map = self._get_non_gq_address_id_to_state_puma_mapping(
+            self.population_view.get(event.index)
+        )
         # Get subsets of simulants that do each move type on this timestep
         move_type_probabilities = self.person_move_probabilities(pop.index)
         move_types_chosen = self.randomness.choice(
@@ -129,14 +141,21 @@ class PersonMigration:
             additional_key="move_types",
         )
 
-        pop = self._perform_new_household_moves(
-            pop, pop.index[move_types_chosen == "new_household"]
+        pop, address_id_to_state_puma_map = self._perform_new_household_moves(
+            pop=pop,
+            movers=pop.index[move_types_chosen == "new_household"],
+            address_mapping=address_id_to_state_puma_map,
         )
 
-        pop = self._perform_gq_person_moves(pop, pop.index[move_types_chosen == "gq_person"])
+        pop = self._perform_gq_person_moves(
+            pop=pop,
+            movers=pop.index[move_types_chosen == "gq_person"],
+        )
 
         pop = self._perform_non_reference_person_moves(
-            pop, pop.index[move_types_chosen == "non_reference_person"]
+            pop=pop,
+            movers=pop.index[move_types_chosen == "non_reference_person"],
+            address_mapping=address_id_to_state_puma_map,
         )
 
         self.population_view.update(pop)
@@ -146,25 +165,43 @@ class PersonMigration:
     ##################
 
     def _perform_new_household_moves(
-        self, pop: pd.DataFrame, movers: pd.Index
+        self, pop: pd.DataFrame, movers: pd.Index, address_mapping: pd.DataFrame
     ) -> pd.DataFrame:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
+        pop0 = pop.copy()
         first_new_household_id = pop["household_id"].max() + 1
         first_new_household_address_id = pop["address_id"].max() + 1
 
+        # Update the movers to their new household_id and addresses
         new_household_ids = first_new_household_id + np.arange(len(movers))
-
         pop.loc[movers, "household_id"] = new_household_ids
-        pop = update_address_id(
-            pop, movers, starting_address_id=first_new_household_address_id
+        (pop, _, _) = update_addresses(
+            pop=pop,
+            movers_idx=movers,
+            starting_address_id=first_new_household_address_id,
+            address_id_col_name="address_id",
+            state_col_name="state",
+            puma_col_name="puma",
+            state_puma_map=self.state_puma_map,
+            randomness=self.randomness,
         )
 
         pop.loc[movers, "relation_to_household_head"] = "Reference person"
         pop.loc[movers, "housing_type"] = "Standard"
 
-        return pop
+        # Update address_mapping dataframe with new addresses
+        address_mapping = pd.concat(
+            [
+                address_mapping,
+                pop.loc[movers, ["address_id", "state", "puma"]]
+                .drop_duplicates()
+                .set_index("address_id"),
+            ]
+        )
+
+        return pop, address_mapping
 
     def _perform_gq_person_moves(self, pop: pd.DataFrame, movers: pd.Index) -> pd.DataFrame:
         """
@@ -172,7 +209,6 @@ class PersonMigration:
         """
         if len(movers) == 0:
             return pop
-
         # The two GQ housing type categories (institutional, non-institutional) are
         # tracked in the "relation_to_household_head" column, even though
         # that column name doesn't really make sense in a GQ setting.
@@ -211,14 +247,24 @@ class PersonMigration:
             pop.loc[movers_in_category, "housing_type"] = household_id_values.map(
                 data_values.GQ_HOUSING_TYPE_MAP
             )
+
+            # Update the movers to their new household_id and addresses
             pop.loc[movers_in_category, "address_id"] = household_id_values.map(
                 gq_address_ids
+            )
+            pop = update_state_and_puma(
+                units=pop,
+                units_that_move_ids=movers_in_category,
+                state_col_name="state",
+                puma_col_name="puma",
+                state_puma_map=self.state_puma_map,
+                randomness=self.randomness,
             )
 
         return pop
 
     def _perform_non_reference_person_moves(
-        self, pop: pd.DataFrame, movers: pd.Index
+        self, pop: pd.DataFrame, movers: pd.Index, address_mapping: pd.DataFrame
     ) -> pd.DataFrame:
         """
         Move each simulant in movers to a random (different) non-GQ household
@@ -255,8 +301,13 @@ class PersonMigration:
 
         pop.loc[movers, "household_id"] = household_id_values
         pop.loc[movers, "housing_type"] = "Standard"
-        pop.loc[movers, "address_id"] = household_id_values.map(non_gq_address_ids)
         pop.loc[movers, "relation_to_household_head"] = "Other nonrelative"
+        # Update address and enforce address_id-state/puma link
+        pop.loc[movers, "address_id"] = household_id_values.map(non_gq_address_ids)
+        pop = pop.reset_index().set_index("address_id")
+        pop.update(address_mapping)
+        pop = pop.reset_index().set_index("index")
+        pop.index.name = None
 
         return pop
 
@@ -267,3 +318,10 @@ class PersonMigration:
             .set_index("household_id")["address_id"]
         )
         return result
+
+    def _get_non_gq_address_id_to_state_puma_mapping(self, df: pd.DataFrame) -> pd.DataFrame:
+        return (
+            df.loc[df["housing_type"] == "Standard", ["address_id", "state", "puma"]]
+            .drop_duplicates()
+            .set_index("address_id")
+        )

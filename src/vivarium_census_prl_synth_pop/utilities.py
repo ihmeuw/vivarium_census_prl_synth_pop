@@ -1,17 +1,15 @@
 import os
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import click
 import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
-from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash
 from vivarium.framework.values import Pipeline
-from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 from vivarium_census_prl_synth_pop.constants import metadata
 
@@ -61,34 +59,6 @@ def delete_if_exists(*paths: Union[Path, List[Path]], confirm=False):
         for p in existing_paths:
             logger.info(f"Deleting artifact at {str(p)}.")
             p.unlink()
-
-
-def read_data_by_draw(artifact_path: str, key: str, draw: int) -> pd.DataFrame:
-    """Reads data from the artifact on a per-draw basis. This
-    is necessary for Low Birthweight Short Gestation (LBWSG) data.
-
-    Parameters
-    ----------
-    artifact_path
-        The artifact to read from.
-    key
-        The entity key associated with the data to read.
-    draw
-        The data to retrieve.
-
-    """
-    key = key.replace(".", "/")
-    with pd.HDFStore(artifact_path, mode="r") as store:
-        index = store.get(f"{key}/index")
-        draw = store.get(f"{key}/draw_{draw}")
-    draw = draw.rename("value")
-    data = pd.concat([index, draw], axis=1)
-    data = data.drop(columns="location")
-    data = pivot_categorical(data)
-    data[
-        project_globals.LBWSG_MISSING_CATEGORY.CAT
-    ] = project_globals.LBWSG_MISSING_CATEGORY.EXPOSURE
-    return data
 
 
 def get_norm(
@@ -297,16 +267,20 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
     return output_dir
 
 
+def get_state_puma_map(df: pd.DataFrame) -> Dict[int, int]:
+    return df.groupby("state")["puma"].apply(lambda x: list(x.unique())).to_dict()
+
+
 def update_address_id(
-    df: pd.DataFrame,
-    rows_to_update: pd.Index,
+    units: pd.DataFrame,
+    units_that_move_ids: pd.Index,
     starting_address_id: int,
     address_id_col_name: str = "address_id",
 ) -> pd.DataFrame:
     """
     Parameters
     ----------
-    df: the pd.DataFrame to update, business table
+    units: the pd.DataFrame to update, business table
     rows_to_update: a pd.Index of the rows of df to update
     starting_address_id: int that is tracking value for business or household_ids max value.:
     address_id_col_name: a string. the name of the column in df to hold addresses.
@@ -314,72 +288,143 @@ def update_address_id(
     -------
     df with appropriately updated address_ids
     """
-    df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(
-        len(rows_to_update)
+    units.loc[units_that_move_ids, address_id_col_name] = starting_address_id + np.arange(
+        len(units_that_move_ids)
     )
-    return df
+    return units
 
 
-def update_address_id_for_unit_and_sims(
-    pop: pd.DataFrame,
-    moving_units: pd.DataFrame,
+def update_state_and_puma(
+    units: pd.DataFrame,
     units_that_move_ids: pd.Index,
-    starting_address_id: int,
-    unit_id_col_name: str,
-    address_id_col_name: str,
-) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
+    state_col_name: str,
+    puma_col_name: str,
+    state_puma_map: Dict[int, List[int]],
+    randomness,
+) -> pd.DataFrame:
+    """Sample from all states/pumas in the artifact. This adds 'state' and 'puma'
+    columns to the units dataframe
     """
-    Units are multiperson groups tracked in the simulation.  Examples being households and employers.
+    state_puma_options = []
+    for state in state_puma_map:
+        state_puma_options.extend([(state, puma) for puma in state_puma_map[state]])
+    state_puma_choices = pd.DataFrame(
+        vectorized_choice(
+            options=np.array(state_puma_options, dtype="i,i"),
+            n_to_choose=len(units_that_move_ids),
+            randomness_stream=randomness,
+            additional_key="sampling_state_puma",
+        ),
+        index=units_that_move_ids,
+    )
+    state_puma_choices.columns = [state_col_name, puma_col_name]
+    units.loc[
+        units_that_move_ids, [state_col_name, puma_col_name]
+    ] = state_puma_choices.astype(int)
+
+    return units
+
+
+def update_addresses(
+    pop: pd.DataFrame,
+    movers_idx: pd.Index,
+    starting_address_id: int,
+    address_id_col_name: str,
+    state_col_name: str,
+    puma_col_name: str,
+    state_puma_map: Dict[int, List[int]],
+    randomness: RandomnessStream,
+    units: Optional[pd.DataFrame] = None,
+    unit_id_col_name: Optional[str] = None,
+) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
+    """Updates the addresses (address_id, state, and puma) of moving units
+    (where units are multiperson groups tracked in the simulation, eg households
+    and employers).
 
     Parameters
     ----------
     pop: population table
-    moving_units: Dataframe with column address_id_col_name.
-    units_that_move_ids: IDs of moving units.  This is a subset of moving_units.index
-    starting_address_id: Integer at which to start generating new address_ids, to prevent collisions.
-    unit_id_col_name: Column name in state table where ids for the unit are stored.
+    movers_idx: pd.Index of movers (eg simulant, household_id, employer_id).
+    starting_address_id: Integer at which to start generating new address_ids (to prevent collisions).
     address_id_col_name: Column name in state table where address_id for the unit is stored.
+    state_col_name: Column name for state
+    puma_col_name: Column name for puma
+    state_puma_map: dictionary of state-to-puma mapping
+    randomness: Randomness stream
+    units: (Optional) Dataframe of units that might move with index unit ID
+        (eg household_id) and columns address_id_col_name (eg address_id),
+        state_col_name, and puma_col_name.
+        NOTE: None units means it is an individual moving
+    unit_id_col_name: (Optional) Column name in state table where ids for the
+    unit are stored.
 
     Returns
     -------
     pop: Updated version of the state table.
-    moving_units: Updated version of units dataframe.  This is done for the purpose of the businesses table.
+    units: Updated version of units dataframe.  This is done for the purpose of the businesses table.
     starting_address_id: Updated integer at which to start when generating more address_ids.
     """
 
-    if len(units_that_move_ids) > 0:
-        # update the employer address_id in self.businesses
-        # this will update address_id in a households dataframe we are not tracking like we are businesses
-        # todo:  Should add income/salary to mapping function here
-        moving_units = update_address_id(
-            df=moving_units,
-            rows_to_update=units_that_move_ids,
+    def _update_address_id_state_puma(
+        df, movers_idx, starting_address_id, address_id_col_name
+    ):
+        df = update_address_id(
+            units=df,
+            units_that_move_ids=movers_idx,
             starting_address_id=starting_address_id,
             address_id_col_name=address_id_col_name,
         )
-        starting_address_id += len(units_that_move_ids)
+        df = update_state_and_puma(
+            units=df,
+            units_that_move_ids=movers_idx,
+            state_col_name=state_col_name,
+            puma_col_name=puma_col_name,
+            state_puma_map=state_puma_map,
+            randomness=randomness,
+        )
+        starting_address_id += len(movers_idx)
+        return df, starting_address_id
 
-        # update address_id column in the pop table
-        rows_changing_address_id_idx = pop.loc[
-            pop[unit_id_col_name].isin(units_that_move_ids)
-        ].index
+    pop0 = pop.copy()
+    # Move groups (households or employers), not individuals
+    if (units is not None) and (len(movers_idx) > 0):
+        address_change_idx = pop.loc[pop[unit_id_col_name].isin(movers_idx)].index
         # Preserve pop index
         pop = pop.reset_index().rename(columns={"index": "simulant_id"})
-        # todo:  Should add income/salary to mapping function here
+
+        units, starting_address_id = _update_address_id_state_puma(
+            df=units,
+            movers_idx=movers_idx,
+            starting_address_id=starting_address_id,
+            address_id_col_name=address_id_col_name,
+        )
+
+        # update address columns in the pop table
         updated_address_ids = (
             pop[["simulant_id", unit_id_col_name]]
             .merge(
-                moving_units[[address_id_col_name]],
+                units,
                 how="left",
                 left_on=unit_id_col_name,
-                right_on=moving_units.index,
+                right_on=units.index,
             )
-            .set_index("simulant_id")[address_id_col_name]
+            .set_index("simulant_id")
         )
         pop = pop.set_index("simulant_id")
-        pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
+        pop.loc[
+            address_change_idx, [address_id_col_name, state_col_name, puma_col_name]
+        ] = updated_address_ids
 
-    return pop, moving_units, starting_address_id
+    # Move individuals
+    elif (units is None) and (len(movers_idx) > 0):
+        pop, starting_address_id = _update_address_id_state_puma(
+            df=pop,
+            movers_idx=movers_idx,
+            starting_address_id=starting_address_id,
+            address_id_col_name=address_id_col_name,
+        )
+
+    return pop, units, starting_address_id
 
 
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:

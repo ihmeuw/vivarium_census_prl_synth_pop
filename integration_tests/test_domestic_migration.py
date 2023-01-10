@@ -1,6 +1,9 @@
-import pytest
+from typing import Dict
+
+import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.utilities import get_state_puma_map
 
 # TODO: Broader test coverage
 
@@ -59,6 +62,8 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         assert new_addresses.nunique() == len(new_addresses)
         assert not new_addresses.isin(before["address_id"]).any()
 
+        # TODO: Add state/puma tests
+
 
 def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
@@ -114,7 +119,7 @@ def test_households_move(simulants_on_adjacent_timesteps):
         assert new_addresses.nunique() == len(moved_households)
         assert not before["address_id"].isin(new_addresses).any()
 
-        # Never GQ households
+        # GQ households never move
         assert (before[household_movers]["housing_type"] == "Standard").all()
 
 
@@ -123,3 +128,66 @@ def test_only_living_people_move(simulants_on_adjacent_timesteps):
         movers = before["address_id"] != after["address_id"]
         assert after[movers]["tracked"].all()
         assert (after[movers]["alive"] == "alive").all()
+
+
+def test_address_ids_states_pumas(simulants_on_adjacent_timesteps, sim) -> None:
+    """Check that address_ids are mapping correctly to states/pumas. Note that
+    this test does not distinguish between the different types of moves (eg
+    household moves, business moves, individual moves, etc)
+    """
+    state_puma_map = get_state_puma_map(
+        sim._data.artifact.load("population.households").reset_index()
+    )
+    for before, after in simulants_on_adjacent_timesteps:
+        mask_movers = before["address_id"] != after["address_id"]
+        # TODO: Check that *most* are in a new state when we add all locations
+        # Some movers are in a new state.
+        assert any(before.loc[mask_movers, "state"] != after.loc[mask_movers, "state"])
+
+        # Most movers are in a different puma
+        assert (
+            before.loc[mask_movers, "puma"] != after.loc[mask_movers, "puma"]
+        ).sum() / mask_movers.sum() >= 0.95
+
+        # puma/state do not change if address_id does not change
+        # (except for gq locations - those can have the same address_id and
+        # different states/pumas)
+        same_addresses = before[before["address_id"] == after["address_id"]].index
+        gq_simulants = after[after["housing_type"] != "Standard"].index
+        same_non_gq_addresses = same_addresses.difference(gq_simulants)
+
+        pd.testing.assert_frame_equal(
+            before.loc[same_non_gq_addresses, ["state", "puma"]],
+            after.loc[same_non_gq_addresses, ["state", "puma"]],
+        )
+
+        # Ensure pumas map to correct state. This will be an imperfect test
+        # because pumas are only unique within states and so one puma can
+        # exist in multiple states. Here we only ensure no impossible pumas
+        # exist in each state
+        for (state, puma) in before[["state", "puma"]].drop_duplicates().values:
+            assert puma in state_puma_map[state]
+        for (state, puma) in after[["state", "puma"]].drop_duplicates().values:
+            assert puma in state_puma_map[state]
+
+        # Each unique address_id has the same puma/state (except for GQ)
+        assert (
+            (
+                before[before["housing_type"] == "Standard"]
+                .groupby("address_id")["state", "puma"]
+                .nunique()
+                == 1
+            )
+            .all()
+            .all()
+        )
+        assert (
+            (
+                after[after["housing_type"] == "Standard"]
+                .groupby("address_id")["state", "puma"]
+                .nunique()
+                == 1
+            )
+            .all()
+            .all()
+        )

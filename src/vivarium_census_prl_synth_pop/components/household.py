@@ -1,22 +1,14 @@
+from typing import Dict
+
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.time import get_time_stamp
-from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    metadata,
-    paths,
-)
-from vivarium_census_prl_synth_pop.utilities import (
-    filter_by_rate,
-    update_address_id_for_unit_and_sims,
-)
+from vivarium_census_prl_synth_pop.constants import metadata, paths
+from vivarium_census_prl_synth_pop.utilities import get_state_puma_map, update_addresses
 
 
 class HouseholdMigration:
@@ -26,7 +18,6 @@ class HouseholdMigration:
 
     ASSUMPTION:
     - households will always move to brand-new addresses (as opposed to vacated addresses)
-    - puma will not change (pumas and zip codes currently unrelated)
     """
 
     def __repr__(self) -> str:
@@ -47,6 +38,7 @@ class HouseholdMigration:
     def setup(self, builder: Builder):
         self.config = builder.configuration
         self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.state_puma_map = get_state_puma_map(builder.data.load("population.households"))
 
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
@@ -66,6 +58,8 @@ class HouseholdMigration:
             "household_id",
             "relation_to_household_head",
             "address_id",
+            "state",
+            "puma",
         ]
         self.population_view = builder.population.get_view(self.columns_used)
 
@@ -130,6 +124,7 @@ class HouseholdMigration:
             reference_people["household_id"].isin(multi_person_household_ids)
         ]
 
+        # Filter for the household heads that are making a move (eg the "movers")
         movers = self.randomness.filter_for_rate(
             reference_people_eligible_to_move,
             self.household_move_rate(reference_people_eligible_to_move.index),
@@ -138,20 +133,22 @@ class HouseholdMigration:
 
         # Make household ID -> address ID map
         households = (
-            pop[["household_id", "address_id"]]
-            .drop_duplicates()
-            .set_index("household_id")[["address_id"]]
+            pop[["household_id", "address_id"]].drop_duplicates().set_index("household_id")
         )
 
         max_household_address_id = households["address_id"].max()
 
-        (pop, _, _,) = update_address_id_for_unit_and_sims(
-            pop,
-            moving_units=households,
-            units_that_move_ids=movers["household_id"],
+        (pop, _, _,) = update_addresses(
+            pop=pop,
+            movers_idx=pd.Index(movers["household_id"]),
             starting_address_id=max_household_address_id + 1,
-            unit_id_col_name="household_id",
             address_id_col_name="address_id",
+            state_col_name="state",
+            puma_col_name="puma",
+            state_puma_map=self.state_puma_map,
+            randomness=self.randomness,
+            units=households,
+            unit_id_col_name="household_id",
         )
 
         self.population_view.update(pop)

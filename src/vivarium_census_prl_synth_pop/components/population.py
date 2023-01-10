@@ -118,13 +118,15 @@ class Population:
         pop["housing_type"] = pop["housing_type"].astype(
             pd.CategoricalDtype(categories=data_values.HOUSING_TYPES)
         )
+        # set int dtypes to float64 to play nicely with population_view checks
+        for col in ["age", "state", "puma"]:
+            pop[col] = pop[col].astype("float64")
 
         # give name ids
         pop["first_name_id"] = pop.index
         pop["middle_name_id"] = pop.index
         pop["last_name_id"] = self.assign_last_name_ids(pop)
 
-        pop["age"] = pop["age"].astype("float64")
         # Shift age so all households do not have the same birthday
         pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
         pop["date_of_birth"] = self.start_time - pd.to_timedelta(
@@ -148,7 +150,6 @@ class Population:
         pop["exit_time"] = pd.NaT
         pop["alive"] = "alive"
         # add typing
-        pop["state"] = pop["state"].astype("int64")
         pop = pop.set_index(pop_data.index)
 
         pop = self.assign_general_population_guardians(pop)
