@@ -492,6 +492,8 @@ class TaxW2Observer(BaseObserver):
 
     INPUT_VALUES = ["income"]
     ADDITIONAL_INPUT_COLUMNS = [
+        "in_united_states",
+        "tracked",
         "ssn",
         "employer_id",
         "employer_name",
@@ -557,7 +559,7 @@ class TaxW2Observer(BaseObserver):
     def on_time_step__prepare(self, event):
         pop = self.population_view.get(
             event.index,
-            query="alive == 'alive'",
+            query="alive == 'alive' and in_united_states and tracked",
         )
         pop["income"] = self.pipelines["income"](pop.index)
 
@@ -579,10 +581,10 @@ class TaxW2Observer(BaseObserver):
         return self.clock() < tax_date <= event.time
 
     def get_observation(self, event: Event) -> pd.DataFrame:
-        pop = self.population_view.get(
+        pop_full = self.population_view.get(
             event.index,
         )
-        pop["income"] = self.pipelines["income"](pop.index)
+        pop_full["income"] = self.pipelines["income"](pop_full.index)
 
         ### create dataframe of all person/employment pairs
 
@@ -605,7 +607,10 @@ class TaxW2Observer(BaseObserver):
             "address_id",
             "housing_type",
         ]:
-            df_w2[col] = df_w2["simulant_id"].map(pop[col])
+            df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
+
+        # Tracked, US population to be dependents or get their SSNs borrowed
+        pop = pop_full[pop_full["tracked"] & pop_full["in_united_states"]]
 
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
