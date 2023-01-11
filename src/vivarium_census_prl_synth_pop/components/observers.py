@@ -61,11 +61,6 @@ class BaseObserver(ABC):
 
     @property
     @abstractmethod
-    def output_filename(self):
-        pass
-
-    @property
-    @abstractmethod
     def input_columns(self):
         pass
 
@@ -144,11 +139,10 @@ class BaseObserver(ABC):
         """Define the observations in the concrete class"""
         pass
 
-    # TODO: consider using compressed csv instead of hdf
     def on_simulation_end(self, event: Event) -> None:
         output_dir = utilities.build_output_dir(self.output_dir, subdir="results")
         # 'fixed' format is not compatible with categorical data
-        self.responses.to_hdf(output_dir / self.output_filename, key="data", format="t")
+        self.responses.to_csv(output_dir / (f"{self.name}.csv.bz2"))
 
 
 class HouseholdSurveyObserver(BaseObserver):
@@ -185,10 +179,6 @@ class HouseholdSurveyObserver(BaseObserver):
     @property
     def name(self):
         return f"household_survey_observer.{self.survey}"
-
-    @property
-    def output_filename(self):
-        return f"{self.survey}.hdf"
 
     @property
     def input_columns(self):
@@ -260,10 +250,6 @@ class DecennialCensusObserver(BaseObserver):
         return f"decennial_census_observer"
 
     @property
-    def output_filename(self):
-        return f"decennial_census.hdf"
-
-    @property
     def input_columns(self):
         return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
@@ -307,10 +293,6 @@ class WICObserver(BaseObserver):
     @property
     def name(self):
         return f"wic_observer"
-
-    @property
-    def output_filename(self):
-        return f"wic.hdf"
 
     @property
     def input_columns(self):
@@ -451,10 +433,6 @@ class SocialSecurityObserver(BaseObserver):
         return f"social_security_observer"
 
     @property
-    def output_filename(self):
-        return f"social_security.hdf"
-
-    @property
     def input_columns(self):
         return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
@@ -494,3 +472,199 @@ class SocialSecurityObserver(BaseObserver):
         df_death["event_date"] = pop["exit_time"]
 
         return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
+
+
+def empty_income_series():
+    return pd.Series(
+        index=pd.MultiIndex.from_arrays(
+            [[], []],
+            names=[
+                "simulant_id",
+                "employer_id",
+            ],
+        ),
+        dtype="float64",
+    )
+
+
+class TaxW2Observer(BaseObserver):
+    """Class for observing columns relevant to W2 and 1099 tax data."""
+
+    INPUT_VALUES = ["income"]
+    ADDITIONAL_INPUT_COLUMNS = [
+        "ssn",
+        "employer_id",
+        "employer_name",
+        "employer_address_id",
+    ]
+    OUTPUT_COLUMNS = [
+        "simulant_id",
+        "first_name_id",
+        "middle_name_id",
+        "last_name_id",
+        "age",
+        "date_of_birth",
+        "sex",
+        "ssn",
+        "ssn_id",  # simulant id for ssn from another simulant
+        "address_id",
+        "employer_id",
+        "employer_name",
+        "employer_address_id",
+        "income",
+        "dependent_id_list",
+        "dependent_address_id_list",
+        "housing_type",
+        "tax_year",
+    ]
+
+    def __repr__(self):
+        return f"TaxW2Observer()"
+
+    @property
+    def name(self):
+        return f"tax_w2_observer"
+
+    @property
+    def input_columns(self):
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+
+    @property
+    def input_values(self):
+        return self.INPUT_VALUES
+
+    @property
+    def output_columns(self):
+        return self.OUTPUT_COLUMNS
+
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.clock = builder.time.clock()
+
+        vivarium_randomness = builder.randomness.get_stream(
+            self.name, for_initialization=True
+        )
+        np_random_seed = 12345 + int(vivarium_randomness.seed)
+        self.np_randomness = np.random.default_rng(np_random_seed)
+
+        # increment income based on the job the simulant has during
+        # the course of the time_step, which might change if we do
+        # this check on_time_step instead of on_time_step__prepare
+        builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
+        self.income_to_date = empty_income_series()
+        self.time_step = builder.configuration.time.step_size  # in days
+
+    def on_time_step__prepare(self, event):
+        pop = self.population_view.get(
+            event.index,
+        )
+        pop["income"] = self.pipelines["income"](pop.index)
+
+        # increment income for all person/employment pairs with income > 0
+        income_this_time_step = pd.Series(
+            pop["income"].values * self.time_step / DAYS_PER_YEAR,
+            index=pd.MultiIndex.from_arrays(
+                [pop.index, pop["employer_id"]], names=["simulant_id", "employer_id"]
+            ),
+        )
+
+        income_this_time_step = income_this_time_step[income_this_time_step > 0]
+
+        self.income_to_date = self.income_to_date.add(income_this_time_step, fill_value=0.0)
+
+    def to_observe(self, event: Event) -> bool:
+        """Only observe if this is the final time step of the sim"""
+        tax_date = dt.datetime(event.time.year, 1, 1)
+        return self.clock() < tax_date <= event.time
+
+    def get_observation(self, event: Event) -> pd.DataFrame:
+        pop = self.population_view.get(
+            event.index,
+        )
+        pop["income"] = self.pipelines["income"](pop.index)
+
+        ### create dataframe of all person/employment pairs
+
+        # start with income to date, which has simulant_id and employer_id as multi-index
+        self.income_to_date.name = "income"  # HACK: it would be nice if this name stayed
+        # with the pd.Series, but it is getting lost at some point in the computation
+
+        df_w2 = self.income_to_date.reset_index()
+        df_w2["tax_year"] = event.time.year
+
+        # merge in simulant columns based on simulant id
+        for col in [
+            "first_name_id",
+            "middle_name_id",
+            "last_name_id",
+            "age",
+            "date_of_birth",
+            "sex",
+            "ssn",
+            "address_id",
+            "housing_type",
+        ]:
+            df_w2[col] = df_w2["simulant_id"].map(pop[col])
+
+        # for simulants without ssn, record a simulant_id for a random household
+        # member with an ssn, if one exists
+
+        simulants_wo_ssn = pd.Series(
+            df_w2[~df_w2["ssn"]].index, index=df_w2[~df_w2["ssn"]].index
+        )
+        household_members_w_ssn = (
+            pop[pop["ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
+        )
+        household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
+
+        ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
+
+        df_w2["ssn_id"] = ssn_for_simulants_wo
+        df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
+
+        # merge in employer columns based on employer_id
+        emp = pop.groupby("employer_id").first()
+        for col in ["employer_address_id", "employer_name"]:
+            df_w2[col] = df_w2["employer_id"].map(emp[col])
+
+        # create lists of dependent ids and dependent address ids
+        df_dependents = pd.concat(
+            [
+                pop[pop["guardian_1"] != -1].eval("guardian_id=guardian_1"),
+                pop[pop["guardian_2"] != -1].eval("guardian_id=guardian_2"),
+            ]
+        )
+
+        # not all simulants with a guardian are eligible to be dependents
+        df_dependents = df_dependents[
+            # Dependents must qualify as one of the following:
+            # Be under the age of 19 (less than or equal to 18)
+            (df_dependents["age"] < 19)
+            # OR be less than 24, in GQ in college, and earn less than $10,000
+            | (
+                (df_dependents["age"] < 24)
+                & (df_dependents["housing_type"] == "College")
+                & (df_dependents["income"] < 10_000)
+            )
+            # OR be any age, but earn less than $4300
+            | (df_dependents["income"] < 4_300)
+        ]
+
+        s_dependent_id_list = df_dependents.groupby("guardian_id").apply(
+            lambda df_g: list(df_g.index)
+        )
+
+        s_dependent_address_id_list = df_dependents.groupby("guardian_id").apply(
+            lambda df_g: list(df_g["address_id"])
+        )
+
+        for col, s in [
+            ["dependent_id_list", s_dependent_id_list],
+            ["dependent_address_id_list", s_dependent_address_id_list],
+        ]:
+            df_w2[col] = df_w2["simulant_id"].map(s)
+
+        # re-initialize income-to-date series for next year of income counting
+        self.income_to_date = empty_income_series()
+
+        return df_w2
