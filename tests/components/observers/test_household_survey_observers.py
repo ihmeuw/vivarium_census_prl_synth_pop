@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 
 from vivarium_census_prl_synth_pop.components.observers import HouseholdSurveyObserver
+from vivarium_census_prl_synth_pop.constants import paths
 
 # TODO: Broader test coverage
 
@@ -42,7 +43,9 @@ def test_on_simulation_end(observer, mocker):
     event = mocker.MagicMock()
     observer.responses = pd.DataFrame()
     observer.on_simulation_end(event)
-    assert (observer.output_dir / "results" / (f"{observer.name}.csv.bz2")).is_file()
+    assert (
+        observer.output_dir / paths.RAW_RESULTS_DIR_NAME / (f"{observer.name}.csv.bz2")
+    ).is_file()
 
 
 def test_do_observation(observer, mocked_pop_view, mocker):

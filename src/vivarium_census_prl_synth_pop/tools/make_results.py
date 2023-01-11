@@ -1,30 +1,19 @@
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
 
-from vivarium_census_prl_synth_pop.results_processing import process_results
+from vivarium_census_prl_synth_pop import utilities
+from vivarium_census_prl_synth_pop.constants import paths
 
 
-def build_results(output_file: str, single_run: bool) -> None:
-    output_file = Path(output_file)
-    measure_dir = output_file.parent / "count_data"
-    if measure_dir.exists():
-        shutil.rmtree(measure_dir)
-    measure_dir.mkdir(exist_ok=True, mode=0o775)
+def build_results(results_dir: str) -> None:
+    logger.info("Creating final results directory.")
+    final_output_dir = utilities.build_output_dir(
+        Path(results_dir), subdir=paths.FINAL_RESULTS_DIR_NAME
+    ) / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
-    logger.info(f"Reading in output data from {str(output_file)}.")
-    data, keyspace = process_results.read_data(output_file, single_run)
-    logger.info(f"Filtering incomplete data from outputs.")
-    rows = len(data)
-    data = process_results.filter_out_incomplete(data, keyspace)
-    new_rows = len(data)
-    logger.info(
-        f"Filtered {rows - new_rows} from data due to incomplete information.  {new_rows} remaining."
-    )
-    data = process_results.aggregate_over_seed(data)
-    logger.info(f"Computing raw count and proportion data.")
-    measure_data = process_results.make_measure_data(data)
-    logger.info(f"Writing raw count and proportion data to {str(measure_dir)}")
-    measure_data.dump(measure_dir)
-    logger.info("**DONE**")
+    logger.info("Copying raw results to final location.")
+    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
+    shutil.copytree(raw_output_dir, final_output_dir)
