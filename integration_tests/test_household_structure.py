@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from integration_tests.conftest import TIME_STEPS_TO_TEST
+from vivarium_census_prl_synth_pop.components.population import Population
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
+
 
 # TODO: Broader test coverage
 
@@ -58,11 +59,11 @@ def test_new_reference_person_is_oldest_household_member(simulants_on_adjacent_t
     for before, after in simulants_on_adjacent_timesteps:
         before_reference_person_idx = before.index[
             before["relation_to_household_head"] == "Reference person"
-        ]
+            ]
         after_reference_person_idx = after.index[
             (after["relation_to_household_head"] == "Reference person")
             & (after["household_id"].isin(before["household_id"]))
-        ]
+            ]
         new_reference_person_idx = np.setdiff1d(
             after_reference_person_idx, before_reference_person_idx
         )
@@ -91,3 +92,23 @@ def test_households_only_have_one_reference_person(tracked_live_populations):
         ]
 
         assert len(household_ids) == len(household_ids.unique())
+
+
+def test_update_to_reference_person_and_relationships():
+    # todo: make dummy df for population
+    # todo: how do I import the function and the mapper that are class in the Population clas
+
+    population = pd.DataFrame(data=
+      {
+          "household_id": np.sort(np.array([1, 2, 3, 4] * 5)),
+          "date_of_birth": [],
+          "guardian_1": [],
+          "relation_to_household_head": ["Opp-sex spouse", "Child-in-law", "Adopted child", "Parent", "Other relative",
+                                         "Same-sex spouse", "Parent-in-law", "Biological child", "Biological child", "Sibling",
+                                         "Parent", "Sibling", "Parent", "Opp-sex spouse", "biological child", "Other relative",
+                                         "Roommate", "Roommate", "Roommate", "Roommate", "Sibling",
+                                         "Opp-sex spouse", "Biological child", "Rommate", "Other relative", "Other nonrelative",
+                                         ],
+          "housing_type": ["Standard"] * 20,
+       }
+    )
