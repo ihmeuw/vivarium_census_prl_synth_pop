@@ -492,6 +492,7 @@ class TaxW2Observer(BaseObserver):
 
     INPUT_VALUES = ["income"]
     ADDITIONAL_INPUT_COLUMNS = [
+        "alive",
         "in_united_states",
         "tracked",
         "ssn",
@@ -514,8 +515,8 @@ class TaxW2Observer(BaseObserver):
         "employer_name",
         "employer_address_id",
         "income",
-        "dependent_id_list",
-        "dependent_address_id_list",
+        "eligible_dependent_id_list",
+        "eligible_dependent_address_id_list",
         "housing_type",
         "tax_year",
     ]
@@ -610,7 +611,11 @@ class TaxW2Observer(BaseObserver):
             df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
 
         # Tracked, US population to be dependents or get their SSNs borrowed
-        pop = pop_full[pop_full["tracked"] & pop_full["in_united_states"]]
+        pop = pop_full[
+            (pop_full["alive"] == "alive")
+            & pop_full["tracked"]
+            & pop_full["in_united_states"]
+        ]
 
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
@@ -634,7 +639,7 @@ class TaxW2Observer(BaseObserver):
             df_w2[col] = df_w2["employer_id"].map(emp[col])
 
         # create lists of dependent ids and dependent address ids
-        df_dependents = pd.concat(
+        df_eligible_dependents = pd.concat(
             [
                 pop[pop["guardian_1"] != -1].eval("guardian_id=guardian_1"),
                 pop[pop["guardian_2"] != -1].eval("guardian_id=guardian_2"),
@@ -642,36 +647,39 @@ class TaxW2Observer(BaseObserver):
         )
 
         # not all simulants with a guardian are eligible to be dependents
-        # need to know earnings of dependents in past year for this
-        dependent_w2 = df_w2[df_w2["simulant_id"].isin(df_dependents.index.unique())]
-        dependent_wages = dependent_w2.groupby("simulant_id")["income"].sum()
-        df_dependents["last_year_income"] = df_dependents.index.map(dependent_wages)
+        # need to know income of dependents in past year for this
+        dependent_w2 = df_w2[df_w2["simulant_id"].isin(df_eligible_dependents.index.unique())]
+        last_year_income = dependent_w2.groupby("simulant_id")["income"].sum()
+        df_eligible_dependents["last_year_income"] = last_year_income
+        df_eligible_dependents["last_year_income"] = df_eligible_dependents[
+            "last_year_income"
+        ].fillna(0)
 
-        df_dependents = df_dependents[
+        df_eligible_dependents = df_eligible_dependents[
             # Dependents must qualify as one of the following:
             # Be under the age of 19 (less than or equal to 18)
-            (df_dependents["age"] < 19)
+            (df_eligible_dependents["age"] < 19)
             # OR be less than 24, in GQ in college, and earn less than $10,000
             | (
-                (df_dependents["age"] < 24)
-                & (df_dependents["housing_type"] == "College")
-                & (df_dependents["last_year_income"] < 10_000)
+                (df_eligible_dependents["age"] < 24)
+                & (df_eligible_dependents["housing_type"] == "College")
+                & (df_eligible_dependents["last_year_income"] < 10_000)
             )
             # OR be any age, but earn less than $4300
-            | (df_dependents["last_year_income"] < 4_300)
+            | (df_eligible_dependents["last_year_income"] < 4_300)
         ]
 
-        s_dependent_id_list = df_dependents.groupby("guardian_id").apply(
+        s_eligible_dependent_id_list = df_eligible_dependents.groupby("guardian_id").apply(
             lambda df_g: list(df_g.index)
         )
 
-        s_dependent_address_id_list = df_dependents.groupby("guardian_id").apply(
-            lambda df_g: list(df_g["address_id"])
-        )
+        s_eligible_dependent_address_id_list = df_eligible_dependents.groupby(
+            "guardian_id"
+        ).apply(lambda df_g: list(df_g["address_id"]))
 
         for col, s in [
-            ["dependent_id_list", s_dependent_id_list],
-            ["dependent_address_id_list", s_dependent_address_id_list],
+            ["eligible_dependent_id_list", s_eligible_dependent_id_list],
+            ["eligible_dependent_address_id_list", s_eligible_dependent_address_id_list],
         ]:
             df_w2[col] = df_w2["simulant_id"].map(s)
 
