@@ -371,7 +371,7 @@ def update_addresses(
         # Preserve pop index
         pop = pop.reset_index().rename(columns={"index": "simulant_id"})
 
-        units, starting_address_id = _update_address_id_state_puma(
+        units, updated_starting_address_id = _update_address_id_state_puma(
             df=units,
             movers_idx=movers_idx,
             starting_address_id=starting_address_id,
@@ -400,7 +400,7 @@ def update_addresses(
 
     # Move individuals
     elif (units is None) and (len(movers_idx) > 0):
-        pop, starting_address_id = _update_address_id_state_puma(
+        pop, updated_starting_address_id = _update_address_id_state_puma(
             df=pop,
             movers_idx=movers_idx,
             starting_address_id=starting_address_id,
@@ -410,8 +410,10 @@ def update_addresses(
             puma_col_name=puma_col_name,
             randomness=randomness,
         )
+    else:
+        updated_starting_address_id = starting_address_id
 
-    return pop, units, starting_address_id
+    return pop, units, updated_starting_address_id
 
 
 def _update_address_id_state_puma(
