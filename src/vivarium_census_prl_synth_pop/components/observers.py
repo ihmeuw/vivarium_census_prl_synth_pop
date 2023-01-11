@@ -646,7 +646,7 @@ class TaxW2Observer(BaseObserver):
         dependent_w2 = df_w2[df_w2["simulant_id"].isin(df_dependents.index.unique())]
         dependent_wages = dependent_w2.groupby("simulant_id")["income"].sum()
         df_dependents["last_year_income"] = df_dependents.index.map(dependent_wages)
-        
+
         df_dependents = df_dependents[
             # Dependents must qualify as one of the following:
             # Be under the age of 19 (less than or equal to 18)
