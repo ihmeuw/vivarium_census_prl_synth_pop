@@ -515,6 +515,7 @@ class TaxW2Observer(BaseObserver):
         "dependent_id_list",
         "dependent_address_id_list",
         "housing_type",
+        "tax_year",
     ]
 
     def __repr__(self):
@@ -589,6 +590,7 @@ class TaxW2Observer(BaseObserver):
         # with the pd.Series, but it is getting lost at some point in the computation
 
         df_w2 = self.income_to_date.reset_index()
+        df_w2["tax_year"] = event.time.year
 
         # merge in simulant columns based on simulant id
         for col in [
