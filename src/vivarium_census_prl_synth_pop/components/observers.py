@@ -557,6 +557,7 @@ class TaxW2Observer(BaseObserver):
     def on_time_step__prepare(self, event):
         pop = self.population_view.get(
             event.index,
+            query="alive == 'alive'",
         )
         pop["income"] = self.pipelines["income"](pop.index)
 
@@ -636,6 +637,11 @@ class TaxW2Observer(BaseObserver):
         )
 
         # not all simulants with a guardian are eligible to be dependents
+        # need to know earnings of dependents in past year for this
+        dependent_w2 = df_w2[df_w2["simulant_id"].isin(df_dependents.index.unique())]
+        dependent_wages = dependent_w2.groupby("simulant_id")["income"].sum()
+        df_dependents["last_year_income"] = df_dependents.index.map(dependent_wages)
+        
         df_dependents = df_dependents[
             # Dependents must qualify as one of the following:
             # Be under the age of 19 (less than or equal to 18)
@@ -644,10 +650,10 @@ class TaxW2Observer(BaseObserver):
             | (
                 (df_dependents["age"] < 24)
                 & (df_dependents["housing_type"] == "College")
-                & (df_dependents["income"] < 10_000)
+                & (df_dependents["last_year_income"] < 10_000)
             )
             # OR be any age, but earn less than $4300
-            | (df_dependents["income"] < 4_300)
+            | (df_dependents["last_year_income"] < 4_300)
         ]
 
         s_dependent_id_list = df_dependents.groupby("guardian_id").apply(
