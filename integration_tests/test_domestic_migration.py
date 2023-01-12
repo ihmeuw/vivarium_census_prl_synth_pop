@@ -1,4 +1,4 @@
-import pytest
+import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import data_values
 
@@ -123,3 +123,88 @@ def test_only_living_people_move(simulants_on_adjacent_timesteps):
         movers = before["address_id"] != after["address_id"]
         assert after[movers]["tracked"].all()
         assert (after[movers]["alive"] == "alive").all()
+
+
+# add employer address tests
+# 2. all simulants with same employer id have same employer details (static)
+# 3. all employer ids have unique address details (static)
+
+
+def test_addresses_during_moves(simulants_on_adjacent_timesteps):
+    """Check that address details change after a move. Note that
+    this test does not distinguish between the different types of moves (eg
+    household vs individual moves)
+    """
+    unit_id_col = "employer_id"
+    address_id_col = "business_details.employer_address_id"
+    other_details_cols = ["business_details.employer_name"]
+    _test_addresses_during_moves(
+        pops=simulants_on_adjacent_timesteps,
+        unit_id_col=unit_id_col,
+        address_id_col=address_id_col,
+        other_details_cols=other_details_cols,
+    )
+
+
+def _test_addresses_during_moves(pops, unit_id_col, address_id_col, other_details_cols):
+    details_cols = [unit_id_col, address_id_col] + other_details_cols
+    for before, after in pops:
+        mask_movers = before[address_id_col] != after[address_id_col]
+        # address details change if address_id changes
+        # NOTE: we cannot assert that all details are different because some
+        # units (eg employer "not implemented") have the same name.
+        assert (
+            not (
+                before.loc[mask_movers, [unit_id_col] + details_cols]
+                == after.loc[mask_movers, [unit_id_col] + details_cols]
+            )
+            .all()
+            .all()
+        )
+        # address details do not change if address_id does not change
+        pd.testing.assert_frame_equal(
+            before.loc[~mask_movers, details_cols], after.loc[~mask_movers, details_cols]
+        )
+
+        # TODO when puma/state is implemented
+        # # TODO Check that *most* are in a new state when we add all locations
+        # # Some movers are in a new state.
+        # # assert any(before.loc[mask_movers, "state"] != after.loc[mask_movers, "state"])
+
+        # # Most movers are in a different puma
+        # assert (
+        #     before.loc[mask_movers, "puma"] != after.loc[mask_movers, "puma"]
+        # ).sum() / mask_movers.sum() >= 0.95
+
+
+def test_address_uniqueness(populations):
+    """Check that all units (households or employers) have unique details
+    and also that simulants of the same unit have the same details
+    """
+    unit_id_col = "employer_id"
+    address_id_col = "business_details.employer_address_id"
+    other_details_cols = ["business_details.employer_name"]
+    _test_address_uniqueness(
+        pops=populations,
+        unit_id_col=unit_id_col,
+        address_id_col=address_id_col,
+        other_details_cols=other_details_cols,
+    )
+
+
+def _test_address_uniqueness(pops, unit_id_col, address_id_col, other_details_cols):
+    details_cols = [unit_id_col, address_id_col] + other_details_cols
+    for pop in pops:
+        assert (pop.groupby(unit_id_col)[details_cols].nunique() == 1).all().all()
+
+    # # TODO implement state/puma checks
+    # # Ensure pumas map to correct state. This will be an imperfect test
+    # # because pumas are only unique within states and so one puma can
+    # # exist in multiple states. Here we only ensure no impossible pumas
+    # # exist in each state
+    # state_puma_map = get_state_puma_map(
+    #     sim._data.artifact.load("population.households").reset_index()
+    # )
+    # for pop in populations:
+    #     for (state, puma) in pop[["state", "puma"]].drop_duplicates().values:
+    #         assert puma in state_puma_map[state]
