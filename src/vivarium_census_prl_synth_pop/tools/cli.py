@@ -65,7 +65,19 @@ def make_artifacts(
     is_flag=True,
     help="Drop into python debugger if an error occurs.",
 )
-def make_results(output_dir: str, verbose: int, with_debugger: bool) -> None:
+@click.option(
+    "-b",
+    "--mark-best",
+    is_flag=True,
+)
+@click.option(
+    "-t",
+    "--test-run",
+    is_flag=True,
+)
+def make_results(
+    output_dir: str, verbose: int, with_debugger: bool, mark_best: bool, test_run: bool
+) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(build_results, logger, with_debugger=with_debugger)
-    main(output_dir)
+    main(output_dir, mark_best, test_run)
