@@ -13,6 +13,9 @@ MODEL_SPEC_DIR = BASE_DIR / "model_specifications"
 RAW_RESULTS_DIR_NAME = Path("raw_results")
 FINAL_RESULTS_DIR_NAME = Path("final_results")
 
+BEST_DIR_NAME = Path("best")
+LATEST_DIR_NAME = Path("latest")
+
 HOUSEHOLDS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 PERSONS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 
