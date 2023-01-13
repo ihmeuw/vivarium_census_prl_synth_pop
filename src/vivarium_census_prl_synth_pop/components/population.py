@@ -1032,4 +1032,9 @@ class Population:
                 relationship_map["relationship_to_new_reference_person"]
             )
 
+        # Handle extreme edge cases where there would not be a value to map to.
+        population.loc[
+            population["relation_to_household_head"].isnull(), "relation_to_household_head"
+        ] = "Other nonrelative"
+
         return population
