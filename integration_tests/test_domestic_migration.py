@@ -1,3 +1,5 @@
+import pytest
+
 import pandas as pd
 import pytest
 
@@ -185,7 +187,6 @@ def _test_addresses_during_moves(pops, unit_id_col, address_id_col, other_addres
         total_index = before_units.index.union(after_units.index)
         before_units = before_units.reindex(total_index)
         after_units = after_units.reindex(total_index)
-
         mask_moved_units = before_units[address_id_col] != after_units[address_id_col]
 
         # check that the number of moved units that have the same details is very low
