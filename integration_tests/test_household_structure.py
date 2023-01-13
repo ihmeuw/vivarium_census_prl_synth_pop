@@ -25,8 +25,7 @@ def test_relationship_is_categorical(tracked_live_populations):
         assert not relationship.isnull().any()
 
 
-# TODO stop skipping once MIC-3527 and MIC-3714 have been implemented
-@pytest.mark.skip
+@pytest.mark.skip(reason="waiting for MIC-3527 and MIC-3714 to be implemented")
 def test_all_households_have_reference_person(tracked_live_populations):
     for pop in tracked_live_populations:
         non_gq_household_ids = pop[

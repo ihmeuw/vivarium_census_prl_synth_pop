@@ -7,8 +7,7 @@ from vivarium_census_prl_synth_pop.constants import data_values, paths
 # TODO: Broader test coverage
 
 
-# TODO stop skipping once MIC-3703 has been implemented
-@pytest.mark.skip
+@pytest.mark.skip(reason="waiting for MIC-3703 to be implemented")
 def test_military_gq_employment(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
