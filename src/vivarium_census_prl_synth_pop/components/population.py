@@ -10,7 +10,12 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata, paths
+from vivarium_census_prl_synth_pop.constants import (
+    data_keys,
+    data_values,
+    metadata,
+    paths,
+)
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 # Family/household relationships helper lists
@@ -972,7 +977,6 @@ class Population:
             new_reference_persons, "relation_to_household_head"
         ] = "Reference person"
 
-        # todo: Update simulants who's parent is now reference person and make biological child
         # Update simulants born in simulation as biological children to their mother if mother is new reference person
         biological_children_idx = population.index[
             (population["date_of_birth"] > self.start_time)
@@ -999,7 +1003,7 @@ class Population:
         # Update other household members relationship to new reference person
         for relationship in new_reference_persons_relationship_to_old_reference_person[
             "relation_to_household_head"
-        ]:
+        ].unique():
             relationship_map = self.reference_person_update_relationships_map.loc[
                 self.reference_person_update_relationships_map[
                     "new_reference_person_relationship_to_old_reference_person"
@@ -1007,7 +1011,6 @@ class Population:
                 == relationship
             ].set_index("relationship_to_old_reference_person")
 
-            # todo: Get simulants to update that does not include reference person and children
             household_ids_to_update = (
                 new_reference_persons_relationship_to_old_reference_person.loc[
                     new_reference_persons_relationship_to_old_reference_person[
