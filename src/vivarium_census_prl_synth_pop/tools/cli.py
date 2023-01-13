@@ -57,7 +57,7 @@ def make_artifacts(
 
 
 @click.command()
-@click.argument("output_file", type=click.Path(exists=True))
+@click.argument("output_dir", type=click.Path(exists=True))
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
     "--pdb",
@@ -66,16 +66,18 @@ def make_artifacts(
     help="Drop into python debugger if an error occurs.",
 )
 @click.option(
-    "-s",
-    "--single",
-    "single_run",
-    default=False,
+    "-b",
+    "--mark-best",
     is_flag=True,
-    help="Results are from a single, non-parallel run.",
+)
+@click.option(
+    "-t",
+    "--test-run",
+    is_flag=True,
 )
 def make_results(
-    output_file: str, verbose: int, with_debugger: bool, single_run: bool
+    output_dir: str, verbose: int, with_debugger: bool, mark_best: bool, test_run: bool
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(build_results, logger, with_debugger=with_debugger)
-    main(output_file, single_run)
+    main(output_dir, mark_best, test_run)

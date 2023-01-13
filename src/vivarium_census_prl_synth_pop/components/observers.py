@@ -10,7 +10,7 @@ from vivarium.framework.population import PopulationView
 from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.constants import data_values, paths
 
 
 class BaseObserver(ABC):
@@ -140,7 +140,9 @@ class BaseObserver(ABC):
         pass
 
     def on_simulation_end(self, event: Event) -> None:
-        output_dir = utilities.build_output_dir(self.output_dir, subdir="results")
+        output_dir = utilities.build_output_dir(
+            self.output_dir, subdir=paths.RAW_RESULTS_DIR_NAME
+        )
         # 'fixed' format is not compatible with categorical data
         self.responses.to_csv(output_dir / (f"{self.name}.csv.bz2"))
 

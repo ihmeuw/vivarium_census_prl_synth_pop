@@ -9,7 +9,12 @@ BASE_DIR = Path(vivarium_census_prl_synth_pop.__file__).resolve().parent
 PROJECT_ROOT = Path(f"/mnt/team/simulation_science/priv/engineering/{metadata.PROJECT_NAME}")
 ARTIFACT_ROOT = PROJECT_ROOT / "data/artifacts/"
 MODEL_SPEC_DIR = BASE_DIR / "model_specifications"
-RESULTS_ROOT = PROJECT_ROOT / "results/"
+
+RAW_RESULTS_DIR_NAME = Path("raw_results")
+FINAL_RESULTS_DIR_NAME = Path("final_results")
+
+BEST_DIR_NAME = Path("best")
+LATEST_DIR_NAME = Path("latest")
 
 HOUSEHOLDS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
 PERSONS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
