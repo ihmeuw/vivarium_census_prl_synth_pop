@@ -237,7 +237,10 @@ class Businesses:
                 pop["household_id"]
                 == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
             )
-            & (pop["age"] >= data_values.WORKING_AGE)
+            & (
+                pop["age"]
+                >= data_values.WORKING_AGE - event.step_size.days / utilities.DAYS_PER_YEAR
+            )
             & (pop["employer_id"] != data_values.MilitaryEmployer.EMPLOYER_ID)
         ]
         if len(new_military_idx) > 0:
