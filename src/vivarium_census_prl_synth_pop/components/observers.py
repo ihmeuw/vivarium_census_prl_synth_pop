@@ -79,7 +79,7 @@ class BaseObserver(ABC):
 
     def setup(self, builder: Builder):
         # FIXME: move filepaths to data container
-        # FIXME: settle on output dirs
+        self.seed = builder.configuration.randomness.random_seed
         self.output_dir = Path(builder.configuration.output_data.results_directory)
         self.population_view = self.get_population_view(builder)
         self.responses = None
@@ -141,10 +141,9 @@ class BaseObserver(ABC):
 
     def on_simulation_end(self, event: Event) -> None:
         output_dir = utilities.build_output_dir(
-            self.output_dir, subdir=paths.RAW_RESULTS_DIR_NAME
+            self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.name
         )
-        # 'fixed' format is not compatible with categorical data
-        self.responses.to_csv(output_dir / (f"{self.name}.csv.bz2"))
+        self.responses.to_csv(output_dir / f"{self.name}_{self.seed}.csv.bz2")
 
 
 class HouseholdSurveyObserver(BaseObserver):
@@ -180,7 +179,7 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def name(self):
-        return f"household_survey_observer.{self.survey}"
+        return f"household_survey_observer_{self.survey}"
 
     @property
     def input_columns(self):

@@ -290,7 +290,7 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
 
     old_umask = os.umask(0o002)
     try:
-        output_dir.mkdir(exist_ok=True)
+        output_dir.mkdir(exist_ok=True, parents=True)
     finally:
         os.umask(old_umask)
 
