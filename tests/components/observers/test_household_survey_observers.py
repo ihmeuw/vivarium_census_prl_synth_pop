@@ -44,7 +44,10 @@ def test_on_simulation_end(observer, mocker):
     observer.responses = pd.DataFrame()
     observer.on_simulation_end(event)
     assert (
-        observer.output_dir / paths.RAW_RESULTS_DIR_NAME / (f"{observer.name}.csv.bz2")
+        observer.output_dir
+        / paths.RAW_RESULTS_DIR_NAME
+        / observer.name
+        / f"{observer.name}_{observer.seed}.csv.bz2"
     ).is_file()
 
 
