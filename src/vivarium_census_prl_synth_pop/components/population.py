@@ -73,7 +73,7 @@ class Population:
             self.initialize_simulants, creates_columns=self.columns_created
         )
 
-        builder.event.register_listener("time_step__cleanup", self.on_time_step__prepare)
+        builder.event.register_listener("time_step__cleanup", self.on_time_step__cleanup)
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
@@ -335,7 +335,7 @@ class Population:
 
         self.population_view.update(new_births[self.columns_created])
 
-    def on_time_step__prepare(self, event: Event):
+    def on_time_step__cleanup(self, event: Event):
         """Ages simulants each time step.
 
         Parameters
