@@ -970,7 +970,7 @@ class Population:
             population.loc[households_to_update_idx].groupby(["household_id"])["age"].idxmax()
         )
         # Preserve old relationship of new reference person before assigning them as new reference persons
-        new_reference_persons_relationship_to_old_reference_person = population.loc[
+        new_reference_person_prev_relationship = population.loc[
             new_reference_persons, ["household_id", "relation_to_household_head"]
         ]
         population.loc[
@@ -981,27 +981,20 @@ class Population:
         biological_children_idx = population.index[
             (population["date_of_birth"] > self.start_time)
             & (
-                population["household_id"].isin(
-                    new_reference_persons_relationship_to_old_reference_person["household_id"]
-                )
-            )
-            & (
                 population["guardian_1"]
                 == population["household_id"].map(
-                    new_reference_persons_relationship_to_old_reference_person.reset_index().set_index(
+                    new_reference_person_prev_relationship.reset_index().set_index(
                         "household_id"
-                    )[
-                        "index"
-                    ]
+                    )["index"]
                 )
             )
-        ]
+        ].intersection(households_to_update_idx)
         population.loc[
             biological_children_idx, "relation_to_household_head"
         ] = "Biological child"
 
         # Update other household members relationship to new reference person
-        for relationship in new_reference_persons_relationship_to_old_reference_person[
+        for relationship in new_reference_person_prev_relationship[
             "relation_to_household_head"
         ].unique():
             relationship_map = self.reference_person_update_relationships_map.loc[
@@ -1011,18 +1004,14 @@ class Population:
                 == relationship
             ].set_index("relationship_to_old_reference_person")
 
-            household_ids_to_update = (
-                new_reference_persons_relationship_to_old_reference_person.loc[
-                    new_reference_persons_relationship_to_old_reference_person[
-                        "relation_to_household_head"
-                    ]
-                    == relationship,
-                    "household_id",
-                ]
-            )
+            household_ids_to_update = new_reference_person_prev_relationship.loc[
+                new_reference_person_prev_relationship["relation_to_household_head"]
+                == relationship,
+                "household_id",
+            ]
             simulants_to_update_idx = (
                 population.index[population["household_id"].isin(household_ids_to_update)]
-                .difference(new_reference_persons_relationship_to_old_reference_person.index)
+                .difference(new_reference_person_prev_relationship.index)
                 .difference(biological_children_idx)
             )
             # Update relationships
@@ -1034,7 +1023,9 @@ class Population:
 
         # Handle extreme edge cases where there would not be a value to map to.
         population.loc[
-            population["relation_to_household_head"].isnull(), "relation_to_household_head"
+            (population.index.isin(households_to_update_idx))
+            & (population["relation_to_household_head"].isnull()),
+            "relation_to_household_head",
         ] = "Other nonrelative"
 
         return population
