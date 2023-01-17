@@ -320,7 +320,6 @@ def update_address_id_for_unit_and_sims(
     if len(units_that_move_ids) > 0:
         # update the employer address_id in self.businesses
         # this will update address_id in a households dataframe we are not tracking like we are businesses
-        # todo:  Should add income/salary to mapping function here
         moving_units = update_address_id(
             df=moving_units,
             rows_to_update=units_that_move_ids,
@@ -329,25 +328,26 @@ def update_address_id_for_unit_and_sims(
         )
         starting_address_id += len(units_that_move_ids)
 
-        # update address_id column in the pop table
-        rows_changing_address_id_idx = pop.loc[
-            pop[unit_id_col_name].isin(units_that_move_ids)
-        ].index
-        # Preserve pop index
-        pop = pop.reset_index().rename(columns={"index": "simulant_id"})
-        # todo:  Should add income/salary to mapping function here
-        updated_address_ids = (
-            pop[["simulant_id", unit_id_col_name]]
-            .merge(
-                moving_units[[address_id_col_name]],
-                how="left",
-                left_on=unit_id_col_name,
-                right_on=moving_units.index,
+        # TODO: Remove this when we implement the household address pipeline
+        if not address_id_col_name == "employer_address_id":
+            # update address_id column in the pop table
+            rows_changing_address_id_idx = pop.loc[
+                pop[unit_id_col_name].isin(units_that_move_ids)
+            ].index
+            # Preserve pop index
+            pop = pop.reset_index().rename(columns={"index": "simulant_id"})
+            updated_address_ids = (
+                pop[["simulant_id", unit_id_col_name]]
+                .merge(
+                    moving_units[[address_id_col_name]],
+                    how="left",
+                    left_on=unit_id_col_name,
+                    right_on=moving_units.index,
+                )
+                .set_index("simulant_id")[address_id_col_name]
             )
-            .set_index("simulant_id")[address_id_col_name]
-        )
-        pop = pop.set_index("simulant_id")
-        pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
+            pop = pop.set_index("simulant_id")
+            pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
 
     return pop, moving_units, starting_address_id
 
