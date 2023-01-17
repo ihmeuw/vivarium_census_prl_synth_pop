@@ -1022,10 +1022,8 @@ class Population:
             )
 
         # Handle extreme edge cases where there would not be a value to map to.
-        population.loc[
-            (population.index.isin(households_to_update_idx))
-            & (population["relation_to_household_head"].isnull()),
-            "relation_to_household_head",
-        ] = "Other nonrelative"
+        population.loc[households_to_update_idx, "relation_to_household_head"].fillna(
+            "Other nonrelative"
+        )
 
         return population
