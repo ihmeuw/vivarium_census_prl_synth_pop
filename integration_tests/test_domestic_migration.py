@@ -126,73 +126,6 @@ def test_only_living_people_move(simulants_on_adjacent_timesteps):
         assert (after[movers]["alive"] == "alive").all()
 
 
-@pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
-def test_addresses_during_moves(simulants_on_adjacent_timesteps):
-    """Check that address details change after a move. Note that
-    this test does not distinguish between the different types of moves (eg
-    household vs individual moves)
-    """
-    # business moves
-    _test_addresses_during_moves(
-        pops=simulants_on_adjacent_timesteps,
-        unit_id_col="employer_id",
-        address_id_col="business_details.employer_address_id",
-        other_address_cols=[],
-    )
-
-
-def _test_addresses_during_moves(pops, unit_id_col, address_id_col, other_address_cols):
-    address_cols = [address_id_col] + other_address_cols
-    for before, after in pops:
-        # get the unique unit (household or employer) dataset for before and after
-        before_units = (
-            before[[unit_id_col] + address_cols]
-            .drop_duplicates()
-            .sort_values(unit_id_col)
-            .set_index(unit_id_col)
-        )
-        after_units = (
-            after[[unit_id_col] + address_cols]
-            .drop_duplicates()
-            .sort_values(unit_id_col)
-            .set_index(unit_id_col)
-        )
-        # reindex in case there are unique units to one of the datasets
-        total_index = before_units.index.union(after_units.index)
-        before_units = before_units.reindex(total_index)
-        after_units = after_units.reindex(total_index)
-
-        mask_moved_units = before_units[address_id_col] != after_units[address_id_col]
-
-        # check that the number of moved units that have the same details is very low
-        # NOTE: we cannot assert that all moved units have different details
-        # because they are free to move within the same state or even puma
-        assert (
-            (
-                before_units.loc[mask_moved_units, other_address_cols]
-                == after_units.loc[mask_moved_units, other_address_cols]
-            )
-            .all(axis=1)
-            .sum()
-            / mask_moved_units.sum()
-        ) < 0.001  # TODO: pick a smarter number?
-
-        # address details do not change if address_id does not change
-        pd.testing.assert_frame_equal(
-            before_units[~mask_moved_units], after_units[~mask_moved_units]
-        )
-
-        # TODO when puma/state is implemented
-        # # TODO Check that *most* are in a new state when we add all locations
-        # # Some movers are in a new state.
-        # # assert any(before.loc[mask_movers, "state"] != after.loc[mask_movers, "state"])
-
-        # # Most movers are in a different puma
-        # assert (
-        #     before.loc[mask_movers, "puma"] != after.loc[mask_movers, "puma"]
-        # ).sum() / mask_movers.sum() >= 0.95
-
-
 def test_address_uniqueness(populations):
     """Check that all units (households or employers) have unique details
     and also that simulants of the same unit have the same details
@@ -224,3 +157,60 @@ def _test_address_uniqueness(pops, unit_id_col, address_id_col, other_address_co
     # for pop in populations:
     #     for (state, puma) in pop[["state", "puma"]].drop_duplicates().values:
     #         assert puma in state_puma_map[state]
+
+
+# @pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
+def test_addresses_during_moves(simulants_on_adjacent_timesteps):
+    """Check that address details change after a move. Note that
+    this test does not distinguish between the different types of moves (eg
+    household vs individual moves)
+    """
+    # business moves
+    _test_addresses_during_moves(
+        pops=simulants_on_adjacent_timesteps,
+        unit_id_col="employer_id",
+        address_id_col="business_details.employer_address_id",
+        other_address_cols=[],
+    )
+
+
+def _test_addresses_during_moves(pops, unit_id_col, address_id_col, other_address_cols):
+    address_cols = [address_id_col] + other_address_cols
+    for before, after in pops:
+        # get the unique unit (household or employer) dataset for before and after
+        before_units = before.groupby(unit_id_col)[address_cols].first()
+        after_units = after.groupby(unit_id_col)[address_cols].first()
+        breakpoint()
+        # reindex in case there are unique units to one of the datasets
+        total_index = before_units.index.union(after_units.index)
+        before_units = before_units.reindex(total_index)
+        after_units = after_units.reindex(total_index)
+
+        mask_moved_units = before_units[address_id_col] != after_units[address_id_col]
+
+        # check that the number of moved units that have the same details is very low
+        # NOTE: we cannot assert that all moved units have different details
+        # because they are free to move within the same state or even puma
+        assert (
+            (
+                before_units.loc[mask_moved_units, other_address_cols]
+                == after_units.loc[mask_moved_units, other_address_cols]
+            )
+            .all(axis=1)
+            .mean()
+        ) < 0.001  # TODO: pick a smarter number?
+
+        # address details do not change if address_id does not change
+        pd.testing.assert_frame_equal(
+            before_units[~mask_moved_units], after_units[~mask_moved_units]
+        )
+
+        # TODO when puma/state is implemented
+        # # TODO Check that *most* are in a new state when we add all locations
+        # # Some movers are in a new state.
+        # # assert any(before.loc[mask_movers, "state"] != after.loc[mask_movers, "state"])
+
+        # # Most movers are in a different puma
+        # assert (
+        #     before.loc[mask_movers, "puma"] != after.loc[mask_movers, "puma"]
+        # ).sum() / mask_movers.sum() >= 0.95
