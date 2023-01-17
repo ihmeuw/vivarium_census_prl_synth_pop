@@ -3,20 +3,10 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.time import get_time_stamp
-from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    metadata,
-    paths,
-)
-from vivarium_census_prl_synth_pop.utilities import (
-    filter_by_rate,
-    update_address_id_for_unit_and_sims,
-)
+from vivarium_census_prl_synth_pop.constants import metadata, paths
+from vivarium_census_prl_synth_pop.utilities import update_address_id_for_unit_and_sims
 
 
 class HouseholdMigration:

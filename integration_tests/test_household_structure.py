@@ -71,4 +71,4 @@ def test_initialized_pumas_states(populations):
     non_gq_pop = initialized_pop[
         ~initialized_pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
     ]
-    assert (non_gq_pop.groupby("address_id")["state", "puma"].nunique() == 1).values.all()
+    assert (non_gq_pop.groupby("address_id")[["state", "puma"]].nunique() == 1).values.all()
