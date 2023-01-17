@@ -159,7 +159,7 @@ def _test_address_uniqueness(pops, unit_id_col, address_id_col, other_address_co
     #         assert puma in state_puma_map[state]
 
 
-# @pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
+@pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
 def test_addresses_during_moves(simulants_on_adjacent_timesteps):
     """Check that address details change after a move. Note that
     this test does not distinguish between the different types of moves (eg
