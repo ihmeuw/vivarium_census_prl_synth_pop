@@ -64,12 +64,30 @@ def test_household_id_and_address_id_correspond(tracked_live_populations):
 def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
     """Household types should not change for a given household"""
     for before, after in simulants_on_adjacent_timesteps:
-        common_households = set(before["household_id"]).intersection(set(after["household_id"]))
-        before = before.loc[before["household_id"].isin(common_households), ["household_id", "household_details.housing_type"]].drop_duplicates().sort_values("household_id").set_index("household_id")
-        after = after.loc[after["household_id"].isin(common_households), ["household_id", "household_details.housing_type"]].drop_duplicates().sort_values("household_id").set_index("household_id")
-        
+        common_households = set(before["household_id"]).intersection(
+            set(after["household_id"])
+        )
+        before = (
+            before.loc[
+                before["household_id"].isin(common_households),
+                ["household_id", "household_details.housing_type"],
+            ]
+            .drop_duplicates()
+            .sort_values("household_id")
+            .set_index("household_id")
+        )
+        after = (
+            after.loc[
+                after["household_id"].isin(common_households),
+                ["household_id", "household_details.housing_type"],
+            ]
+            .drop_duplicates()
+            .sort_values("household_id")
+            .set_index("household_id")
+        )
+
         pd.testing.assert_frame_equal(before, after)
-        assert not after.index.duplicated().any()        
+        assert not after.index.duplicated().any()
 
 
 def test_initialized_state_complete_coverage(populations, sim):
