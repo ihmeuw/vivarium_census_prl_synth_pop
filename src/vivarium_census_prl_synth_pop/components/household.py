@@ -186,13 +186,3 @@ class HouseholdMigration:
         )
 
         return household_details
-
-
-# NOTE: A few questions:
-# 1. Where/why are addresses getting turned into floats? And, more curiously,
-#   why isn't that breaking when updating the state table??
-# 2. Lots of these future warnings
-# FutureWarning: In a future version, `df.iloc[:, i] = newvals` will attempt to
-# set the values inplace instead of always setting a new array. To retain the
-# old behavior, use either `df[df.columns[i]] = newvals` or, if columns are
-# non-unique, `df.isetitem(i, newvals)`
