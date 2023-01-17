@@ -44,6 +44,10 @@ class Population:
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.step_size_days = builder.configuration.time.step_size
 
+        # TODO: when implementing household details pipeline, need to create
+        # one-time "initial_housing_type" since that will be used only once
+        # to create the pipeline's households backing structure and then
+        # never again (maybe the same for puma/state when that gets implemented)
         self.columns_created = [
             "household_id",
             "state",

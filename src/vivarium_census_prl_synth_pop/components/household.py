@@ -6,12 +6,13 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.constants import metadata, paths
+from vivarium_census_prl_synth_pop.constants.data_values import HOUSING_TYPES
 from vivarium_census_prl_synth_pop.utilities import update_address_id_for_unit_and_sims
 
 
 class HouseholdMigration:
     """
-    - on simulant_initialization, adds address to population table per household_id
+    - on simulant_initialization, adds household details
     - on time_step, updates some households to new addresses
 
     ASSUMPTION:
@@ -51,18 +52,25 @@ class HouseholdMigration:
         )
 
         self.randomness = builder.randomness.get_stream(self.name)
-        self.columns_created = ["address_id"]
         self.columns_used = [
             "household_id",
+            "housing_type",
             "relation_to_household_head",
             "address_id",
         ]
+
         self.population_view = builder.population.get_view(self.columns_used)
+
+        self.households = None
+        self.household_details = builder.value.register_value_producer(
+            "household_details",
+            source=self.generate_household_details,
+            requires_columns=["household_id"],
+        )
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             requires_columns=["household_id"],
-            creates_columns=self.columns_created,
         )
         builder.event.register_listener(
             "time_step",
@@ -78,26 +86,31 @@ class HouseholdMigration:
         """
         add addresses to each household in the population table
         """
-        if pop_data.creation_time < self.start_time:
+        if pop_data.creation_time < self.start_time:  # initial pop
+            self.households = self.generate_initial_households(pop_data)
             households = self.population_view.subview(["household_id"]).get(pop_data.index)
-            household_ids = households["household_id"].unique()
-            n = np.float64(len(household_ids))
+            household_ids = sorted(households["household_id"].unique())
+            n = len(household_ids)
             address_assignments = {
                 household: address_id
                 for (household, address_id) in zip(household_ids, np.arange(n))
             }
             households["address_id"] = households["household_id"].map(address_assignments)
             self.population_view.update(households)
-        else:
+        else:  # newborns
             parent_ids = pop_data.user_data["parent_ids"]
             mothers = self.population_view.get(parent_ids.unique())
+            mothers["address_id"] = mothers["address_id"].astype(
+                int
+            )  # FIXME - why are these floats??
             new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
 
             # assign babies inherited traits
             new_births = new_births.merge(
-                mothers[self.columns_created], left_on="parent_id", right_index=True
+                mothers["address_id"], left_on="parent_id", right_index=True
             )
-            self.population_view.update(new_births[self.columns_created])
+            self.population_view.update(new_births["address_id"])
+            # FIXME: Do I need to do anything here? fertility confuses me.
 
     def on_time_step(self, event: Event):
         """
@@ -135,9 +148,9 @@ class HouseholdMigration:
 
         max_household_address_id = households["address_id"].max()
 
-        (pop, _, _,) = update_address_id_for_unit_and_sims(
+        (pop, self.households, _,) = update_address_id_for_unit_and_sims(
             pop,
-            moving_units=households,
+            moving_units=self.households,
             units_that_move_ids=movers["household_id"],
             starting_address_id=max_household_address_id + 1,
             unit_id_col_name="household_id",
@@ -145,3 +158,41 @@ class HouseholdMigration:
         )
 
         self.population_view.update(pop)
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def generate_initial_households(self, pop_data: SimulantData) -> pd.DataFrame():
+        households = self.population_view.subview(["household_id", "housing_type"]).get(
+            pop_data.index
+        )
+        households = (
+            households.drop_duplicates().sort_values("household_id").set_index("household_id")
+        )
+        households["address_id"] = np.arange(len(households))
+
+        return households
+
+    def generate_household_details(self, idx: pd.Index) -> pd.DataFrame:
+        pop = self.population_view.subview(["household_id"]).get(idx)
+        household_details = pop.join(
+            self.households,
+            on="household_id",
+        )
+        # Set housing_type dtypes
+        household_details["housing_type"] = household_details["housing_type"].astype(
+            pd.CategoricalDtype(categories=HOUSING_TYPES)
+        )
+
+        return household_details
+
+
+# NOTE: A few questions:
+# 1. Where/why are addresses getting turned into floats? And, more curiously,
+#   why isn't that breaking when updating the state table??
+# 2. Lots of these future warnings
+# FutureWarning: In a future version, `df.iloc[:, i] = newvals` will attempt to
+# set the values inplace instead of always setting a new array. To retain the
+# old behavior, use either `df[df.columns[i]] = newvals` or, if columns are
+# non-unique, `df.isetitem(i, newvals)`

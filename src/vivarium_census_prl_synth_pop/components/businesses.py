@@ -18,7 +18,7 @@ from vivarium_census_prl_synth_pop.utilities import (
 
 class Businesses:
     """
-    IMPROVE DESCRIPTION
+    TODO: IMPROVE DESCRIPTION
 
     on init:
         assign everyone of working age an employer
@@ -182,7 +182,8 @@ class Businesses:
             address_id_col_name="employer_address_id",
         )
 
-        # change jobs if of working age already but exclude simulants living in military group quarters
+        # change jobs by rate as well as if the household moves (only includes
+        # working-age simulants and excludes simulants living in military GQ)
         working_age_idx = pop.index[
             (pop["age"] >= data_values.WORKING_AGE)
             & (
