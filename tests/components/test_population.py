@@ -84,7 +84,7 @@ fake_household_4 = pd.DataFrame(
             pd.Timestamp("1997-10-30 00:00:00"),
         ],
         "age": [23, 22, 22, 21, 20],
-        "guardian_2": [-1, -1, -1, -1, -1],
+        "guardian_1": [-1, -1, -1, -1, -1],
         "relation_to_household_head": [
             "Roommate",
             "Roommate",
@@ -107,7 +107,7 @@ fake_household_5 = pd.DataFrame(
             pd.Timestamp("1990-04-01 00:00:00"),
         ],
         "age": [38, 5, 36, 34, 36],
-        "guardian_2": [-1, 20, -1, -1, -1],
+        "guardian_1": [-1, 20, -1, -1, -1],
         "relation_to_household_head": [
             "Opp-sex spouse",
             "Biological child",
@@ -135,33 +135,63 @@ def fake_population() -> pd.DataFrame:
 
 def test_update_to_reference_person_and_relationships(fake_population):
 
-    expected_relationships = pd.Series(
+    expected_relationships_1 = pd.Series(
         data=[
             "Reference person",
             "Biological child",
             "Adopted child",
             "Adopted child",
             "Other relative",
+        ],
+        index=[0, 1, 2, 3, 4],
+    )
+    expected_relationships_2 = pd.Series(
+        data=[
             "Reference person",
             "Biological child",
             "Grandchild",
             "Grandchild",
             "Other relative",
+        ],
+        index=[5, 6, 7, 8, 9],
+    )
+    expected_relationships_3 = pd.Series(
+        data=[
             "Reference person",
             "Biological child",
             "Other relative",
             "Child-in-law",
             "Grandchild",
+        ],
+        index=[10, 11, 12, 13, 14],
+    )
+    expected_relationships_4 = pd.Series(
+        data=[
             "Reference person",
             "Roommate",
             "Roommate",
             "Roommate",
             "Roommate",
+        ],
+        index=[15, 16, 17, 18, 19],
+    )
+    expected_relationships_5 = pd.Series(
+        data=[
             "Reference person",
             "Biological child",
             "Roommate",
             "Other relative",
             "Other nonrelative",
+        ],
+        index=[20, 21, 22, 23, 24],
+    )
+    expected_relationships = pd.concat(
+        [
+            expected_relationships_1,
+            expected_relationships_2,
+            expected_relationships_3,
+            expected_relationships_4,
+            expected_relationships_5,
         ]
     )
 
