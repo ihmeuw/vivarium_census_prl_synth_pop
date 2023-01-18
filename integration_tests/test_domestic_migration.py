@@ -129,31 +129,27 @@ def test_only_living_people_change_households(simulants_on_adjacent_timesteps):
         assert (after[movers]["alive"] == "alive").all()
 
 
-def test_employer_address_uniqueness(populations):
-    """Check that all employers have unique details and also that simulants of
-    the same unit have the same details
+@pytest.mark.parametrize(
+    "unit_id_col, address_id_col",
+    [
+        ("employer_id", "business_details.employer_address_id"),
+        ("household_id", "household_details.address_id"),
+    ],
+)
+def test_unit_address_uniqueness(populations, unit_id_col, address_id_col):
+    """Check that all units (households and businesses) have unique details and
+    also that simulants of the same unit have the same details
     """
-    _test_address_uniqueness(
+    breakpoint()
+    _test_unit_address_uniqueness(
         pops=populations,
-        unit_id_col="employer_id",
-        address_id_col="business_details.employer_address_id",
+        unit_id_col=unit_id_col,
+        address_id_col=address_id_col,
         other_address_cols=[],  # TODO: add state/puma
     )
 
 
-def test_household_address_uniqueness(populations):
-    """Check that all households have unique details and also that simulants of
-    the same unit have the same details
-    """
-    _test_address_uniqueness(
-        pops=populations,
-        unit_id_col="household_id",
-        address_id_col="household_details.address_id",
-        other_address_cols=[],  # TODO: add state/puma
-    )
-
-
-def _test_address_uniqueness(pops, unit_id_col, address_id_col, other_address_cols):
+def _test_unit_address_uniqueness(pops, unit_id_col, address_id_col, other_address_cols):
     address_cols = [unit_id_col, address_id_col] + other_address_cols
     for pop in pops:
         # Check that all simulants in the same unit have the same address
@@ -174,24 +170,20 @@ def _test_address_uniqueness(pops, unit_id_col, address_id_col, other_address_co
     #         assert puma in state_puma_map[state]
 
 
+@pytest.mark.parametrize(
+    "unit_id_col, address_id_col",
+    [
+        ("employer_id", "business_details.employer_address_id"),
+        ("household_id", "household_details.address_id"),
+    ],
+)
 @pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
-def test_business_addresses_during_moves(simulants_on_adjacent_timesteps):
+def test_addresses_during_moves(simulants_on_adjacent_timesteps, unit_id_col, address_id_col):
     """Check that business address details change after a move."""
     _test_addresses_during_moves(
         pops=simulants_on_adjacent_timesteps,
-        unit_id_col="employer_id",
-        address_id_col="business_details.employer_address_id",
-        other_address_cols=[],  # TODO: add state/puma
-    )
-
-
-@pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
-def test_household_addresses_during_moves(simulants_on_adjacent_timesteps):
-    """Check that household address details change after a move."""
-    _test_addresses_during_moves(
-        pops=simulants_on_adjacent_timesteps,
-        unit_id_col="household_id",
-        address_id_col="household_details.address_id",
+        unit_id_col=unit_id_col,
+        address_id_col=address_id_col,
         other_address_cols=[],  # TODO: add state/puma
     )
 
