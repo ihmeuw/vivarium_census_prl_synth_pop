@@ -9,7 +9,6 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.components import HouseholdMigration
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 from vivarium_census_prl_synth_pop.utilities import update_address_id
 
