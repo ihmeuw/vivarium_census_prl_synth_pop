@@ -1,5 +1,5 @@
-import numpy as np
 import pandas as pd
+import pytest
 
 from vivarium_census_prl_synth_pop.components.population import Population
 from vivarium_census_prl_synth_pop.constants import paths
@@ -119,12 +119,21 @@ fake_household_5 = pd.DataFrame(
     }
 )
 
-fake_population = pd.concat(
-    [fake_household_1, fake_household_2, fake_household_3, fake_household_4, fake_household_5]
-).reset_index()
+
+@pytest.fixture(scope="session")
+def fake_population() -> pd.DataFrame:
+    return pd.concat(
+        [
+            fake_household_1,
+            fake_household_2,
+            fake_household_3,
+            fake_household_4,
+            fake_household_5,
+        ]
+    ).reset_index()
 
 
-def test_update_to_reference_person_and_relationships():
+def test_update_to_reference_person_and_relationships(fake_population):
 
     expected_relationships = pd.Series(
         data=[
