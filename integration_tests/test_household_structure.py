@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from integration_tests.conftest import TIME_STEPS_TO_TEST
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 # TODO: Broader test coverage
