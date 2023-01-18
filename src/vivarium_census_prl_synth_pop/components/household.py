@@ -90,10 +90,9 @@ class HouseholdMigration:
             self.households = self.generate_initial_households(pop_data)
             households = self.population_view.subview(["household_id"]).get(pop_data.index)
             household_ids = sorted(households["household_id"].unique())
-            n = len(household_ids)
             address_assignments = {
                 household: address_id
-                for (household, address_id) in zip(household_ids, np.arange(n))
+                for (household, address_id) in zip(household_ids, np.arange(len(household_ids)))
             }
             households["address_id"] = households["household_id"].map(address_assignments)
             self.population_view.update(households)
@@ -102,7 +101,7 @@ class HouseholdMigration:
             mothers = self.population_view.get(parent_ids.unique())
             mothers["address_id"] = mothers["address_id"].astype(
                 int
-            )  # FIXME - why are these floats??
+            )
             new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
 
             # assign babies inherited traits
@@ -110,7 +109,6 @@ class HouseholdMigration:
                 mothers["address_id"], left_on="parent_id", right_index=True
             )
             self.population_view.update(new_births["address_id"])
-            # FIXME: Do I need to do anything here? fertility confuses me.
 
     def on_time_step(self, event: Event):
         """
@@ -180,6 +178,7 @@ class HouseholdMigration:
             self.households,
             on="household_id",
         )
+        # FIXME: why is the `housing_type` column losing its CategoricalDtype?
         # Set housing_type dtypes
         household_details["housing_type"] = household_details["housing_type"].astype(
             pd.CategoricalDtype(categories=HOUSING_TYPES)
