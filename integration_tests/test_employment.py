@@ -59,14 +59,19 @@ def test_only_living_change_employment(populations):
 
 def test_movers_change_employment(populations):
     for before, after in zip(populations, populations[1:]):
-        common_working_age_simulants = before.index[before.age >= 18].intersection(
-            after.index[after.age >= 18]
+        common_alive_simulants = before[before["alive"] == "alive"].index.intersection(
+            after[after["alive"] == "alive"].index
         )
-        before = before.loc[common_working_age_simulants]
-        after = after.loc[common_working_age_simulants]
+        common_working_age_simulants = before.index[before["age"] >= 18].intersection(
+            after.index[after["age"] >= 18]
+        )
+        before = before.loc[common_working_age_simulants.intersection(common_alive_simulants)]
+        after = after.loc[common_working_age_simulants.intersection(common_alive_simulants)]
 
-        moved = before["address_id"] != after["address_id"]
-        moved_to_military_gq = moved & (after["housing_type"] == "Military")
+        moved = (
+            before["household_details.address_id"] != after["household_details.address_id"]
+        )
+        moved_to_military_gq = moved & (after["household_details.housing_type"] == "Military")
         previously_military_employed = before["employer_id"] == 1
         should_change = moved & (~moved_to_military_gq | ~previously_military_employed)
         assert (
@@ -130,3 +135,10 @@ def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):
             assert (
                 before.loc[birthdays_idx, "income"] != after.loc[birthdays_idx, "income"]
             ).all()
+
+
+@pytest.mark.skip(reason="TODO when employer_name_id is implemented")
+def test_employer_name_uniqueness(simulants_on_adjacent_timesteps):
+    """Employers should have unique names that never change"""
+    for before, after in simulants_on_adjacent_timesteps:
+        ...

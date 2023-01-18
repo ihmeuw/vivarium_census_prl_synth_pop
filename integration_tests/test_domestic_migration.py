@@ -11,7 +11,8 @@ def test_individuals_move(simulants_on_adjacent_timesteps):
         individual_movers = before["household_id"] != after["household_id"]
         assert individual_movers.any()
         assert (
-            before[individual_movers]["address_id"] != after[individual_movers]["address_id"]
+            before[individual_movers]["household_details.address_id"]
+            != after[individual_movers]["household_details.address_id"]
         ).all()
 
 
@@ -23,7 +24,7 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         # established by a new-household mover (within the same time step).
         movers_into_new_households = (
             (before["household_id"] != after["household_id"])
-            & (after["housing_type"] == "Standard")
+            & (after["household_details.housing_type"] == "Standard")
             & (~after["household_id"].isin(before["household_id"]))
         )
         assert movers_into_new_households.any()
@@ -56,18 +57,18 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         assert new_households.nunique() == len(new_households)
 
         # Address IDs moved to are unique and new
-        new_addresses = after[new_household_movers]["address_id"]
+        new_addresses = after[new_household_movers]["household_details.address_id"]
         assert new_addresses.nunique() == len(new_addresses)
-        assert not new_addresses.isin(before["address_id"]).any()
+        assert not new_addresses.isin(before["household_details.address_id"]).any()
 
 
 def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         gq_movers = (before["household_id"] != after["household_id"]) & (
-            after["housing_type"] != "Standard"
+            after["household_details.housing_type"] != "Standard"
         )
         assert gq_movers.any()
-        assert (before[gq_movers]["housing_type"] == "Standard").any()
+        assert (before[gq_movers]["household_details.housing_type"] == "Standard").any()
         assert after[gq_movers]["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).all()
         assert (
             after[gq_movers]["relation_to_household_head"]
@@ -80,7 +81,7 @@ def test_individuals_move_into_existing_households(simulants_on_adjacent_timeste
     for before, after in simulants_on_adjacent_timesteps:
         non_reference_person_movers = (
             (before["household_id"] != after["household_id"])
-            & (after["housing_type"] == "Standard")
+            & (after["household_details.housing_type"] == "Standard")
             & (after["household_id"].isin(before["household_id"]))
         )
         assert non_reference_person_movers.any()
@@ -95,7 +96,7 @@ def test_individuals_move_into_existing_households(simulants_on_adjacent_timeste
 def test_households_move(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         household_movers = (before["household_id"] == after["household_id"]) & (
-            before["address_id"] != after["address_id"]
+            before["household_details.address_id"] != after["household_details.address_id"]
         )
         assert household_movers.any()
 
@@ -105,42 +106,42 @@ def test_households_move(simulants_on_adjacent_timesteps):
             == after[household_movers]["relation_to_household_head"]
         ).all()
         assert (
-            before[household_movers]["housing_type"]
-            == after[household_movers]["housing_type"]
+            before[household_movers]["household_details.housing_type"]
+            == after[household_movers]["household_details.housing_type"]
         ).all()
 
         # Address IDs moved to are new
         moved_households = before[household_movers]["household_id"].unique()
-        new_addresses = after[household_movers]["address_id"]
+        new_addresses = after[household_movers]["household_details.address_id"]
         assert new_addresses.nunique() == len(moved_households)
-        assert not before["address_id"].isin(new_addresses).any()
+        assert not before["household_details.address_id"].isin(new_addresses).any()
 
         # Never GQ households
-        assert (before[household_movers]["housing_type"] == "Standard").all()
+        assert (
+            before[household_movers]["household_details.housing_type"] == "Standard"
+        ).all()
 
 
-def test_only_living_people_move(simulants_on_adjacent_timesteps):
+def test_only_living_people_change_households(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        movers = before["address_id"] != after["address_id"]
+        movers = before["household_id"] != after["household_id"]
         assert after[movers]["tracked"].all()
         assert (after[movers]["alive"] == "alive").all()
 
 
-def test_address_uniqueness(populations):
-    """Check that all units (households or employers) have unique details
-    and also that simulants of the same unit have the same details
+@pytest.mark.parametrize(
+    "unit_id_col, address_id_col",
+    [
+        ("employer_id", "business_details.employer_address_id"),
+        ("household_id", "household_details.address_id"),
+    ],
+)
+def test_unit_address_uniqueness(populations, unit_id_col, address_id_col):
+    """Check that all units (households and businesses) have unique details and
+    also that simulants of the same unit have the same details
     """
-    _test_address_uniqueness(
-        pops=populations,
-        unit_id_col="employer_id",
-        address_id_col="business_details.employer_address_id",
-        other_address_cols=[],
-    )
-
-
-def _test_address_uniqueness(pops, unit_id_col, address_id_col, other_address_cols):
-    address_cols = [unit_id_col, address_id_col] + other_address_cols
-    for pop in pops:
+    address_cols = [unit_id_col, address_id_col]  # TODO: add state/puma
+    for pop in populations:
         # Check that all simulants in the same unit have the same address
         assert (pop.groupby(unit_id_col)[address_cols].nunique() == 1).all().all()
         # Check that all units have unique addresses
@@ -159,33 +160,26 @@ def _test_address_uniqueness(pops, unit_id_col, address_id_col, other_address_co
     #         assert puma in state_puma_map[state]
 
 
+@pytest.mark.parametrize(
+    "unit_id_col, address_id_col",
+    [
+        ("employer_id", "business_details.employer_address_id"),
+        ("household_id", "household_details.address_id"),
+    ],
+)
 @pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
-def test_addresses_during_moves(simulants_on_adjacent_timesteps):
-    """Check that address details change after a move. Note that
-    this test does not distinguish between the different types of moves (eg
-    household vs individual moves)
-    """
-    # business moves
-    _test_addresses_during_moves(
-        pops=simulants_on_adjacent_timesteps,
-        unit_id_col="employer_id",
-        address_id_col="business_details.employer_address_id",
-        other_address_cols=[],
-    )
-
-
-def _test_addresses_during_moves(pops, unit_id_col, address_id_col, other_address_cols):
+def test_addresses_during_moves(simulants_on_adjacent_timesteps, unit_id_col, address_id_col):
+    """Check that unit (household and business) address details change after a move."""
+    other_address_cols = []  # TODO: add state/puma
     address_cols = [address_id_col] + other_address_cols
-    for before, after in pops:
+    for before, after in simulants_on_adjacent_timesteps:
         # get the unique unit (household or employer) dataset for before and after
         before_units = before.groupby(unit_id_col)[address_cols].first()
         after_units = after.groupby(unit_id_col)[address_cols].first()
-        breakpoint()
         # reindex in case there are unique units to one of the datasets
         total_index = before_units.index.union(after_units.index)
         before_units = before_units.reindex(total_index)
         after_units = after_units.reindex(total_index)
-
         mask_moved_units = before_units[address_id_col] != after_units[address_id_col]
 
         # check that the number of moved units that have the same details is very low
