@@ -92,16 +92,16 @@ class HouseholdMigration:
             household_ids = sorted(households["household_id"].unique())
             address_assignments = {
                 household: address_id
-                for (household, address_id) in zip(household_ids, np.arange(len(household_ids)))
+                for (household, address_id) in zip(
+                    household_ids, np.arange(len(household_ids))
+                )
             }
             households["address_id"] = households["household_id"].map(address_assignments)
             self.population_view.update(households)
         else:  # newborns
             parent_ids = pop_data.user_data["parent_ids"]
             mothers = self.population_view.get(parent_ids.unique())
-            mothers["address_id"] = mothers["address_id"].astype(
-                int
-            )
+            mothers["address_id"] = mothers["address_id"].astype(int)
             new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
 
             # assign babies inherited traits
