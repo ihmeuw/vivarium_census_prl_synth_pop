@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import pytest
+from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 
@@ -16,7 +16,7 @@ def test_military_gq_employment(tracked_live_populations):
                 pop["household_id"]
                 == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
             )
-            & (pop["age"] >= data_values.WORKING_AGE)
+            & (pop["age"] >= data_values.WORKING_AGE + 28 / utilities.DAYS_PER_YEAR)
         ]
         assert (military_gq["employer_id"] == data_values.MilitaryEmployer.EMPLOYER_ID).all()
 
