@@ -140,18 +140,8 @@ def test_unit_address_uniqueness(populations, unit_id_col, address_id_col):
     """Check that all units (households and businesses) have unique details and
     also that simulants of the same unit have the same details
     """
-    breakpoint()
-    _test_unit_address_uniqueness(
-        pops=populations,
-        unit_id_col=unit_id_col,
-        address_id_col=address_id_col,
-        other_address_cols=[],  # TODO: add state/puma
-    )
-
-
-def _test_unit_address_uniqueness(pops, unit_id_col, address_id_col, other_address_cols):
-    address_cols = [unit_id_col, address_id_col] + other_address_cols
-    for pop in pops:
+    address_cols = [unit_id_col, address_id_col]  # TODO: add state/puma
+    for pop in populations:
         # Check that all simulants in the same unit have the same address
         assert (pop.groupby(unit_id_col)[address_cols].nunique() == 1).all().all()
         # Check that all units have unique addresses
@@ -179,18 +169,10 @@ def _test_unit_address_uniqueness(pops, unit_id_col, address_id_col, other_addre
 )
 @pytest.mark.skip(reason="Wait for state/puma to be added (MIC-3728)")
 def test_addresses_during_moves(simulants_on_adjacent_timesteps, unit_id_col, address_id_col):
-    """Check that business address details change after a move."""
-    _test_addresses_during_moves(
-        pops=simulants_on_adjacent_timesteps,
-        unit_id_col=unit_id_col,
-        address_id_col=address_id_col,
-        other_address_cols=[],  # TODO: add state/puma
-    )
-
-
-def _test_addresses_during_moves(pops, unit_id_col, address_id_col, other_address_cols):
+    """Check that unit (household and business) address details change after a move."""
+    other_address_cols = []  # TODO: add state/puma
     address_cols = [address_id_col] + other_address_cols
-    for before, after in pops:
+    for before, after in simulants_on_adjacent_timesteps:
         # get the unique unit (household or employer) dataset for before and after
         before_units = before.groupby(unit_id_col)[address_cols].first()
         after_units = after.groupby(unit_id_col)[address_cols].first()
