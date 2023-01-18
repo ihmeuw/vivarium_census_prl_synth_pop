@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -42,6 +44,7 @@ class PersonMigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
+        self.household_migration = builder.components.get_component("household_migration")
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
@@ -100,7 +103,7 @@ class PersonMigration:
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
-                "previous_timestep_address_id": np.nan,
+                "previous_timestep_address_id": -1,
             },
             index=pop_data.index,
         )
@@ -170,6 +173,18 @@ class PersonMigration:
         pop.loc[movers, "relation_to_household_head"] = "Reference person"
         pop.loc[movers, "housing_type"] = "Standard"
 
+        # df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(len(rows_to_update))
+        new_households = pd.DataFrame(
+            {
+                "household_id": new_household_ids,
+                "housing_type": "Standard",
+                "address_id": first_new_household_address_id + np.arange(len(movers)),
+            }
+        ).set_index("household_id")
+        self.household_migration.households = pd.concat(
+            [self.household_migration.households, new_households], axis=0
+        )
+
         return pop
 
     def _perform_gq_person_moves(self, pop: pd.DataFrame, movers: pd.Index) -> pd.DataFrame:
@@ -214,6 +229,8 @@ class PersonMigration:
             )
 
             pop.loc[movers_in_category, "household_id"] = household_id_values
+
+            # TODO: remove this when implementing pipline approach
             pop.loc[movers_in_category, "housing_type"] = household_id_values.map(
                 data_values.GQ_HOUSING_TYPE_MAP
             )
@@ -260,6 +277,8 @@ class PersonMigration:
             )
 
         pop.loc[movers, "household_id"] = household_id_values
+
+        # remove "housing_type" and "address_id" from pop table when pipeline is implemented
         pop.loc[movers, "housing_type"] = "Standard"
         pop.loc[movers, "address_id"] = household_id_values.map(non_gq_address_ids)
         pop.loc[movers, "relation_to_household_head"] = "Other nonrelative"
