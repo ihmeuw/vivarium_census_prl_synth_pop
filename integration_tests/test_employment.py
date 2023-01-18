@@ -1,27 +1,28 @@
 import numpy as np
 import pandas as pd
-import pytest
+from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 
 # TODO: Broader test coverage
 
 
-# TODO stop skipping once MIC-3703 has been implemented
-@pytest.mark.skip
-def test_military_gq_employment(tracked_live_populations):
+def test_military_gq_employment(sim, tracked_live_populations):
     for pop in tracked_live_populations:
-        # All people in military group quarters are
+        # All people in military group quarters are employed by the military if working age
+        # Note: We initialize simulants into group quarters that are < 18 so they will remain unemployed.
         military_gq = pop[
-            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
-        ]
-        assert (
-            military_gq["employer_id"].isin(
-                # todo they are not allowed to be unemployed.
-                #  Once this bug is fixed, change the test
-                [data_values.MilitaryEmployer.EMPLOYER_ID, data_values.UNEMPLOYED_ID]
+            (
+                pop["household_id"]
+                == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
             )
-        ).all()
+            & (
+                pop["age"]
+                >= data_values.WORKING_AGE
+                + sim._clock._step_size.days / utilities.DAYS_PER_YEAR
+            )
+        ]
+        assert (military_gq["employer_id"] == data_values.MilitaryEmployer.EMPLOYER_ID).all()
 
 
 def test_underage_are_unemployed(tracked_live_populations):
