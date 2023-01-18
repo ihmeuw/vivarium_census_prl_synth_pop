@@ -7,7 +7,7 @@ from vivarium_census_prl_synth_pop.constants import data_values, paths
 # TODO: Broader test coverage
 
 
-def test_military_gq_employment(tracked_live_populations):
+def test_military_gq_employment(sim, tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are employed by the military if working age
         # Note: We initialize simulants into group quarters that are < 18 so they will remain unemployed.
@@ -16,7 +16,11 @@ def test_military_gq_employment(tracked_live_populations):
                 pop["household_id"]
                 == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
             )
-            & (pop["age"] >= data_values.WORKING_AGE + 28 / utilities.DAYS_PER_YEAR)
+            & (
+                pop["age"]
+                >= data_values.WORKING_AGE
+                + sim._clock._step_size.days / utilities.DAYS_PER_YEAR
+            )
         ]
         assert (military_gq["employer_id"] == data_values.MilitaryEmployer.EMPLOYER_ID).all()
 
