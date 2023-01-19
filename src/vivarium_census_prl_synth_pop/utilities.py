@@ -267,47 +267,20 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
     return output_dir
 
 
-def update_address_id(
-    df: pd.DataFrame,
-    rows_to_update: pd.Index,
-    starting_address_id: int,
-    address_id_col_name: str = "address_id",
-) -> pd.DataFrame:
-    """
-    Parameters
-    ----------
-    df: the pd.DataFrame to update, business table
-    rows_to_update: a pd.Index of the rows of df to update
-    starting_address_id: int that is tracking value for business or household_ids max value.:
-    address_id_col_name: a string. the name of the column in df to hold addresses.
-    Returns
-    -------
-    df with appropriately updated address_ids
-    """
-    df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(
-        len(rows_to_update)
-    )
-    return df
-
-
-def update_address_id_for_unit_and_sims(
-    pop: pd.DataFrame,
+def update_address_ids(
     moving_units: pd.DataFrame,
     units_that_move_ids: pd.Index,
     starting_address_id: int,
-    unit_id_col_name: str,
     address_id_col_name: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
     """
-    Units are multiperson groups tracked in the simulation.  Examples being households and employers.
+    Updates address_ids in the appropriate data structure (households or businesses)
 
     Parameters
     ----------
-    pop: population table
     moving_units: Dataframe with column address_id_col_name.
     units_that_move_ids: IDs of moving units.  This is a subset of moving_units.index
     starting_address_id: Integer at which to start generating new address_ids, to prevent collisions.
-    unit_id_col_name: Column name in state table where ids for the unit are stored.
     address_id_col_name: Column name in state table where address_id for the unit is stored.
 
     Returns
@@ -318,47 +291,20 @@ def update_address_id_for_unit_and_sims(
     """
 
     if len(units_that_move_ids) > 0:
-        # update the employer address_id in self.businesses
-        # this will update address_id in a households dataframe we are not tracking like we are businesses
-        moving_units = update_address_id(
-            df=moving_units,
-            rows_to_update=units_that_move_ids,
-            starting_address_id=starting_address_id,
-            address_id_col_name=address_id_col_name,
-        )
+        moving_units.loc[
+            units_that_move_ids, address_id_col_name
+        ] = starting_address_id + np.arange(len(units_that_move_ids))
         starting_address_id += len(units_that_move_ids)
 
-        # TODO: Remove this when we implement the household address pipeline
-        if not address_id_col_name == "employer_address_id":
-            # update address_id column in the pop table
-            rows_changing_address_id_idx = pop.loc[
-                pop[unit_id_col_name].isin(units_that_move_ids)
-            ].index
-            # Preserve pop index
-            pop = pop.reset_index().rename(columns={"index": "simulant_id"})
-            updated_address_ids = (
-                pop[["simulant_id", unit_id_col_name]]
-                .merge(
-                    moving_units[[address_id_col_name]],
-                    how="left",
-                    left_on=unit_id_col_name,
-                    right_on=moving_units.index,
-                )
-                .set_index("simulant_id")[address_id_col_name]
-            )
-            pop = pop.set_index("simulant_id")
-            pop.loc[rows_changing_address_id_idx, address_id_col_name] = updated_address_ids
-
-    return pop, moving_units, starting_address_id
+    return moving_units, starting_address_id
 
 
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:
     """Map the address ids of guardians to each simulant's guardian address columns"""
     for i in [1, 2]:
         s_guardian_id = pop[f"guardian_{i}"]
-        s_guardian_id = s_guardian_id[
-            s_guardian_id != -1
-        ]  # is it faster to remove the negative values?
+        # is it faster to remove the negative values below?
+        s_guardian_id = s_guardian_id[s_guardian_id != -1]
         pop[f"guardian_{i}_address_id"] = s_guardian_id.map(pop["address_id"])
     return pop
 

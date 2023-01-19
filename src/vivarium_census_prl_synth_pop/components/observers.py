@@ -26,12 +26,10 @@ class BaseObserver(ABC):
         "last_name_id",
         "age",
         "date_of_birth",
-        "address_id",
         "sex",
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
-        "housing_type",
     ]
     DEFAULT_OUTPUT_COLUMNS = [
         "first_name_id",
@@ -147,7 +145,7 @@ class BaseObserver(ABC):
 
 
 class HouseholdSurveyObserver(BaseObserver):
-
+    INPUT_VALUES = ["household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "household_id",
@@ -180,6 +178,10 @@ class HouseholdSurveyObserver(BaseObserver):
     @property
     def name(self):
         return f"household_survey_observer_{self.survey}"
+
+    @property
+    def input_values(self):
+        return self.INPUT_VALUES
 
     @property
     def input_columns(self):
@@ -224,6 +226,9 @@ class HouseholdSurveyObserver(BaseObserver):
         ]
         # Must be a timestamp, not an actual `date` type, in order to save to HDF in table mode
         new_responses["survey_date"] = pd.Timestamp(event.time.date())
+        new_responses[["address_id", "housing_type"]] = self.pipelines["household_details"](
+            new_responses.index
+        )[["address_id", "housing_type"]]
         new_responses = utilities.add_guardian_address_ids(new_responses)
         # Apply column schema and concatenate
         return new_responses[self.output_columns]
@@ -236,6 +241,7 @@ class DecennialCensusObserver(BaseObserver):
     relevant to adding row noise.
     """
 
+    INPUT_VALUES = ["household_details"]
     ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "relation_to_household_head",
@@ -249,6 +255,10 @@ class DecennialCensusObserver(BaseObserver):
     @property
     def name(self):
         return f"decennial_census_observer"
+
+    @property
+    def input_values(self):
+        return self.INPUT_VALUES
 
     @property
     def input_columns(self):
@@ -274,15 +284,19 @@ class DecennialCensusObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # census should include only living simulants
         )
+        pop[["address_id", "housing_type"]] = self.pipelines["household_details"](pop.index)[
+            ["address_id", "housing_type"]
+        ]
         pop = utilities.add_guardian_address_ids(pop)
         pop["census_year"] = event.time.year
-        return pop
+
+        return pop[self.output_columns]
 
 
 class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
-    INPUT_VALUES = ["income"]
+    INPUT_VALUES = ["income", "household_details"]
     ADDITIONAL_OUTPUT_COLUMNS = ["wic_year"]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
@@ -327,6 +341,7 @@ class WICObserver(BaseObserver):
 
         # add columns for output
         pop["wic_year"] = event.time.year
+        pop[["address_id"]] = self.pipelines["household_details"](pop.index)[["address_id"]]
         pop = utilities.add_guardian_address_ids(pop)
 
         # add additional columns for simulating coverage

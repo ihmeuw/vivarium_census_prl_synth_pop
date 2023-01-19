@@ -34,6 +34,17 @@ def mocked_pop_view(observer):
     return df
 
 
+@pytest.fixture
+def mocked_household_details_pipeline(mocked_pop_view):
+    def _mocked_pipeline(_):
+        df = mocked_pop_view[["household_id"]]
+        df["housing_type"] = ["Van", "Standard"]
+        df["address_id"] = [100, 200]
+        return df
+
+    return _mocked_pipeline
+
+
 def test_instantiate(observer):
     assert str(observer) == "HouseholdSurveyObserver(acs)"
 
@@ -51,40 +62,50 @@ def test_on_simulation_end(observer, mocker):
     ).is_file()
 
 
-def test_do_observation(observer, mocked_pop_view, mocker):
+def test_get_observation(
+    observer, mocked_pop_view, mocked_household_details_pipeline, mocker
+):
     """Are responses recorded correctly (including concatenation after time steps?"""
     sim_start_date = "2021-01-01"
     # Simulate first time step
     event = mocker.MagicMock()
     event.time = pd.to_datetime(sim_start_date)
     event.index = pd.Index([0, 1])
-    observer.population_view.get.return_value = mocked_pop_view  # FIXME: This returns mocked_pop_view regardless of event.index or alive status
+    # FIXME: This returns mocked_pop_view regardless of event.index or alive status
+    observer.population_view.get.return_value = mocked_pop_view
     mocker.patch(
         "vivarium_census_prl_synth_pop.components.observers.utilities.vectorized_choice",
         return_value=list(mocked_pop_view["household_id"]),
     )
+    observer.pipelines["household_details"] = mocked_household_details_pipeline
     observation = observer.get_observation(event)
 
     expected = mocked_pop_view
     expected["middle_initial"] = ["J", "M"]
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2
-
+    expected[["housing_type", "address_id"]] = mocked_household_details_pipeline("dummy")[
+        ["housing_type", "address_id"]
+    ]
     pd.testing.assert_frame_equal(expected[observer.output_columns], observation)
 
 
-def test_multiple_observation(observer, mocked_pop_view, mocker):
+def test_multiple_observation(
+    observer, mocked_pop_view, mocked_household_details_pipeline, mocker
+):
     """Are responses recorded correctly (including concatenation after time steps)?"""
     sim_start_date = "2021-01-01"
     # Simulate first time step
     event = mocker.MagicMock()
     event.time = pd.to_datetime(sim_start_date)
     event.index = pd.Index([0, 1])
-    observer.population_view.get.return_value = mocked_pop_view  # FIXME: This returns mocked_pop_view regardless of event.index or alive status
+    # FIXME: This returns mocked_pop_view regardless of event.index or alive status
+    observer.population_view.get.return_value = mocked_pop_view
     mocker.patch(
         "vivarium_census_prl_synth_pop.components.observers.utilities.vectorized_choice",
         return_value=list(mocked_pop_view["household_id"]),
     )
+    observer.pipelines["household_details"] = mocked_household_details_pipeline
     observer.on_collect_metrics(event)
     # Simulate second time step
     event.time = event.time + pd.Timedelta(28, "days")
@@ -94,5 +115,11 @@ def test_multiple_observation(observer, mocked_pop_view, mocker):
     expected["middle_initial"] = ["J", "M"] * 2
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2 + [event.time] * 2
-
+    expected[["housing_type", "address_id"]] = pd.concat(
+        [
+            mocked_household_details_pipeline("dummy")[["housing_type", "address_id"]],
+            mocked_household_details_pipeline("dummy")[["housing_type", "address_id"]],
+        ],
+        axis=0,
+    )
     pd.testing.assert_frame_equal(expected[observer.output_columns], observer.responses)
