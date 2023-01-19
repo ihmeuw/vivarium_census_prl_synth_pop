@@ -44,10 +44,6 @@ class Population:
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.step_size_days = builder.configuration.time.step_size
 
-        # TODO: when implementing household details pipeline, need to create
-        # one-time "initial_housing_type" since that will be used only once
-        # to create the pipeline's households backing structure and then
-        # never again (maybe the same for puma/state when that gets implemented)
         self.columns_created = [
             "household_id",
             "state",
@@ -64,7 +60,6 @@ class Population:
             "alive",
             "entrance_time",
             "exit_time",
-            "housing_type",
             "guardian_1",
             "guardian_2",
             "born_in_us",
@@ -78,7 +73,6 @@ class Population:
             source=self.get_updated_relation_to_reference_person,
             requires_columns=[
                 "relation_to_household_head",
-                "housing_type",
                 "household_id",
                 "date_of_birth",
                 "guardian_1",
@@ -129,11 +123,6 @@ class Population:
 
         # drop non-unique household_id
         pop = pop.drop(columns="census_household_id")
-
-        # set housing type dtype
-        pop["housing_type"] = pop["housing_type"].astype(
-            pd.CategoricalDtype(categories=data_values.HOUSING_TYPES)
-        )
 
         # give name ids
         pop["first_name_id"] = pop.index
@@ -208,7 +197,6 @@ class Population:
         chosen_persons = chosen_persons.loc[
             ~chosen_persons["household_id"].isin(households_to_discard)
         ]
-        chosen_persons["housing_type"] = "Standard"
         chosen_persons["age"] = self.perturb_household_age(chosen_persons)
 
         return chosen_persons
@@ -260,9 +248,6 @@ class Population:
         institutionalized["household_id"] = institutionalized_gq_types
 
         group_quarters = pd.concat([noninstitutionalized, institutionalized])
-        group_quarters["housing_type"] = group_quarters["household_id"].map(
-            data_values.GQ_HOUSING_TYPE_MAP
-        )
         group_quarters["age"] = self.perturb_individual_age(group_quarters)
 
         return group_quarters
@@ -278,7 +263,6 @@ class Population:
 
         inherited_traits = [
             "household_id",
-            "housing_type",
             "state",
             "puma",
             "race_ethnicity",
@@ -964,7 +948,7 @@ class Population:
             population["relation_to_household_head"] == "Reference person", "household_id"
         ]
         standard_household_ids = population.loc[
-            population["housing_type"] == "Standard", "household_id"
+            ~population["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP), "household_id"
         ].unique()
         household_ids_without_reference_person = set(standard_household_ids) - set(
             household_ids_with_reference_person

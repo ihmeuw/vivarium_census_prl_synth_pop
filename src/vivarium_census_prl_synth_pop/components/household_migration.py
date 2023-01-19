@@ -6,8 +6,11 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.constants import metadata, paths
-from vivarium_census_prl_synth_pop.constants.data_values import HOUSING_TYPES
-from vivarium_census_prl_synth_pop.utilities import update_address_id_for_unit_and_sims
+from vivarium_census_prl_synth_pop.constants.data_values import (
+    GQ_HOUSING_TYPE_MAP,
+    HOUSING_TYPES,
+)
+from vivarium_census_prl_synth_pop.utilities import update_address_ids
 
 
 class HouseholdMigration:
@@ -54,9 +57,7 @@ class HouseholdMigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.columns_used = [
             "household_id",
-            "housing_type",
             "relation_to_household_head",
-            "address_id",
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
@@ -88,27 +89,6 @@ class HouseholdMigration:
         """
         if pop_data.creation_time < self.start_time:  # initial pop
             self.households = self.generate_initial_households(pop_data)
-            households = self.population_view.subview(["household_id"]).get(pop_data.index)
-            household_ids = sorted(households["household_id"].unique())
-            address_assignments = {
-                household: address_id
-                for (household, address_id) in zip(
-                    household_ids, np.arange(len(household_ids))
-                )
-            }
-            households["address_id"] = households["household_id"].map(address_assignments)
-            self.population_view.update(households)
-        else:  # newborns
-            parent_ids = pop_data.user_data["parent_ids"]
-            mothers = self.population_view.get(parent_ids.unique())
-            mothers["address_id"] = mothers["address_id"].astype(int)
-            new_births = pd.DataFrame(data={"parent_id": parent_ids}, index=pop_data.index)
-
-            # assign babies inherited traits
-            new_births = new_births.merge(
-                mothers["address_id"], left_on="parent_id", right_index=True
-            )
-            self.population_view.update(new_births["address_id"])
 
     def on_time_step(self, event: Event):
         """
@@ -137,21 +117,10 @@ class HouseholdMigration:
             "moving_households",
         )
 
-        # Make household ID -> address ID map
-        households = (
-            pop[["household_id", "address_id"]]
-            .drop_duplicates()
-            .set_index("household_id")[["address_id"]]
-        )
-
-        max_household_address_id = households["address_id"].max()
-
-        (pop, self.households, _,) = update_address_id_for_unit_and_sims(
-            pop,
+        self.households, _ = update_address_ids(
             moving_units=self.households,
             units_that_move_ids=movers["household_id"],
-            starting_address_id=max_household_address_id + 1,
-            unit_id_col_name="household_id",
+            starting_address_id=self.households["address_id"].max() + 1,
             address_id_col_name="address_id",
         )
 
@@ -162,13 +131,17 @@ class HouseholdMigration:
     ##################
 
     def generate_initial_households(self, pop_data: SimulantData) -> pd.DataFrame():
-        households = self.population_view.subview(["household_id", "housing_type"]).get(
-            pop_data.index
-        )
+        households = self.population_view.subview(["household_id"]).get(pop_data.index)
         households = (
             households.drop_duplicates().sort_values("household_id").set_index("household_id")
         )
         households["address_id"] = np.arange(len(households))
+        households["housing_type"] = households.index.map(GQ_HOUSING_TYPE_MAP)
+        households.loc[households["housing_type"].isna(), "housing_type"] = "Standard"
+        # set housing type dtype
+        households["housing_type"] = households["housing_type"].astype(
+            pd.CategoricalDtype(categories=HOUSING_TYPES)
+        )
 
         return households
 
@@ -179,7 +152,6 @@ class HouseholdMigration:
             on="household_id",
         )
         # FIXME: why is the `housing_type` column losing its CategoricalDtype?
-        # Set housing_type dtypes
         household_details["housing_type"] = household_details["housing_type"].astype(
             pd.CategoricalDtype(categories=HOUSING_TYPES)
         )

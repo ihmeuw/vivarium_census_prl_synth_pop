@@ -1,5 +1,3 @@
-from typing import List
-
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -10,7 +8,6 @@ from vivarium.framework.randomness import RESIDUAL_CHOICE
 from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
-from vivarium_census_prl_synth_pop.utilities import update_address_id
 
 
 class PersonMigration:
@@ -48,9 +45,7 @@ class PersonMigration:
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
-            "address_id",
             "previous_timestep_address_id",
-            "housing_type",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
         self.updated_relation_to_reference_person = builder.value.get_value(
@@ -110,10 +105,10 @@ class PersonMigration:
         self.population_view.update(pop_update)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        pop = self.population_view.subview(
-            ["address_id", "previous_timestep_address_id"]
-        ).get(event.index)
-        pop["previous_timestep_address_id"] = pop["address_id"]
+        pop = self.population_view.subview(["previous_timestep_address_id"]).get(event.index)
+        pop["previous_timestep_address_id"] = self.household_migration.household_details(
+            pop.index
+        )[["address_id"]]
         self.population_view.update(pop)
 
     def on_time_step(self, event: Event) -> None:
@@ -135,7 +130,7 @@ class PersonMigration:
             additional_key="move_types",
         )
 
-        pop = self._perform_new_household_moves(
+        pop, self.household_migration.households = self._perform_new_household_moves(
             pop, pop.index[move_types_chosen == "new_household"]
         )
 
@@ -160,20 +155,16 @@ class PersonMigration:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
-        first_new_household_id = pop["household_id"].max() + 1
-        first_new_household_address_id = pop["address_id"].max() + 1
-
+        households = self.household_migration.households
+        first_new_household_id = households.index.max() + 1
         new_household_ids = first_new_household_id + np.arange(len(movers))
+        first_new_household_address_id = households["address_id"].max() + 1
 
+        # update pop table
         pop.loc[movers, "household_id"] = new_household_ids
-        pop = update_address_id(
-            pop, movers, starting_address_id=first_new_household_address_id
-        )
-
         pop.loc[movers, "relation_to_household_head"] = "Reference person"
-        pop.loc[movers, "housing_type"] = "Standard"
 
-        # df.loc[rows_to_update, address_id_col_name] = starting_address_id + np.arange(len(rows_to_update))
+        # update households object
         new_households = pd.DataFrame(
             {
                 "household_id": new_household_ids,
@@ -181,11 +172,9 @@ class PersonMigration:
                 "address_id": first_new_household_address_id + np.arange(len(movers)),
             }
         ).set_index("household_id")
-        self.household_migration.households = pd.concat(
-            [self.household_migration.households, new_households], axis=0
-        )
+        households = pd.concat([households, new_households], axis=0)
 
-        return pop
+        return pop, households
 
     def _perform_gq_person_moves(self, pop: pd.DataFrame, movers: pd.Index) -> pd.DataFrame:
         """
@@ -198,10 +187,6 @@ class PersonMigration:
         # tracked in the "relation_to_household_head" column, even though
         # that column name doesn't really make sense in a GQ setting.
         categories = list(data_values.GROUP_QUARTER_IDS.keys())
-        gq_address_ids = self._get_household_id_to_address_id_mapping(
-            pop[pop["relation_to_household_head"].isin(categories)]
-        )
-
         housing_type_category_values = self.randomness.choice(
             movers,
             choices=categories,
@@ -230,28 +215,27 @@ class PersonMigration:
 
             pop.loc[movers_in_category, "household_id"] = household_id_values
 
-            # TODO: remove this when implementing pipline approach
-            pop.loc[movers_in_category, "housing_type"] = household_id_values.map(
-                data_values.GQ_HOUSING_TYPE_MAP
-            )
-            pop.loc[movers_in_category, "address_id"] = household_id_values.map(
-                gq_address_ids
-            )
-
         return pop
 
     def _perform_non_reference_person_moves(
         self, pop: pd.DataFrame, movers: pd.Index
     ) -> pd.DataFrame:
         """
-        Move each simulant in movers to a random (different) non-GQ household
-        with relationship "Other nonrelative".
+        Move each simulant in movers to a random (different) non-GQ and non-empty
+        household with relationship "Other nonrelative".
         """
         if len(movers) == 0:
             return pop
 
-        non_gq_address_ids = self._get_household_id_to_address_id_mapping(
-            pop[pop["housing_type"] == "Standard"]
+        # NOTE: Need to be very careful here. We only want to move people
+        # into non-empty houses. However, the `household_details` will not
+        # yet be updated from new household moves (because we haven't yet
+        # updated the state table) - so we need to use the current
+        # state table here to filter out emptiness
+        non_gq_household_ids = list(
+            pop.loc[
+                ~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP), "household_id"
+            ].drop_duplicates()
         )
 
         # NOTE: Unlike in GQ person moves, we require that a "move"
@@ -265,7 +249,7 @@ class PersonMigration:
 
             household_id_values[to_move] = self.randomness.choice(
                 to_move,
-                choices=list(non_gq_address_ids.index),
+                choices=non_gq_household_ids,
                 additional_key=f"non_reference_person_move_household_ids_{iteration}",
             )
             to_move = movers[household_id_values == pop.loc[movers, "household_id"]]
@@ -277,18 +261,6 @@ class PersonMigration:
             )
 
         pop.loc[movers, "household_id"] = household_id_values
-
-        # remove "housing_type" and "address_id" from pop table when pipeline is implemented
-        pop.loc[movers, "housing_type"] = "Standard"
-        pop.loc[movers, "address_id"] = household_id_values.map(non_gq_address_ids)
         pop.loc[movers, "relation_to_household_head"] = "Other nonrelative"
 
         return pop
-
-    def _get_household_id_to_address_id_mapping(self, df: pd.DataFrame) -> pd.Series:
-        result = (
-            df[["household_id", "address_id"]]
-            .drop_duplicates()
-            .set_index("household_id")["address_id"]
-        )
-        return result
