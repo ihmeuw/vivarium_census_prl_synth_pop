@@ -4,15 +4,19 @@ import pytest
 from vivarium_census_prl_synth_pop.components.population import Population
 from vivarium_census_prl_synth_pop.constants import paths
 
+DOB_BEFORE_SIM_START = pd.Timestamp("1985-01-01 00:00:00")
+DOB_AFTER_SIM_START = pd.Timestamp("2025-12-31 00:00:00")
+
+
 fake_household_1 = pd.DataFrame(
     {
         "household_id": [1] * 5,
         "date_of_birth": [
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("2025-12-31 00:00:00"),
-            pd.Timestamp("2025-12-31 00:00:00"),
-            pd.Timestamp("2025-12-31 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
+            DOB_BEFORE_SIM_START,
+            DOB_AFTER_SIM_START,
+            DOB_AFTER_SIM_START,
+            DOB_AFTER_SIM_START,
+            DOB_BEFORE_SIM_START,
         ],
         "age": [39, 8, 5, 7, 35],
         "guardian_1": [-1, 0, 300, -1, -1],
@@ -24,18 +28,19 @@ fake_household_1 = pd.DataFrame(
             "Other relative",
         ],
         "housing_type": ["Standard"] * 5,
-    }
+    },
+    index=[0, 1, 2, 3, 4],
 )
 
 fake_household_2 = pd.DataFrame(
     {
         "household_id": [2] * 5,
         "date_of_birth": [
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("2025-12-31 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_AFTER_SIM_START,
+            DOB_BEFORE_SIM_START,
         ],
         "age": [68, 44, 7, 9, 38],
         "guardian_1": [-1, -1, 100, 100, -1],
@@ -47,18 +52,19 @@ fake_household_2 = pd.DataFrame(
             "Sibling",
         ],
         "housing_type": ["Standard"] * 5,
-    }
+    },
+    index=[5, 6, 7, 8, 9],
 )
 
 fake_household_3 = pd.DataFrame(
     {
         "household_id": [3] * 5,
         "date_of_birth": [
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("2025-12-31 00:00:00"),
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_AFTER_SIM_START,
         ],
         "age": [63, 27, 60, 23, 2],
         "guardian_1": [-1, -1, -1, -1, 35],
@@ -70,18 +76,19 @@ fake_household_3 = pd.DataFrame(
             "Biological child",
         ],
         "housing_type": ["Standard"] * 5,
-    }
+    },
+    index=[10, 11, 12, 13, 14],
 )
 
 fake_household_4 = pd.DataFrame(
     {
         "household_id": [4] * 5,
         "date_of_birth": [
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
         ],
         "age": [23, 22, 22, 21, 20],
         "guardian_1": [-1, -1, -1, -1, -1],
@@ -93,30 +100,32 @@ fake_household_4 = pd.DataFrame(
             "Sibling",
         ],
         "housing_type": ["Standard"] * 5,
-    }
+    },
+    index=[15, 16, 17, 18, 19],
 )
 
 fake_household_5 = pd.DataFrame(
     {
         "household_id": [5] * 5,
         "date_of_birth": [
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("2025-12-31 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
-            pd.Timestamp("1985-01-01 00:00:00"),
+            DOB_BEFORE_SIM_START,
+            DOB_AFTER_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
+            DOB_BEFORE_SIM_START,
         ],
         "age": [38, 5, 36, 34, 36],
-        "guardian_1": [-1, 20, -1, -1, -1],
+        "guardian_1": [-1, 20, -1, 20, -1],
         "relation_to_household_head": [
             "Opp-sex spouse",
-            "Biological child",
+            "Other relative",
             "Roommate",
             "Other relative",
             "Other nonrelative",
         ],
         "housing_type": ["Standard"] * 5,
-    }
+    },
+    index=[20, 21, 22, 23, 24],
 )
 
 
@@ -130,7 +139,7 @@ def fake_population() -> pd.DataFrame:
             fake_household_4,
             fake_household_5,
         ]
-    ).reset_index()
+    )
 
 
 def test_update_to_reference_person_and_relationships(fake_population):
