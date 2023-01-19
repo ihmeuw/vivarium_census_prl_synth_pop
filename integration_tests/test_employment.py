@@ -1,7 +1,6 @@
-import pytest
-
 import numpy as np
 import pandas as pd
+import pytest
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
@@ -61,9 +60,18 @@ def test_only_living_change_employment(populations):
 
 def test_movers_change_employment(populations):
     for before, after in zip(populations, populations[1:]):
-        common_alive_simulants = before[before["alive"] == "alive"].index.intersection(
-            after[after["alive"] == "alive"].index
+        before_alive_and_tracked = before[
+            (before["alive"] == "alive") & (before["tracked"])
+        ].index
+        after_alive_and_tracked = after[
+            (after["alive"] == "alive") & (after["tracked"])
+        ].index
+        common_alive_simulants = before_alive_and_tracked.intersection(
+            after_alive_and_tracked
         )
+        # common_alive_simulants = before[before["alive"] == "alive"].index.intersection(
+        #     after[after["alive"] == "alive"].index
+        # )
         common_working_age_simulants = before.index[before["age"] >= 18].intersection(
             after.index[after["age"] >= 18]
         )

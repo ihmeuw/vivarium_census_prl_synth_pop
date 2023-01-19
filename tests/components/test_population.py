@@ -9,7 +9,7 @@ DOB_AFTER_SIM_START = pd.Timestamp("2025-12-31 00:00:00")
 
 fake_household_1 = pd.DataFrame(
     {
-        "household_id": [1] * 5,
+        "household_id": [10] * 5,
         "date_of_birth": [
             DOB_BEFORE_SIM_START,
             DOB_AFTER_SIM_START,
@@ -26,14 +26,13 @@ fake_household_1 = pd.DataFrame(
             "Adopted child",
             "Other relative",
         ],
-        "housing_type": ["Standard"] * 5,
     },
     index=[0, 1, 2, 3, 4],
 )
 
 fake_household_2 = pd.DataFrame(
     {
-        "household_id": [2] * 5,
+        "household_id": [20] * 5,
         "date_of_birth": [
             DOB_BEFORE_SIM_START,
             DOB_BEFORE_SIM_START,
@@ -50,14 +49,13 @@ fake_household_2 = pd.DataFrame(
             "Biological child",
             "Sibling",
         ],
-        "housing_type": ["Standard"] * 5,
     },
     index=[5, 6, 7, 8, 9],
 )
 
 fake_household_3 = pd.DataFrame(
     {
-        "household_id": [3] * 5,
+        "household_id": [30] * 5,
         "date_of_birth": [
             DOB_BEFORE_SIM_START,
             DOB_BEFORE_SIM_START,
@@ -74,14 +72,13 @@ fake_household_3 = pd.DataFrame(
             "Opp-sex spouse",
             "Biological child",
         ],
-        "housing_type": ["Standard"] * 5,
     },
     index=[10, 11, 12, 13, 14],
 )
 
 fake_household_4 = pd.DataFrame(
     {
-        "household_id": [4] * 5,
+        "household_id": [40] * 5,
         "date_of_birth": [
             DOB_BEFORE_SIM_START,
             DOB_BEFORE_SIM_START,
@@ -98,14 +95,13 @@ fake_household_4 = pd.DataFrame(
             "Roommate",
             "Sibling",
         ],
-        "housing_type": ["Standard"] * 5,
     },
     index=[15, 16, 17, 18, 19],
 )
 
 fake_household_5 = pd.DataFrame(
     {
-        "household_id": [5] * 5,
+        "household_id": [50] * 5,
         "date_of_birth": [
             DOB_BEFORE_SIM_START,
             DOB_AFTER_SIM_START,
@@ -122,7 +118,6 @@ fake_household_5 = pd.DataFrame(
             "Other relative",
             "Other nonrelative",
         ],
-        "housing_type": ["Standard"] * 5,
     },
     index=[20, 21, 22, 23, 24],
 )
