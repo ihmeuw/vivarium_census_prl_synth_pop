@@ -50,7 +50,9 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         ).all()
         # These should be the vast majority, since non-reference-person moves to
         # new households will be quite rare.
-        assert new_household_movers.sum() / movers_into_new_households.sum() > 0.95
+        # NOTE: This is sensitive to small population size, eg running 20k simulants
+        # was causing it to break w/ a ratio 19/20 = 0.95
+        assert new_household_movers.sum() / movers_into_new_households.sum() >= 0.95
 
         # Household IDs moved to are unique
         new_households = after[new_household_movers]["household_id"]
@@ -77,19 +79,20 @@ def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
         )
 
 
-def get_households_with_reference_person(after, before, movers):
+def get_households_with_reference_person(after, before):
     reference_persons = before["relation_to_household_head"] == "Reference person"
     movers = before["household_id"] != after["household_id"]
     deaths = before["alive"] != after["alive"]
-    emigrants = before["in_united_states"] != after["in_united_states"]
-    reference_people_movers = reference_persons & (movers | deaths | emigrants)
+    emigrants = before["in_united_states"] & ~after["in_united_states"]
+    newly_untracked = before["tracked"] & ~after["tracked"]
+    reference_people_movers = reference_persons & (movers | deaths | emigrants | newly_untracked)
     in_household_with_reference_person = ~after.loc[movers, "household_id"].isin(
         before[reference_people_movers]["household_id"]
     )
     return in_household_with_reference_person
 
 
-def test_individuals_move_into_existing_households(simulants_on_adjacent_timesteps):
+def test_individuals_mover_have_correct_relationship(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         non_reference_person_movers = (
             (before["household_id"] != after["household_id"])
@@ -100,9 +103,7 @@ def test_individuals_move_into_existing_households(simulants_on_adjacent_timeste
 
         # They move in as nonrelative, which doesn't change unless the reference person
         # of their new household also moved or died
-        in_household_with_reference_person = get_households_with_reference_person(
-            after, before, non_reference_person_movers
-        )
+        in_household_with_reference_person = get_households_with_reference_person(after, before)
 
         mover_to_household_with_reference_person = (
             non_reference_person_movers & in_household_with_reference_person
@@ -130,9 +131,7 @@ def test_households_move(simulants_on_adjacent_timesteps):
         assert household_movers.any()
 
         # Household moves don't change household structure unless the reference person left
-        in_household_with_reference_person = get_households_with_reference_person(
-            after, before, household_movers
-        )
+        in_household_with_reference_person = get_households_with_reference_person(after, before)
         movers_with_reference_person = household_movers & in_household_with_reference_person
         assert (
             before[movers_with_reference_person]["relation_to_household_head"]

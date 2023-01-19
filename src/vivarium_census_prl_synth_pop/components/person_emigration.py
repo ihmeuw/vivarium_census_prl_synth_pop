@@ -110,17 +110,18 @@ class PersonEmigration:
             event.index,
             query="alive == 'alive' and in_united_states == True and tracked == True",
         )
-        breakpoint()  # remove housing_type cols
+        household_details = self.household_migration.household_details(pop.index)
         non_reference_people_idx = pop.index[
-            (pop["housing_type"] == "Standard")
+            (household_details["housing_type"] == "Standard")
             & (pop["relation_to_household_head"] != "Reference person")
         ]
         non_reference_person_movers_idx = self.randomness.filter_for_rate(
             non_reference_people_idx,
             self.non_reference_person_move_rates(non_reference_people_idx),
         )
-
-        gq_people_idx = pop.index[pop["housing_type"] != "Standard"]
+        gq_people_idx = household_details.index[
+            household_details["housing_type"] != "Standard"
+        ]
         gq_person_movers_idx = self.randomness.filter_for_rate(
             gq_people_idx,
             self.gq_person_move_rates(gq_people_idx),

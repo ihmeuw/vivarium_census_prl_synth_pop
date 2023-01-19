@@ -56,6 +56,7 @@ class HouseholdMigration:
 
         self.randomness = builder.randomness.get_stream(self.name)
         self.columns_used = [
+            "tracked",
             "household_id",
             "relation_to_household_head",
         ]
@@ -66,7 +67,7 @@ class HouseholdMigration:
         self.household_details = builder.value.register_value_producer(
             "household_details",
             source=self.generate_household_details,
-            requires_columns=["household_id"],
+            requires_columns=["household_id", "tracked"],
         )
 
         builder.population.initializes_simulants(
@@ -99,7 +100,7 @@ class HouseholdMigration:
         # in this case, that household can no longer move.
         pop = self.population_view.get(
             event.index,
-            query="alive == 'alive'",
+            query="alive == 'alive' and tracked",
         )
         reference_people = pop[pop["relation_to_household_head"] == "Reference person"]
 
@@ -146,7 +147,8 @@ class HouseholdMigration:
         return households
 
     def generate_household_details(self, idx: pd.Index) -> pd.DataFrame:
-        pop = self.population_view.subview(["household_id"]).get(idx)
+        # breakpoint()
+        pop = self.population_view.get(idx)[["household_id"]]
         household_details = pop.join(
             self.households,
             on="household_id",
@@ -156,4 +158,5 @@ class HouseholdMigration:
             pd.CategoricalDtype(categories=HOUSING_TYPES)
         )
 
+        # breakpoint() # check households for people [2833, 2834, 5779, 5838]
         return household_details

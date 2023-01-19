@@ -57,6 +57,7 @@ class Businesses:
             "employer_income_propensity",
         ]
         self.columns_used = [
+            "tracked",
             "previous_timestep_address_id",
             "age",
             "household_id",
@@ -87,7 +88,7 @@ class Businesses:
         self.business_details = builder.value.register_value_producer(
             "business_details",
             source=self.generate_business_details,
-            requires_columns=["employer_id"],
+            requires_columns=["employer_id", "tracked"],
         )
 
         builder.population.initializes_simulants(
@@ -112,7 +113,9 @@ class Businesses:
         """
         if pop_data.creation_time < self.start_time:
             self.businesses = self.generate_businesses(pop_data)
-            pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
+            pop = self.population_view.subview(["age", "household_id"]).get(
+                pop_data.index, query="tracked"
+            )
             pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
             working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
@@ -131,7 +134,7 @@ class Businesses:
                 ] = data_values.MilitaryEmployer.EMPLOYER_ID
             self.population_view.update(pop)
         else:
-            pop = self.population_view.get(pop_data.index)
+            pop = self.population_view.get(pop_data.index, query="tracked")
             pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
 
         # Create income propensity columns
@@ -154,7 +157,7 @@ class Businesses:
         """
         pop = self.population_view.get(
             event.index,
-            query="alive == 'alive'",
+            query="alive == 'alive' and tracked",
         )
         all_businesses = self.businesses.index[
             self.businesses.index != data_values.Unemployed.EMPLOYER_ID
@@ -242,7 +245,7 @@ class Businesses:
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["age"]).get(pop_data.index)
+        pop = self.population_view.subview(["age"]).get(pop_data.index, query="tracked")
         n_working_age = len(pop.loc[pop["age"] >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
@@ -302,9 +305,14 @@ class Businesses:
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
-        current_employers = self.population_view.subview(["employer_id"]).get(changing_jobs)[
-            "employer_id"
-        ]
+        # TODO: This limits employers to those existing in the pop table. If
+        # we want all employers that were initialized to be included, we can
+        # instead use the business data structure.
+        current_employers = (
+            self.population_view.subview(["employer_id"])
+            .get(changing_jobs, query="tracked")
+            .squeeze()
+        )
 
         new_employers = current_employers.copy()
         additional_seed = 0
@@ -321,7 +329,7 @@ class Businesses:
     def calculate_income(self, idx: pd.Index) -> pd.Series:
 
         income = pd.Series(0.0, index=idx)
-        pop = self.population_view.get(idx)
+        pop = self.population_view.get(idx, query="tracked")
         employed_idx = pop.index[pop["employer_id"] != data_values.Unemployed.EMPLOYER_ID]
 
         # Get propensities for two components to get income propensity
@@ -348,7 +356,7 @@ class Businesses:
         return income
 
     def generate_business_details(self, idx: pd.Index) -> pd.DataFrame:
-        pop = self.population_view.subview(["employer_id"]).get(idx)
+        pop = self.population_view.get(idx)[["employer_id"]]
         business_details = pop.join(
             self.businesses[["employer_name", "employer_address_id"]], on="employer_id"
         )
