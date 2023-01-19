@@ -10,10 +10,7 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
-from vivarium_census_prl_synth_pop.utilities import (
-    filter_by_rate,
-    update_address_id_for_unit_and_sims,
-)
+from vivarium_census_prl_synth_pop.utilities import filter_by_rate, update_address_ids
 
 
 class Businesses:
@@ -52,6 +49,7 @@ class Businesses:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
+        self.household_migration = builder.components.get_component("household_migration")
         self.employer_address_id_count = 0
         self.columns_created = [
             "employer_id",
@@ -59,7 +57,6 @@ class Businesses:
             "employer_income_propensity",
         ]
         self.columns_used = [
-            "address_id",
             "previous_timestep_address_id",
             "age",
             "household_id",
@@ -169,16 +166,10 @@ class Businesses:
             "moving_businesses",
         )
 
-        (
-            _,
-            self.businesses,
-            self.employer_address_id_count,
-        ) = update_address_id_for_unit_and_sims(
-            pop,
+        self.businesses, self.employer_address_id_count = update_address_ids(
             moving_units=self.businesses,
             units_that_move_ids=businesses_that_move_idx,
             starting_address_id=self.employer_address_id_count,
-            unit_id_col_name="employer_id",
             address_id_col_name="employer_address_id",
         )
 
@@ -194,7 +185,10 @@ class Businesses:
         changing_jobs_idx = filter_by_rate(
             working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
-        moved_idx = pop.index[pop["address_id"] != pop["previous_timestep_address_id"]]
+        moved_idx = pop.index[
+            self.household_migration.household_details(pop.index)["address_id"]
+            != pop["previous_timestep_address_id"]
+        ]
         moved_working_age_idx = moved_idx.intersection(working_age_idx)
         changing_jobs_idx = changing_jobs_idx.union(moved_working_age_idx)
         if len(changing_jobs_idx) > 0:

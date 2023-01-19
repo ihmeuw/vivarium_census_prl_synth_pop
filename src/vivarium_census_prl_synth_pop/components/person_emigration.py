@@ -36,9 +36,9 @@ class PersonEmigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
+        self.household_migration = builder.components.get_component("household_migration")
         self.columns_needed = [
             "relation_to_household_head",
-            "housing_type",
             "in_united_states",
             "exit_time",
             "tracked",
@@ -107,7 +107,7 @@ class PersonEmigration:
             event.index,
             query="alive == 'alive' and in_united_states == True and tracked == True",
         )
-
+        breakpoint()  # remove housing_type cols
         non_reference_people_idx = pop.index[
             (pop["housing_type"] == "Standard")
             & (pop["relation_to_household_head"] != "Reference person")
