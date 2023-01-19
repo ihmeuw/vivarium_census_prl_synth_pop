@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
@@ -141,7 +142,14 @@ class BaseObserver(ABC):
         output_dir = utilities.build_output_dir(
             self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.name
         )
-        self.responses.to_csv(output_dir / f"{self.name}_{self.seed}.csv.bz2")
+        if self.responses is None:
+            logger.info(f"No results to write ({self.name})")
+        else:
+            self.responses.to_csv(
+                output_dir / f"{self.name}_{self.seed}.csv.bz2", index=False
+            )
+            # QUESTION: Do we want simulant id? If so, don't drop index but rename
+            # it away from 'Unnamed: 0'
 
 
 class HouseholdSurveyObserver(BaseObserver):
@@ -490,31 +498,16 @@ class SocialSecurityObserver(BaseObserver):
         return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
 
 
-def empty_income_series():
-    return pd.Series(
-        index=pd.MultiIndex.from_arrays(
-            [[], []],
-            names=[
-                "simulant_id",
-                "employer_id",
-            ],
-        ),
-        dtype="float64",
-    )
-
-
 class TaxW2Observer(BaseObserver):
     """Class for observing columns relevant to W2 and 1099 tax data."""
 
-    INPUT_VALUES = ["income"]
+    INPUT_VALUES = ["income", "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "in_united_states",
         "tracked",
         "ssn",
         "employer_id",
-        "employer_name",
-        "employer_address_id",
     ]
     OUTPUT_COLUMNS = [
         "simulant_id",
@@ -593,15 +586,21 @@ class TaxW2Observer(BaseObserver):
         self.income_to_date = self.income_to_date.add(income_this_time_step, fill_value=0.0)
 
     def to_observe(self, event: Event) -> bool:
-        """Only observe if this is the final time step of the sim"""
+        """Observe if Jan 1 falls during this time step"""
         tax_date = dt.datetime(event.time.year, 1, 1)
         return self.clock() < tax_date <= event.time
 
     def get_observation(self, event: Event) -> pd.DataFrame:
-        pop_full = self.population_view.get(
-            event.index,
-        )
+        pop_full = self.population_view.get(event.index)
+        household_details = self.pipelines["household_details"](pop_full.index)
+        business_details = self.pipelines["business_details"](pop_full.index)
         pop_full["income"] = self.pipelines["income"](pop_full.index)
+        pop_full[["address_id", "housing_type"]] = household_details[
+            ["address_id", "housing_type"]
+        ]
+        pop_full[["employer_address_id", "employer_name"]] = business_details[
+            ["employer_address_id", "employer_name"]
+        ]
 
         ### create dataframe of all person/employment pairs
 
@@ -621,11 +620,10 @@ class TaxW2Observer(BaseObserver):
             "date_of_birth",
             "sex",
             "ssn",
-            "address_id",
-            "housing_type",
         ]:
             df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
-
+        df_w2["address_id"] = df_w2["simulant_id"].map(household_details["address_id"])
+        df_w2["housing_type"] = df_w2["simulant_id"].map(household_details["housing_type"])
         # Tracked, US population to be dependents or get their SSNs borrowed
         pop = pop_full[
             (pop_full["alive"] == "alive")
@@ -702,4 +700,17 @@ class TaxW2Observer(BaseObserver):
         # re-initialize income-to-date series for next year of income counting
         self.income_to_date = empty_income_series()
 
-        return df_w2
+        return df_w2[self.output_columns]
+
+
+def empty_income_series():
+    return pd.Series(
+        index=pd.MultiIndex.from_arrays(
+            [[], []],
+            names=[
+                "simulant_id",
+                "employer_id",
+            ],
+        ),
+        dtype="float64",
+    )

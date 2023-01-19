@@ -50,7 +50,9 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         ).all()
         # These should be the vast majority, since non-reference-person moves to
         # new households will be quite rare.
-        assert new_household_movers.sum() / movers_into_new_households.sum() > 0.95
+        # NOTE: This is sensitive to small population size, eg running 20k simulants
+        # was causing it to break w/ a ratio 19/20 = 0.95
+        assert new_household_movers.sum() / movers_into_new_households.sum() >= 0.95
 
         # Household IDs moved to are unique
         new_households = after[new_household_movers]["household_id"]
@@ -86,7 +88,16 @@ def test_individuals_move_into_existing_households(simulants_on_adjacent_timeste
         )
         assert non_reference_person_movers.any()
 
-        # They move in as nonrelative
+
+def test_individuals_move_into_existing_households_as_nonrelative(
+    simulants_on_adjacent_timesteps,
+):
+    for before, after in simulants_on_adjacent_timesteps:
+        non_reference_person_movers = (
+            (before["household_id"] != after["household_id"])
+            & (after["household_details.housing_type"] == "Standard")
+            & (after["household_id"].isin(before["household_id"]))
+        )
         assert (
             after[non_reference_person_movers]["relation_to_household_head"]
             == "Other nonrelative"

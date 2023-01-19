@@ -226,6 +226,9 @@ class PersonMigration:
         # yet be updated from new household moves (because we haven't yet
         # updated the state table) - so we need to use the current
         # state table here to filter out emptiness
+
+        # FIXME: The following list of non-gq households needs to exclude
+        # those households where there are no non-movers living there - MAKE A TICKET FOR THIS!
         non_gq_household_ids = list(
             pop.loc[
                 ~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP), "household_id"

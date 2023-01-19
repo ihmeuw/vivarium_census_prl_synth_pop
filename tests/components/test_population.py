@@ -6,7 +6,7 @@ from vivarium_census_prl_synth_pop.constants import paths
 
 fake_household_1 = pd.DataFrame(
     {
-        "household_id": [1] * 5,
+        "household_id": [10] * 5,
         "date_of_birth": [
             pd.Timestamp("1987-03-01 00:00:00"),
             pd.Timestamp("2023-05-11 00:00:00"),
@@ -23,13 +23,12 @@ fake_household_1 = pd.DataFrame(
             "Adopted child",
             "Other relative",
         ],
-        "housing_type": ["Standard"] * 5,
     }
 )
 
 fake_household_2 = pd.DataFrame(
     {
-        "household_id": [2] * 5,
+        "household_id": [20] * 5,
         "date_of_birth": [
             pd.Timestamp("1959-12-03 00:00:00"),
             pd.Timestamp("1983-01-31 00:00:00"),
@@ -46,13 +45,12 @@ fake_household_2 = pd.DataFrame(
             "Biological child",
             "Sibling",
         ],
-        "housing_type": ["Standard"] * 5,
     }
 )
 
 fake_household_3 = pd.DataFrame(
     {
-        "household_id": [3] * 5,
+        "household_id": [30] * 5,
         "date_of_birth": [
             pd.Timestamp("1965-11-08 00:00:00"),
             pd.Timestamp("1992-05-18 00:00:00"),
@@ -69,13 +67,12 @@ fake_household_3 = pd.DataFrame(
             "Opp-sex spouse",
             "Biological child",
         ],
-        "housing_type": ["Standard"] * 5,
     }
 )
 
 fake_household_4 = pd.DataFrame(
     {
-        "household_id": [4] * 5,
+        "household_id": [40] * 5,
         "date_of_birth": [
             pd.Timestamp("1995-04-22 00:00:00"),
             pd.Timestamp("1996-07-02 00:00:00"),
@@ -92,13 +89,12 @@ fake_household_4 = pd.DataFrame(
             "Roommate",
             "Sibling",
         ],
-        "housing_type": ["Standard"] * 5,
     }
 )
 
 fake_household_5 = pd.DataFrame(
     {
-        "household_id": [5] * 5,
+        "household_id": [50] * 5,
         "date_of_birth": [
             pd.Timestamp("1988-12-22 00:00:00"),
             pd.Timestamp("2025-04-11 00:00:00"),
@@ -115,7 +111,6 @@ fake_household_5 = pd.DataFrame(
             "Other relative",
             "Other nonrelative",
         ],
-        "housing_type": ["Standard"] * 5,
     }
 )
 
@@ -133,7 +128,6 @@ def fake_population() -> pd.DataFrame:
     ).reset_index()
 
 
-@pytest.mark.skip(reason="FIXME!!!")
 def test_update_to_reference_person_and_relationships(fake_population):
 
     expected_relationships = pd.Series(
