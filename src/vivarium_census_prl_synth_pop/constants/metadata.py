@@ -32,7 +32,16 @@ HOUSEHOLDS_COLUMN_MAP = {
     "SERIALNO": "census_household_id",
     "PUMA": "puma",
     "WGTP": "household_weight",
+    "TYPEHUGQ": "household_type",
 }
+
+HOUSEHOLD_TYPE_MAP = {
+    1: "Housing unit",
+    2: "Institutional group quarters",
+    3: "Noninstitutional group quarters",
+}
+HOUSEHOLD_TYPES = list(HOUSEHOLD_TYPE_MAP.values())
+
 PERSONS_COLUMNS_TO_INITIALIZE = [
     "census_household_id",
     "age",
@@ -108,6 +117,7 @@ PERSONS_COLUMNS_MAP = {
     "RAC1P": "race",
     "NATIVITY": "born_in_us",
     "MIG": "immigrated_in_last_year",
+    "PWGTP": "person_weight",
 }
 
 SUBSET_PERSONS_COLUMNS_MAP = {

@@ -162,12 +162,15 @@ class Population:
         self.population_view.update(pop)
 
     def choose_standard_households(self, target_number_sims: int) -> pd.DataFrame:
+        standard_households = self.population_data["households"][
+            self.population_data["households"]["household_type"] == "Housing unit"
+        ]
         # oversample households
         chosen_households = vectorized_choice(
-            options=self.population_data["households"]["census_household_id"],
+            options=standard_households["census_household_id"],
             n_to_choose=target_number_sims,
             randomness_stream=self.randomness,
-            weights=self.population_data["households"]["household_weight"],
+            weights=standard_households["household_weight"],
         )
 
         # create unique id for resampled households
@@ -202,9 +205,9 @@ class Population:
         return chosen_persons
 
     def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
-        group_quarters = self.population_data["households"].pipe(
-            lambda df: df[df["census_household_id"].str.contains("GQ")]
-        )
+        group_quarters = self.population_data["households"][
+            self.population_data["households"]["household_type"] != "Housing unit"
+        ]
 
         # group quarters each house one person per census_household_id
         # they have NA household weights, but appropriately weighted person weights.
