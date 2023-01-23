@@ -424,6 +424,8 @@ class SocialSecurityObserver(BaseObserver):
         "date_of_birth",
         "event_type",
         "event_date",
+        "sex",
+        "race_ethnicity",
     ]
 
     def __repr__(self):
@@ -457,7 +459,14 @@ class SocialSecurityObserver(BaseObserver):
             query="ssn == True",  # only include simulants with a SSN
         )
         df_creation = pop.filter(
-            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
+            [
+                "first_name_id",
+                "middle_name_id",
+                "last_name_id",
+                "date_of_birth",
+                "sex",
+                "race_ethnicity",
+            ]
         )
         df_creation["event_type"] = "creation"
         df_creation["event_date"] = np.where(
@@ -520,6 +529,7 @@ class TaxW2Observer(BaseObserver):
         "eligible_dependent_address_id_list",
         "housing_type",
         "tax_year",
+        "race_ethnicity",
     ]
 
     def __repr__(self):
@@ -608,6 +618,7 @@ class TaxW2Observer(BaseObserver):
             "ssn",
             "address_id",
             "housing_type",
+            "race_ethnicity",
         ]:
             df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
 
