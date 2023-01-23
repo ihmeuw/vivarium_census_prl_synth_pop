@@ -3,6 +3,7 @@ components:
         components:
             - Population()
             - Households()
+            - Immigration()
             - HouseholdMigration()
             - PersonMigration()
             - HouseholdEmigration()

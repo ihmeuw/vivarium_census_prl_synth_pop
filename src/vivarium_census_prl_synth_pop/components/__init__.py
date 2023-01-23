@@ -7,6 +7,7 @@ from vivarium_census_prl_synth_pop.components.household_emigration import (
 from vivarium_census_prl_synth_pop.components.household_migration import (
     HouseholdMigration,
 )
+from vivarium_census_prl_synth_pop.components.immigration import Immigration
 from vivarium_census_prl_synth_pop.components.mortality import Mortality
 from vivarium_census_prl_synth_pop.components.observers import (
     DecennialCensusObserver,
