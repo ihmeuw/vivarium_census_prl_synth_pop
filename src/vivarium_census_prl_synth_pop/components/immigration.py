@@ -27,6 +27,7 @@ class Immigration:
 
     def setup(self, builder: Builder):
         persons_data = builder.data.load(data_keys.POPULATION.PERSONS)
+        self.total_person_weight = persons_data["person_weight"].sum()
 
         immigrants = persons_data[persons_data["immigrated_in_last_year"]]
 
@@ -78,12 +79,11 @@ class Immigration:
 
     def _immigrants_per_time_step(self, immigrants, configuration):
         immigrants_per_year = (
-            # The ACS weight is interpretable as the number of people represented
-            # by these rows -- that is, the number of immigrants (of this type) in the last year
-            # there were on average between 2016-2020.
-            immigrants["person_weight"].sum()
-            # Rescale to the proportion of the US population being simulated
-            * (configuration.population.population_size / data_values.US_POPULATION)
+            # We rescale the proportion between immigrant population and total population to the
+            # simulation's initial population size.
+            # This value will not change over time during the simulation.
+            (immigrants["person_weight"].sum() / self.total_person_weight)
+            * configuration.population.population_size
         )
         return from_yearly(
             immigrants_per_year, pd.Timedelta(days=configuration.time.step_size)
