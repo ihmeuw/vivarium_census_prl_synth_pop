@@ -2,7 +2,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 
 
 class Immigration:
@@ -32,10 +32,7 @@ class Immigration:
         immigrants = persons_data[persons_data["immigrated_in_last_year"]]
 
         is_gq = immigrants["relation_to_household_head"].isin(
-            [
-                "Insitutionalized GQ pop",
-                "Noninstitutionalized GQ pop",
-            ]
+            data_values.GROUP_QUARTER_IDS.keys()
         )
         self.gq_immigrants = immigrants[is_gq]
         self.gq_immigrants_per_time_step = self._immigrants_per_time_step(
