@@ -54,7 +54,6 @@ def fromat_data_for_name_generation(
     middle_name_data = data[["middle_name_id", "year_of_birth", "sex"]].set_index(
         "middle_name_id"
     )
-    breakpoint()
     return first_name_data, middle_name_data
 
 

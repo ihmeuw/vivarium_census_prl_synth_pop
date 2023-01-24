@@ -476,7 +476,14 @@ class SocialSecurityObserver(BaseObserver):
         )
 
         df_death = pop[pop["alive"] == "dead"].filter(
-            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
+            [
+                "first_name_id",
+                "middle_name_id",
+                "last_name_id",
+                "date_of_birth",
+                "sex",
+                "race_ethnicity",
+            ]
         )
         df_death["event_type"] = "death"
         df_death["event_date"] = pop["exit_time"]
