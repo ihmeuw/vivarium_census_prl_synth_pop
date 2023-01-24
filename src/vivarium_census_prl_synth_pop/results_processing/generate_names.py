@@ -46,15 +46,15 @@ def fromat_data_for_name_generation(
     data["middle_name_id"] = f"{seed}_" + data["middle_name_id"].astype(str)
     data["last_name_id"] = f"{seed}_" + data["last_name_id"].astype(str)
     # Get year of birth - string column and not timestamp
-    data["yob"] = data["date_of_birth"].str[:4]
+    data["year_of_birth"] = data["date_of_birth"].str[:4]
 
-    first_name_data = data[["first_name_id", "date_of_birth", "sex"]].set_index(
+    first_name_data = data[["first_name_id", "year_of_birth", "sex"]].set_index(
         "first_name_id"
     )
-    middle_name_data = data[["middle_name_id", "date_of_birth", "sex"]].set_index(
+    middle_name_data = data[["middle_name_id", "year_of_birth", "sex"]].set_index(
         "middle_name_id"
     )
-
+    breakpoint()
     return first_name_data, middle_name_data
 
 
