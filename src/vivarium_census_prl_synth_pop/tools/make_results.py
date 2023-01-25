@@ -6,6 +6,9 @@ from loguru import logger
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
+from vivarium_census_prl_synth_pop.results_processing.generate_names import (
+    generate_names,
+)
 
 
 def build_results(results_dir: str, mark_best: bool, test_run: bool) -> None:
@@ -24,7 +27,8 @@ def build_results(results_dir: str, mark_best: bool, test_run: bool) -> None:
 
     logger.info("Copying raw results to final location.")
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
-    shutil.copytree(raw_output_dir, final_output_dir)
+    # Perform post-processing
+    perform_post_processing(raw_output_dir, final_output_dir)
 
     if test_run:
         logger.info("Test run - not marking results as latest.")
@@ -41,3 +45,8 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
     link_dir = output_root_dir / link_name
     link_dir.unlink(missing_ok=True)
     link_dir.symlink_to(output_dir, target_is_directory=True)
+
+
+def perform_post_processing(raw_output_dir: Path, final_output_dir: Path) -> None:
+    shutil.copytree(raw_output_dir, final_output_dir)
+    generate_names(raw_output_dir, final_output_dir)
