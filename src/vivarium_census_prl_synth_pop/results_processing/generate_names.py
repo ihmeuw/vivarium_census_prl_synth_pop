@@ -15,6 +15,7 @@ COLUMNS_FOR_NAME_PROCESSING = [
     "date_of_birth",
     "sex",
     "race_ethnicity",
+    "random_seed",
 ]
 
 
@@ -26,7 +27,12 @@ def load_data(raw_results_dir: Path) -> pd.DataFrame:
     ]
     for obs_dir in observer_directories:
         logger.info(f"Processing data for {obs_dir.name}...")
-        [obs_data.append(pd.read_csv(file)) for file in obs_dir.glob("*.csv.bz2")]
+        obs_files = obs_dir.glob("*.csv.bz2")
+        for file in obs_files:
+            df = pd.read_csv(file)
+            df["random_seed"] = file.name.split(".")[0].split("_")[-1]
+            obs_data.append(df)
+
     data = pd.concat(obs_data)
 
     # Drop unnecessary columns (Social Security Observer does not have sex  and race ethnicity)
@@ -37,22 +43,27 @@ def load_data(raw_results_dir: Path) -> pd.DataFrame:
 
 def format_data_for_name_generation(
     data: pd.DataFrame,
-) -> pd.DataFrame:
-    # todo: update to handle with seed column once we are doing parallel runs
-    seed = 0
+) -> Tuple:
 
-    # Clean data
-    data["first_name_id"] = f"{seed}_" + data["first_name_id"].astype(str)
-    data["middle_name_id"] = f"{seed}_" + data["middle_name_id"].astype(str)
-    data["last_name_id"] = f"{seed}_" + data["last_name_id"].astype(str)
+    data["first_name_id"] = (
+        data["random_seed"].astype(str) + "_" + data["first_name_id"].astype(str)
+    )
+    data["middle_name_id"] = (
+        data["random_seed"].astype(str) + "_" + data["middle_name_id"].astype(str)
+    )
+    data["last_name_id"] = (
+        data["random_seed"].astype(str) + "_" + data["last_name_id"].astype(str)
+    )
     # Get year of birth - string column and not timestamp
-    data["year_of_birth"] = data["date_of_birth"].str[:4]
+    data["year_of_birth"] = pd.to_datetime(data["date_of_birth"]).dt.year
 
-    # We only need one dataframe here since first_name_id and middle_name_id will be the same.
     first_name_data = data[["first_name_id", "year_of_birth", "sex"]].set_index(
         "first_name_id"
     )
-    return first_name_data
+    middle_name_data = data[["middle_name_id", "year_of_birth", "sex"]].set_index(
+        "middle_name_id"
+    )
+    return first_name_data, middle_name_data
 
 
 def generate_names(raw_results_dir: Path, final_output_dir: Path) -> None:
