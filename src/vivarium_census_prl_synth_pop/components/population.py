@@ -10,12 +10,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    metadata,
-    paths,
-)
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 # Family/household relationships helper lists
@@ -45,9 +40,6 @@ class Population:
         self.proportion_with_ssn = builder.lookup.build_table(
             data=data_values.PROPORTION_INITIALIZATION_WITH_SSN
         )
-        self.reference_person_update_relationships_map = pd.read_csv(
-            paths.REFERENCE_PERSON_UPDATE_RELATIONSHIP_DATA_PATH,
-        )
 
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.step_size_days = builder.configuration.time.step_size
@@ -76,6 +68,18 @@ class Population:
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(self.columns_created)
         self.population_data = self._load_population_data(builder)
+
+        self.updated_relation_to_reference_person = builder.value.register_value_producer(
+            "updated_relation_to_reference_person",
+            source=self.get_updated_relation_to_reference_person,
+            requires_columns=[
+                "relation_to_household_head",
+                "housing_type",
+                "household_id",
+                "date_of_birth",
+                "guardian_1",
+            ],
+        )
 
         builder.population.initializes_simulants(
             self.initialize_simulants, creates_columns=self.columns_created
@@ -352,8 +356,6 @@ class Population:
         """
         population = self.population_view.get(event.index, query="alive == 'alive'")
         population["age"] += to_years(event.step_size)
-
-        population = self.update_reference_person_and_relationships(population)
 
         self.population_view.update(population)
 
@@ -943,12 +945,16 @@ class Population:
 
         return pop["last_name_id"]
 
-    def update_reference_person_and_relationships(
-        self, population: pd.DataFrame
-    ) -> pd.DataFrame:
-        # Takes population state table and assigns reference person in households that do not have one after a time step
-        # After a new reference person has been assigned, biological children and other household members have their
-        #  relationships updated.
+    def get_updated_relation_to_reference_person(self, idx: pd.Index) -> pd.Series:
+        """
+        Chooses the oldest member of all households that lack a reference person
+        and assigns them as the reference person. Updates all other relations to
+        be relative to this new reference person.
+        """
+        population = self.population_view.get(
+            idx, query="alive == 'alive' and in_united_states == True and tracked == True"
+        )
+
         # Find standard households that do not have a reference person
         household_ids_with_reference_person = population.loc[
             population["relation_to_household_head"] == "Reference person", "household_id"
@@ -963,12 +969,13 @@ class Population:
             population["household_id"].isin(household_ids_without_reference_person)
         ]
 
-        # Find oldest member in each household and make them new reference person
+        # Find the oldest member in each household and make them new reference person
         # This is a series with household_id as the index and the new reference person as the value
         new_reference_persons = (
             population.loc[households_to_update_idx].groupby(["household_id"])["age"].idxmax()
         )
-        # Preserve old relationship of new reference person before assigning them as new reference persons
+        # Preserve old relationship of new reference person before assigning
+        # them as new reference persons
         new_reference_person_prev_relationship = population.loc[
             new_reference_persons, ["household_id", "relation_to_household_head"]
         ]
@@ -976,7 +983,8 @@ class Population:
             new_reference_persons, "relation_to_household_head"
         ] = "Reference person"
 
-        # Update simulants born in simulation as biological children to their mother if mother is new reference person
+        # Update simulants born in simulation as biological children to their
+        # mother if mother is new reference person
         biological_children_idx = population.index[
             (population["date_of_birth"] > self.start_time)
             & (
@@ -996,8 +1004,8 @@ class Population:
         for relationship in new_reference_person_prev_relationship[
             "relation_to_household_head"
         ].unique():
-            relationship_map = self.reference_person_update_relationships_map.loc[
-                self.reference_person_update_relationships_map[
+            relationship_map = data_values.REFERENCE_PERSON_UPDATE_RELATIONSHIPS_MAP.loc[
+                data_values.REFERENCE_PERSON_UPDATE_RELATIONSHIPS_MAP[
                     "new_reference_person_relationship_to_old_reference_person"
                 ]
                 == relationship
@@ -1025,4 +1033,4 @@ class Population:
             "Other nonrelative"
         )
 
-        return population
+        return population["relation_to_household_head"]

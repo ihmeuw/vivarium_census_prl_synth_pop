@@ -2,7 +2,6 @@ import pandas as pd
 import pytest
 
 from vivarium_census_prl_synth_pop.components.population import Population
-from vivarium_census_prl_synth_pop.constants import paths
 
 DOB_BEFORE_SIM_START = pd.Timestamp("1985-01-01 00:00:00")
 DOB_AFTER_SIM_START = pd.Timestamp("2025-12-31 00:00:00")
@@ -142,7 +141,7 @@ def fake_population() -> pd.DataFrame:
     )
 
 
-def test_update_to_reference_person_and_relationships(fake_population):
+def test_update_to_reference_person_and_relationships(mocker, fake_population):
 
     expected_relationships_1 = pd.Series(
         data=[
@@ -204,24 +203,26 @@ def test_update_to_reference_person_and_relationships(fake_population):
         ]
     )
 
-    pop = Population()
+    pop_component = Population()
 
     # Setup class methods we need to update fake state table
-    pop.start_time = pd.Timestamp("2020-04-01 00:00:00")
-    pop.reference_person_update_relationships_map = pd.read_csv(
-        paths.REFERENCE_PERSON_UPDATE_RELATIONSHIP_DATA_PATH,
-    )
+    pop_component.start_time = pd.Timestamp("2020-04-01 00:00:00")
+    pop_component.population_view = mocker.MagicMock()
+    pop_component.population_view.get = lambda idx, query: fake_population.loc[idx]
+
     # This is a series with household_id as the index and the new reference person as the value
     expected_reference_person = (
         fake_population.loc[fake_population.index].groupby(["household_id"])["age"].idxmax()
     )
-    updated_population = pop.update_reference_person_and_relationships(fake_population)
+    updated_relationships = pop_component.get_updated_relation_to_reference_person(
+        fake_population.index
+    )
 
-    assert not updated_population["relation_to_household_head"].isnull().any()
-    assert (updated_population["relation_to_household_head"] == expected_relationships).all()
+    assert not updated_relationships.isnull().any()
+    assert (updated_relationships == expected_relationships).all()
 
-    new_reference_person_idx = updated_population.index[
-        updated_population["relation_to_household_head"] == "Reference person"
+    new_reference_person_idx = updated_relationships.index[
+        updated_relationships == "Reference person"
     ]
 
     assert (expected_reference_person == new_reference_person_idx).all()
