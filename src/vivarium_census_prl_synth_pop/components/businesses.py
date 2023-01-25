@@ -15,7 +15,11 @@ from vivarium_census_prl_synth_pop.utilities import filter_by_rate, update_addre
 
 class Businesses:
     """
-    TODO: IMPROVE DESCRIPTION
+    This component manages all the employers that exist in the simulation. It
+    maintains a data structure of these employers and their details. These are
+    accessible by means of the business_details pipeline. It also manages
+    initialization and modification of simulant employment. It exposes a
+    pipeline to calculate simulant income.
 
     on init:
         assign everyone of working age an employer
@@ -87,7 +91,7 @@ class Businesses:
         )
         self.business_details = builder.value.register_value_producer(
             "business_details",
-            source=self.generate_business_details,
+            source=self.get_business_details,
             requires_columns=["employer_id", "tracked"],
         )
 
@@ -355,7 +359,8 @@ class Businesses:
 
         return income
 
-    def generate_business_details(self, idx: pd.Index) -> pd.DataFrame:
+    def get_business_details(self, idx: pd.Index) -> pd.DataFrame:
+        """Source of the business details pipeline"""
         pop = self.population_view.get(idx)[["employer_id"]]
         business_details = pop.join(
             self.businesses[["employer_name", "employer_address_id"]], on="employer_id"

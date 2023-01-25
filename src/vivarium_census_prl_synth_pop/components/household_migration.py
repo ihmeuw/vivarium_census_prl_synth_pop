@@ -66,7 +66,7 @@ class HouseholdMigration:
         self.households = None
         self.household_details = builder.value.register_value_producer(
             "household_details",
-            source=self.generate_household_details,
+            source=self.get_household_details,
             requires_columns=["household_id", "tracked"],
         )
 
@@ -146,8 +146,8 @@ class HouseholdMigration:
 
         return households
 
-    def generate_household_details(self, idx: pd.Index) -> pd.DataFrame:
-        # breakpoint()
+    def get_household_details(self, idx: pd.Index) -> pd.DataFrame:
+        """Source of the household_details pipeline"""
         pop = self.population_view.get(idx)[["household_id"]]
         household_details = pop.join(
             self.households,
@@ -158,5 +158,4 @@ class HouseholdMigration:
             pd.CategoricalDtype(categories=HOUSING_TYPES)
         )
 
-        # breakpoint() # check households for people [2833, 2834, 5779, 5838]
         return household_details

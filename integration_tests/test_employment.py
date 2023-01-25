@@ -69,9 +69,6 @@ def test_movers_change_employment(populations):
         common_alive_simulants = before_alive_and_tracked.intersection(
             after_alive_and_tracked
         )
-        # common_alive_simulants = before[before["alive"] == "alive"].index.intersection(
-        #     after[after["alive"] == "alive"].index
-        # )
         common_working_age_simulants = before.index[before["age"] >= 18].intersection(
             after.index[after["age"] >= 18]
         )

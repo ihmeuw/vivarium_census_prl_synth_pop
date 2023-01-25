@@ -145,11 +145,8 @@ class BaseObserver(ABC):
         if self.responses is None:
             logger.info(f"No results to write ({self.name})")
         else:
-            self.responses.to_csv(
-                output_dir / f"{self.name}_{self.seed}.csv.bz2", index=False
-            )
-            # QUESTION: Do we want simulant id? If so, don't drop index but rename
-            # it away from 'Unnamed: 0'
+            self.responses.index.names = ["simulant_id"]
+            self.responses.to_csv(output_dir / f"{self.name}_{self.seed}.csv.bz2")
 
 
 class HouseholdSurveyObserver(BaseObserver):
