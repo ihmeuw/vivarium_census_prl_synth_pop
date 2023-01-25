@@ -61,3 +61,16 @@ def simulants_on_adjacent_timesteps(populations) -> List[Tuple[pd.DataFrame, pd.
 @pytest.fixture(scope="session")
 def tracked_live_populations(tracked_populations) -> List[pd.DataFrame]:
     return [pop[pop["alive"] == "alive"] for pop in tracked_populations]
+
+
+@pytest.fixture(scope="session")
+def pipeline_columns(sim, populations) -> List[str]:
+    pipelines = sim.list_values()
+    sample_pop = populations[0]
+    pipeline_columns = [
+        column
+        for column in sample_pop.columns
+        for pipeline in pipelines
+        if column.startswith(pipeline)
+    ]
+    return pipeline_columns

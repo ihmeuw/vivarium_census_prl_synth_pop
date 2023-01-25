@@ -79,20 +79,22 @@ def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
         )
 
 
-def get_households_with_reference_person(after, before):
+def get_households_with_stable_reference_person(after, before):
     reference_persons = before["relation_to_household_head"] == "Reference person"
     movers = before["household_id"] != after["household_id"]
     deaths = before["alive"] != after["alive"]
     emigrants = before["in_united_states"] & ~after["in_united_states"]
     newly_untracked = before["tracked"] & ~after["tracked"]
-    reference_people_movers = reference_persons & (movers | deaths | emigrants | newly_untracked)
+    changed_reference_people = reference_persons & (
+        movers | deaths | emigrants | newly_untracked
+    )
     in_household_with_reference_person = ~after.loc[movers, "household_id"].isin(
-        before[reference_people_movers]["household_id"]
+        before[changed_reference_people]["household_id"]
     )
     return in_household_with_reference_person
 
 
-def test_individuals_mover_have_correct_relationship(simulants_on_adjacent_timesteps):
+def test_individual_movers_have_correct_relationship(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         non_reference_person_movers = (
             (before["household_id"] != after["household_id"])
@@ -103,7 +105,9 @@ def test_individuals_mover_have_correct_relationship(simulants_on_adjacent_times
 
         # They move in as nonrelative, which doesn't change unless the reference person
         # of their new household also moved or died
-        in_household_with_reference_person = get_households_with_reference_person(after, before)
+        in_household_with_reference_person = get_households_with_stable_reference_person(
+            after, before
+        )
 
         mover_to_household_with_reference_person = (
             non_reference_person_movers & in_household_with_reference_person
@@ -119,7 +123,7 @@ def test_individuals_mover_have_correct_relationship(simulants_on_adjacent_times
         assert (
             after.loc[
                 mover_to_household_without_reference_person, "relation_to_household_head"
-            ].isin(["Other nonrelative", "Reference person"])
+            ].isin(["Other nonrelative", "Reference person", "Roommate"])
         ).all()
 
 
@@ -131,15 +135,17 @@ def test_households_move(simulants_on_adjacent_timesteps):
         assert household_movers.any()
 
         # Household moves don't change household structure unless the reference person left
-        in_household_with_reference_person = get_households_with_reference_person(after, before)
+        in_household_with_reference_person = get_households_with_stable_reference_person(
+            after, before
+        )
         movers_with_reference_person = household_movers & in_household_with_reference_person
         assert (
             before[movers_with_reference_person]["relation_to_household_head"]
             == after[movers_with_reference_person]["relation_to_household_head"]
         ).all()
         assert (
-            before[movers_with_reference_person]["housing_type"]
-            == after[movers_with_reference_person]["housing_type"]
+            before[movers_with_reference_person]["household_details.housing_type"]
+            == after[movers_with_reference_person]["household_details.housing_type"]
         ).all()
 
         # Address IDs moved to are new

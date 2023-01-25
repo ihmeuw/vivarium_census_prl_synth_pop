@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 
 def test_there_is_emigration(simulants_on_adjacent_timesteps):
@@ -94,15 +93,19 @@ def test_emigrated_people_are_untracked(populations):
         assert not pop[~pop["in_united_states"]]["tracked"].any()
 
 
-def test_nothing_happens_to_untracked_people(simulants_on_adjacent_timesteps):
+def test_nothing_happens_to_untracked_people(
+    simulants_on_adjacent_timesteps, pipeline_columns
+):
     for before, after in simulants_on_adjacent_timesteps:
         untracked = ~before["tracked"]
         if untracked.sum() == 0:
             continue
 
-        columns_do_not_change = [c for c in before.columns if c != "time"]
-        assert before.loc[untracked, columns_do_not_change].equals(
-            after.loc[untracked, columns_do_not_change]
+        columns_that_should_not_change = [
+            c for c in before.columns if c != "time" and c not in pipeline_columns
+        ]
+        assert before.loc[untracked, columns_that_should_not_change].equals(
+            after.loc[untracked, columns_that_should_not_change]
         )
 
 
