@@ -42,7 +42,6 @@ def build_results(
         return
     logger.info("Creating final results directory.")
     raw_output_dir, final_output_dir = build_final_results_directory(results_dir)
-
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
     perform_post_processing(raw_output_dir, final_output_dir, artifact_path)
@@ -138,3 +137,4 @@ def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
     final_output_dir = final_output_root_dir / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
     return raw_output_dir, final_output_dir
+
