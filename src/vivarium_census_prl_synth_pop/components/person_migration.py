@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -151,7 +153,7 @@ class PersonMigration:
 
     def _perform_new_household_moves(
         self, pop: pd.DataFrame, movers: pd.Index
-    ) -> pd.DataFrame:
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
@@ -227,19 +229,11 @@ class PersonMigration:
         if len(movers) == 0:
             return pop
 
-        # NOTE: Need to be very careful here. We only want to move people
-        # into non-empty houses. However, the `household_details` will not
-        # yet be updated from new household moves (because we haven't yet
-        # updated the state table) - so we need to use the current
-        # state table here to filter out emptiness
-
-        # FIXME: The following list of non-gq households needs to exclude
-        # those households where there are no non-movers living there - MAKE A TICKET FOR THIS!
-        non_gq_household_ids = list(
-            pop.loc[
-                ~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP), "household_id"
-            ].drop_duplicates()
-        )
+        # those households where there are no non-movers living there
+        non_gq_pop = pop[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
+        households_with_non_movers = non_gq_pop.loc[
+            non_gq_pop.index.difference(movers), "household_id"
+        ].drop_duplicates()
 
         # NOTE: Unlike in GQ person moves, we require that a "move"
         # not start and end in the same household.
@@ -252,15 +246,16 @@ class PersonMigration:
 
             household_id_values[to_move] = self.randomness.choice(
                 to_move,
-                choices=non_gq_household_ids,
+                choices=households_with_non_movers,
                 additional_key=f"non_reference_person_move_household_ids_{iteration}",
             )
             to_move = movers[household_id_values == pop.loc[movers, "household_id"]]
 
         if len(to_move) > 0:
             logger.info(
-                f"Maximum iterations for resampling of household_id reached. The number of simulants whose household_id"
-                f"was not changed despite being selected for a non-reference-person move is {len(to_move)}"
+                f"Maximum iterations for resampling of household_id reached. "
+                f"The number of simulants whose household_id was not changed despite being "
+                f"selected for a non-reference-person move is {len(to_move)}"
             )
 
         pop.loc[movers, "household_id"] = household_id_values
