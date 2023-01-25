@@ -47,3 +47,13 @@ class Immigration:
 
         self.household_immigrants = non_gq_immigrants[is_household_immigrant]
         self.non_reference_person_immigrants = non_gq_immigrants[~is_household_immigrant]
+
+        # Get the *household* (not person) weights for each household that can immigrate
+        # in a household move, for use in sampling.
+        households_data = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
+        self.immigrant_household_weights = households_data.set_index(
+            "census_household_id"
+        ).loc[
+            immigrant_reference_people["census_household_id"],
+            "household_weight",
+        ]
