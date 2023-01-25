@@ -140,7 +140,9 @@ class NameGenerator(GenericGenerator):
 
     def setup(self, builder: Builder):
         super().setup(builder)
-        self.clock = builder.time.clock()
+        self.clock = (
+            builder.time.clock()
+        )  # todo: change to start time since yob only goes to 2020 for data
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 

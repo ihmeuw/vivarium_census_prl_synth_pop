@@ -444,6 +444,16 @@ class SocialSecurityObserver(BaseObserver):
         "date_of_birth",
         "event_type",
         "event_date",
+        "sex",
+        "race_ethnicity",
+    ]
+    POST_PROCESSING_FIRST_NAME_METADATA_COLS = [
+        "first_name_id",
+        "middle_name_id",
+        "last_name_id",
+        "date_of_birth",
+        "sex",
+        "race_ethnicity",
     ]
 
     def __repr__(self):
@@ -476,9 +486,7 @@ class SocialSecurityObserver(BaseObserver):
             event.index,
             query="ssn == True",  # only include simulants with a SSN
         )
-        df_creation = pop.filter(
-            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
-        )
+        df_creation = pop.filter(self.POST_PROCESSING_FIRST_NAME_METADATA_COLS)
         df_creation["event_type"] = "creation"
         df_creation["event_date"] = np.where(
             pop["entrance_time"] <= self.start_time,
@@ -487,7 +495,7 @@ class SocialSecurityObserver(BaseObserver):
         )
 
         df_death = pop[pop["alive"] == "dead"].filter(
-            ["first_name_id", "middle_name_id", "last_name_id", "date_of_birth"]
+            self.POST_PROCESSING_FIRST_NAME_METADATA_COLS
         )
         df_death["event_type"] = "death"
         df_death["event_date"] = pop["exit_time"]
@@ -525,6 +533,7 @@ class TaxW2Observer(BaseObserver):
         "eligible_dependent_address_id_list",
         "housing_type",
         "tax_year",
+        "race_ethnicity",
     ]
 
     def __repr__(self):
@@ -617,6 +626,9 @@ class TaxW2Observer(BaseObserver):
             "date_of_birth",
             "sex",
             "ssn",
+            "address_id",
+            "housing_type",
+            "race_ethnicity",
         ]:
             df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
         df_w2["address_id"] = df_w2["simulant_id"].map(household_details["address_id"])
