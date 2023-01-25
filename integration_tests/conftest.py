@@ -11,7 +11,7 @@ from vivarium_census_prl_synth_pop.constants import paths
 def sim() -> InteractiveContext:
     """Initialize a simulation for use in tests"""
     simulation = InteractiveContext(paths.MODEL_SPEC_DIR / "model_spec.yaml", setup=False)
-    simulation.configuration.population.population_size = 20_000
+    simulation.configuration.population.population_size = 250_000
     simulation.setup()
     return simulation
 

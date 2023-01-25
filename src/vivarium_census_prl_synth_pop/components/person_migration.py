@@ -50,6 +50,9 @@ class PersonMigration:
             "housing_type",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
+        self.updated_relation_to_reference_person = builder.value.get_value(
+            "updated_relation_to_reference_person"
+        )
 
         move_rates_data = pd.read_csv(
             paths.INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH,
@@ -140,6 +143,9 @@ class PersonMigration:
         )
 
         self.population_view.update(pop)
+
+        new_relation_to_ref_person = self.updated_relation_to_reference_person(event.index)
+        self.population_view.update(new_relation_to_ref_person)
 
     ##################
     # Helper methods #

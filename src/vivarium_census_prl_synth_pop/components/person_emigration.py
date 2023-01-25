@@ -44,6 +44,9 @@ class PersonEmigration:
             "tracked",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
+        self.updated_relation_to_reference_person = builder.value.get_value(
+            "updated_relation_to_reference_person"
+        )
 
         non_reference_person_move_rates_data = pd.read_csv(
             paths.NON_REFERENCE_PERSON_EMIGRATION_RATES_PATH,
@@ -130,3 +133,6 @@ class PersonEmigration:
         pop.loc[emigrating_idx, "tracked"] = False
 
         self.population_view.update(pop)
+
+        new_relation_to_ref_person = self.updated_relation_to_reference_person(event.index)
+        self.population_view.update(new_relation_to_ref_person)

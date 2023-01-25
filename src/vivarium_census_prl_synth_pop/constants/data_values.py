@@ -1,6 +1,9 @@
 from typing import NamedTuple
 
+import pandas as pd
 from scipy import stats
+
+from vivarium_census_prl_synth_pop.constants import paths
 
 #########################
 # Population parameters #
@@ -37,6 +40,10 @@ PROPORTION_INITIALIZATION_WITH_SSN = 0.743
 
 UNKNOWN_GUARDIAN_IDX = -1
 PROPORTION_GUARDIAN_TYPES = {"single_female": 0.23, "single_male": 0.05, "partnered": 0.72}
+
+REFERENCE_PERSON_UPDATE_RELATIONSHIPS_MAP = pd.read_csv(
+    paths.REFERENCE_PERSON_UPDATE_RELATIONSHIP_DATA_PATH,
+)
 
 #########################
 # Synthetic Name Inputs #
