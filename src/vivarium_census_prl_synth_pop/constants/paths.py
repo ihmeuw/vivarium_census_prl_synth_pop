@@ -42,6 +42,7 @@ BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH = (
 HOUSEHOLDS_FILENAMES = [f"psam_hus{x}.csv" for x in ["a", "b", "c", "d"]]
 PERSONS_FILENAMES = [f"psam_pus{x}.csv" for x in ["a", "b", "c", "d"]]
 
+DEFAULT_ARTIFACT = ARTIFACT_ROOT / "united_states_of_america.hdf"
 SYNTHETIC_DATA_INPUTS_ROOT = Path(
     f"/mnt/team/simulation_science/priv/engineering/{metadata.PROJECT_NAME}/data/raw_data/synthetic_pii"
 )
