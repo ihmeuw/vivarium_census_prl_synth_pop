@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -8,7 +8,10 @@ from vivarium import Artifact
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
-from vivarium_census_prl_synth_pop.results_processing.names import get_first_name_map
+from vivarium_census_prl_synth_pop.results_processing.names import (
+    get_first_name_map,
+    get_middle_name_map,
+)
 
 FINAL_OBSERVERS = [
     "decennial_census",
@@ -37,17 +40,11 @@ def build_results(
             "Please remove either the mark best or the test run flag."
         )
         return
-
     logger.info("Creating final results directory.")
-    final_output_root_dir = utilities.build_output_dir(
-        Path(results_dir), subdir=paths.FINAL_RESULTS_DIR_NAME
-    )
-    final_output_dir = final_output_root_dir / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    raw_output_dir, final_output_dir = build_final_results_directory(results_dir)
 
-    logger.info("Copying raw results to final location.")
-    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
     artifact_path = Path(artifact_path)
-
+    logger.info("Performing post-processing")
     perform_post_processing(raw_output_dir, final_output_dir, artifact_path)
 
     if test_run:
@@ -85,6 +82,8 @@ def perform_post_processing(
             if column in maps:
                 for target_column_name, column_map in maps.items():
                     obs_data[target_column_name] = obs_data.map(column_map)
+                # This assumes the column we are mapping will be dropped
+                obs_data.drop(columns=column)
 
         obs_data.to_csv(final_output_dir / f"{observer}.csv.bz2")
 
@@ -123,7 +122,17 @@ def generate_maps(
           address_id.  Values for each key will be a dictionary named with the column to be mapped to as the key with a
           corresponding series containing the mapped values.
     """
-    first_name_map = get_first_name_map("first_name_id", raw_data, artifact)
-    middle_name_map = get_first_name_map("middle_name_id", raw_data, artifact)
+    first_name_map = get_first_name_map(raw_data, artifact)
+    middle_name_map = get_middle_name_map(raw_data, artifact)
 
     return {}
+
+
+def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
+    final_output_root_dir = utilities.build_output_dir(
+        Path(results_dir), subdir=paths.FINAL_RESULTS_DIR_NAME
+    )
+    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
+    final_output_dir = final_output_root_dir / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+
+    return raw_output_dir, final_output_dir
