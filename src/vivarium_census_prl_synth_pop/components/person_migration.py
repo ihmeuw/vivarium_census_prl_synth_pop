@@ -132,7 +132,7 @@ class PersonMigration:
             additional_key="move_types",
         )
 
-        pop, self.household_migration.households = self._perform_new_household_moves(
+        pop = self._perform_new_household_moves(
             pop, pop.index[move_types_chosen == "new_household"]
         )
 
@@ -153,7 +153,7 @@ class PersonMigration:
 
     def _perform_new_household_moves(
         self, pop: pd.DataFrame, movers: pd.Index
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> pd.DataFrame:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
@@ -175,8 +175,9 @@ class PersonMigration:
             }
         ).set_index("household_id")
         households = pd.concat([households, new_households], axis=0)
+        self.household_migration.households = households
 
-        return pop, households
+        return pop
 
     def _perform_gq_person_moves(self, pop: pd.DataFrame, movers: pd.Index) -> pd.DataFrame:
         """
@@ -229,7 +230,7 @@ class PersonMigration:
         if len(movers) == 0:
             return pop
 
-        # those households where there are no non-movers living there
+        # those households that contain non-movers
         non_gq_pop = pop[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
         households_with_non_movers = non_gq_pop.loc[
             non_gq_pop.index.difference(movers), "household_id"

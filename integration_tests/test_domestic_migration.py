@@ -183,7 +183,7 @@ def test_unit_address_uniqueness(populations, unit_id_col, address_id_col):
         # Check that all simulants in the same unit have the same address
         assert (pop.groupby(unit_id_col)[address_cols].nunique() == 1).all().all()
         # Check that all units have unique addresses
-        assert len(pop[address_cols].drop_duplicates()) == len(pop[unit_id_col].unique())
+        assert (pop.groupby(address_cols)[unit_id_col].nunique() == 1).all()
 
     # # TODO implement state/puma checks
     # # Ensure pumas map to correct state. This will be an imperfect test
@@ -215,7 +215,7 @@ def test_addresses_during_moves(simulants_on_adjacent_timesteps, unit_id_col, ad
         before_units = before.groupby(unit_id_col)[address_cols].first()
         after_units = after.groupby(unit_id_col)[address_cols].first()
         # reindex in case there are unique units to one of the datasets
-        total_index = before_units.index.union(after_units.index)
+        total_index = before_units.index.intersection(after_units.index)
         before_units = before_units.reindex(total_index)
         after_units = after_units.reindex(total_index)
         mask_moved_units = before_units[address_id_col] != after_units[address_id_col]

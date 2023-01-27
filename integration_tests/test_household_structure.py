@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
@@ -127,21 +128,24 @@ def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
         assert not after.index.duplicated().any()
 
 
-def test_initialized_state_complete_coverage(populations, sim):
-    """Initialized states should include all locations from artifact"""
-    initialized_pop = populations[0]
-    states_in_artifact = set(
-        sim._data.artifact.load("population.households").index.unique(level="state")
-    )
-    assert states_in_artifact == set(initialized_pop["state"])
+def test_state_complete_coverage(populations, sim):
+    """States should include all locations from artifact"""
+    for pop in populations:
+        states_in_artifact = set(
+            sim._data.artifact.load("population.households").index.unique(level="state")
+        )
+        assert states_in_artifact == set(pop["state"])
 
 
-def test_initialized_pumas_states(populations):
+@pytest.mark.parametrize(
+    "pop_type", [pytest.param("gq", marks=pytest.mark.xfail(reason="MIC-3728")), "non_gq"]
+)
+def test_pumas_states(populations, pop_type):
     """Each unique non-GQ initialized address_id should have identical puma/state"""
-    initialized_pop = populations[0]
-    non_gq_pop = initialized_pop[
-        ~initialized_pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
-    ]
+    pop = populations[0]
+    gq_housing_mask = pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
+    sub_population = pop[gq_housing_mask] if pop_type == "gq" else pop[~gq_housing_mask]
     assert (
-        non_gq_pop.groupby("household_details.address_id")[["state", "puma"]].nunique() == 1
+        sub_population.groupby("household_details.address_id")[["state", "puma"]].nunique()
+        == 1
     ).values.all()

@@ -116,10 +116,7 @@ def test_multiple_observation(
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2 + [event.time] * 2
     expected[["housing_type", "address_id"]] = pd.concat(
-        [
-            mocked_household_details_pipeline("dummy")[["housing_type", "address_id"]],
-            mocked_household_details_pipeline("dummy")[["housing_type", "address_id"]],
-        ],
+        [mocked_household_details_pipeline("dummy")[["housing_type", "address_id"]]] * 2,
         axis=0,
     )
     pd.testing.assert_frame_equal(expected[observer.output_columns], observer.responses)

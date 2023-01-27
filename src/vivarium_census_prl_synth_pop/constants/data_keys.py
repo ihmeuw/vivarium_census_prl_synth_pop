@@ -46,5 +46,5 @@ SYNTHETIC_DATA = __SyntheticData()
 
 MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
-    # SYNTHETIC_DATA,  Will be moved into separate artifact later
+    SYNTHETIC_DATA,
 ]

@@ -137,8 +137,9 @@ class HouseholdMigration:
             households.drop_duplicates().sort_values("household_id").set_index("household_id")
         )
         households["address_id"] = np.arange(len(households))
-        households["housing_type"] = households.index.map(GQ_HOUSING_TYPE_MAP)
-        households.loc[households["housing_type"].isna(), "housing_type"] = "Standard"
+        households["housing_type"] = households.index.map(GQ_HOUSING_TYPE_MAP).fillna(
+            "Standard"
+        )
         # set housing type dtype
         households["housing_type"] = households["housing_type"].astype(
             pd.CategoricalDtype(categories=HOUSING_TYPES)
