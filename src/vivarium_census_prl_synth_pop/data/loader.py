@@ -258,13 +258,30 @@ def load_last_name_data(key: str, location: str) -> pd.DataFrame:
 
 
 def load_first_name_data(key: str, location: str) -> pd.DataFrame:
-    STATE_CODE = metadata.US_STATE_ABBRV_MAP[location]
-    data_path = paths.SYNTHETIC_DATA_INPUTS_ROOT / "ssn_names" / f"{STATE_CODE}.TXT"
-    df_ssn_names = pd.read_csv(data_path, names=["state", "sex", "yob", "name", "freq"])
+    if location == "United States of America":
+
+        def read_name_csv(csv_path: Path) -> pd.DataFrame:
+            return pd.read_csv(csv_path, names=["state", "sex", "yob", "name", "freq"])
+
+        ssn_names = [
+            read_name_csv(
+                paths.SYNTHETIC_DATA_INPUTS_ROOT / "ssn_names" / f"{state_code}.TXT"
+            )
+            for state_code in metadata.US_STATE_ABBRV_MAP.values()
+        ]
+        df_ssn_names = pd.concat(ssn_names)
+        df_ssn_names = (
+            df_ssn_names.groupby(["sex", "yob", "name"])["freq"].sum().reset_index()
+        )
+    else:
+        state_code = metadata.US_STATE_ABBRV_MAP[location]
+        data_path = paths.SYNTHETIC_DATA_INPUTS_ROOT / "ssn_names" / f"{state_code}.TXT"
+        df_ssn_names = pd.read_csv(data_path, names=["sex", "yob", "name", "freq"])
+
     df_ssn_names["sex"] = df_ssn_names["sex"].map({"M": "Male", "F": "Female"})
 
     # put all non-draw columns in the index, else vivarium will drop them
-    df_ssn_names = df_ssn_names.set_index(["state", "sex", "yob", "name", "freq"])
+    df_ssn_names = df_ssn_names.set_index(["sex", "yob", "name", "freq"])
     return df_ssn_names
 
 

@@ -234,7 +234,7 @@ US_STATE_ABBRV_MAP = {
     "Wisconsin": "WI",
     "Wyoming": "WY",
     "District of Columbia": "DC",
-    "Puerto Rico": "PR",
+    # "Puerto Rico": "PR",
 }
 
 P_GROUP_QUARTERS = 0.03
