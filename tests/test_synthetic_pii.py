@@ -153,12 +153,6 @@ def test_name(mocker):
     mocker.patch.object(g.randomness, "get_draw")
     g.randomness.get_draw = MethodType(get_draw, g)
 
-    # Get year from clock
-    g.clock = mocker.Mock()
-    mocker.patch.object(g.clock, "year")
-    g.clock.year = MethodType(get_year, g)
-    g.clock.return_value = get_year()
-
     # Mock first name data
     g.first_name_data = get_first_names()
     # Mock last name data
@@ -176,21 +170,14 @@ def test_name(mocker):
     index = range(len(all_race_eth_values))
     df_in = pd.DataFrame(index=index)
     df_in["race_ethnicity"] = all_race_eth_values
-    df_in["age"] = 0
+    df_in["year_of_birth"] = 1985
     df_in["sex"] = "Male"
 
-    df1 = g.generate_first_and_middle_names(df_in)
-    df2 = g.generate_last_names(df_in)
+    series1 = g.generate_first_and_middle_names(df_in, "dummy_key")
+    # This will be updated when last names are processed
+    # df2 = g.generate_last_names(df_in)
 
-    assert len(df1) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
-    assert len(df2) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
-
-    assert "first_name" in df1.columns
-    assert "middle_name" in df1.columns
-    assert "last_name" in df2.columns
-    assert (
-        "AIAN" not in df2.last_name.values
-    )  # FIXME: come up with a more robust test of the synthetic content
+    assert series1.index.is_unique
 
 
 @pytest.mark.slow

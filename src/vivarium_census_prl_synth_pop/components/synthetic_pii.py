@@ -5,8 +5,9 @@ from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from vivarium.framework.engine import Builder
+from vivarium import Artifact
 from vivarium.framework.lookup import LookupTable
+from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
@@ -15,8 +16,13 @@ Array = Union[List, Tuple, np.ndarray, pd.Series]
 
 
 class GenericGenerator:
-    def setup(self, builder: Builder):
-        self.randomness = builder.randomness.get_stream(self.name)
+    def __init__(
+        self,
+    ):
+        key = self.name
+        clock = lambda: pd.Timestamp("2020-04-01")
+        seed = 0
+        self.randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
     def generate(self, df_in: pd.DataFrame, additional_key: Any = None) -> pd.DataFrame:
         return pd.DataFrame(index=df_in.index)
@@ -138,13 +144,11 @@ class NameGenerator(GenericGenerator):
     def name(self):
         return "NameGenerator"
 
-    def setup(self, builder: Builder):
-        super().setup(builder)
-        self.clock = (
-            builder.time.clock()
-        )  # todo: change to start time since yob only goes to 2020 for data
-        self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
-        self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
+    def __init__(self, artifact: Artifact):
+        super().__init__()
+        self.artifact = artifact
+        self.first_name_data = self.artifact.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
+        self.last_name_data = self.artifact.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
     def random_first_names(
         self, yob: int, sex: str, size: int, additional_key: Any = None
@@ -258,33 +262,29 @@ class NameGenerator(GenericGenerator):
 
         return last_names.to_numpy()
 
-    def generate_first_and_middle_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
+    def generate_first_and_middle_names(
+        self, df_in: pd.DataFrame, additional_key: Any
+    ) -> pd.Series:
         """Generate synthetic names for individuals
 
         Parameters
         ----------
-        df_in : pd.DataFrame, with columns sex, age
+        df_in : pd.DataFrame, with columns sex, year_of_birth
+        additional_key: key to be passed to randomness stream
 
         Results
         -------
-        returns pd.DataFrame with name data, stored in
-        string columns `first_name`, `middle_name`,
+        returns pd.Series with name_id as index and names as string values
 
         """
         # first and middle names
         # strategy: calculate year of birth based on age, use it with sex and state to find a representative name
-        first_and_middle = pd.DataFrame(index=df_in.index)
-        current_year = self.clock().year
-        for (age, sex), df_age in df_in.groupby(["age", "sex"]):
+        names = pd.Series(index=df_in.index, dtype=object)
+        for (yob, sex), df_age in df_in.groupby(["year_of_birth", "sex"]):
             n = len(df_age)
-            first_and_middle.loc[df_age.index, "first_name"] = self.random_first_names(
-                current_year - np.floor(age), sex, n, "first"
-            )
-            first_and_middle.loc[df_age.index, "middle_name"] = self.random_first_names(
-                current_year - np.floor(age), sex, n, "middle"
-            )
+            names.loc[df_age.index] = self.random_first_names(yob, sex, n, additional_key)
 
-        return first_and_middle
+        return names
 
     def generate_last_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic names for individuals
@@ -338,9 +338,10 @@ class Address(GenericGenerator):
     def name(self):
         return "Address"
 
-    def setup(self, builder: Builder):
-        super().setup(builder)
-        self.address_data = builder.data.load(data_keys.SYNTHETIC_DATA.ADDRESSES)
+    def __init__(self, artifact: Artifact):
+        super().__init__()
+        self.artifact = artifact
+        self.address_data = self.artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES)
 
     def generate(self, idx: pd.Series, state: str) -> pd.DataFrame:
         """Generate synthetic addresses for individuals
