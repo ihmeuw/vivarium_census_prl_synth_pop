@@ -74,6 +74,7 @@ def perform_post_processing(
 
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
+        logger.info(f"Processing data for {observer}...")
         # Fixme: This code assumes a 1 to 1 relationship of raw to final observers
         obs_data = raw_results[observer]
 
@@ -85,6 +86,7 @@ def perform_post_processing(
                 # This assumes the column we are mapping will be dropped
                 obs_data.drop(columns=column)
 
+        logger.info(f"Writing final results for {observer}.")
         obs_data.to_csv(final_output_dir / f"{observer}.csv.bz2")
 
 
