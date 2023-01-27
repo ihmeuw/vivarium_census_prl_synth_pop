@@ -50,10 +50,9 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.POPULATION.TMRLE: load_theoretical_minimum_risk_life_expectancy,
         data_keys.POPULATION.LOCATION: load_location,
         data_keys.POPULATION.ASFR: load_asfr,
-        # Comment out synthetic_data to be moved into different artifact
-        # data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
-        # data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
-        # data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
+        data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
+        data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
+        data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
     }
     return mapping[lookup_key](lookup_key, location)
 
