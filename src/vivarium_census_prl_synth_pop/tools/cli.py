@@ -75,9 +75,17 @@ def make_artifacts(
     "--test-run",
     is_flag=True,
 )
+@click.option(
+    "-a", "--artifact_path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
+)
 def make_results(
-    output_dir: str, verbose: int, with_debugger: bool, mark_best: bool, test_run: bool
+    output_dir: str,
+    verbose: int,
+    with_debugger: bool,
+    mark_best: bool,
+    test_run: bool,
+    artifact_path: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(build_results, logger, with_debugger=with_debugger)
-    main(output_dir, mark_best, test_run)
+    main(output_dir, mark_best, test_run, artifact_path)
