@@ -36,7 +36,7 @@ class PersonEmigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.household_migration = builder.components.get_component("household_migration")
+        self.households = builder.components.get_component("households")
         self.columns_needed = [
             "relation_to_household_head",
             "in_united_states",
@@ -110,7 +110,7 @@ class PersonEmigration:
             event.index,
             query="alive == 'alive' and in_united_states == True and tracked == True",
         )
-        household_details = self.household_migration.household_details(pop.index)
+        household_details = self.households.household_details(pop.index)
         non_reference_people_idx = pop.index[
             (household_details["housing_type"] == "Standard")
             & (pop["relation_to_household_head"] != "Reference person")

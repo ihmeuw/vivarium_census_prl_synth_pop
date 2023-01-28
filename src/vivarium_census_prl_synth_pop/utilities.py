@@ -272,7 +272,7 @@ def update_address_ids(
     units_that_move_ids: pd.Index,
     starting_address_id: int,
     address_id_col_name: str,
-) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
+) -> Tuple[pd.DataFrame, int]:
     """
     Updates address_ids in the appropriate data structure (households or businesses)
 

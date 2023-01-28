@@ -53,7 +53,7 @@ class Businesses:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
-        self.household_migration = builder.components.get_component("household_migration")
+        self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
         self.columns_created = [
             "employer_id",
@@ -193,7 +193,7 @@ class Businesses:
             working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
         moved_idx = pop.index[
-            self.household_migration.household_details(pop.index)["address_id"]
+            self.household_details(pop.index)["address_id"]
             != pop["previous_timestep_address_id"]
         ]
         moved_working_age_idx = moved_idx.intersection(working_age_idx)
