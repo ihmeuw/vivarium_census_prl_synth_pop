@@ -15,7 +15,7 @@ components:
             - HouseholdSurveyObserver("cps")
             - WICObserver()
             - SocialSecurityObserver()
-            - TaxW2Observer()
+            - TaxObserver()
 
 configuration:
     input_data:
