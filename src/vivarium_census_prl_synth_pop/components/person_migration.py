@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -43,7 +41,7 @@ class PersonMigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.household_migration = builder.components.get_component("household_migration")
+        self.households = builder.components.get_component("households")
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
@@ -108,9 +106,9 @@ class PersonMigration:
 
     def on_time_step_prepare(self, event: Event) -> None:
         pop = self.population_view.subview(["previous_timestep_address_id"]).get(event.index)
-        pop["previous_timestep_address_id"] = self.household_migration.household_details(
-            pop.index
-        )[["address_id"]]
+        pop["previous_timestep_address_id"] = self.households.household_details(pop.index)[
+            ["address_id"]
+        ]
         self.population_view.update(pop)
 
     def on_time_step(self, event: Event) -> None:
@@ -157,7 +155,7 @@ class PersonMigration:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
-        households = self.household_migration.households
+        households = self.households.households
         first_new_household_id = households.index.max() + 1
         new_household_ids = first_new_household_id + np.arange(len(movers))
         first_new_household_address_id = households["address_id"].max() + 1
@@ -175,7 +173,7 @@ class PersonMigration:
             }
         ).set_index("household_id")
         households = pd.concat([households, new_households], axis=0)
-        self.household_migration.households = households
+        self.households.households = households
 
         return pop
 
