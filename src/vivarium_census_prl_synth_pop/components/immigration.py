@@ -1,4 +1,6 @@
+import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_keys
 
@@ -25,6 +27,7 @@ class Immigration:
 
     def setup(self, builder: Builder):
         persons_data = builder.data.load(data_keys.POPULATION.PERSONS)
+        self.total_person_weight = persons_data["person_weight"].sum()
 
         immigrants = persons_data[persons_data["immigrated_in_last_year"]]
 
@@ -35,6 +38,10 @@ class Immigration:
             ]
         )
         self.gq_immigrants = immigrants[is_gq]
+        self.gq_immigrants_per_time_step = self._immigrants_per_time_step(
+            self.gq_immigrants,
+            builder.configuration,
+        )
 
         non_gq_immigrants = immigrants[~is_gq]
         immigrant_reference_people = non_gq_immigrants[
@@ -46,7 +53,15 @@ class Immigration:
         )
 
         self.household_immigrants = non_gq_immigrants[is_household_immigrant]
+        self.household_immigrants_per_time_step = self._immigrants_per_time_step(
+            self.household_immigrants,
+            builder.configuration,
+        )
         self.non_reference_person_immigrants = non_gq_immigrants[~is_household_immigrant]
+        self.non_reference_person_immigrants_per_time_step = self._immigrants_per_time_step(
+            self.non_reference_person_immigrants,
+            builder.configuration,
+        )
 
         # Get the *household* (not person) weights for each household that can immigrate
         # in a household move, for use in sampling.
@@ -57,3 +72,19 @@ class Immigration:
             immigrant_reference_people["census_household_id"],
             "household_weight",
         ]
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def _immigrants_per_time_step(self, immigrants, configuration):
+        immigrants_per_year = (
+            # We rescale the proportion between immigrant population and total population to the
+            # simulation's initial population size.
+            # This value will not change over time during the simulation.
+            (immigrants["person_weight"].sum() / self.total_person_weight)
+            * configuration.population.population_size
+        )
+        return from_yearly(
+            immigrants_per_year, pd.Timedelta(days=configuration.time.step_size)
+        )
