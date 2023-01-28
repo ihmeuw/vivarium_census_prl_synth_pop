@@ -2,7 +2,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values
+from vivarium_census_prl_synth_pop.constants import data_keys
 
 
 class Immigration:
