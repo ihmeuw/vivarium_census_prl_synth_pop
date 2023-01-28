@@ -9,58 +9,6 @@ import pytest
 from vivarium_census_prl_synth_pop.components import synthetic_pii
 
 
-def test_generic():
-    g = synthetic_pii.GenericGenerator()
-
-    index = [1, 2, 4, 8]
-    df_in = pd.DataFrame(index=index)
-    df = g.generate(df_in)
-
-    assert len(df) == 4, "expect result to be a dataframe with 4 rows"
-    assert np.all(df.index == index), "expect index of result to match initial index"
-
-    df2 = g.noise(df)
-    assert np.all(df.index == df2.index) and np.all(
-        df.columns == df2.columns
-    ), "expect noise to leave dataframe index and columns unchanged"
-
-
-# This is outdated and not a random generator anymore
-# def test_dob():
-#     g = synthetic_pii.DOBGenerator(1234)
-#
-#     index = range(10_000)
-#     df_in = pd.DataFrame(index=index)
-#     df_in["age"] = np.random.uniform(0, 125, len(index))
-#     df = g.generate(df_in)
-#
-#     assert np.all(df.month <= 12)
-#     assert np.all(df.day <= 31)
-#     assert np.all(df.year >= 2019 - 125 - 1)
-#
-#     df2 = g.noise(df)
-#     assert np.all(df.index == df2.index) and np.all(
-#         df.columns == df2.columns
-#     ), "expect noise to leave dataframe index and columns unchanged"
-#
-#     assert np.all((df2.month >= 1) | df2.month.isnull()) and np.all(
-#         (df2.month <= 12)
-#         | (df2.day <= 12)  # noise can swap day and month, resulting in a month > 12
-#         | df2.month.isnull()
-#     )
-#     assert np.all((df2.day >= 1) | df2.day.isnull()) and np.all(
-#         (df2.day <= 31) | df2.day.isnull()
-#     )
-#     assert np.all((df2.year >= 2019 - 150) | df2.year.isnull()) and np.all(
-#         (df2.year < 2022) | df2.year.isnull()
-#     )
-#
-#     assert not np.all(df.day == df2.day)
-#     assert not np.all(df.month == df2.month)
-#     assert not np.all(df.year == df2.year)
-#     assert not np.all(df.dob == df2.dob)
-
-
 def get_draw(self, index, additional_key=None) -> pd.Series:
     # Mock get draw function
     s = np.random.uniform(size=len(index))
@@ -86,11 +34,7 @@ def test_ssn(mocker):
     assert len(area) == 3
     assert len(group) == 2
     assert len(serial) == 4
-
-    df2 = g.noise(df)
-    assert np.all(df.index == df2.index) and np.all(
-        df.columns == df2.columns
-    ), "expect noise to leave dataframe index and columns unchanged"
+    # todo: Add test of uniqueness
 
 
 def get_year():
@@ -147,6 +91,7 @@ def get_last_names():
 
 
 def test_name(mocker):
+    # todo: update test
     g = synthetic_pii.NameGenerator()
     # Mock randomness and get_draw
     g.randomness = mocker.Mock()

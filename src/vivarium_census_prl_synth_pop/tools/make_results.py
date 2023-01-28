@@ -5,6 +5,7 @@ from typing import Dict, Tuple
 import pandas as pd
 from loguru import logger
 from vivarium import Artifact
+from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
@@ -123,10 +124,19 @@ def generate_maps(
           address_id.  Values for each key will be a dictionary named with the column to be mapped to as the key with a
           corresponding series containing the mapped values.
     """
-    first_name_map = get_first_name_map(raw_data, artifact)
-    middle_name_map = get_middle_name_map(raw_data, artifact)
+    # Create RandomnessStream for post-processing
+    key = "post_processing_maps"
+    clock = lambda: pd.Timestamp("2020-04-01")
+    seed = 0
+    randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
-    return {}
+    # Add column maps to mapper here
+    maps = {
+        "first_name": get_first_name_map(raw_data, artifact, randomness),
+        "last_name": get_middle_name_map(raw_data, artifact, randomness),
+    }
+
+    return maps
 
 
 def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
