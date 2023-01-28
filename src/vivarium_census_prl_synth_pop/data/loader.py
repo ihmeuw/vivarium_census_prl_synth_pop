@@ -140,6 +140,13 @@ def load_households(key: str, location: str) -> pd.DataFrame:
         location=location,
     )
 
+    # map household_type
+    data["household_type"] = (
+        data["household_type"]
+        .map(metadata.HOUSEHOLD_TYPE_MAP)
+        .astype(pd.CategoricalDtype(categories=metadata.HOUSEHOLD_TYPES))
+    )
+
     # read in persons file to find which household_ids it contains
     persons = load_raw_persons_data(metadata.SUBSET_PERSONS_COLUMNS_MAP, location)
 
@@ -156,7 +163,14 @@ def load_households(key: str, location: str) -> pd.DataFrame:
     )
 
     data = data.set_index(
-        ["state", "puma", "census_household_id", "household_weight", "person_weight"]
+        [
+            "state",
+            "puma",
+            "census_household_id",
+            "household_type",
+            "household_weight",
+            "person_weight",
+        ]
     )
 
     return data
