@@ -535,7 +535,6 @@ class TaxW2Observer(BaseObserver):
         "employer_id",
     ]
     OUTPUT_COLUMNS = [
-        "simulant_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -846,7 +845,6 @@ class Tax1040Observer(BaseObserver):
         "relation_to_household_head",
     ]
     OUTPUT_COLUMNS = [
-        "simulant_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -900,7 +898,6 @@ class Tax1040Observer(BaseObserver):
         ]
 
         # add derived columns
-        pop["simulant_id"] = pop.index
         pop["tax_year"] = event.time.year - 1
 
         # delete extraneous columns
@@ -911,7 +908,7 @@ class Tax1040Observer(BaseObserver):
         ### get series of all person/employment pairs from w2 observer
         s_w2 = self.w2_observer.income_last_year
         non_zero_income_ids = s_w2.reset_index()["simulant_id"].unique()
-        non_zero_income_rows = pop["simulant_id"].isin(non_zero_income_ids)
+        non_zero_income_rows = pop.index.isin(non_zero_income_ids)
         pop = pop[non_zero_income_rows]
 
         return pop
