@@ -505,10 +505,12 @@ class TaxObserver:
     def __init__(self):
         tax_w2 = TaxW2Observer()
         tax_1040 = Tax1040Observer(tax_w2)
+        tax_dependents = TaxDependentsObserver(tax_w2)
 
         self._sub_components = [
             tax_w2,
             tax_1040,
+            tax_dependents,
         ]  # following pattern from vivarium.examples.disease_model.disease.SISDiseaseModel
         # TODO: it would be cool if there was more documentation on this, and if it was easy to find!
 
@@ -521,7 +523,7 @@ class TaxW2Observer(BaseObserver):
     """Class for observing columns relevant to W2 and 1099 tax data.
 
     Maintains a pd.Series for last year's income for each (person, employer)-pair,
-    which the TaxDependentObserver uses
+    which the Tax1040Observer and TaxDependentObserver classes use
     """
 
     INPUT_VALUES = ["income", "household_details", "business_details"]
@@ -547,8 +549,6 @@ class TaxW2Observer(BaseObserver):
         "employer_name",
         "employer_address_id",
         "income",
-        "eligible_dependent_id_list",
-        "eligible_dependent_address_id_list",
         "housing_type",
         "tax_year",
     ]
@@ -586,7 +586,7 @@ class TaxW2Observer(BaseObserver):
         # the course of the time_step, which might change if we do
         # this check on_time_step instead of on_time_step__prepare
         builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
-        self.income_to_date = empty_income_series()
+        self.income_this_year = empty_income_series()
         self.income_last_year = empty_income_series()
         self.time_step = builder.configuration.time.step_size  # in days
 
@@ -607,7 +607,9 @@ class TaxW2Observer(BaseObserver):
 
         income_this_time_step = income_this_time_step[income_this_time_step > 0]
 
-        self.income_to_date = self.income_to_date.add(income_this_time_step, fill_value=0.0)
+        self.income_this_year = self.income_this_year.add(
+            income_this_time_step, fill_value=0.0
+        )
 
     def to_observe(self, event: Event) -> bool:
         """Observe if Jan 1 falls during this time step"""
@@ -629,11 +631,11 @@ class TaxW2Observer(BaseObserver):
         ### create dataframe of all person/employment pairs
 
         # start with income to date, which has simulant_id and employer_id as multi-index
-        self.income_to_date.name = "income"  # HACK: it would be nice if this name stayed
+        self.income_this_year.name = "income"  # HACK: it would be nice if this name stayed
         # with the pd.Series, but it is getting lost at some point in the computation
 
-        df_w2 = self.income_to_date.reset_index()
-        df_w2["tax_year"] = event.time.year
+        df_w2 = self.income_this_year.reset_index()
+        df_w2["tax_year"] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
         for col in [
@@ -650,7 +652,7 @@ class TaxW2Observer(BaseObserver):
         df_w2["address_id"] = df_w2["simulant_id"].map(household_details["address_id"])
         df_w2["housing_type"] = df_w2["simulant_id"].map(household_details["housing_type"])
 
-        # Tracked, US population to be dependents or get their SSNs borrowed
+        # Tracked, US population to potentially have their SSNs borrowed
         pop = pop_full[
             (pop_full["alive"] == "alive")
             & pop_full["tracked"]
@@ -678,6 +680,95 @@ class TaxW2Observer(BaseObserver):
         for col in ["employer_address_id", "employer_name"]:
             df_w2[col] = df_w2["employer_id"].map(emp[col])
 
+        # re-initialize income-to-date series for next year of income counting
+        self.income_last_year = self.income_this_year
+        self.income_this_year = empty_income_series()
+
+        return df_w2[self.output_columns]
+
+
+class TaxDependentsObserver(BaseObserver):
+    """Class for observing columns relevant to identifying dependents in tax data.
+
+    This is most important for the 1040 data, but relies on data from
+    the W2 observer, and is better represented in a "long" form with a
+    row for each guardiant/dependent pair
+
+    """
+
+    INPUT_VALUES = ["household_details"]
+    ADDITIONAL_INPUT_COLUMNS = [
+        "alive",
+        "in_united_states",
+        "tracked",
+        "ssn",
+    ]
+    OUTPUT_COLUMNS = [
+        "guardian_id",
+        "dependent_id",
+        "first_name_id",
+        "middle_name_id",
+        "last_name_id",
+        "age",
+        "date_of_birth",
+        "sex",
+        "ssn",
+        "address_id",
+        "tax_year",
+    ]
+
+    def __init__(self, w2_observer):
+        super().__init__()
+        self.w2_observer = w2_observer
+
+    def __repr__(self):
+        return f"TaxDependentsObserver()"
+
+    @property
+    def name(self):
+        return f"tax_dependents_observer"
+
+    @property
+    def input_columns(self):
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+
+    @property
+    def input_values(self):
+        return self.INPUT_VALUES
+
+    @property
+    def output_columns(self):
+        return self.OUTPUT_COLUMNS
+
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.clock = builder.time.clock()
+
+    def to_observe(self, event: Event) -> bool:
+        """Observe if Jan 1 falls during this time step"""
+        tax_date = dt.datetime(event.time.year, 1, 1)
+        return self.clock() < tax_date <= event.time
+
+    def get_observation(self, event: Event) -> pd.DataFrame:
+        pop_full = self.population_view.get(event.index)
+        household_details = self.pipelines["household_details"](pop_full.index)
+        pop_full[["address_id", "housing_type"]] = household_details[
+            ["address_id", "housing_type"]
+        ]
+
+        # Tracked, US population to be dependents
+        pop = pop_full[
+            (
+                pop_full["alive"] == "alive"
+            )  # really should include people who died in last year
+            & pop_full["tracked"]  # ??? should we include untracked, too?
+            & pop_full[
+                "in_united_states"
+            ]  # and if they were in usa in last year, maybe they still count
+        ]
+
+        ### create dataframe of all guardian/potential dependent pairs
+
         # create lists of dependent ids and dependent address ids
         df_eligible_dependents = pd.concat(
             [
@@ -688,8 +779,7 @@ class TaxW2Observer(BaseObserver):
 
         # not all simulants with a guardian are eligible to be dependents
         # need to know income of dependents in past year for this
-        dependent_w2 = df_w2[df_w2["simulant_id"].isin(df_eligible_dependents.index.unique())]
-        last_year_income = dependent_w2.groupby("simulant_id")["income"].sum()
+        last_year_income = self.w2_observer.income_last_year.groupby("simulant_id").sum()
         df_eligible_dependents["last_year_income"] = last_year_income
         df_eligible_dependents["last_year_income"] = df_eligible_dependents[
             "last_year_income"
@@ -709,30 +799,43 @@ class TaxW2Observer(BaseObserver):
             | (df_eligible_dependents["last_year_income"] < 4_300)
         ]
 
-        s_eligible_dependent_id_list = df_eligible_dependents.groupby("guardian_id").apply(
-            lambda df_g: list(df_g.index)
-        )
+        df = df_eligible_dependents
+        df["dependent_id"] = df.index
+        df["tax_year"] = event.time.year - 1
 
-        s_eligible_dependent_address_id_list = df_eligible_dependents.groupby(
-            "guardian_id"
-        ).apply(lambda df_g: list(df_g["address_id"]))
-
-        for col, s in [
-            ["eligible_dependent_id_list", s_eligible_dependent_id_list],
-            ["eligible_dependent_address_id_list", s_eligible_dependent_address_id_list],
+        # merge in simulant columns based on simulant id
+        for col in [
+            "first_name_id",
+            "middle_name_id",
+            "last_name_id",
+            "age",
+            "date_of_birth",
+            "sex",
+            "ssn",
+            "address_id",
+            "housing_type",
         ]:
-            df_w2[col] = df_w2["simulant_id"].map(s)
+            df[col] = df["dependent_id"].map(pop_full[col])
 
-        # re-initialize income-to-date series for next year of income counting
-        self.income_last_year = self.income_to_date
-        self.income_to_date = empty_income_series()
+        # delete extraneous columns
+        for col in [
+            "in_united_states",
+            "alive",
+            "guardian_1",
+            "guardian_2",
+            "last_year_income",
+            "race_ethnicity",
+            "housing_type",
+            "tracked",
+        ]:
+            del df[col]
 
-        return df_w2[self.output_columns]
+        return df
 
 
 class Tax1040Observer(BaseObserver):
     """Class for observing columns relevant to 1040 tax data (that is not
-    already recorded by W2 or dependent observer)
+    already recorded by W2 or dependents observer)
     """
 
     INPUT_VALUES = ["income", "household_details", "business_details"]
@@ -754,6 +857,7 @@ class Tax1040Observer(BaseObserver):
         "address_id",
         "relation_to_household_head",
         "housing_type",
+        "tax_year",
     ]
 
     def __init__(self, w2_observer):
@@ -797,6 +901,7 @@ class Tax1040Observer(BaseObserver):
 
         # add derived columns
         pop["simulant_id"] = pop.index
+        pop["tax_year"] = event.time.year - 1
 
         # delete extraneous columns
         for col in ["alive", "guardian_1", "guardian_2", "race_ethnicity", "tracked"]:
