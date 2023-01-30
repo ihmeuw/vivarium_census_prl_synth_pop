@@ -149,9 +149,9 @@ def test_households_move(simulants_on_adjacent_timesteps):
         ).all()
 
         # Address IDs moved to are new
-        moved_households = before[household_movers]["household_id"].unique()
+        moved_households = before[household_movers]["household_id"]
         new_addresses = after[household_movers]["household_details.address_id"]
-        assert new_addresses.nunique() == len(moved_households)
+        assert new_addresses.nunique() == moved_households.nunique()
         assert not before["household_details.address_id"].isin(new_addresses).any()
 
         # Never GQ households

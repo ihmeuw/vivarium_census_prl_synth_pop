@@ -42,6 +42,7 @@ class PersonMigration:
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
         self.households = builder.components.get_component("households")
+        self.household_details = builder.value.get_value("household_details")
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
@@ -106,7 +107,7 @@ class PersonMigration:
 
     def on_time_step_prepare(self, event: Event) -> None:
         pop = self.population_view.subview(["previous_timestep_address_id"]).get(event.index)
-        pop["previous_timestep_address_id"] = self.households.household_details(pop.index)[
+        pop["previous_timestep_address_id"] = self.household_details(pop.index)[
             ["address_id"]
         ]
         self.population_view.update(pop)
@@ -155,7 +156,7 @@ class PersonMigration:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
-        households = self.households.households
+        households = self.households.get_households()
         first_new_household_id = households.index.max() + 1
         new_household_ids = first_new_household_id + np.arange(len(movers))
         first_new_household_address_id = households["address_id"].max() + 1
@@ -173,7 +174,7 @@ class PersonMigration:
             }
         ).set_index("household_id")
         households = pd.concat([households, new_households], axis=0)
-        self.households.households = households
+        self.households.set_households(households)
 
         return pop
 
