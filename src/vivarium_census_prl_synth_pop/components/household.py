@@ -72,6 +72,13 @@ class Households:
         address_id: id for the household's address
         """
         input_household_data = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
+        group_quarters_data = input_household_data[
+            input_household_data["household_type"] != "Housing unit"
+        ]
+        standard_household_data = input_household_data[
+            input_household_data["household_type"] == "Housing unit"
+        ]
+
         gq_households = pd.DataFrame(
             {
                 "census_household_id": "N/A",
@@ -88,23 +95,43 @@ class Households:
             self.pop_config.population_size - target_gq_pop_size
         )
 
-        sampled_census_ids = vectorized_choice(
-            options=input_household_data["census_household_id"],
+        sampled_household_ids = vectorized_choice(
+            options=standard_household_data["census_household_id"],
             n_to_choose=target_standard_housing_pop_size,
-            weights=input_household_data["household_weight"],
-            additional_key=f"sample_households_{self.seed}",
+            weights=standard_household_data["household_weight"],
+            additional_key=f"{self.name}_sample_households_{self.seed}",
         )
-        standard_household_ids = gq_households.index.size + np.arange(len(sampled_census_ids))
-        sampled_standard_households = pd.DataFrame(
+        standard_household_ids = gq_households.index.size + np.arange(
+            len(sampled_household_ids)
+        )
+        standard_households = pd.DataFrame(
             {
-                "census_household_id": sampled_census_ids,
+                "census_household_id": sampled_household_ids,
                 "household_id": standard_household_ids,
                 "address_id": standard_household_ids,
                 "housing_type": "Standard",
             }
         )
 
-        households = pd.concat([gq_households, sampled_standard_households])
+        # group quarters each house one person per census_household_id
+        # they have NA household weights, but appropriately weighted person weights.
+        sampled_gq_ids = vectorized_choice(
+            options=group_quarters_data["census_household_id"],
+            n_to_choose=target_gq_pop_size + data_values.MAX_HOUSEHOLD_SIZE,
+            weights=group_quarters_data["person_weight"],
+            additional_key=f"{self.name}_sample_gq_{self.seed}",
+        )
+
+        sampled_gq_units = pd.DataFrame(
+            {
+                "census_household_id": sampled_gq_ids,
+                "household_id": -1,
+                "address_id": -1,
+                "housing_type": None,
+            }
+        )
+
+        households = pd.concat([gq_households, standard_households, sampled_gq_units])
         households["housing_type"] = households["housing_type"].astype(
             pd.CategoricalDtype(categories=data_values.HOUSING_TYPES)
         )
@@ -123,7 +150,7 @@ class Households:
         if pop_data.creation_time < self.start_time:
             households = self._households.set_index("household_id")
             # Drop all households that aren't in population except for GQ households
-            gq_index = households.index[households["housing_type"] != "Standard"]
+            gq_index = households.index[households["census_household_id"] == "N/A"]
             existing_households = pd.Index(
                 self.population_view.subview(["household_id"])
                 .get(pop_data.index)["household_id"]

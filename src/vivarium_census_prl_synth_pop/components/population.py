@@ -11,7 +11,6 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
-from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 # Family/household relationships helper lists
 NON_RELATIVES = ["Roommate", "Other nonrelative"]
@@ -160,16 +159,16 @@ class Population:
 
     def populate_standard_households(self) -> pd.DataFrame:
         households = self.households.get_households()
-        target_number_sims = households.index.size
-
         standard_households = households.loc[
-            households["census_household_id"] != "N/A",
+            households["housing_type"] == "Standard",
             ["census_household_id", "household_id"],
         ]
+        target_number_sims = standard_households.index.size
+
         # get all simulants per household
         chosen_persons = pd.merge(
             standard_households,
-            self.population_data["persons"],
+            self.population_data["persons"][metadata.PERSONS_COLUMNS_TO_INITIALIZE],
             on="census_household_id",
             how="left",
         )
@@ -186,55 +185,45 @@ class Population:
 
         return chosen_persons
 
-    def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
-        group_quarters = self.population_data["households"][
-            self.population_data["households"]["household_type"] != "Housing unit"
+    def choose_group_quarters(self, target_number_sims: int) -> pd.DataFrame:
+        households = self.households.get_households()
+        sampled_gq_units = households.loc[
+            households["housing_type"].isna(),
+            ["census_household_id", "household_id"],
         ]
 
-        # group quarters each house one person per census_household_id
-        # they have NA household weights, but appropriately weighted person weights.
-        chosen_units = vectorized_choice(
-            options=group_quarters["census_household_id"],
-            n_to_choose=target_number_sims,
-            randomness_stream=self.randomness,
-            weights=group_quarters["person_weight"],
-        )
+        sampled_gq_units = sampled_gq_units.iloc[:target_number_sims]
 
         # get simulants per GQ unit
-        chosen_persons = pd.merge(
-            chosen_units,
+        group_quarters = pd.merge(
+            sampled_gq_units,
             self.population_data["persons"][metadata.PERSONS_COLUMNS_TO_INITIALIZE],
             on="census_household_id",
             how="left",
         )
 
-        noninstitutionalized = chosen_persons.loc[
-            chosen_persons["relation_to_household_head"] == "Noninstitutionalized GQ pop"
+        noninstitutionalized = group_quarters.index[
+            group_quarters["relation_to_household_head"] == "Noninstitutionalized GQ pop"
         ]
-        institutionalized = chosen_persons.loc[
-            chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"
+        institutionalized = group_quarters.index[
+            group_quarters["relation_to_household_head"] == "Institutionalized GQ pop"
         ]
-        noninstitutionalized = noninstitutionalized.copy()
-        institutionalized = institutionalized.copy()
 
-        noninstitutionalized_gq_types = vectorized_choice(
-            options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
-            n_to_choose=len(noninstitutionalized),
-            randomness_stream=self.randomness,
+        noninstitutionalized_gq_types = self.randomness.choice(
+            noninstitutionalized,
+            list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
         )
 
-        institutionalized_gq_types = vectorized_choice(
-            options=list(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()),
-            n_to_choose=len(institutionalized),
-            randomness_stream=self.randomness,
+        institutionalized_gq_types = self.randomness.choice(
+            institutionalized, list(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values())
         )
 
-        noninstitutionalized["household_id"] = noninstitutionalized_gq_types
-        institutionalized["household_id"] = institutionalized_gq_types
+        group_quarters.loc[
+            noninstitutionalized, "household_id"
+        ] = noninstitutionalized_gq_types
+        group_quarters.loc[institutionalized, "household_id"] = institutionalized_gq_types
 
-        group_quarters = pd.concat([noninstitutionalized, institutionalized])
         group_quarters["age"] = self.perturb_individual_age(group_quarters)
-
         return group_quarters
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
