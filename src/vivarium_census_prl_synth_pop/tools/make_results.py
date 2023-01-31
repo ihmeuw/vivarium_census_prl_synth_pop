@@ -147,4 +147,3 @@ def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
 
     return raw_output_dir, final_output_dir
-
