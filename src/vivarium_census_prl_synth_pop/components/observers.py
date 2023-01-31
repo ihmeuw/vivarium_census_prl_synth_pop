@@ -510,7 +510,7 @@ class TaxObserver:
         self._sub_components = [
             tax_w2,
             tax_1040,
-            tax_dependents,
+            tax_dependents,  # NOTE: this component must come after the TaxW2Observer to function correctly
         ]  # following pattern from vivarium.examples.disease_model.disease.SISDiseaseModel
         # TODO: it would be cool if there was more documentation on this, and if it was easy to find!
 
@@ -691,7 +691,7 @@ class TaxDependentsObserver(BaseObserver):
 
     This is most important for the 1040 data, but relies on data from
     the W2 observer, and is better represented in a "long" form with a
-    row for each guardiant/dependent pair
+    row for each guardian/dependent pair
 
     """
 
@@ -778,6 +778,11 @@ class TaxDependentsObserver(BaseObserver):
 
         # not all simulants with a guardian are eligible to be dependents
         # need to know income of dependents in past year for this
+        #
+        # NOTE: this assumes that the
+        # TaxDependentObserver.get_observation is called after
+        # TaxW2Observer.get_observation, which is achieved by listing
+        # them in this order in the TaxObserver
         last_year_income = self.w2_observer.income_last_year.groupby("simulant_id").sum()
         df_eligible_dependents["last_year_income"] = last_year_income
         df_eligible_dependents["last_year_income"] = df_eligible_dependents[
@@ -802,44 +807,20 @@ class TaxDependentsObserver(BaseObserver):
         df["dependent_id"] = df.index
         df["tax_year"] = event.time.year - 1
 
-        # merge in simulant columns based on simulant id
-        for col in [
-            "first_name_id",
-            "middle_name_id",
-            "last_name_id",
-            "age",
-            "date_of_birth",
-            "sex",
-            "ssn",
-            "address_id",
-            "housing_type",
-        ]:
-            df[col] = df["dependent_id"].map(pop_full[col])
-
-        # delete extraneous columns
-        for col in [
-            "in_united_states",
-            "alive",
-            "guardian_1",
-            "guardian_2",
-            "last_year_income",
-            "race_ethnicity",
-            "housing_type",
-            "tracked",
-        ]:
-            del df[col]
-
-        return df
+        return df[self.OUTPUT_COLUMNS]
 
 
 class Tax1040Observer(BaseObserver):
-    """Class for observing columns relevant to 1040 tax data (that is not
-    already recorded by W2 or dependents observer)
+    """Class for observing columns relevant to 1040 tax data (most of
+    these are already recorded by W2 observer, but there might be
+    migration between Jan 1 and April 15)
+
     """
 
     INPUT_VALUES = ["income", "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
+        "in_united_states",
         "tracked",
         "ssn",
         "relation_to_household_head",
@@ -852,10 +833,12 @@ class Tax1040Observer(BaseObserver):
         "date_of_birth",
         "sex",
         "ssn",
-        "address_id",
-        "relation_to_household_head",
+        "address_id",  # we do not need to include household_id because we can find it from address_id
+        "relation_to_household_head",  # needed to identifying couples filing jointly
         "housing_type",
         "tax_year",
+        "alive",
+        "in_united_states",
     ]
 
     def __init__(self, w2_observer):
@@ -900,18 +883,7 @@ class Tax1040Observer(BaseObserver):
         # add derived columns
         pop["tax_year"] = event.time.year - 1
 
-        # delete extraneous columns
-        for col in ["alive", "guardian_1", "guardian_2", "race_ethnicity", "tracked"]:
-            del pop[col]
-
-        # to save space, remove rows for simulants with zero income
-        ### get series of all person/employment pairs from w2 observer
-        s_w2 = self.w2_observer.income_last_year
-        non_zero_income_ids = s_w2.reset_index()["simulant_id"].unique()
-        non_zero_income_rows = pop.index.isin(non_zero_income_ids)
-        pop = pop[non_zero_income_rows]
-
-        return pop
+        return pop[self.OUTPUT_COLUMNS]
 
 
 def empty_income_series():
