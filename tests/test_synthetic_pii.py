@@ -89,7 +89,20 @@ def get_last_names():
     return last_names
 
 
-def test_first_names(mocker, given_names):
+def get_name_frequency_proportions(
+    names: pd.Series, population_demographics: pd.DataFrame
+) -> pd.Series:
+    name_totals = pd.concat([population_demographics, names], axis=1).rename(
+        columns={0: "name"}
+    )
+    names_grouped = name_totals.value_counts()
+    grouped_totals = name_totals[["year_of_birth", "sex"]].value_counts()
+    name_proportions = names_grouped / grouped_totals
+
+    return name_proportions
+
+
+def test_first_and_middle_names(mocker, given_names):
     # todo: update test
     fake_sim_data = pd.DataFrame(
         {
@@ -111,12 +124,7 @@ def test_first_names(mocker, given_names):
     first_names = generate_first_and_middle_names(
         fake_sim_data, "first_name", artifact, randomness
     )
-    first_name_totals = pd.concat([fake_sim_data, first_names], axis=1).rename(
-        columns={0: "name"}
-    )
-    first_name_grouped = first_name_totals.value_counts()
-    grouped_totals = first_name_totals[["year_of_birth", "sex"]].value_counts()
-    first_name_proportions = first_name_grouped / grouped_totals
+    first_name_proportions = get_name_frequency_proportions(first_names, fake_sim_data)
 
     assert np.isclose(
         first_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
@@ -125,12 +133,7 @@ def test_first_names(mocker, given_names):
     middle_names = generate_first_and_middle_names(
         fake_sim_data, "middle_name", artifact, randomness
     )
-    middle_name_totals = pd.concat([fake_sim_data, middle_names], axis=1).rename(
-        columns={0: "name"}
-    )
-    middle_name_grouped = middle_name_totals.value_counts()
-    grouped_totals = middle_name_totals[["year_of_birth", "sex"]].value_counts()
-    middle_name_proportions = first_name_grouped / grouped_totals
+    middle_name_proportions = get_name_frequency_proportions(middle_names, fake_sim_data)
 
     assert np.isclose(
         middle_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02

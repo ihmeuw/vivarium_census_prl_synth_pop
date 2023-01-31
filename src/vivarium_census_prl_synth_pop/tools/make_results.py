@@ -15,20 +15,20 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
 )
 
 FINAL_OBSERVERS = [
-    "decennial_census",
-    "household_survey_acs",
-    "household_survey_cps",
-    "wic",
-    "social_security",
-    "tax_w2_1099",
+    "decennial_census_observer",
+    "household_survey_acs_observer",
+    "household_survey_cps_observer",
+    "wic_observer",
+    "social_security_observer",
+    "tax_w2_observer",
 ]
 COLUMNS_TO_NOT_MAP = {
-    "decennial_census": [],
-    "household_survey_acs": [],
-    "household_survey_cps": [],
-    "wic": [],
-    "social_security": ["sex", "race_ethnicity"],
-    "tax_w2_1099": ["race_ethnicity"],
+    "decennial_census_observer": [],
+    "household_survey_acs_observer": [],
+    "household_survey_cps_observer": [],
+    "wic_observer": [],
+    "social_security_observer": ["sex", "race_ethnicity"],
+    "tax_w2_observer": ["race_ethnicity"],
 }
 
 
