@@ -16,16 +16,16 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
 
 FINAL_OBSERVERS = [
     "decennial_census_observer",
-    "household_survey_acs_observer",
-    "household_survey_cps_observer",
+    "household_survey_observer_acs",
+    "household_survey_observer_cps",
     "wic_observer",
     "social_security_observer",
     "tax_w2_observer",
 ]
 COLUMNS_TO_NOT_MAP = {
     "decennial_census_observer": [],
-    "household_survey_acs_observer": [],
-    "household_survey_cps_observer": [],
+    "household_survey_observer_acs": [],
+    "household_survey_observer_cps": [],
     "wic_observer": [],
     "social_security_observer": ["sex", "race_ethnicity"],
     "tax_w2_observer": ["race_ethnicity"],
@@ -140,11 +140,11 @@ def generate_maps(
 
 
 def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
-    final_output_root_dir = utilities.build_output_dir(
-        Path(results_dir), subdir=paths.FINAL_RESULTS_DIR_NAME
+    final_output_dir = utilities.build_output_dir(
+        Path(results_dir),
+        subdir=paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
     )
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
-    final_output_dir = final_output_root_dir / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
     return raw_output_dir, final_output_dir
 
