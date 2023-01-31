@@ -156,25 +156,11 @@ class PersonMigration:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
-        households = self.households.get_households()
-        first_new_household_id = households.index.max() + 1
-        new_household_ids = first_new_household_id + np.arange(len(movers))
-        first_new_household_address_id = households["address_id"].max() + 1
+        new_household_ids = self.households.create_households(len(movers))
 
         # update pop table
         pop.loc[movers, "household_id"] = new_household_ids
         pop.loc[movers, "relation_to_household_head"] = "Reference person"
-
-        # update households object
-        new_households = pd.DataFrame(
-            {
-                "household_id": new_household_ids,
-                "housing_type": "Standard",
-                "address_id": first_new_household_address_id + np.arange(len(movers)),
-            }
-        ).set_index("household_id")
-        households = pd.concat([households, new_households], axis=0)
-        self.households.set_households(households)
 
         return pop
 

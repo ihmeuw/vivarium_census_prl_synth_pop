@@ -88,12 +88,4 @@ class HouseholdMigration:
             "moving_households",
         )
 
-        households = self.households.get_households()
-        households, _ = update_address_ids(
-            moving_units=households,
-            units_that_move_ids=movers["household_id"],
-            starting_address_id=households["address_id"].max() + 1,
-            address_id_col_name="address_id",
-        )
-
-        self.households.set_households(households)
+        self.households.update_household_addresses(movers["household_id"])
