@@ -177,7 +177,6 @@ def vectorized_choice(
         n = len(options)
         weights = np.ones(n) / n
     # for each of n_to_choose, sample uniformly between 0 and 1
-    index = pd.Index(np.arange(n_to_choose))
     probs = randomness_stream.get_draw(np.arange(n_to_choose), additional_key=additional_key)
 
     # build cdf based on weights
