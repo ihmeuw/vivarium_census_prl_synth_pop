@@ -589,7 +589,16 @@ class TaxW2Observer(BaseObserver):
         self.income_last_year = empty_income_series()
         self.time_step = builder.configuration.time.step_size  # in days
 
+        # set income_last_year and reset income_this_year on
+        # time_step__cleanup to make sure it is in the needed format
+        # for all subcomponents of TaxObserver
+        builder.event.register_listener("time_step__cleanup", self.on_time_step__cleanup)
+
     def on_time_step__prepare(self, event):
+        """increment income based on the job the simulant has during
+        the course of the time_step, which might change if we do
+        this check on_time_step instead of on_time_step__prepare
+        """
         pop = self.population_view.get(
             event.index,
             query="alive == 'alive' and in_united_states and tracked",
@@ -610,6 +619,18 @@ class TaxW2Observer(BaseObserver):
             income_this_time_step, fill_value=0.0
         )
 
+    def on_time_step__cleanup(self, event):
+        """set income_last_year and reset income_this_year on
+        time_step__cleanup to make sure it is in the needed format
+        for all subcomponents of TaxObserver
+        """
+        if self.to_observe(event):
+            self.income_last_year = self.income_this_year
+            self.income_last_year.name = (
+                "income"  # HACK: it would be nice if this name stayed
+            )
+            self.income_this_year = empty_income_series()
+
     def to_observe(self, event: Event) -> bool:
         """Observe if Jan 1 falls during this time step"""
         tax_date = dt.datetime(event.time.year, 1, 1)
@@ -619,7 +640,6 @@ class TaxW2Observer(BaseObserver):
         pop_full = self.population_view.get(event.index)
         household_details = self.pipelines["household_details"](pop_full.index)
         business_details = self.pipelines["business_details"](pop_full.index)
-        pop_full["income"] = self.pipelines["income"](pop_full.index)
         pop_full[["address_id", "housing_type"]] = household_details[
             ["address_id", "housing_type"]
         ]
@@ -630,10 +650,9 @@ class TaxW2Observer(BaseObserver):
         ### create dataframe of all person/employment pairs
 
         # start with income to date, which has simulant_id and employer_id as multi-index
-        self.income_this_year.name = "income"  # HACK: it would be nice if this name stayed
         # with the pd.Series, but it is getting lost at some point in the computation
 
-        df_w2 = self.income_this_year.reset_index()
+        df_w2 = self.income_last_year.reset_index()
         df_w2["tax_year"] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
@@ -679,19 +698,20 @@ class TaxW2Observer(BaseObserver):
         for col in ["employer_address_id", "employer_name"]:
             df_w2[col] = df_w2["employer_id"].map(emp[col])
 
-        # re-initialize income-to-date series for next year of income counting
-        self.income_last_year = self.income_this_year
-        self.income_this_year = empty_income_series()
-
         return df_w2[self.output_columns]
 
 
 class TaxDependentsObserver(BaseObserver):
-    """Class for observing columns relevant to identifying dependents in tax data.
+    """Class for observing columns relevant to identifying dependents in
+    tax data.
 
     This is most important for the 1040 data, but relies on data from
     the W2 observer, and is better represented in a "long" form with a
     row for each guardian/dependent pair
+
+    NOTE: as implemented, this captures the dependents' age and
+    address_id on Jan 1, while it might be more realistic to capture
+    them on April 15
 
     """
 
