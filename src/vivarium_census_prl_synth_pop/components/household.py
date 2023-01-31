@@ -39,14 +39,18 @@ class Households:
         self.population_view = builder.population.get_view(self.columns_used)
 
         # GQ households are special, with fixed IDs
+        gq_household_ids = (
+            pd.Series(data_values.GQ_HOUSING_TYPE_MAP.keys())
+            .astype(HOUSEHOLD_ID_DTYPE)
+            .rename("household_id")
+        )
         self._households = pd.DataFrame(
             {
                 "address_id": data_values.GQ_HOUSING_TYPE_MAP.keys(),
                 "housing_type": data_values.GQ_HOUSING_TYPE_MAP.values(),
             },
-            index=data_values.GQ_HOUSING_TYPE_MAP.keys().astype(HOUSEHOLD_ID_DTYPE),
+            index=gq_household_ids,
         ).astype(HOUSEHOLD_DETAILS_DTYPES)
-        self._households.index.names = ["household_id"]
 
         self.household_details = builder.value.register_value_producer(
             "household_details",
