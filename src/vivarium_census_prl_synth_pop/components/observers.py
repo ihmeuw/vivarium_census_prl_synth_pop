@@ -510,7 +510,7 @@ class TaxObserver:
         self._sub_components = [
             tax_w2,
             tax_1040,
-            tax_dependents,  # NOTE: this component must come after the TaxW2Observer to function correctly
+            tax_dependents,
         ]  # following pattern from vivarium.examples.disease_model.disease.SISDiseaseModel
         # TODO: it would be cool if there was more documentation on this, and if it was easy to find!
 
