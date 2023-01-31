@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.constants import data_values
 from vivarium_census_prl_synth_pop.utilities import update_address_ids
@@ -32,11 +31,6 @@ class Households:
     #################
 
     def setup(self, builder: Builder):
-        self.pop_config = builder.configuration.population
-        self.seed = builder.configuration.randomness.random_seed
-        self.start_time = get_time_stamp(builder.configuration.time.start)
-
-        self.randomness = builder.randomness.get_stream(self.name)
         self.columns_used = [
             "tracked",
             "household_id",
