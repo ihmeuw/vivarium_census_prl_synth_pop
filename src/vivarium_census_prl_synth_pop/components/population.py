@@ -177,7 +177,8 @@ class Population:
             weights=standard_households["household_weight"],
         )
 
-        # create unique id for resampled households
+        # create unique id for resampled households -- each census_household_id
+        # can be sampled multiple times.
         chosen_households = pd.DataFrame(
             {
                 "census_household_id": chosen_households,
