@@ -106,7 +106,7 @@ class Households:
 
         households = pd.concat([gq_households, sampled_standard_households])
         households["housing_type"] = households["housing_type"].astype(
-            pd.CategoricalDtype(categories=data_values.HOUSING_TYPES)
+            HOUSEHOLD_DETAILS_DTYPES["housing_type"]
         )
 
         return households
@@ -138,7 +138,7 @@ class Households:
     def get_household_details(self, idx: pd.Index) -> pd.DataFrame:
         """Source of the household_details pipeline"""
         pop = self.population_view.subview(["tracked", "household_id"]).get(idx)
-        household_details = pop.join(
+        household_details = pop[["household_id"]].join(
             self._households,
             on="household_id",
         )
