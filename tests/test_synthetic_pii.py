@@ -1,12 +1,21 @@
 # Sample Test passing with nose and pytest
 from types import MethodType
-from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
 import pytest
+from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
+from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.results_processing.names import (
+    generate_first_and_middle_names,
+)
+
+key = "test_synthetic_data_generation"
+clock = lambda: pd.Timestamp("2020-09-01")
+seed = 0
+randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
 
 def get_draw(self, index, additional_key=None) -> pd.Series:
@@ -37,27 +46,17 @@ def test_ssn(mocker):
     # todo: Add test of uniqueness
 
 
-def get_year():
-    class MockClock(NamedTuple):
-        day = (12,)
-        month = (31,)
-        year = 1999
-
-    mock_clock = MockClock()
-    return mock_clock
-
-
-def get_first_names():
+@pytest.fixture()
+def given_names():
     names = pd.DataFrame(
         data={
-            "state": ["FL", "FL", "FL", "FL", "FL"],
-            "sex": ["Female", "Female", "Male", "Male", "Female"],
-            "yob": [1999, 1999, 1999, 2000, 2000],
-            "name": ["Mary", "Annie", "Louise", "John", "Jeff"],
-            "freq": [200, 199, 198, 10, 11],
+            "sex": ["Female", "Female", "Male", "Male"] * 2,
+            "yob": [1999, 1999, 1999, 1999, 2000, 2000, 2000, 2000],
+            "name": ["Mary", "Annie", "Luis", "John", "Scarlett", "Anna", "Mark", "Brad"],
+            "freq": [200, 100, 150, 50, 100, 25, 100, 150],
         }
     )
-    names = names.set_index(["state", "sex", "yob", "name", "freq"])
+    names = names.set_index(["yob", "sex", "name", "freq"])
     return names
 
 
@@ -90,39 +89,53 @@ def get_last_names():
     return last_names
 
 
-def test_name(mocker):
+def test_first_names(mocker, given_names):
     # todo: update test
-    g = synthetic_pii.NameGenerator()
-    # Mock randomness and get_draw
-    g.randomness = mocker.Mock()
-    mocker.patch.object(g.randomness, "get_draw")
-    g.randomness.get_draw = MethodType(get_draw, g)
+    fake_sim_data = pd.DataFrame(
+        {
+            "year_of_birth": [1999, 1999, 2000, 2000] * 25_000,
+            "sex": ["Male", "Female"] * 50_000,
+        }
+    )
 
-    # Mock first name data
-    g.first_name_data = get_first_names()
-    # Mock last name data
-    g.last_name_data = get_last_names()
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = given_names
 
-    all_race_eth_values = [
-        "White",
-        "Latino",
-        "Black",
-        "Asian",
-        "Multiracial or Other",
-        "AIAN",
-        "NHOPI",
-    ]
-    index = range(len(all_race_eth_values))
-    df_in = pd.DataFrame(index=index)
-    df_in["race_ethnicity"] = all_race_eth_values
-    df_in["year_of_birth"] = 1985
-    df_in["sex"] = "Male"
+    # Get proportion of given names for tests
+    totals = given_names.reset_index().groupby(["yob", "sex"])["freq"].sum()
+    name_freq = given_names.reset_index("freq")
+    proportions = name_freq["freq"] / totals
+    proportions.index = proportions.index.rename("year_of_birth", "yob")
 
-    series1 = g.generate_first_and_middle_names(df_in, "dummy_key")
-    # This will be updated when last names are processed
-    # df2 = g.generate_last_names(df_in)
+    # Get name frequencies for comparison
+    first_names = generate_first_and_middle_names(
+        fake_sim_data, "first_name", artifact, randomness
+    )
+    first_name_totals = pd.concat([fake_sim_data, first_names], axis=1).rename(
+        columns={0: "name"}
+    )
+    first_name_grouped = first_name_totals.value_counts()
+    grouped_totals = first_name_totals[["year_of_birth", "sex"]].value_counts()
+    first_name_proportions = first_name_grouped / grouped_totals
 
-    assert series1.index.is_unique
+    assert np.isclose(
+        first_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
+    ).all()
+
+    middle_names = generate_first_and_middle_names(
+        fake_sim_data, "middle_name", artifact, randomness
+    )
+    middle_name_totals = pd.concat([fake_sim_data, middle_names], axis=1).rename(
+        columns={0: "name"}
+    )
+    middle_name_grouped = middle_name_totals.value_counts()
+    grouped_totals = middle_name_totals[["year_of_birth", "sex"]].value_counts()
+    middle_name_proportions = first_name_grouped / grouped_totals
+
+    assert np.isclose(
+        middle_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
+    ).all()
+    assert (first_names != middle_names).any()
 
 
 @pytest.mark.slow
