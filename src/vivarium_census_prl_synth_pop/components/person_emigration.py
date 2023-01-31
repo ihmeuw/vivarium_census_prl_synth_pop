@@ -36,7 +36,6 @@ class PersonEmigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.households = builder.components.get_component("households")
         self.household_details = builder.value.get_value("household_details")
         self.columns_needed = [
             "relation_to_household_head",

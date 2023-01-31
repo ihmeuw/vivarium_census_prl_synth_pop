@@ -8,7 +8,7 @@ import pandas as pd
 from loguru import logger
 from scipy import stats
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
+from vivarium.framework.randomness import Array, RandomnessStream, get_hash
 from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -169,7 +169,7 @@ def get_norm_from_quantiles(
 def vectorized_choice(
     options: Array,
     n_to_choose: int,
-    randomness_stream: RandomnessStream = None,
+    randomness_stream: RandomnessStream,
     weights: Array = None,
     additional_key: Any = None,
 ):
@@ -178,10 +178,7 @@ def vectorized_choice(
         weights = np.ones(n) / n
     # for each of n_to_choose, sample uniformly between 0 and 1
     index = pd.Index(np.arange(n_to_choose))
-    if randomness_stream is None:
-        probs = random(str(additional_key), index)
-    else:
-        probs = randomness_stream.get_draw(index, additional_key=additional_key)
+    probs = randomness_stream.get_draw(np.arange(n_to_choose), additional_key=additional_key)
 
     # build cdf based on weights
     pmf = weights / weights.sum()
@@ -289,7 +286,6 @@ def update_address_ids(
 
     Returns
     -------
-    pop: Updated version of the state table.
     moving_units: Updated version of units dataframe.  This is done for the purpose of the businesses table.
     starting_address_id: Updated integer at which to start when generating more address_ids.
     """
