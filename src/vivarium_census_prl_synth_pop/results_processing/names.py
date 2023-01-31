@@ -45,7 +45,7 @@ def get_middle_name_map(
 
 
 def get_data_for_first_middle_name_mapping(
-    index_name: str, raw_data: Dict[str, pd.DataFrame]
+    index_name: str, obs_data: Dict[str, pd.DataFrame]
 ) -> pd.DataFrame:
 
     input_cols = [index_name, "date_of_birth", "sex", "random_seed"]
@@ -53,8 +53,7 @@ def get_data_for_first_middle_name_mapping(
 
     name_data = format_data_for_mapping(
         index_name=index_name,
-        raw_results=raw_data,
-        columns_required=input_cols,
+        obs_results=obs_data,
         output_columns=output_cols,
     )
 

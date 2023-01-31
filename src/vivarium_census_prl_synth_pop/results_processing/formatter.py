@@ -15,8 +15,13 @@ def get_middle_name_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["middle_name_id"].astype(str)
 
 
+def get_prl_tracking_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["Unnamed: 0"].astype(str)
+
+
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
+    "prl_tracking_id": get_prl_tracking_id,
     "year_of_birth": get_year_of_birth,
     "first_name_id": get_first_name_id,
     "middle_name_id": get_middle_name_id,
@@ -25,17 +30,12 @@ COLUMN_FORMATTERS = {
 
 def format_data_for_mapping(
     index_name: str,
-    raw_results: Dict[str, pd.DataFrame],
-    columns_required: List[str],
+    obs_results: Dict[str, pd.DataFrame],
     output_columns: List[str],
 ) -> pd.DataFrame:
 
-    data_to_map = [obs_data[columns_required] for obs_data in raw_results.values()]
+    data_to_map = [obs_data[output_columns] for obs_data in obs_results.values()]
     data = pd.concat(data_to_map).drop_duplicates()
-    for column in output_columns:
-        if column in COLUMN_FORMATTERS:
-            data[column] = COLUMN_FORMATTERS[column](data)
-
     data = data[output_columns].set_index(index_name)
 
     return data

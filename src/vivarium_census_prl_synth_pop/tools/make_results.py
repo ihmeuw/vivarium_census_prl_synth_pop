@@ -9,6 +9,7 @@ from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
+from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_first_name_map,
     get_middle_name_map,
@@ -67,27 +68,27 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
 def perform_post_processing(
     raw_output_dir: Path, final_output_dir: Path, artifact_path: Path
 ) -> None:
-    raw_results = load_data(raw_output_dir)
+    processed_results = load_data(raw_output_dir)
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
-    maps = generate_maps(raw_results, artifact)
+    maps = generate_maps(processed_results, artifact)
 
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing data for {observer}...")
         # Fixme: This code assumes a 1 to 1 relationship of raw to final observers
-        obs_data = raw_results[observer]
+        obs_data = processed_results[observer]
 
         obs_data = obs_data.drop(columns=COLUMNS_TO_NOT_MAP[observer])
         for column in obs_data.columns:
             if column in maps:
-                for target_column_name, column_map in maps.items():
-                    obs_data[target_column_name] = obs_data.map(column_map)
+                for target_column_name, column_map in maps[column].items():
+                    obs_data[target_column_name] = obs_data[column].map(column_map)
                 # This assumes the column we are mapping will be dropped
-                obs_data.drop(columns=column)
+                obs_data.drop(columns=column, inplace=True)
 
         logger.info(f"Writing final results for {observer}.")
-        obs_data.to_csv(final_output_dir / f"{observer}.csv.bz2")
+        obs_data.to_csv(final_output_dir / f"{observer}.csv.bz2", index=False)
 
 
 def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
@@ -104,6 +105,10 @@ def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
         for file in obs_files:
             df = pd.read_csv(file)
             df["random_seed"] = file.name.split(".")[0].split("_")[-1]
+            # Process columns to map for observers
+            for column in formatter.COLUMN_FORMATTERS:
+                df[column] = formatter.COLUMN_FORMATTERS[column](df)
+            df.drop(columns="Unnamed: 0", inplace=True)
             obs_data.append(df)
 
         observers_results[obs_dir.name] = pd.concat(obs_data)
@@ -112,11 +117,11 @@ def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
 
 
 def generate_maps(
-    raw_data: Dict[str, pd.DataFrame], artifact: Artifact
+    obs_data: Dict[str, pd.DataFrame], artifact: Artifact
 ) -> Dict[str, Dict[str, pd.Series]]:
     """
     Parameters:
-        raw_data: Dictionary of raw observer outputs with key being the observer name and the value being a dataframe.
+        obs_data: Dictionary of raw observer outputs with key being the observer name and the value being a dataframe.
         artifact: Artifact that contains data needed to generate values.
 
     Returns:
@@ -132,8 +137,8 @@ def generate_maps(
 
     # Add column maps to mapper here
     maps = {
-        "first_name": get_first_name_map(raw_data, artifact, randomness),
-        "last_name": get_middle_name_map(raw_data, artifact, randomness),
+        "first_name_id": get_first_name_map(obs_data, artifact, randomness),
+        "middle_name_id": get_middle_name_map(obs_data, artifact, randomness),
     }
 
     return maps
