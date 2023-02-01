@@ -15,13 +15,13 @@ def get_middle_name_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["middle_name_id"].astype(str)
 
 
-def get_prl_tracking_id(data: pd.DataFrame) -> pd.Series:
-    return data["random_seed"].astype(str) + "_" + data["Unnamed: 0"].astype(str)
+def format_simulant_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["simulant_id"].astype(str)
 
 
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
-    "prl_tracking_id": get_prl_tracking_id,
+    "simulant_id": format_simulant_id,
     "year_of_birth": get_year_of_birth,
     "first_name_id": get_first_name_id,
     "middle_name_id": get_middle_name_id,

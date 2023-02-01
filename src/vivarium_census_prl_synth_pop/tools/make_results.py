@@ -99,7 +99,7 @@ def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
         obs_dir for obs_dir in raw_results_dir.glob("*") if obs_dir.is_dir()
     ]
     for obs_dir in observer_directories:
-        logger.info(f"Processing data for {obs_dir.name}...")
+        logger.info(f"Loading data for {obs_dir.name}...")
         obs_files = obs_dir.glob("*.csv.bz2")
         obs_data = []
         for file in obs_files:
@@ -108,7 +108,6 @@ def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
             # Process columns to map for observers
             for column in formatter.COLUMN_FORMATTERS:
                 df[column] = formatter.COLUMN_FORMATTERS[column](df)
-            df.drop(columns="Unnamed: 0", inplace=True)
             obs_data.append(df)
 
         observers_results[obs_dir.name] = pd.concat(obs_data)
