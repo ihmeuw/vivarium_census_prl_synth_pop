@@ -966,6 +966,11 @@ class Population:
         simulants.loc[simulants["age"] < 0, "age"] = 0
         simulants.loc[simulants["age"] > 99, "age"] = 99
 
+        # Keep DOB in sync -- should this be a pipeline instead of a column?
+        simulants["date_of_birth"] = simulants.entrance_time - pd.to_timedelta(
+            np.round(simulants["age"] * 365.25), unit="days"
+        )
+
         return simulants["age"]
 
     def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
@@ -1006,6 +1011,12 @@ class Population:
 
         # Clip ages above 99 at 99
         pop.loc[pop["age"] > 99, "age"] = 99
+
+        # Keep DOB in sync -- should this be a pipeline instead of a column?
+        pop["date_of_birth"] = pop.entrance_time - pd.to_timedelta(
+            np.round(pop["age"] * 365.25), unit="days"
+        )
+
         return pop["age"]
 
     def assign_last_name_ids(self, pop: pd.DataFrame) -> pd.Series:
