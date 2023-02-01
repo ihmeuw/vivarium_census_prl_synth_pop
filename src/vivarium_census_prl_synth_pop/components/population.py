@@ -225,12 +225,10 @@ class Population:
 
         noninstitutionalized = new_simulants.loc[
             new_simulants["relation_to_household_head"] == "Noninstitutionalized GQ pop"
-        ]
+        ].copy()
         institutionalized = new_simulants.loc[
             new_simulants["relation_to_household_head"] == "Institutionalized GQ pop"
-        ]
-        noninstitutionalized = noninstitutionalized.copy()
-        institutionalized = institutionalized.copy()
+        ].copy()
 
         noninstitutionalized_gq_types = vectorized_choice(
             options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
