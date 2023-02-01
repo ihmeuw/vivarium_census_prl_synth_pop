@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -43,7 +41,8 @@ class PersonMigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-        self.household_migration = builder.components.get_component("household_migration")
+        self.households = builder.components.get_component("households")
+        self.household_details = builder.value.get_value("household_details")
         self.columns_needed = [
             "household_id",
             "relation_to_household_head",
@@ -108,9 +107,9 @@ class PersonMigration:
 
     def on_time_step_prepare(self, event: Event) -> None:
         pop = self.population_view.subview(["previous_timestep_address_id"]).get(event.index)
-        pop["previous_timestep_address_id"] = self.household_migration.household_details(
-            pop.index
-        )[["address_id"]]
+        pop["previous_timestep_address_id"] = self.household_details(pop.index)[
+            ["address_id"]
+        ]
         self.population_view.update(pop)
 
     def on_time_step(self, event: Event) -> None:
@@ -157,25 +156,11 @@ class PersonMigration:
         """
         Create a new single-person household for each person in movers and move them to it.
         """
-        households = self.household_migration.households
-        first_new_household_id = households.index.max() + 1
-        new_household_ids = first_new_household_id + np.arange(len(movers))
-        first_new_household_address_id = households["address_id"].max() + 1
+        new_household_ids = self.households.create_households(len(movers))
 
         # update pop table
         pop.loc[movers, "household_id"] = new_household_ids
         pop.loc[movers, "relation_to_household_head"] = "Reference person"
-
-        # update households object
-        new_households = pd.DataFrame(
-            {
-                "household_id": new_household_ids,
-                "housing_type": "Standard",
-                "address_id": first_new_household_address_id + np.arange(len(movers)),
-            }
-        ).set_index("household_id")
-        households = pd.concat([households, new_households], axis=0)
-        self.household_migration.households = households
 
         return pop
 
