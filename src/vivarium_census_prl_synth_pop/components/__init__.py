@@ -1,5 +1,6 @@
 from vivarium_census_prl_synth_pop.components.businesses import Businesses
 from vivarium_census_prl_synth_pop.components.fertility import Fertility
+from vivarium_census_prl_synth_pop.components.household import Households
 from vivarium_census_prl_synth_pop.components.household_emigration import (
     HouseholdEmigration,
 )

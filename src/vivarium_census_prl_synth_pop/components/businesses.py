@@ -10,7 +10,7 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
-from vivarium_census_prl_synth_pop.utilities import filter_by_rate, update_address_ids
+from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
 class Businesses:
@@ -53,7 +53,7 @@ class Businesses:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
-        self.household_migration = builder.components.get_component("household_migration")
+        self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
         self.columns_created = [
             "employer_id",
@@ -173,12 +173,7 @@ class Businesses:
             "moving_businesses",
         )
 
-        self.businesses, self.employer_address_id_count = update_address_ids(
-            moving_units=self.businesses,
-            units_that_move_ids=businesses_that_move_idx,
-            starting_address_id=self.employer_address_id_count,
-            address_id_col_name="employer_address_id",
-        )
+        self.update_business_address_ids(businesses_that_move_idx)
 
         # change jobs by rate as well as if the household moves (only includes
         # working-age simulants and excludes simulants living in military GQ)
@@ -193,7 +188,7 @@ class Businesses:
             working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
         moved_idx = pop.index[
-            self.household_migration.household_details(pop.index)["address_id"]
+            self.household_details(pop.index)["address_id"]
             != pop["previous_timestep_address_id"]
         ]
         moved_working_age_idx = moved_idx.intersection(working_age_idx)
@@ -367,3 +362,19 @@ class Businesses:
         )
 
         return business_details
+
+    def update_business_address_ids(self, moving_business_ids: pd.Index) -> None:
+        """
+        Change the address_id associated with each of the provided business_ids to
+        a new, unique value.
+
+        Parameters
+        ----------
+        moving_business_ids
+            Index into self.businesses for the businesses that should move.
+        """
+        if len(moving_business_ids) > 0:
+            self.businesses.loc[
+                moving_business_ids, "employer_address_id"
+            ] = self.employer_address_id_count + np.arange(len(moving_business_ids))
+            self.employer_address_id_count += len(moving_business_ids)

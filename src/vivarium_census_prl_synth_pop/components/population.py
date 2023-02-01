@@ -66,6 +66,8 @@ class Population:
         ]
         self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(self.columns_created)
+        self.households = builder.components.get_component("households")
+
         self.population_data = self._load_population_data(builder)
 
         self.updated_relation_to_reference_person = builder.value.register_value_producer(
@@ -106,12 +108,14 @@ class Population:
         )
         target_standard_housing_pop_size = self.config.population_size - target_gq_pop_size
 
-        chosen_households = self.choose_standard_households(target_standard_housing_pop_size)
-        chosen_group_quarters = self.choose_group_quarters(
-            self.config.population_size - len(chosen_households)
+        chosen_non_gq_simulants = self.choose_standard_households(
+            target_standard_housing_pop_size
+        )
+        chosen_gq_simulants = self.choose_group_quarters(
+            self.config.population_size - len(chosen_non_gq_simulants)
         )
 
-        pop = pd.concat([chosen_households, chosen_group_quarters])
+        pop = pd.concat([chosen_non_gq_simulants, chosen_gq_simulants])
 
         # pull back on state and puma
         pop = pd.merge(
@@ -136,7 +140,7 @@ class Population:
             np.round(pop["age"] * 365.25), unit="days"
         )
 
-        # Deterimne if simulants have SSN
+        # Determine if simulants have SSN
         pop["ssn"] = False
         # Give simulants born in US a SSN
         native_born_idx = pop.index[pop["born_in_us"]]
@@ -159,7 +163,7 @@ class Population:
         pop = self.assign_general_population_guardians(pop)
         pop = self.assign_college_simulants_guaridans(pop)
 
-        self.population_view.update(pop)
+        self.population_view.update(pop[self.columns_created])
 
     def choose_standard_households(self, target_number_sims: int) -> pd.DataFrame:
         standard_households = self.population_data["households"][
@@ -173,14 +177,12 @@ class Population:
             weights=standard_households["household_weight"],
         )
 
-        # create unique id for resampled households
+        # create unique id for resampled households -- each census_household_id
+        # can be sampled multiple times.
         chosen_households = pd.DataFrame(
             {
                 "census_household_id": chosen_households,
-                "household_id": np.arange(
-                    data_values.N_GROUP_QUARTER_TYPES,
-                    len(chosen_households) + data_values.N_GROUP_QUARTER_TYPES,
-                ),
+                "census_sample_household_id": np.arange(target_number_sims),
             }
         )
 
@@ -192,14 +194,25 @@ class Population:
             how="left",
         )
 
-        # get rid simulants in excess of desired pop size
+        # get rid of simulants and households in excess of desired pop size
         households_to_discard = chosen_persons.loc[
-            target_number_sims:, "household_id"
+            target_number_sims:, "census_sample_household_id"
         ].unique()
-
         chosen_persons = chosen_persons.loc[
-            ~chosen_persons["household_id"].isin(households_to_discard)
+            ~chosen_persons["census_sample_household_id"].isin(households_to_discard)
         ]
+        chosen_households = chosen_households.loc[
+            ~chosen_households["census_sample_household_id"].isin(households_to_discard)
+        ]
+
+        household_ids = self.households.create_households(len(chosen_households))
+        household_id_mapping = pd.Series(
+            household_ids, index=chosen_households["census_sample_household_id"]
+        )
+
+        chosen_persons["household_id"] = chosen_persons["census_sample_household_id"].map(
+            household_id_mapping
+        )
         chosen_persons["age"] = self.perturb_household_age(chosen_persons)
 
         return chosen_persons
