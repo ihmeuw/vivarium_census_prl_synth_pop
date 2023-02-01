@@ -11,8 +11,8 @@ from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.names import (
-    get_first_name_map,
-    get_middle_name_map,
+    get_given_name_map,
+    get_middle_initial_map,
 )
 
 FINAL_OBSERVERS = [
@@ -88,6 +88,7 @@ def perform_post_processing(
                 obs_data.drop(columns=column, inplace=True)
 
         logger.info(f"Writing final results for {observer}.")
+        # fixme: Process columns for final outputs
         obs_data.to_csv(final_output_dir / f"{observer}.csv.bz2", index=False)
 
 
@@ -128,6 +129,7 @@ def generate_maps(
           address_id.  Values for each key will be a dictionary named with the column to be mapped to as the key with a
           corresponding series containing the mapped values.
     """
+
     # Create RandomnessStream for post-processing
     key = "post_processing_maps"
     clock = lambda: pd.Timestamp("2020-04-01")
@@ -135,9 +137,13 @@ def generate_maps(
     randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
     # Add column maps to mapper here
+    mappers = {
+        "first_name_id": get_given_name_map,
+        "middle_name_id": get_middle_initial_map,
+    }
     maps = {
-        "first_name_id": get_first_name_map(obs_data, artifact, randomness),
-        "middle_name_id": get_middle_name_map(obs_data, artifact, randomness),
+        column: mapper(column, obs_data, artifact, randomness)
+        for column, mapper in mappers.items()
     }
 
     return maps

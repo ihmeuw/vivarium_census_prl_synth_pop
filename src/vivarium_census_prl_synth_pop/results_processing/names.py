@@ -12,78 +12,52 @@ from vivarium_census_prl_synth_pop.results_processing.formatter import (
 from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 
-def get_first_name_map(
-    raw_data: Dict[str, pd.DataFrame],
+def get_given_name_map(
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
-    first_name_data = get_data_for_first_middle_name_mapping(
-        "first_name_id",
-        raw_data,
-    )
+    """
+    Parameters:
+    -------
+    column_name: Column name to map (example: first_name_id)
+    obs_data: Dict of key observer names and value being dataframe of all that observers concated results.
+    artifact: Artifact containing synthetic name data
+    randomness: Randomness stream for post-processing
 
-    first_name_map = generate_first_and_middle_names(
-        first_name_data, "first_name", artifact, randomness
-    )
+    Returns
+    -------
+    Dict with column name as key and pd.Series with name_ids as index and string names as values
+    """
 
-    return {"first_name": first_name_map}
-
-
-def get_middle_name_map(
-    raw_data: Dict[str, pd.DataFrame], artifact: Artifact, randomness: RandomnessStream
-) -> Dict[str, pd.Series]:
-    middle_name_data = get_data_for_first_middle_name_mapping(
-        "middle_name_id",
-        raw_data,
-    )
-
-    middle_name_map = generate_first_and_middle_names(
-        middle_name_data, "middle_name", artifact, randomness
-    )
-
-    return {"middle_name": middle_name_map}
-
-
-def get_data_for_first_middle_name_mapping(
-    index_name: str, obs_data: Dict[str, pd.DataFrame]
-) -> pd.DataFrame:
-
-    input_cols = [index_name, "date_of_birth", "sex", "random_seed"]
-    output_cols = [index_name, "year_of_birth", "sex"]
-
+    output_cols = [column_name, "year_of_birth", "sex"]
     name_data = format_data_for_mapping(
-        index_name=index_name,
+        index_name=column_name,
         obs_results=obs_data,
         output_columns=output_cols,
     )
 
-    return name_data
-
-
-def generate_first_and_middle_names(
-    df_in: pd.DataFrame, additional_key: Any, artifact: Artifact, randomness: RandomnessStream
-) -> pd.Series:
-    """Generate synthetic names for individuals
-    Parameters
-    ----------
-    df_in : pd.DataFrame, with columns sex, year_of_birth
-    additional_key: key to pass to randomness stream
-    artifact: Artifact with synthetic data
-    randomness: Randomness stream for results processing
-    Returns
-    -------
-    returns pd.Series with name_ids as index and string names as values.
-    """
-    # first and middle names
-    # strategy: calculate year of birth based on age, use it with sex and state to find a representative name
-    names = pd.Series(index=df_in.index, dtype=object)
-    for (yob, sex), df_age in df_in.groupby(["year_of_birth", "sex"]):
+    names_map = pd.Series(index=name_data.index, dtype=object)
+    for (yob, sex), df_age in name_data.groupby(["year_of_birth", "sex"]):
         n = len(df_age)
-        names.loc[df_age.index] = random_first_names(
-            yob, sex, n, additional_key, artifact, randomness
+        names_map.loc[df_age.index] = random_first_names(
+            yob, sex, n, column_name, artifact, randomness
         )
 
-    return names
+    return {"_".join(column_name.split("_")[:2]): names_map}
+
+
+def get_middle_initial_map(
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
+    artifact: Artifact,
+    randomness: RandomnessStream,
+) -> Dict[str, pd.Series]:
+    middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness)
+    middle_initial_map = middle_name_map["_".join(column_name.split("_")[:2])].str[0]
+
+    return {"middle_initial": middle_initial_map}
 
 
 def random_first_names(
@@ -128,4 +102,4 @@ def random_first_names(
         randomness_stream=randomness,
         weights=name_probabilities,
         additional_key=additional_key,
-    ).to_numpy()  # TODO: include spaces and hyphens
+    ).to_numpy()
