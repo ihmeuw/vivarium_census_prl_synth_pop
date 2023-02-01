@@ -68,6 +68,8 @@ class Population:
         self.population_view = builder.population.get_view(self.columns_created)
         self.households = builder.components.get_component("households")
 
+        # HACK: ACS data must be loaded in setup, since it comes from the artifact;
+        # however, we only use it while creating the initial population.
         self.population_data = self._load_population_data(builder)
 
         self.updated_relation_to_reference_person = builder.value.register_value_producer(
@@ -98,6 +100,10 @@ class Population:
         # at start of sim, generate base population
         if pop_data.creation_time < self.start_time:
             self.generate_initial_population(pop_data)
+            # HACK: ACS data must be loaded in setup, since it comes from the artifact;
+            # however, we don't need it after creating the initial population and want to avoid keeping
+            # it in memory.
+            self.population_data = None
         # if new simulants are born into the sim
         else:
             self.initialize_newborns(pop_data)
