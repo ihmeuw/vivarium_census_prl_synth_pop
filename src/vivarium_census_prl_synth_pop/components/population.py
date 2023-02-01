@@ -114,88 +114,56 @@ class Population:
         )
         target_standard_housing_pop_size = self.config.population_size - target_gq_pop_size
 
-        chosen_non_gq_simulants = self.choose_standard_households(
-            target_standard_housing_pop_size
-        )
-        chosen_gq_simulants = self.choose_group_quarters(
-            self.config.population_size - len(chosen_non_gq_simulants)
-        )
-
-        pop = pd.concat([chosen_non_gq_simulants, chosen_gq_simulants])
-
-        # pull back on state and puma
-        pop = pd.merge(
-            pop,
-            self.population_data["households"][["state", "puma", "census_household_id"]],
-            on="census_household_id",
-            how="left",
+        acs_households = self.population_data["households"]
+        is_standard_household = acs_households["household_type"] == "Housing unit"
+        non_gq_simulants = self.sample_simulants_from_standard_households(
+            target_standard_housing_pop_size,
+            acs_households=acs_households[is_standard_household],
+            acs_persons=self.population_data["persons"],
+            pop_data=pop_data,
         )
 
-        # drop non-unique household_id
-        pop = pop.drop(columns="census_household_id")
-
-        # give name ids
-        pop["first_name_id"] = pop.index
-        pop["middle_name_id"] = pop.index
-        pop["last_name_id"] = self.assign_last_name_ids(pop)
-
-        pop["age"] = pop["age"].astype("float64")
-        # Shift age so all households do not have the same birthday
-        pop["age"] = pop["age"] + self.randomness.get_draw(pop.index, "age")
-        pop["date_of_birth"] = self.start_time - pd.to_timedelta(
-            np.round(pop["age"] * 365.25), unit="days"
+        # Household sampling won't exactly hit its target population size -- we fill
+        # in the remainder with GQ
+        actual_gq_pop_size = self.config.population_size - len(non_gq_simulants)
+        gq_simulants = self.sample_simulants_from_group_quarters(
+            actual_gq_pop_size,
+            acs_households=acs_households[~is_standard_household],
+            acs_persons=self.population_data["persons"],
+            pop_data=pop_data,
         )
 
-        # Determine if simulants have SSN
-        pop["ssn"] = False
-        # Give simulants born in US a SSN
-        native_born_idx = pop.index[pop["born_in_us"]]
-        pop.loc[native_born_idx, "ssn"] = True
-        # Choose which non-native simulants get a SSN
-        ssn_idx = self.randomness.filter_for_probability(
-            pop.index.difference(native_born_idx),
-            self.proportion_with_ssn(pop.index.difference(native_born_idx)),
-            "ssn",
-        )
-        pop.loc[ssn_idx, "ssn"] = True
-
-        pop["entrance_time"] = pop_data.creation_time
-        pop["exit_time"] = pd.NaT
-        pop["alive"] = "alive"
-        # add typing
-        pop["state"] = pop["state"].astype("int64")
-        pop = pop.set_index(pop_data.index)
-
-        pop = self.assign_general_population_guardians(pop)
-        pop = self.assign_college_simulants_guaridans(pop)
+        pop = pd.concat([non_gq_simulants, gq_simulants]).set_index(pop_data.index)
+        pop = self.initialize_simulant_link_columns(pop)
 
         self.population_view.update(pop[self.columns_created])
 
-    def choose_standard_households(self, target_number_sims: int) -> pd.DataFrame:
-        standard_households = self.population_data["households"][
-            self.population_data["households"]["household_type"] == "Housing unit"
-        ]
-        # oversample households
-        chosen_households = vectorized_choice(
-            options=standard_households["census_household_id"],
+    def sample_simulants_from_standard_households(
+        self,
+        target_number_sims: int,
+        acs_households: pd.DataFrame,
+        acs_persons: pd.DataFrame,
+        pop_data: SimulantData,
+    ) -> pd.DataFrame:
+        # oversample households -- each household has at least one person,
+        # so if we get as many households as we need people, we will always
+        # have enough people (and probably far too many)
+        chosen_households_index = vectorized_choice(
+            options=acs_households.index,
             n_to_choose=target_number_sims,
             randomness_stream=self.randomness,
-            weights=standard_households["household_weight"],
+            weights=acs_households["household_weight"],
         )
+        chosen_households = acs_households.loc[chosen_households_index]
 
         # create unique id for resampled households -- each census_household_id
         # can be sampled multiple times.
-        chosen_households = pd.DataFrame(
-            {
-                "census_household_id": chosen_households,
-                "census_sample_household_id": np.arange(target_number_sims),
-            }
-        )
+        chosen_households["census_sample_household_id"] = np.arange(len(chosen_households))
 
         # get all simulants per household
         chosen_persons = pd.merge(
             chosen_households,
-            self.population_data["persons"],
+            acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
             on="census_household_id",
             how="left",
         )
@@ -211,48 +179,56 @@ class Population:
             ~chosen_households["census_sample_household_id"].isin(households_to_discard)
         ]
 
+        new_simulants = self.initialize_new_simulants_from_acs(chosen_persons, pop_data)
+
         household_ids = self.households.create_households(len(chosen_households))
         household_id_mapping = pd.Series(
             household_ids, index=chosen_households["census_sample_household_id"]
         )
-
-        chosen_persons["household_id"] = chosen_persons["census_sample_household_id"].map(
+        new_simulants["household_id"] = new_simulants["census_sample_household_id"].map(
             household_id_mapping
         )
-        chosen_persons["age"] = self.perturb_household_age(chosen_persons)
 
-        return chosen_persons
+        # NOTE: Must happen after household_ids have been assigned, because it depends
+        # on household structure.
+        new_simulants["age"] = self.perturb_household_age(new_simulants)
 
-    def choose_group_quarters(self, target_number_sims: int) -> pd.Series:
-        group_quarters = self.population_data["households"][
-            self.population_data["households"]["household_type"] != "Housing unit"
-        ]
+        return new_simulants
 
+    def sample_simulants_from_group_quarters(
+        self,
+        target_number_sims: int,
+        acs_households: pd.DataFrame,
+        acs_persons: pd.DataFrame,
+        pop_data: SimulantData,
+    ) -> pd.Series:
         # group quarters each house one person per census_household_id
         # they have NA household weights, but appropriately weighted person weights.
-        chosen_units = vectorized_choice(
-            options=group_quarters["census_household_id"],
+        chosen_units_index = vectorized_choice(
+            options=acs_households.index,
             n_to_choose=target_number_sims,
             randomness_stream=self.randomness,
-            weights=group_quarters["person_weight"],
+            weights=acs_households["person_weight"],
         )
+        chosen_units = acs_households.loc[chosen_units_index]
 
         # get simulants per GQ unit
         chosen_persons = pd.merge(
             chosen_units,
-            self.population_data["persons"][metadata.PERSONS_COLUMNS_TO_INITIALIZE],
+            acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
             on="census_household_id",
             how="left",
         )
 
-        noninstitutionalized = chosen_persons.loc[
-            chosen_persons["relation_to_household_head"] == "Noninstitutionalized GQ pop"
-        ]
-        institutionalized = chosen_persons.loc[
-            chosen_persons["relation_to_household_head"] == "Institutionalized GQ pop"
-        ]
-        noninstitutionalized = noninstitutionalized.copy()
-        institutionalized = institutionalized.copy()
+        new_simulants = self.initialize_new_simulants_from_acs(chosen_persons, pop_data)
+        new_simulants["age"] = self.perturb_individual_age(new_simulants)
+
+        noninstitutionalized = new_simulants.loc[
+            new_simulants["relation_to_household_head"] == "Noninstitutionalized GQ pop"
+        ].copy()
+        institutionalized = new_simulants.loc[
+            new_simulants["relation_to_household_head"] == "Institutionalized GQ pop"
+        ].copy()
 
         noninstitutionalized_gq_types = vectorized_choice(
             options=list(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()),
@@ -269,10 +245,9 @@ class Population:
         noninstitutionalized["household_id"] = noninstitutionalized_gq_types
         institutionalized["household_id"] = institutionalized_gq_types
 
-        group_quarters = pd.concat([noninstitutionalized, institutionalized])
-        group_quarters["age"] = self.perturb_individual_age(group_quarters)
+        new_simulants = pd.concat([noninstitutionalized, institutionalized])
 
-        return group_quarters
+        return new_simulants
 
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids_idx = pop_data.user_data["parent_ids"]
@@ -282,6 +257,7 @@ class Population:
             ["household_id", "relation_to_household_head"]
         ).get(pop_index)
         new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
+        new_births = self.initialize_new_simulants(new_births, pop_data)
 
         inherited_traits = [
             "household_id",
@@ -290,7 +266,6 @@ class Population:
             "race_ethnicity",
             "relation_to_household_head",
             "last_name_id",
-            "alive",
         ]
 
         # assign babies inherited traits
@@ -338,9 +313,6 @@ class Population:
             p=[0.5, 0.5],
             additional_key="sex_of_child",
         ).astype(pd.CategoricalDtype(categories=metadata.SEXES))
-        new_births["alive"] = "alive"
-        new_births["entrance_time"] = pop_data.creation_time
-        new_births["exit_time"] = pd.NaT
         new_births["ssn"] = True
         new_births["born_in_us"] = True
 
@@ -368,6 +340,108 @@ class Population:
         population["age"] += to_years(event.step_size)
 
         self.population_view.update(population)
+
+    @staticmethod
+    def initialize_new_simulants(
+        new_simulants: pd.DataFrame, pop_data: SimulantData
+    ) -> pd.DataFrame:
+        """
+        Performs basic setup that is the same anytime new simulants are created.
+
+        Parameters
+        ----------
+        new_simulants
+            Dataframe of new simulants. No columns are required.
+        pop_data
+            The SimulantData of the simulant creation event.
+
+        Returns
+        -------
+        new_simulants with the bookkeeping columns entrance_time, exit_time, and alive added.
+        """
+        new_simulants["entrance_time"] = pop_data.creation_time
+        new_simulants["exit_time"] = pd.NaT
+        new_simulants["alive"] = "alive"
+
+        return new_simulants
+
+    def initialize_new_simulants_from_acs(
+        self,
+        new_simulants: pd.DataFrame,
+        pop_data: SimulantData,
+    ) -> pd.DataFrame:
+        """
+        Initializes simulants that are based on ACS persons rows.
+
+        Parameters
+        ----------
+        new_simulants
+            Dataframe of the new simulants, containing at least columns
+            age and born_in_us (which come from ACS).
+        pop_data
+            The SimulantData of the simulant creation event.
+
+        Returns
+        -------
+        new_simulants with added columns: date_of_birth, ssn, entrance_time, exit_time, alive
+        """
+        # Add basic, non-ACS columns
+        new_simulants = self.initialize_new_simulants(new_simulants, pop_data)
+
+        # set state dtype
+        new_simulants["state"] = new_simulants["state"].astype("int64")
+
+        # Age is recorded in ACS as an integer, floored.
+        # We shift ages to a random floating point value between the reported age and the next.
+        new_simulants["age"] = new_simulants["age"].astype("float64")
+        new_simulants["age"] = new_simulants["age"] + self.randomness.get_draw(
+            new_simulants.index, "age"
+        )
+        new_simulants["date_of_birth"] = pop_data.creation_time - pd.to_timedelta(
+            np.round(new_simulants["age"] * 365.25), unit="days"
+        )
+
+        # Determine if simulants have SSN
+        new_simulants["ssn"] = False
+        # Give simulants born in US a SSN
+        native_born_idx = new_simulants.index[new_simulants["born_in_us"]]
+        new_simulants.loc[native_born_idx, "ssn"] = True
+        # Choose which non-native simulants get a SSN
+        ssn_idx = self.randomness.filter_for_probability(
+            new_simulants.index.difference(native_born_idx),
+            self.proportion_with_ssn(new_simulants.index.difference(native_born_idx)),
+            "ssn",
+        )
+        new_simulants.loc[ssn_idx, "ssn"] = True
+
+        return new_simulants
+
+    def initialize_simulant_link_columns(self, pop: pd.DataFrame) -> pd.DataFrame:
+        """
+        Initializes columns that link simulants to one another.
+        These are name (currently, only last name actually links) and guardian_1 and guardian_2.
+        This depends on all simulants being initialized and having their final indices.
+
+        Parameters
+        ----------
+        pop
+            DataFrame of simulants, containing at least household_id, relation_to_household_head, age, and race_ethnicity,
+            and having the final simulant IDs as the index.
+
+        Returns
+        -------
+        pop with added columns first_name_id, middle_name_id, last_name_id, guardian_1 and guardian_2
+        """
+        # give name ids
+        # NOTE: Right now first and middle name don't link to other simulants, but they may in the future
+        pop["first_name_id"] = pop.index
+        pop["middle_name_id"] = pop.index
+        pop["last_name_id"] = self.assign_last_name_ids(pop)
+
+        pop = self.assign_college_simulants_guardians(pop)
+        pop = self.assign_general_population_guardians(pop)
+
+        return pop
 
     def assign_general_population_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
         """
@@ -652,7 +726,7 @@ class Population:
 
         return new_births
 
-    def assign_college_simulants_guaridans(self, pop: pd.DataFrame) -> pd.DataFrame:
+    def assign_college_simulants_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
         # Takes pop (simulation state table) and updates guardian_1 and guardian_2 atributes for college GQ simulants.
 
         college_sims = pop.loc[
@@ -890,6 +964,11 @@ class Population:
         simulants.loc[simulants["age"] < 0, "age"] = 0
         simulants.loc[simulants["age"] > 99, "age"] = 99
 
+        # Keep DOB in sync -- should this be a pipeline instead of a column?
+        simulants["date_of_birth"] = simulants.entrance_time - pd.to_timedelta(
+            np.round(simulants["age"] * 365.25), unit="days"
+        )
+
         return simulants["age"]
 
     def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
@@ -930,6 +1009,12 @@ class Population:
 
         # Clip ages above 99 at 99
         pop.loc[pop["age"] > 99, "age"] = 99
+
+        # Keep DOB in sync -- should this be a pipeline instead of a column?
+        pop["date_of_birth"] = pop.entrance_time - pd.to_timedelta(
+            np.round(pop["age"] * 365.25), unit="days"
+        )
+
         return pop["age"]
 
     def assign_last_name_ids(self, pop: pd.DataFrame) -> pd.Series:
