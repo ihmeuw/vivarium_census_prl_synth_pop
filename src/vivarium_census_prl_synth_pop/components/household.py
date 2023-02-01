@@ -3,7 +3,6 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 
 from vivarium_census_prl_synth_pop.constants import data_values
-from vivarium_census_prl_synth_pop.utilities import update_address_ids
 
 HOUSEHOLD_ID_DTYPE = int
 HOUSEHOLD_DETAILS_DTYPES = {
@@ -125,12 +124,10 @@ class Households:
         household_ids
             The IDs of the households that should move to new addresses.
         """
-        self._households, _ = update_address_ids(
-            moving_units=self._households,
-            units_that_move_ids=household_ids,
-            starting_address_id=self._first_int_available(self._households["address_id"]),
-            address_id_col_name="address_id",
+        new_address_ids = self._next_available_ids(
+            len(household_ids), taken=self._households["address_id"]
         )
+        self._households.loc[household_ids, "address_id"] = new_address_ids
 
     ##################
     # Helper methods #
