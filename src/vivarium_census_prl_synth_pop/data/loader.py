@@ -151,27 +151,21 @@ def load_households(key: str, location: str) -> pd.DataFrame:
     persons = load_raw_persons_data(metadata.SUBSET_PERSONS_COLUMNS_MAP, location)
 
     # subset data to household ids in person file
-    data = data.query(
-        f"census_household_id in {list(persons['census_household_id'].unique())}"
-    )
+    data = data[data["census_household_id"].isin(persons["census_household_id"])]
 
-    # merge on person weights for GQ
+    # merge in person weights for GQ
+    gq_households = data[data["household_type"] != "Housing unit"]
+    gq_persons = persons[
+        persons["census_household_id"].isin(gq_households["census_household_id"])
+    ]
     data = data.merge(
-        persons.loc[["GQ" in i for i in persons.census_household_id]],
+        gq_persons[["census_household_id", "person_weight"]],
         on="census_household_id",
         how="left",
     )
 
-    data = data.set_index(
-        [
-            "state",
-            "puma",
-            "census_household_id",
-            "household_type",
-            "household_weight",
-            "person_weight",
-        ]
-    )
+    # put all non-draw columns in the index, else vivarium will drop them
+    data = data.set_index(list(data.columns))
 
     return data
 
@@ -343,7 +337,10 @@ def _read_and_format_raw_data(
     data_dir: Path, filenames: List[str], column_map: List[str], location: str
 ) -> pd.DataFrame:
     data = pd.concat(
-        [pd.read_csv(data_dir / file, usecols=column_map.keys()) for file in filenames]
+        [
+            pd.read_csv(data_dir / file, usecols=column_map.keys(), dtype={"SERIALNO": str})
+            for file in filenames
+        ]
     )
 
     data["SERIALNO"] = data["SERIALNO"].astype(str)
