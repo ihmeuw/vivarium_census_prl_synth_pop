@@ -7,10 +7,7 @@ import pytest
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
-from vivarium_census_prl_synth_pop.constants import data_keys
-from vivarium_census_prl_synth_pop.results_processing.names import (
-    generate_first_and_middle_names,
-)
+from vivarium_census_prl_synth_pop.results_processing.names import get_given_name_map
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -89,28 +86,34 @@ def get_last_names():
     return last_names
 
 
+@pytest.fixture()
+def fake_obs_data():
+    return {
+        "fake_observer": pd.DataFrame(
+            {
+                "first_name_id": list(range(100_000)),
+                "middle_name_id": list(range(100_000)),
+                "year_of_birth": [1999, 1999, 2000, 2000] * 25_000,
+                "sex": ["Male", "Female"] * 50_000,
+            }
+        )
+    }
+
+
 def get_name_frequency_proportions(
     names: pd.Series, population_demographics: pd.DataFrame
 ) -> pd.Series:
     name_totals = pd.concat([population_demographics, names], axis=1).rename(
         columns={0: "name"}
     )
-    names_grouped = name_totals.value_counts()
+    names_grouped = name_totals.groupby(["year_of_birth", "sex"])["name"].value_counts()
     grouped_totals = name_totals[["year_of_birth", "sex"]].value_counts()
     name_proportions = names_grouped / grouped_totals
 
     return name_proportions
 
 
-def test_first_and_middle_names(mocker, given_names):
-    # todo: update test
-    fake_sim_data = pd.DataFrame(
-        {
-            "year_of_birth": [1999, 1999, 2000, 2000] * 25_000,
-            "sex": ["Male", "Female"] * 50_000,
-        }
-    )
-
+def test_first_and_middle_names(mocker, given_names, fake_obs_data):
     artifact = mocker.MagicMock()
     artifact.load.return_value = given_names
 
@@ -121,24 +124,34 @@ def test_first_and_middle_names(mocker, given_names):
     proportions.index = proportions.index.rename("year_of_birth", "yob")
 
     # Get name frequencies for comparison
-    first_names = generate_first_and_middle_names(
-        fake_sim_data, "first_name", artifact, randomness
+    first_names = get_given_name_map(
+        "first_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
     )
-    first_name_proportions = get_name_frequency_proportions(first_names, fake_sim_data)
+    first_name_proportions = get_name_frequency_proportions(
+        first_names["first_name"], fake_obs_data["fake_observer"]
+    )
 
     assert np.isclose(
         first_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
 
-    middle_names = generate_first_and_middle_names(
-        fake_sim_data, "middle_name", artifact, randomness
+    middle_names = get_given_name_map(
+        "middle_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
     )
-    middle_name_proportions = get_name_frequency_proportions(middle_names, fake_sim_data)
+    middle_name_proportions = get_name_frequency_proportions(
+        middle_names["middle_name"], fake_obs_data["fake_observer"]
+    )
 
     assert np.isclose(
         middle_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
-    assert (first_names != middle_names).any()
+    assert (first_names["first_name"] != middle_names["middle_name"]).any()
 
 
 @pytest.mark.slow
