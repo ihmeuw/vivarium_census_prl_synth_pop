@@ -135,6 +135,11 @@ class Households:
 
     @staticmethod
     def _next_available_ids(num_ids: int, taken: pd.Series):
+        # NOTE: Our approach to finding available IDs assumes that households are never deleted --
+        # because if the household with the highest ID were deleted, and we only used the current
+        # state to find available IDs, we would re-assign that ID!
+        # No deletion is guaranteed by the inability to delete households through the public
+        # methods above.
         return Households._first_int_available(taken) + np.arange(num_ids)
 
     @staticmethod
