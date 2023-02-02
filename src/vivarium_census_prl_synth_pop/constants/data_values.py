@@ -47,6 +47,13 @@ REFERENCE_PERSON_UPDATE_RELATIONSHIPS_MAP = pd.read_csv(
     paths.REFERENCE_PERSON_UPDATE_RELATIONSHIP_DATA_PATH,
 )
 
+# 96.50% probability that the mailing address is the same as the physical
+#  address and the mailing ZIP code is the same as the physical ZIP code
+PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS = 0.9650
+NO_PO_BOX = 0
+MIN_PO_BOX = 1
+MAX_PO_BOX = 20_000
+
 #########################
 # Synthetic Name Inputs #
 #########################
