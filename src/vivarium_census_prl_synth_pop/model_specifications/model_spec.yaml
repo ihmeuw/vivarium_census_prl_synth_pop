@@ -11,17 +11,16 @@ components:
             - Fertility()
             - Businesses()
 
-#            - DecennialCensusObserver()
-#            - HouseholdSurveyObserver("acs")
-#            - HouseholdSurveyObserver("cps")
-#            - WICObserver()
-#            - SocialSecurityObserver()
+            - DecennialCensusObserver()
+            - HouseholdSurveyObserver("acs")
+            - HouseholdSurveyObserver("cps")
+            - WICObserver()
+            - SocialSecurityObserver()
             - TaxObserver()
 
 configuration:
     input_data:
-#        artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/united_states_of_america.hdf'
-        artifact_path: '/Users/mkappel/artifacts/prl/united_states_of_america.hdf'
+        artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/united_states_of_america.hdf'
         input_draw_number: 0
     output_data:
         results_directory: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/results/'
@@ -41,8 +40,6 @@ configuration:
             year: 2030
             month: 5
             day: 1
-#        step_size: 28 # Days
-        step_size: 168 # Days
+        step_size: 28 # Days
     population:
-#        population_size: 250_000
-        population_size: 2_500
+        population_size: 250_000

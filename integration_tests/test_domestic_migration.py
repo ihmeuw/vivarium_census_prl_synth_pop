@@ -1,7 +1,7 @@
+import numpy as np
 import pandas as pd
 import pytest
 
-from integration_tests.conftest import TIME_STEPS_TO_TEST
 from vivarium_census_prl_synth_pop.constants import data_values
 
 # TODO: Broader test coverage
@@ -266,17 +266,27 @@ def test_addresses_during_moves(simulants_on_adjacent_timesteps, unit_id_col, ad
         # ).sum() / mask_movers.sum() >= 0.95
 
 
-def test_po_box_probability(populations):
+def test_po_box(tracked_live_populations):
     """Tests that the prevalence of PO Boxes and ."""
-    for pop in populations:
-        # Check that actual proportion of households with PO Boxes is close to the expected
-        no_po_box = len(
-            pop.groupby("household_id").apply(lambda x: x)["household_details.po_box"]
-            != data_values.NO_PO_BOX
-        ) / len(pop.groupby("household_id"))
+    for pop in tracked_live_populations:
+        # Check that actual proportion of households without PO Boxes (i.e., physical
+        # address is the same as mailing) is close to the expected proportion
+        assert np.isclose(
+            len(
+                pop[pop["household_details.po_box"] == data_values.NO_PO_BOX].groupby(
+                    "household_id"
+                )
+            )
+            / len(pop.groupby("household_id")),
+            data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
+            rtol=0.01,
+        )
 
-        # Check that all simulants in the same unit have the same address
-        # assert (pop.groupby("household_id")[address_cols].nunique() == 1).all().all()
-        # # Check that all units have unique addresses (unless it's a PO Box, which has relaxed requirements)
-        # if address_id_col != "household_details.po_box":
-        #     assert (pop.groupby(address_cols)[unit_id_col].nunique() == 1).all()
+        # Check that PO Boxes are within the min and max defined in constants
+        assert (
+            (pop["household_details.po_box"] == data_values.NO_PO_BOX)
+            | (
+                (pop["household_details.po_box"] <= data_values.MAX_PO_BOX)
+                & (pop["household_details.po_box"] >= data_values.MIN_PO_BOX)
+            )
+        ).all()
