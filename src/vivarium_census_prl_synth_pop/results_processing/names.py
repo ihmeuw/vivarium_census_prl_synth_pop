@@ -45,7 +45,7 @@ def get_given_name_map(
             yob, sex, n, column_name, artifact, randomness
         )
 
-    return {"_".join(column_name.split("_")[:2]): names_map}
+    return {column_name.removesuffix("_id"): names_map}
 
 
 def get_middle_initial_map(
@@ -55,7 +55,7 @@ def get_middle_initial_map(
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
     middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness)
-    middle_initial_map = middle_name_map["_".join(column_name.split("_")[:2])].str[0]
+    middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
     return {"middle_initial": middle_initial_map}
 
