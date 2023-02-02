@@ -267,38 +267,6 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
     return output_dir
 
 
-def update_address_ids(
-    moving_units: pd.DataFrame,
-    units_that_move_ids: pd.Index,
-    starting_address_id: int,
-    address_id_col_name: str,
-) -> Tuple[pd.DataFrame, pd.DataFrame, int]:
-    """
-    Updates address_ids in the appropriate data structure (households or businesses)
-
-    Parameters
-    ----------
-    moving_units: Dataframe with column address_id_col_name.
-    units_that_move_ids: IDs of moving units.  This is a subset of moving_units.index
-    starting_address_id: Integer at which to start generating new address_ids, to prevent collisions.
-    address_id_col_name: Column name in state table where address_id for the unit is stored.
-
-    Returns
-    -------
-    pop: Updated version of the state table.
-    moving_units: Updated version of units dataframe.  This is done for the purpose of the businesses table.
-    starting_address_id: Updated integer at which to start when generating more address_ids.
-    """
-
-    if len(units_that_move_ids) > 0:
-        moving_units.loc[
-            units_that_move_ids, address_id_col_name
-        ] = starting_address_id + np.arange(len(units_that_move_ids))
-        starting_address_id += len(units_that_move_ids)
-
-    return moving_units, starting_address_id
-
-
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:
     """Map the address ids of guardians to each simulant's guardian address columns"""
     for i in [1, 2]:
