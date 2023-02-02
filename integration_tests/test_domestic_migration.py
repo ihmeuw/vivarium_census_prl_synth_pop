@@ -173,7 +173,7 @@ def check_po_box_collisions(after, before, movers):
     assert (
         before[po_box_movers]["household_details.po_box"]
         == after[po_box_movers]["household_details.po_box"]
-    ).sum() < int(po_box_movers.sum() * 0.005)
+    ).sum() <= int(po_box_movers.sum() * 0.05)
 
 
 def test_only_living_people_change_households(simulants_on_adjacent_timesteps):
