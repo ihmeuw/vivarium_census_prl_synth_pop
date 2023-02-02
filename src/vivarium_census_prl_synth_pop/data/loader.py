@@ -343,7 +343,6 @@ def _read_and_format_raw_data(
         ]
     )
 
-    data["SERIALNO"] = data["SERIALNO"].astype(str)
     data = data.rename(columns=column_map)
 
     if location == "United States of America":
