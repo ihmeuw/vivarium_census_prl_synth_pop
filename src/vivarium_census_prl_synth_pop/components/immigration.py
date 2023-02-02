@@ -27,16 +27,14 @@ class Immigration:
 
     def setup(self, builder: Builder):
         persons_data = builder.data.load(data_keys.POPULATION.PERSONS)
+        households_data = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
+
         self.total_person_weight = persons_data["person_weight"].sum()
 
         immigrants = persons_data[persons_data["immigrated_in_last_year"]]
 
-        is_gq = immigrants["relation_to_household_head"].isin(
-            [
-                "Insitutionalized GQ pop",
-                "Noninstitutionalized GQ pop",
-            ]
-        )
+        gq_households = households_data[households_data["household_type"] != "Housing unit"]
+        is_gq = immigrants["census_household_id"].isin(gq_households["census_household_id"])
         self.gq_immigrants = immigrants[is_gq]
         self.gq_immigrants_per_time_step = self._immigrants_per_time_step(
             self.gq_immigrants,
@@ -65,7 +63,6 @@ class Immigration:
 
         # Get the *household* (not person) weights for each household that can immigrate
         # in a household move, for use in sampling.
-        households_data = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
         self.immigrant_household_weights = households_data.set_index(
             "census_household_id"
         ).loc[
