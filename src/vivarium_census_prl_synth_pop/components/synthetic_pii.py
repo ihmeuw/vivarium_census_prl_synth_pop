@@ -258,16 +258,13 @@ class NameGenerator(GenericGenerator):
 
     def generate_first_and_middle_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic names for individuals
-
         Parameters
         ----------
         df_in : pd.DataFrame, with columns sex, age
-
         Results
         -------
         returns pd.DataFrame with name data, stored in
         string columns `first_name`, `middle_name`,
-
         """
         # first and middle names
         # strategy: calculate year of birth based on age, use it with sex and state to find a representative name
