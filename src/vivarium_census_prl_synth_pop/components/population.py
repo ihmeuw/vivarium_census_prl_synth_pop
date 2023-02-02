@@ -449,7 +449,9 @@ class Population:
         # Note that this is not an academic distinction: a simulant could
         # be linked to a reference person's last_name_id, and later *become* a reference person who a
         # new simulant gets linked to.
-        # Due to this exception, name IDs need to be assigned to new_simulants before creating the full_pop.
+        # Due to this exception, all rows in the full_pop dataframe need to have name IDs,
+        # which means pre-linking name IDs need to be assigned to new_simulants before
+        # creating the full_pop dataframe.
 
         # Give initial, pre-linking name ids
         new_simulants["first_name_id"] = new_simulants.index
@@ -482,15 +484,15 @@ class Population:
         return new_simulants
 
     def assign_general_population_guardians(
-        self, simulants_to_assign: pd.DataFrame, full_pop: pd.DataFrame
+        self, simulants_to_assign: pd.DataFrame, pop: pd.DataFrame
     ) -> pd.DataFrame:
         """
-        Assign guardians from the full_pop to simulants_to_assign who are <18 and not in GQ.
+        Assign guardians found in pop to simulants_to_assign who are <18 and not in GQ.
 
         Parameters
         ----------
         simulants_to_assign
-            Simulants to assign guardians (where applicable).
+            Simulants who may be assigned guardians.
             Should already have guardian_1 and guardian_2 columns, which will not be changed if
             no guardian links are found for that simulant.
             Additionally should have at least household_id, age, and race_ethnicity columns.
@@ -506,9 +508,7 @@ class Population:
 
         # Get household structure for population to vectorize choices
         # Non-GQ population
-        gen_population = full_pop.loc[
-            ~full_pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
-        ]
+        gen_population = pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
         under_18 = simulants_to_assign.loc[
             (simulants_to_assign["age"] < 18)
             & (~simulants_to_assign["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
@@ -781,7 +781,7 @@ class Population:
         self, simulants_to_assign: pd.DataFrame, pop: pd.DataFrame
     ) -> pd.DataFrame:
         """
-        Assign guardians from the full_pop to simulants_to_assign who are <24 and in college.
+        Assign guardians, found in pop, to simulants_to_assign who are <24 and in college.
 
         Parameters
         ----------
@@ -1100,17 +1100,17 @@ class Population:
         pop: pd.DataFrame,
     ) -> pd.Series:
         """
-        Returns new last name IDs for some simulants such that they match the reference person if the simulant
-        is a relative of the reference person in a non-GQ household.
+        Sets last_name_ids for simulants_to_assign such that, if a simulant
+        is a relative of the reference person in a non-GQ household, their last_name_id matches the reference person's.
 
         Parameters
         ----------
         simulants_to_assign
-            Dataframe of simulants who should be assigned a linked last name ID.
+            Dataframe of simulants who may be assigned a linked last name ID.
             This dataframe should already include a last_name_id column, which will not be changed if no link is made.
             It should also include household_id and relation_to_household_head columns.
         pop
-            Dataframe of full population, who the last_name_id of a simulant in simulants_to_assign may be linked *to*.
+            Dataframe of full population, which includes all reference people the last_name_id may be linked to.
             Should have at least the last_name_id, household_id, and relation_to_household_head columns.
 
         Returns
@@ -1130,10 +1130,14 @@ class Population:
 
         # Get mapping from household_id to current reference person last_name_id
         reference_person_last_name_ids = pop.loc[
-            (pop["relation_to_household_head"] == "Reference person"),
+            pop["relation_to_household_head"] == "Reference person",
             ["household_id", "last_name_id"],
         ].set_index("household_id")["last_name_id"]
 
+        # NOTE: Because we are mutating the very value we are linking to, it would break if
+        # a simulants_to_assign row were both linked *to* and linked *from* here!
+        # That only one or the other occurs is guaranteed by our relation_to_household_head
+        # criteria above.
         simulants_to_assign.loc[relatives_idx, "last_name_id"] = simulants_to_assign.loc[
             relatives_idx, "household_id"
         ].map(reference_person_last_name_ids)
