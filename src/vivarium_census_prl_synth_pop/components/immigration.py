@@ -26,8 +26,26 @@ class Immigration:
     #################
 
     def setup(self, builder: Builder):
-        persons_data = builder.data.load(data_keys.POPULATION.PERSONS)
-        households_data = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
+        # The order of setup is not guaranteed between components.
+        # Whether this function runs before or after the Population component's
+        # setup is completely random.
+        # They both need the same (large) ACS dataset to do their work, and Population
+        # needs to keep it all in memory until population initialization.
+        # This component only needs to keep a small subset of the data (immigrants), and it keeps
+        # it for the entire runtime of the simulation.
+
+        # The solution: if Population goes first, we reuse the full data it already
+        # has in memory.
+        # If this component goes first, we load it here and subset it, and then the whole
+        # thing is loaded again by Population.
+        # Therefore, the full dataset is never loaded in memory in two places at once.
+        population = builder.components.get_component("population")
+        if population.population_data is not None:
+            persons_data = population.population_data["persons"]
+            households_data = population.population_data["households"]
+        else:
+            persons_data = builder.data.load(data_keys.POPULATION.PERSONS)
+            households_data = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
 
         self.total_person_weight = persons_data["person_weight"].sum()
 

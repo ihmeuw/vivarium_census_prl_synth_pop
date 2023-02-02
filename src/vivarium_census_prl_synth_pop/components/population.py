@@ -31,6 +31,11 @@ class Population:
     def name(self):
         return "population"
 
+    def __init__(self):
+        # Must be set before setup; see note in Immigration component about
+        # our approach to not double-loading ACS.
+        self.population_data = None
+
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
         self.seed = builder.configuration.randomness.random_seed
@@ -91,9 +96,7 @@ class Population:
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
-        persons = builder.data.load(data_keys.POPULATION.PERSONS)[
-            metadata.PERSONS_COLUMNS_TO_INITIALIZE
-        ]
+        persons = builder.data.load(data_keys.POPULATION.PERSONS)
         return {"households": households, "persons": persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
