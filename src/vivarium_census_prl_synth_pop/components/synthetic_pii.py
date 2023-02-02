@@ -140,9 +140,7 @@ class NameGenerator(GenericGenerator):
 
     def setup(self, builder: Builder):
         super().setup(builder)
-        self.clock = (
-            builder.time.clock()
-        )  # todo: change to start time since yob only goes to 2020 for data
+        self.clock = builder.time.clock()
         self.first_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES)
         self.last_name_data = builder.data.load(data_keys.SYNTHETIC_DATA.LAST_NAMES)
 
@@ -260,16 +258,13 @@ class NameGenerator(GenericGenerator):
 
     def generate_first_and_middle_names(self, df_in: pd.DataFrame) -> pd.DataFrame:
         """Generate synthetic names for individuals
-
         Parameters
         ----------
         df_in : pd.DataFrame, with columns sex, age
-
         Results
         -------
         returns pd.DataFrame with name data, stored in
         string columns `first_name`, `middle_name`,
-
         """
         # first and middle names
         # strategy: calculate year of birth based on age, use it with sex and state to find a representative name
