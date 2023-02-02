@@ -21,7 +21,10 @@ def test_there_is_emigration(simulants_on_adjacent_timesteps):
 
     # Does not change other attributes
     assert (emigrants["household_id_before"] == emigrants["household_id_after"]).all()
-    assert (emigrants["housing_type_before"] == emigrants["housing_type_after"]).all()
+    assert (
+        emigrants["household_details.housing_type_before"]
+        == emigrants["household_details.housing_type_after"]
+    ).all()
     assert (
         emigrants["relation_to_household_head_before"]
         == emigrants["relation_to_household_head_after"]
@@ -48,7 +51,7 @@ def test_non_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
         simulants_on_adjacent_timesteps,
         lambda before, after: (
             after["household_id"].isin(after[after["in_united_states"]]["household_id"])
-            & (before["housing_type"] == "Standard")
+            & (before["household_details.housing_type"] == "Standard")
         ),
     )
 
@@ -61,7 +64,7 @@ def test_non_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
 def test_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
     _, all_gq_emigration_status = all_time_emigration_condition(
         simulants_on_adjacent_timesteps,
-        lambda before, after: before["housing_type"] != "Standard",
+        lambda before, after: before["household_details.housing_type"] != "Standard",
     )
 
     assert 0 < all_gq_emigration_status.mean() < 0.1
@@ -78,7 +81,7 @@ def test_households_emigrate(simulants_on_adjacent_timesteps):
     emigrants = all_simulant_links[all_household_emigration_status]
 
     # GQ households never emigrate
-    assert (emigrants["housing_type_before"] == "Standard").all()
+    assert (emigrants["household_details.housing_type_before"] == "Standard").all()
 
     assert 0 < all_household_emigration_status.mean() < 0.1
 
@@ -90,15 +93,19 @@ def test_emigrated_people_are_untracked(populations):
         assert not pop[~pop["in_united_states"]]["tracked"].any()
 
 
-def test_nothing_happens_to_untracked_people(simulants_on_adjacent_timesteps):
+def test_nothing_happens_to_untracked_people(
+    simulants_on_adjacent_timesteps, pipeline_columns
+):
     for before, after in simulants_on_adjacent_timesteps:
         untracked = ~before["tracked"]
         if untracked.sum() == 0:
             continue
 
-        columns_do_not_change = [c for c in before.columns if c != "time"]
-        assert before.loc[untracked, columns_do_not_change].equals(
-            after.loc[untracked, columns_do_not_change]
+        columns_that_should_not_change = [
+            c for c in before.columns if c != "time" and c not in pipeline_columns
+        ]
+        assert before.loc[untracked, columns_that_should_not_change].equals(
+            after.loc[untracked, columns_that_should_not_change]
         )
 
 

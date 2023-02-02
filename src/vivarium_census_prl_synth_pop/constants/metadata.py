@@ -16,7 +16,11 @@ MAKE_ARTIFACT_CPU = "1"
 MAKE_ARTIFACT_RUNTIME = "3:00:00"
 MAKE_ARTIFACT_SLEEP = 10
 
-LOCATIONS = ["Florida"]
+LOCATIONS = ["United States of America", "Florida"]
+UNITED_STATES_LOCATIONS = [
+    "California",
+    "Florida",
+]
 
 ARTIFACT_INDEX_COLUMNS = ["sex", "age_start", "age_end", "year_start", "year_end"]
 
@@ -28,7 +32,16 @@ HOUSEHOLDS_COLUMN_MAP = {
     "SERIALNO": "census_household_id",
     "PUMA": "puma",
     "WGTP": "household_weight",
+    "TYPEHUGQ": "household_type",
 }
+
+HOUSEHOLD_TYPE_MAP = {
+    1: "Housing unit",
+    2: "Institutional group quarters",
+    3: "Noninstitutional group quarters",
+}
+HOUSEHOLD_TYPES = list(HOUSEHOLD_TYPE_MAP.values())
+
 PERSONS_COLUMNS_TO_INITIALIZE = [
     "census_household_id",
     "age",
@@ -104,6 +117,7 @@ PERSONS_COLUMNS_MAP = {
     "RAC1P": "race",
     "NATIVITY": "born_in_us",
     "MIG": "immigrated_in_last_year",
+    "PWGTP": "person_weight",
 }
 
 SUBSET_PERSONS_COLUMNS_MAP = {
@@ -230,7 +244,7 @@ US_STATE_ABBRV_MAP = {
     "Wisconsin": "WI",
     "Wyoming": "WY",
     "District of Columbia": "DC",
-    "Puerto Rico": "PR",
+    # "Puerto Rico": "PR",
 }
 
 P_GROUP_QUARTERS = 0.03

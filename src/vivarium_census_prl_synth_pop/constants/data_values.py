@@ -1,6 +1,9 @@
 from typing import NamedTuple
 
+import pandas as pd
 from scipy import stats
+
+from vivarium_census_prl_synth_pop.constants import paths
 
 #########################
 # Population parameters #
@@ -13,6 +16,8 @@ MAX_HOUSEHOLD_SIZE = 17
 PROP_POPULATION_IN_GQ = 0.03
 PROBABILITY_OF_TWINS = 0.04
 N_GROUP_QUARTER_TYPES = 6
+
+# todo see if these dicts can be converted to lists. are they necessary at all?
 INSTITUTIONAL_GROUP_QUARTER_IDS = {"Carceral": 0, "Nursing home": 1, "Other institutional": 2}
 NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "College": 3,
@@ -37,6 +42,10 @@ PROPORTION_INITIALIZATION_WITH_SSN = 0.743
 
 UNKNOWN_GUARDIAN_IDX = -1
 PROPORTION_GUARDIAN_TYPES = {"single_female": 0.23, "single_male": 0.05, "partnered": 0.72}
+
+REFERENCE_PERSON_UPDATE_RELATIONSHIPS_MAP = pd.read_csv(
+    paths.REFERENCE_PERSON_UPDATE_RELATIONSHIP_DATA_PATH,
+)
 
 #########################
 # Synthetic Name Inputs #
@@ -68,16 +77,13 @@ PROBABILITY_OF_SPACE_IN_NAME = {
 # Businesses Values #
 #####################
 
-# data from https://www.jec.senate.gov/public/index.cfm/republicans/fl/
 BUSINESS_NAMES_MAX_TOKENS_LENGTH = 15
-PROPORTION_WORKFORCE_EMPLOYED = {"Florida": 0.576}
+PROPORTION_WORKFORCE_EMPLOYED = 0.6114
+
 WORKING_AGE = 18
 EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
 
 YEARLY_JOB_CHANGE_RATE = 0.5  # 50 changes per 100 py
-
-UNEMPLOYED_ID = 0
-UNEMPLOYED_ADDRESS_ID = 0
 
 BUSINESS_MOVE_RATE_YEARLY = 0.1  # 10 changes per 100 py
 
@@ -89,7 +95,13 @@ class MilitaryEmployer(NamedTuple):
     EMPLOYER_ID = 1
     EMPLOYER_ADDRESS_ID = 1
     EMPLOYER_NAME = "military"
-    PROPORTION_WORKFORCE_EMPLOYED = 0.03
+    PROPORTION_WORKFORCE_EMPLOYED = 0.0032
+
+
+class Unemployed(NamedTuple):
+    EMPLOYER_ID = 0
+    EMPLOYER_ADDRESS_ID = 0
+    EMPLOYER_NAME = "unemployed"
 
 
 ###################

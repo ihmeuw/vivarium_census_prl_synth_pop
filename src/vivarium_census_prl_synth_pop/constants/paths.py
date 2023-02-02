@@ -51,3 +51,6 @@ ADDRESS_DATA_PATH = SYNTHETIC_DATA_INPUTS_ROOT / "deepparse_address_data_usa.csv
 INCOME_DISTRIBUTIONS_DATA_PATH = (
     BASE_DIR / "data/raw_data/income_scipy_lognorm_distribution_parameters.csv"
 )
+REFERENCE_PERSON_UPDATE_RELATIONSHIP_DATA_PATH = (
+    BASE_DIR / "data/raw_data/reference_person_update_relationship_mapping.csv"
+)

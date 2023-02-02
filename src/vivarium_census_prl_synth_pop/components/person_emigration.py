@@ -36,14 +36,17 @@ class PersonEmigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
+        self.household_details = builder.value.get_value("household_details")
         self.columns_needed = [
             "relation_to_household_head",
-            "housing_type",
             "in_united_states",
             "exit_time",
             "tracked",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
+        self.updated_relation_to_reference_person = builder.value.get_value(
+            "updated_relation_to_reference_person"
+        )
 
         non_reference_person_move_rates_data = pd.read_csv(
             paths.NON_REFERENCE_PERSON_EMIGRATION_RATES_PATH,
@@ -107,17 +110,18 @@ class PersonEmigration:
             event.index,
             query="alive == 'alive' and in_united_states == True and tracked == True",
         )
-
+        household_details = self.household_details(pop.index)
         non_reference_people_idx = pop.index[
-            (pop["housing_type"] == "Standard")
+            (household_details["housing_type"] == "Standard")
             & (pop["relation_to_household_head"] != "Reference person")
         ]
         non_reference_person_movers_idx = self.randomness.filter_for_rate(
             non_reference_people_idx,
             self.non_reference_person_move_rates(non_reference_people_idx),
         )
-
-        gq_people_idx = pop.index[pop["housing_type"] != "Standard"]
+        gq_people_idx = household_details.index[
+            household_details["housing_type"] != "Standard"
+        ]
         gq_person_movers_idx = self.randomness.filter_for_rate(
             gq_people_idx,
             self.gq_person_move_rates(gq_people_idx),
@@ -130,3 +134,6 @@ class PersonEmigration:
         pop.loc[emigrating_idx, "tracked"] = False
 
         self.population_view.update(pop)
+
+        new_relation_to_ref_person = self.updated_relation_to_reference_person(event.index)
+        self.population_view.update(new_relation_to_ref_person)

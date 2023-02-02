@@ -9,21 +9,17 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
-from vivarium_census_prl_synth_pop.constants import (
-    data_keys,
-    data_values,
-    metadata,
-    paths,
-)
-from vivarium_census_prl_synth_pop.utilities import (
-    filter_by_rate,
-    update_address_id_for_unit_and_sims,
-)
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
+from vivarium_census_prl_synth_pop.utilities import filter_by_rate
 
 
 class Businesses:
     """
-    IMPROVE DESCRIPTION
+    This component manages all the employers that exist in the simulation. It
+    maintains a data structure of these employers and their details. These are
+    accessible by means of the business_details pipeline. It also manages
+    initialization and modification of simulant employment. It exposes a
+    pipeline to calculate simulant income.
 
     on init:
         assign everyone of working age an employer
@@ -56,18 +52,16 @@ class Businesses:
 
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
-        self.location = builder.data.load(data_keys.POPULATION.LOCATION)
         self.randomness = builder.randomness.get_stream(self.name)
+        self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
         self.columns_created = [
             "employer_id",
-            "employer_name",
-            "employer_address_id",
             "personal_income_propensity",
             "employer_income_propensity",
         ]
         self.columns_used = [
-            "address_id",
+            "tracked",
             "previous_timestep_address_id",
             "age",
             "household_id",
@@ -95,6 +89,11 @@ class Businesses:
             source=self.calculate_income,
             requires_columns=["personal_income_propensity", "employer_income_propensity"],
         )
+        self.business_details = builder.value.register_value_producer(
+            "business_details",
+            source=self.get_business_details,
+            requires_columns=["employer_id", "tracked"],
+        )
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
@@ -118,18 +117,12 @@ class Businesses:
         """
         if pop_data.creation_time < self.start_time:
             self.businesses = self.generate_businesses(pop_data)
-
-            pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
-            pop["employer_id"] = data_values.UNEMPLOYED_ID
+            pop = self.population_view.subview(["age", "household_id"]).get(
+                pop_data.index, query="tracked"
+            )
+            pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
             working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
             pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
-
-            # merge on employer addresses and names
-            pop = pop.merge(
-                self.businesses[["employer_id", "employer_name", "employer_address_id"]],
-                on="employer_id",
-                how="left",
-            )
 
             # Give military gq sims military employment
             military_index = pop.loc[
@@ -143,15 +136,10 @@ class Businesses:
                 pop.loc[
                     military_index, "employer_id"
                 ] = data_values.MilitaryEmployer.EMPLOYER_ID
-                pop = self._update_employer_metadata(pop, military_index)
-
             self.population_view.update(pop)
         else:
-            pop = self.population_view.get(pop_data.index)
-
-            pop["employer_id"] = data_values.UNEMPLOYED_ID
-            pop["employer_name"] = "unemployed"
-            pop["employer_address_id"] = data_values.UNEMPLOYED_ADDRESS_ID
+            pop = self.population_view.get(pop_data.index, query="tracked")
+            pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
 
         # Create income propensity columns
         pop["personal_income_propensity"] = self.randomness.get_draw(
@@ -173,33 +161,22 @@ class Businesses:
         """
         pop = self.population_view.get(
             event.index,
-            query="alive == 'alive'",
+            query="alive == 'alive' and tracked",
         )
-        all_businesses = self.businesses.loc[
-            self.businesses["employer_id"] != data_values.UNEMPLOYED_ID, "employer_id"
+        all_businesses = self.businesses.index[
+            self.businesses.index != data_values.Unemployed.EMPLOYER_ID
         ]
         businesses_that_move_idx = filter_by_rate(
-            all_businesses.index,
+            all_businesses,
             self.randomness,
             self.businesses_move_rate,
             "moving_businesses",
         )
 
-        # Update both state tables and address_id tracker.
-        (
-            pop,
-            self.businesses,
-            self.employer_address_id_count,
-        ) = update_address_id_for_unit_and_sims(
-            pop,
-            moving_units=self.businesses,
-            units_that_move_ids=businesses_that_move_idx,
-            starting_address_id=self.employer_address_id_count,
-            unit_id_col_name="employer_id",
-            address_id_col_name="employer_address_id",
-        )
+        self.update_business_address_ids(businesses_that_move_idx)
 
-        # change jobs if of working age already but exclude simulants living in military group quarters
+        # change jobs by rate as well as if the household moves (only includes
+        # working-age simulants and excludes simulants living in military GQ)
         working_age_idx = pop.index[
             (pop["age"] >= data_values.WORKING_AGE)
             & (
@@ -210,7 +187,10 @@ class Businesses:
         changing_jobs_idx = filter_by_rate(
             working_age_idx, self.randomness, self.job_change_rate, "changing jobs"
         )
-        moved_idx = pop.index[pop["address_id"] != pop["previous_timestep_address_id"]]
+        moved_idx = pop.index[
+            self.household_details(pop.index)["address_id"]
+            != pop["previous_timestep_address_id"]
+        ]
         moved_working_age_idx = moved_idx.intersection(working_age_idx)
         changing_jobs_idx = changing_jobs_idx.union(moved_working_age_idx)
         if len(changing_jobs_idx) > 0:
@@ -250,7 +230,6 @@ class Businesses:
         employment_changing_sims_idx = changing_jobs_idx.union(turning_working_age).union(
             new_military_idx
         )
-        pop = self._update_employer_metadata(pop, employment_changing_sims_idx)
         pop.loc[
             employment_changing_sims_idx, "employer_income_propensity"
         ] = self.randomness.get_draw(
@@ -265,23 +244,26 @@ class Businesses:
     ##################
 
     def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["age", "household_id"]).get(pop_data.index)
+        pop = self.population_view.subview(["age"]).get(pop_data.index, query="tracked")
         n_working_age = len(pop.loc[pop["age"] >= data_values.WORKING_AGE])
 
         # TODO: when have more known employers, maybe move to csv
         known_employers = pd.DataFrame(
             {
                 "employer_id": [
-                    data_values.UNEMPLOYED_ID,
+                    data_values.Unemployed.EMPLOYER_ID,
                     data_values.MilitaryEmployer.EMPLOYER_ID,
                 ],
-                "employer_name": ["unemployed", data_values.MilitaryEmployer.EMPLOYER_NAME],
+                "employer_name": [
+                    data_values.Unemployed.EMPLOYER_NAME,
+                    data_values.MilitaryEmployer.EMPLOYER_NAME,
+                ],
                 "employer_address_id": [
-                    data_values.UNEMPLOYED_ADDRESS_ID,
+                    data_values.Unemployed.EMPLOYER_ADDRESS_ID,
                     data_values.MilitaryEmployer.EMPLOYER_ADDRESS_ID,
                 ],
                 "prevalence": [
-                    1 - data_values.PROPORTION_WORKFORCE_EMPLOYED[self.location],
+                    1 - data_values.PROPORTION_WORKFORCE_EMPLOYED,
                     data_values.MilitaryEmployer.PROPORTION_WORKFORCE_EMPLOYED,
                 ],
             }
@@ -308,22 +290,28 @@ class Businesses:
 
         businesses = pd.concat([known_employers, random_employers], ignore_index=True)
         self.employer_address_id_count = len(businesses)  # So next address will be unique
-        return businesses
+
+        return businesses.set_index("employer_id")
 
     def assign_random_employer(
         self, sim_index: pd.Index, additional_seed: Any = None
     ) -> pd.Series:
         return self.randomness.choice(
             index=sim_index,
-            choices=self.businesses["employer_id"],
+            choices=self.businesses.index,
             p=self.businesses["prevalence"],
             additional_key=additional_seed,
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
-        current_employers = self.population_view.subview(["employer_id"]).get(changing_jobs)[
-            "employer_id"
-        ]
+        # TODO: This limits employers to those existing in the pop table. If
+        # we want all employers that were initialized to be included, we can
+        # instead use the business data structure.
+        current_employers = (
+            self.population_view.subview(["employer_id"])
+            .get(changing_jobs, query="tracked")
+            .squeeze()
+        )
 
         new_employers = current_employers.copy()
         additional_seed = 0
@@ -337,25 +325,11 @@ class Businesses:
 
         return new_employers
 
-    def _update_employer_metadata(
-        self, pop: pd.DataFrame, rows_to_update: pd.Index
-    ) -> pd.DataFrame:
-        employer_ids = pop.loc[rows_to_update, "employer_id"]
-
-        pop.loc[rows_to_update, "employer_address_id"] = employer_ids.map(
-            self.businesses.set_index("employer_id")["employer_address_id"].to_dict()
-        )
-        pop.loc[rows_to_update, "employer_name"] = employer_ids.map(
-            self.businesses.set_index("employer_id")["employer_name"].to_dict()
-        )
-
-        return pop
-
     def calculate_income(self, idx: pd.Index) -> pd.Series:
 
         income = pd.Series(0.0, index=idx)
-        pop = self.population_view.get(idx)
-        employed_idx = pop.index[pop["employer_id"] != data_values.UNEMPLOYED_ID]
+        pop = self.population_view.get(idx, query="tracked")
+        employed_idx = pop.index[pop["employer_id"] != data_values.Unemployed.EMPLOYER_ID]
 
         # Get propensities for two components to get income propensity
         personal_income_component = data_values.PERSONAL_INCOME_PROPENSITY_DISTRIBUTION.ppf(
@@ -379,3 +353,28 @@ class Businesses:
         )
 
         return income
+
+    def get_business_details(self, idx: pd.Index) -> pd.DataFrame:
+        """Source of the business details pipeline"""
+        pop = self.population_view.get(idx)[["employer_id"]]
+        business_details = pop.join(
+            self.businesses[["employer_name", "employer_address_id"]], on="employer_id"
+        )
+
+        return business_details
+
+    def update_business_address_ids(self, moving_business_ids: pd.Index) -> None:
+        """
+        Change the address_id associated with each of the provided business_ids to
+        a new, unique value.
+
+        Parameters
+        ----------
+        moving_business_ids
+            Index into self.businesses for the businesses that should move.
+        """
+        if len(moving_business_ids) > 0:
+            self.businesses.loc[
+                moving_business_ids, "employer_address_id"
+            ] = self.employer_address_id_count + np.arange(len(moving_business_ids))
+            self.employer_address_id_count += len(moving_business_ids)

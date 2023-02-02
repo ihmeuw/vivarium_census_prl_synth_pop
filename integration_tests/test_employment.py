@@ -1,47 +1,49 @@
 import numpy as np
 import pandas as pd
 import pytest
+from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 
 # TODO: Broader test coverage
 
 
-# TODO stop skipping once MIC-3703 has been implemented
-@pytest.mark.skip
-def test_military_gq_employment(tracked_live_populations):
+def test_military_gq_employment(sim, tracked_live_populations):
     for pop in tracked_live_populations:
-        # All people in military group quarters are
+        # All people in military group quarters are employed by the military if working age
+        # Note: We initialize simulants into group quarters that are < 18 so they will remain unemployed.
         military_gq = pop[
-            pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
-        ]
-        assert (
-            military_gq["employer_id"].isin(
-                # todo they are not allowed to be unemployed.
-                #  Once this bug is fixed, change the test
-                [data_values.MilitaryEmployer.EMPLOYER_ID, data_values.UNEMPLOYED_ID]
+            (
+                pop["household_id"]
+                == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
             )
-        ).all()
+            & (
+                pop["age"]
+                >= data_values.WORKING_AGE
+                + sim._clock._step_size.days / utilities.DAYS_PER_YEAR
+            )
+        ]
+        assert (military_gq["employer_id"] == data_values.MilitaryEmployer.EMPLOYER_ID).all()
 
 
 def test_underage_are_unemployed(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
         under_18 = pop[pop["age"] < 18]
-        assert (under_18["employer_id"] == data_values.UNEMPLOYED_ID).all()
+        assert (under_18["employer_id"] == data_values.Unemployed.EMPLOYER_ID).all()
 
 
 def test_unemployed_have_no_income(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
-        unemployed = pop[pop["employer_id"] == data_values.UNEMPLOYED_ID]
+        unemployed = pop[pop["employer_id"] == data_values.Unemployed.EMPLOYER_ID]
         assert (unemployed["income"] == 0).all()
 
 
 def test_employed_have_income(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
-        employed = pop[pop["employer_id"] != data_values.UNEMPLOYED_ID]
+        employed = pop[pop["employer_id"] != data_values.Unemployed.EMPLOYER_ID]
         assert (employed["income"] > 0).all()
 
 
@@ -58,14 +60,25 @@ def test_only_living_change_employment(populations):
 
 def test_movers_change_employment(populations):
     for before, after in zip(populations, populations[1:]):
-        common_working_age_simulants = before.index[before.age >= 18].intersection(
-            after.index[after.age >= 18]
+        before_alive_and_tracked = before[
+            (before["alive"] == "alive") & (before["tracked"])
+        ].index
+        after_alive_and_tracked = after[
+            (after["alive"] == "alive") & (after["tracked"])
+        ].index
+        common_alive_simulants = before_alive_and_tracked.intersection(
+            after_alive_and_tracked
         )
-        before = before.loc[common_working_age_simulants]
-        after = after.loc[common_working_age_simulants]
+        common_working_age_simulants = before.index[before["age"] >= 18].intersection(
+            after.index[after["age"] >= 18]
+        )
+        before = before.loc[common_working_age_simulants.intersection(common_alive_simulants)]
+        after = after.loc[common_working_age_simulants.intersection(common_alive_simulants)]
 
-        moved = before["address_id"] != after["address_id"]
-        moved_to_military_gq = moved & (after["housing_type"] == "Military")
+        moved = (
+            before["household_details.address_id"] != after["household_details.address_id"]
+        )
+        moved_to_military_gq = moved & (after["household_details.housing_type"] == "Military")
         previously_military_employed = before["employer_id"] == 1
         should_change = moved & (~moved_to_military_gq | ~previously_military_employed)
         assert (
@@ -121,7 +134,7 @@ def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):
         for age in ages:
             birthdays_idx = before.index[
                 (before["employer_id"] == after["employer_id"])
-                & (before["employer_id"] != data_values.UNEMPLOYED_ID)
+                & (before["employer_id"] != data_values.Unemployed.EMPLOYER_ID)
                 & (before["age"] < age)
                 & (after["age"] > age)
             ]
@@ -129,3 +142,10 @@ def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):
             assert (
                 before.loc[birthdays_idx, "income"] != after.loc[birthdays_idx, "income"]
             ).all()
+
+
+@pytest.mark.skip(reason="TODO when employer_name_id is implemented")
+def test_employer_name_uniqueness(simulants_on_adjacent_timesteps):
+    """Employers should have unique names that never change"""
+    for before, after in simulants_on_adjacent_timesteps:
+        ...
