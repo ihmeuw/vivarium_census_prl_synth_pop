@@ -29,7 +29,7 @@ def test_there_is_immigration(immigrants_by_timestep):
 def test_immigration_into_gq(immigrants_by_timestep):
     all_time_gq_immigrants = pd.concat(
         [
-            immigrants[immigrants["housing_type"] != "Standard"]
+            immigrants[immigrants["household_details.housing_type"] != "Standard"]
             for _, _, immigrants in immigrants_by_timestep
         ]
     )
@@ -41,7 +41,7 @@ def test_immigration_into_existing_households(immigrants_by_timestep):
     all_time_existing_household_immigrants = []
 
     for before, _, immigrants in immigrants_by_timestep:
-        existing_households = before[before["housing_type"] == "Standard"][
+        existing_households = before[before["household_details.housing_type"] == "Standard"][
             "household_id"
         ].unique()
         existing_household_immigrants = immigrants[
@@ -75,11 +75,11 @@ def test_immigration_into_existing_households(immigrants_by_timestep):
 
 def test_immigration_into_new_households(immigrants_by_timestep):
     for before, after, immigrants in immigrants_by_timestep:
-        existing_households = before[before["housing_type"] == "Standard"][
+        existing_households = before[before["household_details.housing_type"] == "Standard"][
             "household_id"
         ].unique()
         new_household_immigrants = immigrants[
-            (immigrants["housing_type"] == "Standard")
+            (immigrants["household_details.housing_type"] == "Standard")
             & ~immigrants["household_id"].isin(existing_households)
         ]
 
