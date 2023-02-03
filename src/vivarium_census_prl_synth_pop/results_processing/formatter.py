@@ -15,6 +15,10 @@ def get_middle_name_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["middle_name_id"].astype(str)
 
 
+def get_last_name_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["last_name_id"].astype(str)
+
+
 def format_simulant_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["simulant_id"].astype(str)
 
@@ -25,6 +29,7 @@ COLUMN_FORMATTERS = {
     "year_of_birth": get_year_of_birth,
     "first_name_id": get_first_name_id,
     "middle_name_id": get_middle_name_id,
+    "last_name_id": get_last_name_id,
 }
 
 

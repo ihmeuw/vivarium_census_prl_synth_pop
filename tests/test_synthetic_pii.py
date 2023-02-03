@@ -1,5 +1,6 @@
 # Sample Test passing with nose and pytest
 from types import MethodType
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -7,7 +8,10 @@ import pytest
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
-from vivarium_census_prl_synth_pop.results_processing.names import get_given_name_map
+from vivarium_census_prl_synth_pop.results_processing.names import (
+    get_given_name_map,
+    get_last_name_map,
+)
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -57,7 +61,8 @@ def given_names():
     return names
 
 
-def get_last_names():
+@pytest.fixture()
+def last_names():
     last_names = pd.DataFrame(
         data={
             "name": ["Smith", "Johnson", "Jackson"],
@@ -71,10 +76,10 @@ def get_last_names():
             "pctasian": [0.62, 0.61, 0.60],
             "pct2prace": [3.03, 3.02, 3.01],
             "pcthispanic": [2.02, 2.01, 2.00],
-            "White": [0.03, 0.02, 0.01],
-            "Latino": [0.003, 0.002, 0.001],
-            "Black": [0.01, 0.02, 0.03],
-            "Asian": [0.001, 0.002, 0.003],
+            "White": [0.34, 0.26, 0.40],
+            "Latino": [0.10, 0.35, 0.55],
+            "Black": [0.20, 0.40, 0.40],
+            "Asian": [0.34, 0.33, 0.33],
             "Multiracial or Other": [0.11, 0.12, 0.13],
             "AIAN": [0.01, 0.02, 0.03],
             "NHOPI": [0.05, 0.04, 0.03],
@@ -88,26 +93,30 @@ def get_last_names():
 
 @pytest.fixture()
 def fake_obs_data():
+    size = 100_000
     return {
         "fake_observer": pd.DataFrame(
             {
-                "first_name_id": list(range(100_000)),
-                "middle_name_id": list(range(100_000)),
+                "first_name_id": list(range(size)),
+                "middle_name_id": list(range(size)),
                 "year_of_birth": [1999, 1999, 2000, 2000] * 25_000,
                 "sex": ["Male", "Female"] * 50_000,
+                "last_name_id": list(range(size)),
+                "race_ethnicity": ["White", "Black", "Latino", "Asian"] * 25_000,
+                "date_of_birth": [pd.Timestamp("1985-01-01 00:00:00")] * size,
             }
         )
     }
 
 
 def get_name_frequency_proportions(
-    names: pd.Series, population_demographics: pd.DataFrame
+    names: pd.Series, population_demographics: pd.DataFrame, groupby_cols: List[str]
 ) -> pd.Series:
     name_totals = pd.concat([population_demographics, names], axis=1).rename(
         columns={0: "name"}
     )
-    names_grouped = name_totals.groupby(["year_of_birth", "sex"])["name"].value_counts()
-    grouped_totals = name_totals[["year_of_birth", "sex"]].value_counts()
+    names_grouped = name_totals.groupby(groupby_cols)["name"].value_counts()
+    grouped_totals = name_totals[groupby_cols].value_counts()
     name_proportions = names_grouped / grouped_totals
 
     return name_proportions
@@ -131,7 +140,9 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         randomness,
     )
     first_name_proportions = get_name_frequency_proportions(
-        first_names["first_name"], fake_obs_data["fake_observer"]
+        first_names["first_name"],
+        fake_obs_data["fake_observer"],
+        ["year_of_birth", "sex"],
     )
 
     assert np.isclose(
@@ -145,13 +156,118 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         randomness,
     )
     middle_name_proportions = get_name_frequency_proportions(
-        middle_names["middle_name"], fake_obs_data["fake_observer"]
+        middle_names["middle_name"], fake_obs_data["fake_observer"], ["year_of_birth", "sex"]
     )
 
     assert np.isclose(
         middle_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
     assert (first_names["first_name"] != middle_names["middle_name"]).any()
+
+
+def test_last_names_proportions(mocker, last_names, fake_obs_data):
+    # This function tests that the sampling proportions are working as expected
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = last_names
+    # Subset last names data to match fake_obs_data
+    last_names = last_names.reset_index()[["name", "White", "Latino", "Black", "Asian"]]
+
+    # Get proportion of given names for tests
+    proportions = (
+        pd.melt(
+            last_names,
+            id_vars="name",
+            value_vars=["White", "Latino", "Black", "Asian"],
+            var_name="race_ethnicity",
+            value_name="freq",
+        )
+        .groupby(["race_ethnicity", "name"])["freq"]
+        .sum()
+    )
+
+    # Get name frequencies for comparison
+    last_names_map = get_last_name_map(
+        "last_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+    )
+    last_name_proportions = get_name_frequency_proportions(
+        last_names_map["last_name"],
+        fake_obs_data["fake_observer"],
+        ["race_ethnicity"],
+    )
+
+    assert np.isclose(
+        last_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
+    ).all()
+
+
+def test_last_name_from_oldest_member(mocker):
+    # This tests logic that we are sampling last_name_id for oldest member with that id.
+    # Each household has an oldest member of a difference race ethnicity.
+    household_1 = pd.DataFrame(
+        {
+            "race_ethnicity": ["Asian", "Black", "Latino"],
+            "date_of_birth": [
+                pd.Timestamp("1965-01-01 00:00:00"),
+                pd.Timestamp("1975-01-01 00:00:00"),
+                pd.Timestamp("1985-01-01 00:00:00"),
+            ],
+            "last_name_id": [1, 1, 1],
+        }
+    )
+    household_2 = pd.DataFrame(
+        {
+            "race_ethnicity": ["Asian", "Black", "Latino"],
+            "date_of_birth": [
+                pd.Timestamp("1975-01-01 00:00:00"),
+                pd.Timestamp("1965-01-01 00:00:00"),
+                pd.Timestamp("1985-01-01 00:00:00"),
+            ],
+            "last_name_id": [2, 2, 2],
+        }
+    )
+    household_3 = pd.DataFrame(
+        {
+            "race_ethnicity": ["Asian", "Black", "Latino"],
+            "date_of_birth": [
+                pd.Timestamp("1985-01-01 00:00:00"),
+                pd.Timestamp("1975-01-01 00:00:00"),
+                pd.Timestamp("1965-01-01 00:00:00"),
+            ],
+            "last_name_id": [3, 3, 3],
+        }
+    )
+    households = pd.concat([household_1, household_2, household_3])
+    fake_obs_data = {"last_name_faker": households}
+
+    # Make fake artifact data
+    last_names = pd.DataFrame(
+        {
+            "name": ["Name A", "Name B", "Name C"],
+            "Asian": [1.0, 0.0, 0.0],
+            "Black": [0.0, 1.0, 0.0],
+            "Latino": [0.0, 0.0, 1.0],
+        }
+    )
+    cols = list(last_names.columns)
+    last_names = last_names.set_index(cols)
+
+    # Mock artifact
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = last_names
+
+    # Map last names
+    last_names_map = get_last_name_map(
+        "last_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+    )
+    expected = pd.Series(data=["Name A", "Name B", "Name C"], index=[1, 2, 3])
+
+    assert (last_names_map["last_name"] == expected).all()
 
 
 @pytest.mark.slow
