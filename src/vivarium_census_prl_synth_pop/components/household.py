@@ -38,7 +38,7 @@ class Households:
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
-        self.clock = builder.time.clock
+        self.clock = builder.time.clock()
 
         # GQ households are special, with fixed IDs
         gq_household_ids = (
