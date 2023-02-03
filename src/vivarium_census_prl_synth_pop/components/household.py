@@ -38,7 +38,7 @@ class Households:
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
-        self.clock = builder.time.clock()
+        # self.clock = builder.time.clock()
 
         # GQ households are special, with fixed IDs
         gq_household_ids = (
@@ -161,7 +161,8 @@ class Households:
         different_mailing_physical_addresses = self.randomness.filter_for_probability(
             pd.Index(list(range(num_addresses))),
             1 - data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
-            additional_key=f"po_box_filter_{self.clock}",
+            # additional_key=f"po_box_filter_{self.clock}",
+            additional_key="po_box_filter",
         )
         po_boxes = pd.Series(
             data_values.NO_PO_BOX, index=pd.Index(list(range(num_addresses)))
@@ -171,6 +172,7 @@ class Households:
             max_val=20_000,
             index=different_mailing_physical_addresses,
             randomness=self.randomness,
-            additional_key=f"po_box_int_{self.clock}",
+            # additional_key=f"po_box_int_{self.clock}",
+            additional_key="po_box_number",
         )
         return np.array(po_boxes)
