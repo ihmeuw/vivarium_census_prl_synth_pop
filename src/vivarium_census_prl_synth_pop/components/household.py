@@ -134,7 +134,9 @@ class Households:
         new_address_ids = self._next_available_ids(
             len(household_ids), taken=self._households["address_id"]
         )
+        po_boxes = self.generate_po_boxes(len(household_ids))
         self._households.loc[household_ids, "address_id"] = new_address_ids
+        self._households.loc[household_ids, "po_box"] = po_boxes
 
     ##################
     # Helper methods #
