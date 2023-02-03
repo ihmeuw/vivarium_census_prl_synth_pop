@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -14,6 +15,7 @@ def test_individuals_move(simulants_on_adjacent_timesteps):
             before[individual_movers]["household_details.address_id"]
             != after[individual_movers]["household_details.address_id"]
         ).all()
+        check_po_box_collisions(after, before, individual_movers)
 
 
 def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
@@ -159,6 +161,21 @@ def test_households_move(simulants_on_adjacent_timesteps):
             before[household_movers]["household_details.housing_type"] == "Standard"
         ).all()
 
+        check_po_box_collisions(after, before, household_movers)
+
+
+def check_po_box_collisions(after, before, movers):
+    """Assert that the number of PO Box collisions are miniscule. Movers
+    assumed to have address_id changes."""
+    po_box_movers = (
+        (before["household_details.po_box"] != data_values.NO_PO_BOX)
+        | (after["household_details.po_box"] != data_values.NO_PO_BOX)
+    ) & movers
+    assert (
+        before[po_box_movers]["household_details.po_box"]
+        == after[po_box_movers]["household_details.po_box"]
+    ).sum() <= int(po_box_movers.sum() * 0.05)
+
 
 def test_only_living_people_change_households(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
@@ -172,6 +189,7 @@ def test_only_living_people_change_households(simulants_on_adjacent_timesteps):
     [
         ("employer_id", "business_details.employer_address_id"),
         ("household_id", "household_details.address_id"),
+        ("household_id", "household_details.po_box"),
     ],
 )
 def test_unit_address_uniqueness(populations, unit_id_col, address_id_col):
@@ -182,8 +200,9 @@ def test_unit_address_uniqueness(populations, unit_id_col, address_id_col):
     for pop in populations:
         # Check that all simulants in the same unit have the same address
         assert (pop.groupby(unit_id_col)[address_cols].nunique() == 1).all().all()
-        # Check that all units have unique addresses
-        assert (pop.groupby(address_cols)[unit_id_col].nunique() == 1).all()
+        # Check that all units have unique addresses (unless it's a PO Box, which has relaxed requirements)
+        if address_id_col != "household_details.po_box":
+            assert (pop.groupby(address_cols)[unit_id_col].nunique() == 1).all()
 
     # # TODO implement state/puma checks
     # # Ensure pumas map to correct state. This will be an imperfect test
@@ -246,3 +265,29 @@ def test_addresses_during_moves(simulants_on_adjacent_timesteps, unit_id_col, ad
         # assert (
         #     before.loc[mask_movers, "puma"] != after.loc[mask_movers, "puma"]
         # ).sum() / mask_movers.sum() >= 0.95
+
+
+def test_po_box(tracked_live_populations):
+    """Tests that the prevalence of PO Boxes and ."""
+    for pop in tracked_live_populations:
+        # Check that actual proportion of households without PO Boxes (i.e., physical
+        # address is the same as mailing) is close to the expected proportion
+        assert np.isclose(
+            len(
+                pop[pop["household_details.po_box"] == data_values.NO_PO_BOX].groupby(
+                    "household_id"
+                )
+            )
+            / len(pop.groupby("household_id")),
+            data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
+            rtol=0.01,
+        )
+
+        # Check that PO Boxes are within the min and max defined in constants
+        assert (
+            (pop["household_details.po_box"] == data_values.NO_PO_BOX)
+            | (
+                (pop["household_details.po_box"] <= data_values.MAX_PO_BOX)
+                & (pop["household_details.po_box"] >= data_values.MIN_PO_BOX)
+            )
+        ).all()

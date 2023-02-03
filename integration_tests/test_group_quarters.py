@@ -34,8 +34,18 @@ def test_gq_relationship_column(tracked_live_populations):
 
 
 @pytest.mark.parametrize("time_step", TIME_STEPS_TO_TEST)
-def test_gq_housing_type_column(tracked_live_populations, time_step):
+def test_gq_address_columns(tracked_live_populations, time_step):
+    """Tests that simulants' `housing_type` and `po_box` columns are as expected."""
     pop = tracked_live_populations[time_step]
+
+    # All people in GQ do not have PO Box
+    assert (
+        pop[pop["household_details.address_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())][
+            "household_details.po_box"
+        ]
+        == data_values.NO_PO_BOX
+    ).all()
+
     # All people in institutional GQ have a correct housing type
     assert (
         (
