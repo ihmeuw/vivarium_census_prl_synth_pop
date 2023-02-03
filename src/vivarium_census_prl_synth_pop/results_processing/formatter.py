@@ -2,6 +2,8 @@ from typing import Dict, List
 
 import pandas as pd
 
+from vivarium_census_prl_synth_pop.constants import metadata
+
 
 def get_year_of_birth(data: pd.DataFrame) -> pd.Series:
     return pd.to_datetime(data["date_of_birth"]).dt.year
@@ -23,13 +25,19 @@ def format_simulant_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["simulant_id"].astype(str)
 
 
+def get_state_name(data: pd.DataFrame, metadate=None) -> pd.Series:
+    state_map = dict((v, k) for k, v in metadata.CENSUS_STATE_IDS.items())
+    return data["state"].map(state_map)
+
+
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
-    "simulant_id": format_simulant_id,
-    "year_of_birth": get_year_of_birth,
-    "first_name_id": get_first_name_id,
-    "middle_name_id": get_middle_name_id,
-    "last_name_id": get_last_name_id,
+    "simulant_id": (format_simulant_id, ["simulant_id", "random_seed"]),
+    "year_of_birth": (get_year_of_birth, ["date_of_birth"]),
+    "first_name_id": (get_first_name_id, ["first_name_id", "random_seed"]),
+    "middle_name_id": (get_middle_name_id, ["middle_name_id", "random_seed"]),
+    "last_name_id": (get_last_name_id, ["last_name_id", "random_seed"]),
+    "state": (get_state_name, ["state"]),
 }
 
 
