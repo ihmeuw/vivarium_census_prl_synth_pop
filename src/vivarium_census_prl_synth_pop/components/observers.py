@@ -552,6 +552,7 @@ class TaxW2Observer(BaseObserver):
         "ssn",
         "ssn_id",  # simulant id for ssn from another simulant
         "address_id",
+        "po_box",
         "employer_id",
         "employer_name",
         "employer_address_id",
@@ -649,8 +650,8 @@ class TaxW2Observer(BaseObserver):
         pop_full = self.population_view.get(event.index)
         household_details = self.pipelines["household_details"](pop_full.index)
         business_details = self.pipelines["business_details"](pop_full.index)
-        pop_full[["address_id", "housing_type"]] = household_details[
-            ["address_id", "housing_type"]
+        pop_full[["address_id", "housing_type", "po_box"]] = household_details[
+            ["address_id", "housing_type", "po_box"]
         ]
         pop_full[["employer_address_id", "employer_name"]] = business_details[
             ["employer_address_id", "employer_name"]
@@ -681,8 +682,9 @@ class TaxW2Observer(BaseObserver):
 
         df_w2["address_id"] = df_w2["simulant_id"].map(household_details["address_id"])
         df_w2["housing_type"] = df_w2["simulant_id"].map(household_details["housing_type"])
+        df_w2["po_box"] = df_w2["simulant_id"].map(household_details["po_box"])
 
-        # Tracked, US population to potentially have their SSNs borrowed
+        # Tracked, US population to be dependents or get their SSNs borrowed
         pop = pop_full[
             (pop_full["alive"] == "alive")
             & pop_full["tracked"]
@@ -866,7 +868,7 @@ class Tax1040Observer(BaseObserver):
         "sex",
         "ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
-        "relation_to_household_head",  # needed to identifying couples filing jointly
+        "relation_to_household_head",  # needed to identify couples filing jointly
         "housing_type",
         "tax_year",
         "alive",

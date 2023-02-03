@@ -3,11 +3,13 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 
 from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.utilities import random_integers
 
 HOUSEHOLD_ID_DTYPE = int
 HOUSEHOLD_DETAILS_DTYPES = {
     "address_id": int,
     "housing_type": pd.CategoricalDtype(categories=data_values.HOUSING_TYPES),
+    "po_box": int,
 }
 
 
@@ -47,6 +49,7 @@ class Households:
             {
                 "address_id": data_values.GQ_HOUSING_TYPE_MAP.keys(),
                 "housing_type": data_values.GQ_HOUSING_TYPE_MAP.values(),
+                "po_box": data_values.NO_PO_BOX,
             },
             index=gq_household_ids,
         ).astype(HOUSEHOLD_DETAILS_DTYPES)
@@ -56,6 +59,8 @@ class Households:
             source=self.get_household_details,
             requires_columns=["household_id", "tracked"],
         )
+
+        self.randomness = builder.randomness.get_stream(self.name)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -101,11 +106,13 @@ class Households:
         address_ids = self._next_available_ids(
             num_households, taken=self._households["address_id"]
         )
+        po_boxes = self.generate_po_boxes(num_households)
 
         new_households = pd.DataFrame(
             {
                 "address_id": address_ids,
                 "housing_type": housing_type,
+                "po_box": po_boxes,
             },
             index=household_ids.astype(HOUSEHOLD_ID_DTYPE),
         ).astype(HOUSEHOLD_DETAILS_DTYPES)
@@ -127,7 +134,9 @@ class Households:
         new_address_ids = self._next_available_ids(
             len(household_ids), taken=self._households["address_id"]
         )
+        po_boxes = self.generate_po_boxes(len(household_ids))
         self._households.loc[household_ids, "address_id"] = new_address_ids
+        self._households.loc[household_ids, "po_box"] = po_boxes
 
     ##################
     # Helper methods #
@@ -148,3 +157,21 @@ class Households:
             return 0
 
         return taken.max() + 1
+
+    def generate_po_boxes(self, num_addresses) -> np.array:
+        different_mailing_physical_addresses = self.randomness.filter_for_probability(
+            pd.Index(list(range(num_addresses))),
+            1 - data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
+            additional_key="po_box_filter",
+        )
+        po_boxes = pd.Series(
+            data_values.NO_PO_BOX, index=pd.Index(list(range(num_addresses)))
+        )
+        po_boxes.loc[different_mailing_physical_addresses] = random_integers(
+            min_val=data_values.MIN_PO_BOX,
+            max_val=data_values.MAX_PO_BOX,
+            index=different_mailing_physical_addresses,
+            randomness=self.randomness,
+            additional_key="po_box_number",
+        )
+        return np.array(po_boxes)
