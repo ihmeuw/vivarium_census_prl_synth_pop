@@ -1,64 +1,18 @@
 # Sample Test passing with nose and pytest
 from types import MethodType
-from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
 import pytest
+from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
+from vivarium_census_prl_synth_pop.results_processing.names import get_given_name_map
 
-
-def test_generic():
-    g = synthetic_pii.GenericGenerator()
-
-    index = [1, 2, 4, 8]
-    df_in = pd.DataFrame(index=index)
-    df = g.generate(df_in)
-
-    assert len(df) == 4, "expect result to be a dataframe with 4 rows"
-    assert np.all(df.index == index), "expect index of result to match initial index"
-
-    df2 = g.noise(df)
-    assert np.all(df.index == df2.index) and np.all(
-        df.columns == df2.columns
-    ), "expect noise to leave dataframe index and columns unchanged"
-
-
-# This is outdated and not a random generator anymore
-# def test_dob():
-#     g = synthetic_pii.DOBGenerator(1234)
-#
-#     index = range(10_000)
-#     df_in = pd.DataFrame(index=index)
-#     df_in["age"] = np.random.uniform(0, 125, len(index))
-#     df = g.generate(df_in)
-#
-#     assert np.all(df.month <= 12)
-#     assert np.all(df.day <= 31)
-#     assert np.all(df.year >= 2019 - 125 - 1)
-#
-#     df2 = g.noise(df)
-#     assert np.all(df.index == df2.index) and np.all(
-#         df.columns == df2.columns
-#     ), "expect noise to leave dataframe index and columns unchanged"
-#
-#     assert np.all((df2.month >= 1) | df2.month.isnull()) and np.all(
-#         (df2.month <= 12)
-#         | (df2.day <= 12)  # noise can swap day and month, resulting in a month > 12
-#         | df2.month.isnull()
-#     )
-#     assert np.all((df2.day >= 1) | df2.day.isnull()) and np.all(
-#         (df2.day <= 31) | df2.day.isnull()
-#     )
-#     assert np.all((df2.year >= 2019 - 150) | df2.year.isnull()) and np.all(
-#         (df2.year < 2022) | df2.year.isnull()
-#     )
-#
-#     assert not np.all(df.day == df2.day)
-#     assert not np.all(df.month == df2.month)
-#     assert not np.all(df.year == df2.year)
-#     assert not np.all(df.dob == df2.dob)
+key = "test_synthetic_data_generation"
+clock = lambda: pd.Timestamp("2020-09-01")
+seed = 0
+randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
 
 def get_draw(self, index, additional_key=None) -> pd.Series:
@@ -86,34 +40,20 @@ def test_ssn(mocker):
     assert len(area) == 3
     assert len(group) == 2
     assert len(serial) == 4
-
-    df2 = g.noise(df)
-    assert np.all(df.index == df2.index) and np.all(
-        df.columns == df2.columns
-    ), "expect noise to leave dataframe index and columns unchanged"
+    # todo: Add test of uniqueness
 
 
-def get_year():
-    class MockClock(NamedTuple):
-        day = (12,)
-        month = (31,)
-        year = 1999
-
-    mock_clock = MockClock()
-    return mock_clock
-
-
-def get_first_names():
+@pytest.fixture()
+def given_names():
     names = pd.DataFrame(
         data={
-            "state": ["FL", "FL", "FL", "FL", "FL"],
-            "sex": ["Female", "Female", "Male", "Male", "Female"],
-            "yob": [1999, 1999, 1999, 2000, 2000],
-            "name": ["Mary", "Annie", "Louise", "John", "Jeff"],
-            "freq": [200, 199, 198, 10, 11],
+            "sex": ["Female", "Female", "Male", "Male"] * 2,
+            "yob": [1999, 1999, 1999, 1999, 2000, 2000, 2000, 2000],
+            "name": ["Mary", "Annie", "Luis", "John", "Scarlett", "Anna", "Mark", "Brad"],
+            "freq": [200, 100, 150, 50, 100, 25, 100, 150],
         }
     )
-    names = names.set_index(["state", "sex", "yob", "name", "freq"])
+    names = names.set_index(["yob", "sex", "name", "freq"])
     return names
 
 
@@ -146,51 +86,72 @@ def get_last_names():
     return last_names
 
 
-def test_name(mocker):
-    g = synthetic_pii.NameGenerator()
-    # Mock randomness and get_draw
-    g.randomness = mocker.Mock()
-    mocker.patch.object(g.randomness, "get_draw")
-    g.randomness.get_draw = MethodType(get_draw, g)
+@pytest.fixture()
+def fake_obs_data():
+    return {
+        "fake_observer": pd.DataFrame(
+            {
+                "first_name_id": list(range(100_000)),
+                "middle_name_id": list(range(100_000)),
+                "year_of_birth": [1999, 1999, 2000, 2000] * 25_000,
+                "sex": ["Male", "Female"] * 50_000,
+            }
+        )
+    }
 
-    # Get year from clock
-    g.clock = mocker.Mock()
-    mocker.patch.object(g.clock, "year")
-    g.clock.year = MethodType(get_year, g)
-    g.clock.return_value = get_year()
 
-    # Mock first name data
-    g.first_name_data = get_first_names()
-    # Mock last name data
-    g.last_name_data = get_last_names()
+def get_name_frequency_proportions(
+    names: pd.Series, population_demographics: pd.DataFrame
+) -> pd.Series:
+    name_totals = pd.concat([population_demographics, names], axis=1).rename(
+        columns={0: "name"}
+    )
+    names_grouped = name_totals.groupby(["year_of_birth", "sex"])["name"].value_counts()
+    grouped_totals = name_totals[["year_of_birth", "sex"]].value_counts()
+    name_proportions = names_grouped / grouped_totals
 
-    all_race_eth_values = [
-        "White",
-        "Latino",
-        "Black",
-        "Asian",
-        "Multiracial or Other",
-        "AIAN",
-        "NHOPI",
-    ]
-    index = range(len(all_race_eth_values))
-    df_in = pd.DataFrame(index=index)
-    df_in["race_ethnicity"] = all_race_eth_values
-    df_in["age"] = 0
-    df_in["sex"] = "Male"
+    return name_proportions
 
-    df1 = g.generate_first_and_middle_names(df_in)
-    df2 = g.generate_last_names(df_in)
 
-    assert len(df1) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
-    assert len(df2) == len(all_race_eth_values), "expect result to be a dataframe with 7 rows"
+def test_first_and_middle_names(mocker, given_names, fake_obs_data):
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = given_names
 
-    assert "first_name" in df1.columns
-    assert "middle_name" in df1.columns
-    assert "last_name" in df2.columns
-    assert (
-        "AIAN" not in df2.last_name.values
-    )  # FIXME: come up with a more robust test of the synthetic content
+    # Get proportion of given names for tests
+    totals = given_names.reset_index().groupby(["yob", "sex"])["freq"].sum()
+    name_freq = given_names.reset_index("freq")
+    proportions = name_freq["freq"] / totals
+    proportions.index = proportions.index.rename("year_of_birth", "yob")
+
+    # Get name frequencies for comparison
+    first_names = get_given_name_map(
+        "first_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+    )
+    first_name_proportions = get_name_frequency_proportions(
+        first_names["first_name"], fake_obs_data["fake_observer"]
+    )
+
+    assert np.isclose(
+        first_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
+    ).all()
+
+    middle_names = get_given_name_map(
+        "middle_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+    )
+    middle_name_proportions = get_name_frequency_proportions(
+        middle_names["middle_name"], fake_obs_data["fake_observer"]
+    )
+
+    assert np.isclose(
+        middle_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
+    ).all()
+    assert (first_names["first_name"] != middle_names["middle_name"]).any()
 
 
 @pytest.mark.slow
