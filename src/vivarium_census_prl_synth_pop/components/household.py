@@ -168,8 +168,8 @@ class Households:
             data_values.NO_PO_BOX, index=pd.Index(list(range(num_addresses)))
         )
         po_boxes.loc[different_mailing_physical_addresses] = random_integers(
-            min_val=1,
-            max_val=20_000,
+            min_val=data_values.MIN_PO_BOX,
+            max_val=data_values.MAX_PO_BOX,
             index=different_mailing_physical_addresses,
             randomness=self.randomness,
             additional_key="po_box_number",
