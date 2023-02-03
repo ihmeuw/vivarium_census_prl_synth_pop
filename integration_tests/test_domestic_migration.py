@@ -165,7 +165,8 @@ def test_households_move(simulants_on_adjacent_timesteps):
 
 
 def check_po_box_collisions(after, before, movers):
-    """Assert that the number of PO Box collisions are miniscule."""
+    """Assert that the number of PO Box collisions are miniscule. Movers
+    assumed to have address_id changes."""
     po_box_movers = (
         (before["household_details.po_box"] != data_values.NO_PO_BOX)
         | (after["household_details.po_box"] != data_values.NO_PO_BOX)
