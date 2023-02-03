@@ -1,8 +1,11 @@
+from math import floor
+
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 
 
 class Immigration:
@@ -26,6 +29,8 @@ class Immigration:
     #################
 
     def setup(self, builder: Builder):
+        self.randomness = builder.randomness.get_stream(self.name)
+
         persons_data = builder.data.load(data_keys.POPULATION.PERSONS)
         households_data = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
 
@@ -63,12 +68,61 @@ class Immigration:
 
         # Get the *household* (not person) weights for each household that can immigrate
         # in a household move, for use in sampling.
-        self.immigrant_household_weights = households_data.set_index(
-            "census_household_id"
-        ).loc[
-            immigrant_reference_people["census_household_id"],
-            "household_weight",
+        self.immigrant_households = households_data[
+            households_data["census_household_id"].isin(
+                immigrant_reference_people["census_household_id"]
+            )
         ]
+        # HACK -- this can go away once state and PUMA are in the households pipeline, because
+        # we will no longer need household rows to join to individuals
+        self.non_reference_person_immigrant_households = households_data[
+            households_data["census_household_id"].isin(
+                self.non_reference_person_immigrants["census_household_id"]
+            )
+        ]
+        self.gq_immigrant_households = households_data[
+            households_data["census_household_id"].isin(
+                self.gq_immigrants["census_household_id"]
+            )
+        ]
+
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.event.register_listener(
+            "time_step",
+            self.on_time_step,
+            priority=metadata.PRIORITY_MAP["immigration.on_time_step"],
+        )
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_time_step(self, event: Event):
+        """
+        Creates new simulants from immigration.
+
+        Parameters
+        ----------
+        event : vivarium.population.PopulationEvent
+            The event that triggered the function call.
+        """
+
+        self._create_individual_immigrants(
+            self.gq_immigrants_per_time_step,
+            self.gq_immigrant_households,
+            self.gq_immigrants,
+            "gq_immigrants",
+            event.index,
+        )
+
+        self._create_individual_immigrants(
+            self.non_reference_person_immigrants_per_time_step,
+            self.non_reference_person_immigrant_households,
+            self.non_reference_person_immigrants,
+            "non_reference_person_immigrants",
+            event.index,
+        )
 
     ##################
     # Helper methods #
@@ -84,4 +138,42 @@ class Immigration:
         )
         return from_yearly(
             immigrants_per_year, pd.Timedelta(days=configuration.time.step_size)
+        )
+
+    def _create_individual_immigrants(
+        self,
+        expected_num,
+        acs_households,
+        acs_persons,
+        creation_type,
+        current_population_index,
+    ):
+        num_immigrants = self._round_stochastically(expected_num, f"num_{creation_type}")
+
+        if num_immigrants > 0:
+            self.simulant_creator(
+                num_immigrants,
+                population_configuration={
+                    "sim_state": "time_step",
+                    "creation_type": creation_type,
+                    # HACK -- this can go away once state and PUMA are in the households pipeline, because
+                    # we will no longer need household rows to join to individuals
+                    f"acs_{creation_type}_households": acs_households,
+                    f"acs_{creation_type}_persons": acs_persons,
+                    "current_population_index": current_population_index,
+                    # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198
+                    "parent_ids": -1,
+                },
+            )
+
+    def _round_stochastically(self, num, additional_key):
+        """
+        Implements stochastic rounding.
+        For example, a value of 2.23 will round up to 3 with 23% probability, and down to 2
+        the rest of the time.
+        If we used traditional rounding, a value of e.g. 0.4 would round down to 0 on every
+        single timestep, and that immigration event would *never* happen.
+        """
+        return floor(
+            num + self.randomness.get_draw(pd.Index([0]), additional_key=additional_key)
         )

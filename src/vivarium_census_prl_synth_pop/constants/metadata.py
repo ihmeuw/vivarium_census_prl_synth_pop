@@ -272,4 +272,5 @@ PRIORITY_MAP = {
     "person_migration.on_time_step": 5,
     "household_migration.on_time_step": 5,
     "businesses.on_time_step": 6,
+    "immigration.on_time_step": 7,
 }
