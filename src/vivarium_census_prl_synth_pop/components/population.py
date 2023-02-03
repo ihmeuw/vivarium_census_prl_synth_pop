@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -378,8 +378,7 @@ class Population:
         Parameters
         ----------
         new_simulants
-            Dataframe of the new simulants, containing at least columns
-            age and born_in_us (which come from ACS).
+            Dataframe of the new simulants, containing ACS columns.
         pop_data
             The SimulantData of the simulant creation event.
 
@@ -419,7 +418,7 @@ class Population:
         return new_simulants
 
     def initialize_simulant_link_columns(
-        self, new_simulants: pd.DataFrame, existing_simulants: Union[pd.DataFrame, None]
+        self, new_simulants: pd.DataFrame, existing_simulants: Optional[pd.DataFrame]
     ) -> pd.DataFrame:
         """
         Initializes columns that link simulants to one another.
@@ -432,7 +431,7 @@ class Population:
         ----------
         new_simulants
             DataFrame of new simulants who should be assigned values for these linking columns,
-            containing at least household_id, relation_to_household_head, age, and race_ethnicity,
+            with all the other columns already initialized,
             and having the final simulant IDs as the index.
         existing_simulants
             Population state table of simulants already present in the simulation.
@@ -495,10 +494,8 @@ class Population:
             Simulants who may be assigned guardians.
             Should already have guardian_1 and guardian_2 columns, which will not be changed if
             no guardian links are found for that simulant.
-            Additionally should have at least household_id, age, and race_ethnicity columns.
         pop
             Population from which to find guardians.
-            Should have at least household_id, relation_to_household_head, sex, age, and race_ethnicity columns.
             Indices must be the final simulant IDs.
 
         Returns
@@ -789,10 +786,8 @@ class Population:
             Simulants to assign guardians (where applicable).
             Should already have guardian_1 and guardian_2 columns, which will not be changed if
             no guardian links are found for that simulant.
-            Should also have at least household_id, age, and race_ethnicity columns.
         pop
             Population from which to find guardians.
-            Should have at least household_id, relation_to_household_head, sex, age, and race_ethnicity columns.
             Indices must be the final simulant IDs.
 
         Returns
@@ -1111,7 +1106,6 @@ class Population:
             It should also include household_id and relation_to_household_head columns.
         pop
             Dataframe of full population, which includes all reference people the last_name_id may be linked to.
-            Should have at least the last_name_id, household_id, and relation_to_household_head columns.
 
         Returns
         -------
