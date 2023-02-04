@@ -284,3 +284,95 @@ def convert_middle_name_to_initial(pop: pd.DataFrame) -> pd.DataFrame:
     pop["middle_initial"] = pop["middle_name"].str[0]
     pop = pop.drop(columns="middle_name")
     return pop
+
+
+def sample_acs_standard_households(
+    target_number_sims: int,
+    acs_households: pd.DataFrame,
+    acs_persons: pd.DataFrame,
+    randomness: RandomnessStream,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Samples households from ACS using household weights and gets the associated persons.
+    The chosen people include households-file columns (pre-merged).
+    The acs_sample_household_id in both returned dataframes (chosen households and persons)
+    represents the unique household sampling event, even if multiple instances of
+    the same ACS household were sampled.
+    Aims for the target_number_sims and slightly undershoots it if it doesn't come out to
+    a round number of households.
+    """
+
+    # oversample households -- each household has at least one person,
+    # so if we get as many households as we need people, we will always
+    # have enough people (and probably far too many)
+    chosen_households_index = vectorized_choice(
+        options=acs_households.index,
+        n_to_choose=target_number_sims,
+        randomness_stream=randomness,
+        weights=acs_households["household_weight"],
+        additional_key="choose_standard_households",
+    )
+    chosen_households = acs_households.loc[chosen_households_index]
+
+    # create unique id for resampled households -- each census_household_id
+    # can be sampled multiple times.
+    chosen_households["acs_sample_household_id"] = np.arange(len(chosen_households))
+
+    # get all simulants per household
+    chosen_persons = pd.merge(
+        chosen_households,
+        acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
+        on="census_household_id",
+        how="left",
+    )
+
+    # get rid of simulants and households in excess of desired pop size
+    households_to_discard = chosen_persons.loc[
+        target_number_sims:, "acs_sample_household_id"
+    ].unique()
+    chosen_persons = chosen_persons.loc[
+        ~chosen_persons["acs_sample_household_id"].isin(households_to_discard)
+    ]
+    chosen_households = chosen_households.loc[
+        ~chosen_households["acs_sample_household_id"].isin(households_to_discard)
+    ]
+
+    return chosen_households, chosen_persons
+
+
+def sample_acs_group_quarters(
+    target_number_sims: int,
+    acs_households: pd.DataFrame,
+    acs_persons: pd.DataFrame,
+    randomness: RandomnessStream,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Samples GQ people from ACS.
+    Returns the household and persons file rows for the sampled people.
+    The chosen people include households-file columns (pre-merged).
+    """
+
+    # group quarters each house one person per census_household_id
+    # they have NA household weights, but appropriately weighted person weights.
+    chosen_units_index = vectorized_choice(
+        options=acs_households.index,
+        n_to_choose=target_number_sims,
+        randomness_stream=randomness,
+        weights=acs_households["person_weight"],
+        additional_key="choose_gq_units",
+    )
+    chosen_units = acs_households.loc[chosen_units_index]
+
+    # create unique id for resampled households -- each census_household_id
+    # can be sampled multiple times.
+    chosen_units["acs_sample_household_id"] = np.arange(len(chosen_units))
+
+    # get simulants per GQ unit
+    chosen_persons = pd.merge(
+        chosen_units,
+        acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
+        on="census_household_id",
+        how="left",
+    )
+
+    return chosen_units, chosen_persons
