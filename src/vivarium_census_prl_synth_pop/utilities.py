@@ -373,3 +373,35 @@ def sample_acs_group_quarters(
     )
 
     return chosen_persons
+
+
+def sample_acs_persons(
+    target_number_sims: int,
+    acs_households: pd.DataFrame,
+    acs_persons: pd.DataFrame,
+    randomness: RandomnessStream,
+) -> pd.DataFrame:
+    """
+    Samples persons from ACS individually with person weights.
+    The persons returned include the state and puma columns
+    (currently in households data only, hence the need for the acs_households argument).
+    """
+
+    chosen_persons_index = vectorized_choice(
+        options=acs_persons.index,
+        n_to_choose=target_number_sims,
+        randomness_stream=randomness,
+        weights=acs_persons["person_weight"],
+        additional_key="choose_acs_persons",
+    )
+    chosen_persons = acs_persons.loc[chosen_persons_index]
+
+    # Once state and puma are in the households pipeline, we will not need to do this
+    chosen_persons = pd.merge(
+        chosen_persons,
+        acs_households[["state", "puma", "census_household_id"]],
+        on="census_household_id",
+        how="left",
+    )
+
+    return chosen_persons

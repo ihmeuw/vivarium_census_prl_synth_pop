@@ -217,35 +217,6 @@ class Population:
 
         return new_simulants
 
-    def sample_individuals_with_person_weights(
-        self,
-        target_number_sims: int,
-        acs_households: pd.DataFrame,
-        acs_persons: pd.DataFrame,
-        pop_data: SimulantData,
-    ) -> pd.Series:
-        chosen_persons_index = vectorized_choice(
-            options=acs_persons.index,
-            n_to_choose=target_number_sims,
-            randomness_stream=self.randomness,
-            weights=acs_persons["person_weight"],
-        )
-        chosen_persons = acs_persons.loc[chosen_persons_index]
-
-        # HACK: pull back on state and puma
-        # Once state and puma are in the households pipeline, we will not need this
-        chosen_persons = pd.merge(
-            chosen_persons,
-            acs_households[["state", "puma", "census_household_id"]],
-            on="census_household_id",
-            how="left",
-        )
-
-        new_simulants = self.initialize_new_simulants_from_acs(chosen_persons, pop_data)
-        new_simulants["age"] = self.perturb_individual_age(new_simulants)
-
-        return new_simulants
-
     def initialize_newborns(self, pop_data: SimulantData) -> None:
         parent_ids_idx = pop_data.user_data["parent_ids"]
         pop_index = pop_data.user_data["current_population_index"]
@@ -334,15 +305,11 @@ class Population:
         Parameters
         ----------
         pop_data
-            The SimulantData on the simulant creation call; must have user_data entries
-            called "acs_gq_immigrant_households" and "acs_gq_immigrant_persons"
-            that supply the ACS rows to be sampled from.
+            The SimulantData on the simulant creation call, which must supply the ACS
+            rows the simulants should be based on.
         """
-        new_simulants = self.sample_simulants_from_group_quarters(
-            len(pop_data.index),
-            pop_data.user_data["acs_gq_immigrants_households"],
-            pop_data.user_data["acs_gq_immigrants_persons"],
-            pop_data,
+        new_simulants = self.initialize_group_quarters(
+            pop_data.user_data["acs_persons"], pop_data
         ).set_index(pop_data.index)
 
         existing_simulants = self.population_view.get(
@@ -368,16 +335,13 @@ class Population:
         Parameters
         ----------
         pop_data
-            The SimulantData on the simulant creation call; must have user_data entries
-            called "acs_non_reference_person_immigrant_households" and "acs_non_reference_person_immigrants"
-            that supply the ACS rows to be sampled from.
+            The SimulantData on the simulant creation call, which must supply the ACS
+            rows the simulants should be based on.
         """
-        new_simulants = self.sample_individuals_with_person_weights(
-            len(pop_data.index),
-            pop_data.user_data["acs_non_reference_person_immigrants_households"],
-            pop_data.user_data["acs_non_reference_person_immigrants_persons"],
-            pop_data,
+        new_simulants = self.initialize_new_simulants_from_acs(
+            pop_data.user_data["acs_persons"], pop_data
         ).set_index(pop_data.index)
+        new_simulants["age"] = self.perturb_individual_age(new_simulants)
 
         existing_simulants = self.population_view.get(
             pop_data.user_data["current_population_index"],

@@ -6,6 +6,10 @@ from vivarium.framework.event import Event
 from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
+from vivarium_census_prl_synth_pop.utilities import (
+    sample_acs_group_quarters,
+    sample_acs_persons,
+)
 
 
 class Immigration:
@@ -110,6 +114,7 @@ class Immigration:
 
         self._create_individual_immigrants(
             self.gq_immigrants_per_time_step,
+            sample_acs_group_quarters,
             self.gq_immigrant_households,
             self.gq_immigrants,
             "gq_immigrants",
@@ -118,6 +123,7 @@ class Immigration:
 
         self._create_individual_immigrants(
             self.non_reference_person_immigrants_per_time_step,
+            sample_acs_persons,
             self.non_reference_person_immigrant_households,
             self.non_reference_person_immigrants,
             "non_reference_person_immigrants",
@@ -143,6 +149,7 @@ class Immigration:
     def _create_individual_immigrants(
         self,
         expected_num,
+        sampling_function,
         acs_households,
         acs_persons,
         creation_type,
@@ -151,15 +158,18 @@ class Immigration:
         num_immigrants = self._round_stochastically(expected_num, f"num_{creation_type}")
 
         if num_immigrants > 0:
-            self.simulant_creator(
+            chosen_persons = sampling_function(
                 num_immigrants,
+                acs_households,
+                acs_persons,
+                randomness=self.randomness,
+            )
+            self.simulant_creator(
+                len(chosen_persons),
                 population_configuration={
                     "sim_state": "time_step",
                     "creation_type": creation_type,
-                    # HACK -- this can go away once state and PUMA are in the households pipeline, because
-                    # we will no longer need household rows to join to individuals
-                    f"acs_{creation_type}_households": acs_households,
-                    f"acs_{creation_type}_persons": acs_persons,
+                    "acs_persons": chosen_persons,
                     "current_population_index": current_population_index,
                     # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198
                     "parent_ids": -1,
