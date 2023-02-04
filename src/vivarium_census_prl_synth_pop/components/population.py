@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -134,7 +134,9 @@ class Population:
         )
 
         pop = pd.concat([non_gq_simulants, gq_simulants]).set_index(pop_data.index)
-        pop = self.initialize_simulant_link_columns(pop)
+        pop = self.initialize_simulant_link_columns(
+            new_simulants=pop, existing_simulants=None
+        )
 
         self.population_view.update(pop[self.columns_created])
 
@@ -201,7 +203,7 @@ class Population:
         acs_households: pd.DataFrame,
         acs_persons: pd.DataFrame,
         pop_data: SimulantData,
-    ) -> pd.Series:
+    ) -> pd.DataFrame:
         # group quarters each house one person per census_household_id
         # they have NA household weights, but appropriately weighted person weights.
         chosen_units_index = vectorized_choice(
@@ -376,8 +378,7 @@ class Population:
         Parameters
         ----------
         new_simulants
-            Dataframe of the new simulants, containing at least columns
-            age and born_in_us (which come from ACS).
+            Dataframe of the new simulants, containing ACS columns.
         pop_data
             The SimulantData of the simulant creation event.
 
@@ -416,56 +417,99 @@ class Population:
 
         return new_simulants
 
-    def initialize_simulant_link_columns(self, pop: pd.DataFrame) -> pd.DataFrame:
+    def initialize_simulant_link_columns(
+        self, new_simulants: pd.DataFrame, existing_simulants: Optional[pd.DataFrame]
+    ) -> pd.DataFrame:
         """
         Initializes columns that link simulants to one another.
         These are name (currently, only last name actually links) and guardian_1 and guardian_2.
         This depends on all simulants being initialized and having their final indices.
 
+        Note that new simulants may be linked to other new simulants.
+
         Parameters
         ----------
-        pop
-            DataFrame of simulants, containing at least household_id, relation_to_household_head, age, and race_ethnicity,
+        new_simulants
+            DataFrame of new simulants who should be assigned values for these linking columns,
+            with all the other columns already initialized,
             and having the final simulant IDs as the index.
+        existing_simulants
+            Population state table of simulants already present in the simulation.
+            Simulant ID is the index.
+            These simulants will *not* be modified in any way.
+            Should be None if there is not yet any existing population.
 
         Returns
         -------
-        pop with added columns first_name_id, middle_name_id, last_name_id, guardian_1 and guardian_2
+        new_simulants with added columns first_name_id, middle_name_id, last_name_id, guardian_1 and guardian_2
         """
-        # give name ids
+        # Names are a bit of an exception because the link is not to a simulant's ID/index, but
+        # to a simulant's *value of the same column*.
+        # Note that this is not an academic distinction: a simulant could
+        # be linked to a reference person's last_name_id, and later *become* a reference person who a
+        # new simulant gets linked to.
+        # Due to this exception, all rows in the full_pop dataframe need to have name IDs,
+        # which means pre-linking name IDs need to be assigned to new_simulants before
+        # creating the full_pop dataframe.
+
+        # Give initial, pre-linking name ids
+        new_simulants["first_name_id"] = new_simulants.index
+        new_simulants["middle_name_id"] = new_simulants.index
+        new_simulants["last_name_id"] = new_simulants.index
+
+        columns_needed_for_linking = [
+            "household_id",
+            "relation_to_household_head",
+            "sex",
+            "age",
+            "race_ethnicity",
+            # Due to above exception, last_name_id is needed to link to
+            "last_name_id",
+        ]
+        full_pop = new_simulants[columns_needed_for_linking]
+        if existing_simulants is not None:
+            full_pop = pd.concat([full_pop, existing_simulants[columns_needed_for_linking]])
+
         # NOTE: Right now first and middle name don't link to other simulants, but they may in the future
-        pop["first_name_id"] = pop.index
-        pop["middle_name_id"] = pop.index
-        pop["last_name_id"] = self.assign_last_name_ids(pop)
+        new_simulants = self.assign_linked_last_name_ids(new_simulants, full_pop)
 
-        pop = self.assign_college_simulants_guardians(pop)
-        pop = self.assign_general_population_guardians(pop)
+        # Initialize guardian columns
+        new_simulants["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
+        new_simulants["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
 
-        return pop
+        new_simulants = self.assign_general_population_guardians(new_simulants, full_pop)
+        new_simulants = self.assign_college_simulants_guardians(new_simulants, full_pop)
 
-    def assign_general_population_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
+        return new_simulants
+
+    def assign_general_population_guardians(
+        self, simulants_to_assign: pd.DataFrame, pop: pd.DataFrame
+    ) -> pd.DataFrame:
         """
+        Assign guardians found in pop to simulants_to_assign who are <18 and not in GQ.
 
         Parameters
         ----------
-        pop:  Population state table
+        simulants_to_assign
+            Simulants who may be assigned guardians.
+            Should already have guardian_1 and guardian_2 columns, which will not be changed if
+            no guardian links are found for that simulant.
+        pop
+            Population from which to find guardians.
+            Indices must be the final simulant IDs.
 
         Returns
         -------
-        pd.Dataframe that will be pop with two additional guardians column containing the index for that simulant's
-          guardian..
+        simulants_to_assign with updated guardian_1 and guardian_2 columns.
         """
-
-        # Initialize column
-        pop["guardian_1"] = data_values.UNKNOWN_GUARDIAN_IDX
-        pop["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
 
         # Get household structure for population to vectorize choices
         # Non-GQ population
         gen_population = pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)]
-        under_18_idx = pop.loc[
-            (pop["age"] < 18) & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
-        ].index
+        under_18 = simulants_to_assign.loc[
+            (simulants_to_assign["age"] < 18)
+            & (~simulants_to_assign["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+        ]
         new_column_names = {
             "age_x": "child_age",
             "relation_to_household_head_x": "child_relation_to_household_head",
@@ -476,7 +520,7 @@ class Population:
 
         child_households = self.get_household_structure(
             gen_population,
-            query_sims=under_18_idx,
+            query_sims=under_18,
             key_columns=key_cols,
             column_names=new_column_names,
             lookup_id_level_name="child_id",
@@ -532,7 +576,9 @@ class Population:
             .reset_index()
             .set_index("child_id")["person_id"]
         )
-        pop.loc[ref_person_parent_ids.index, "guardian_1"] = ref_person_parent_ids
+        simulants_to_assign.loc[
+            ref_person_parent_ids.index, "guardian_1"
+        ] = ref_person_parent_ids
 
         # Assign partners of reference person as partners
         partners_of_ref_person_parent_ids = child_households.loc[
@@ -543,7 +589,7 @@ class Population:
             partners_of_ref_person_parent_ids = self.choose_random_guardian(
                 partners_of_ref_person_parent_ids, "child_id"
             )
-            pop.loc[
+            simulants_to_assign.loc[
                 partners_of_ref_person_parent_ids.index, "guardian_2"
             ] = partners_of_ref_person_parent_ids
 
@@ -559,7 +605,7 @@ class Population:
             relatives_with_guardian_ids = self.choose_random_guardian(
                 relatives_with_guardian, "child_id"
             )
-            pop.loc[
+            simulants_to_assign.loc[
                 relatives_with_guardian_ids.index, "guardian_1"
             ] = relatives_with_guardian_ids
 
@@ -573,7 +619,7 @@ class Population:
             .reset_index()
             .set_index("child_id")["person_id"]
         )
-        pop.loc[relative_ids.index, "guardian_1"] = relative_ids
+        simulants_to_assign.loc[relative_ids.index, "guardian_1"] = relative_ids
         # Assign guardian to spouse/partner of reference person
         relative_with_ref_person_partner_guardian_ids = child_households.loc[
             child_relative_of_ref_person_idx.drop(
@@ -585,7 +631,7 @@ class Population:
             relative_with_ref_person_partner_guardian_ids = self.choose_random_guardian(
                 relative_with_ref_person_partner_guardian_ids, "child_id"
             )
-            pop.loc[
+            simulants_to_assign.loc[
                 relative_with_ref_person_partner_guardian_ids.index, "guardian_2"
             ] = relative_with_ref_person_partner_guardian_ids
 
@@ -597,7 +643,7 @@ class Population:
             child_ref_person_with_parent_ids = self.choose_random_guardian(
                 child_ref_person_with_parent, "child_id"
             )
-            pop.loc[
+            simulants_to_assign.loc[
                 child_ref_person_with_parent_ids.index, "guardian_1"
             ] = child_ref_person_with_parent_ids
 
@@ -614,7 +660,7 @@ class Population:
             child_ref_person_with_relative_ids = self.choose_random_guardian(
                 child_ref_person_with_relative_ids, "child_id"
             )
-            pop.loc[
+            simulants_to_assign.loc[
                 child_ref_person_with_relative_ids.index, "guardian_1"
             ] = child_ref_person_with_relative_ids
 
@@ -629,7 +675,9 @@ class Population:
             non_relative_guardian_ids = self.choose_random_guardian(
                 non_relative_guardian, "child_id"
             )
-            pop.loc[non_relative_guardian_ids.index, "guardian_1"] = non_relative_guardian_ids
+            simulants_to_assign.loc[
+                non_relative_guardian_ids.index, "guardian_1"
+            ] = non_relative_guardian_ids
 
         # Child is not reference person with no age bound non-relative, assign to adult non-relative - purple box
         other_non_relative_guardian_ids = child_households.loc[
@@ -644,11 +692,11 @@ class Population:
             other_non_relative_guardian_ids = self.choose_random_guardian(
                 other_non_relative_guardian_ids, "child_id"
             )
-            pop.loc[
+            simulants_to_assign.loc[
                 other_non_relative_guardian_ids.index, "guardian_1"
             ] = other_non_relative_guardian_ids
 
-        return pop
+        return simulants_to_assign
 
     @staticmethod
     def choose_random_guardian(member_ids: pd.DataFrame, groupby_level: str) -> pd.Series:
@@ -684,7 +732,7 @@ class Population:
         }
         mothers_households = self.get_household_structure(
             households,
-            query_sims=new_births["parent_id"],
+            query_sims=households.loc[new_births["parent_id"]],
             key_columns=key_cols,
             column_names=new_column_names,
             lookup_id_level_name="mother_id",
@@ -726,12 +774,33 @@ class Population:
 
         return new_births
 
-    def assign_college_simulants_guardians(self, pop: pd.DataFrame) -> pd.DataFrame:
-        # Takes pop (simulation state table) and updates guardian_1 and guardian_2 atributes for college GQ simulants.
+    def assign_college_simulants_guardians(
+        self, simulants_to_assign: pd.DataFrame, pop: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+        Assign guardians, found in pop, to simulants_to_assign who are <24 and in college.
 
-        college_sims = pop.loc[
-            (pop["household_id"] == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["College"])
-            & (pop["age"] < 24),
+        Parameters
+        ----------
+        simulants_to_assign
+            Simulants to assign guardians (where applicable).
+            Should already have guardian_1 and guardian_2 columns, which will not be changed if
+            no guardian links are found for that simulant.
+        pop
+            Population from which to find guardians.
+            Indices must be the final simulant IDs.
+
+        Returns
+        -------
+        simulants_to_assign with updated guardian_1 and guardian_2 columns.
+        """
+
+        college_sims = simulants_to_assign.loc[
+            (
+                simulants_to_assign["household_id"]
+                == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["College"]
+            )
+            & (simulants_to_assign["age"] < 24),
             ["race_ethnicity"],
         ]
         # Get subsets of pop to create data structure with household_id, reference_person_id, partner_id, sex, race
@@ -801,15 +870,17 @@ class Population:
                 additional_key=f"other_{guardian_type}_guardian_ids",
             )
 
-            pop.loc[other_guardian_ids.index, "guardian_1"] = other_guardian_ids
+            simulants_to_assign.loc[
+                other_guardian_ids.index, "guardian_1"
+            ] = other_guardian_ids
 
             if guardian_type == "partnered":
                 other_partner_ids = households_with_partners.reset_index().set_index(
                     "reference_person_id"
                 )["partner_id"]
-                pop.loc[other_guardian_ids.index, "guardian_2"] = pop["guardian_1"].map(
-                    other_partner_ids
-                )
+                simulants_to_assign.loc[
+                    other_guardian_ids.index, "guardian_2"
+                ] = simulants_to_assign["guardian_1"].map(other_partner_ids)
 
             # Iterate through race/ethnicity and assign initial guardian
             races = [
@@ -854,22 +925,24 @@ class Population:
                     additional_key=f"{race}_{guardian_type}_guardian_ids",
                 )
 
-                pop.loc[race_guardian_ids.index, "guardian_1"] = race_guardian_ids
+                simulants_to_assign.loc[
+                    race_guardian_ids.index, "guardian_1"
+                ] = race_guardian_ids
 
                 if guardian_type == "partnered":
                     race_partner_ids = households_with_partners.reset_index().set_index(
                         "reference_person_id"
                     )["partner_id"]
-                    pop.loc[race_guardian_ids.index, "guardian_2"] = pop["guardian_1"].map(
-                        race_partner_ids
-                    )
+                    simulants_to_assign.loc[
+                        race_guardian_ids.index, "guardian_2"
+                    ] = simulants_to_assign["guardian_1"].map(race_partner_ids)
 
-        return pop
+        return simulants_to_assign
 
     @staticmethod
     def get_household_structure(
         pop: pd.DataFrame,
-        query_sims: Union[pd.Series, pd.Index],
+        query_sims: pd.DataFrame,
         key_columns: List,
         column_names: Dict,
         lookup_id_level_name: str,
@@ -879,8 +952,7 @@ class Population:
         Parameters
         ----------
         pop: population state table
-        query_sims: Series that will be used for a lookup to subset the state table.  This will create one of the
-          dataframes we will merge to create our multi-index dataframe
+        query_sims: The first dataframe we will merge to create our multi-index dataframe
         key_columns: columns to subset pop
         column_names: Dictionary to map columns and their new names to.  These will generally match the key_columns arg
           and wil be of the format KEY_COLUMNS_x or KEY_COLUMN_y and then the new name for that column.
@@ -890,7 +962,7 @@ class Population:
         Returns
         -------
         Multi-index dataframe with 2 levels - first being the index (id) of simulants who will be the left portion of
-          our dataframe.  These ids are the same as query_sims.  Level 2 will be person_id which will be the index of
+          our dataframe.  These ids are the same as the index of query_sims.  Level 2 will be person_id which will be the index of
           the other members in that household.
 
         The following example is how we will construct a dataframe for children under 18.
@@ -916,7 +988,7 @@ class Population:
           be done outside this function.
         """
         lookup_sims = (
-            pop.loc[query_sims, key_columns]
+            query_sims[key_columns]
             .reset_index()
             .rename(columns={"index": lookup_id_level_name})
             .set_index(["household_id", lookup_id_level_name])
@@ -1017,28 +1089,54 @@ class Population:
 
         return pop["age"]
 
-    def assign_last_name_ids(self, pop: pd.DataFrame) -> pd.Series:
-        # Assigns index value as last name id
-        # Matches last name id for relatives of a reference person within a household
-        # Note: Group quarters are ignored for matching last name ids
+    @staticmethod
+    def assign_linked_last_name_ids(
+        simulants_to_assign: pd.DataFrame,
+        pop: pd.DataFrame,
+    ) -> pd.Series:
+        """
+        Sets last_name_ids for simulants_to_assign such that, if a simulant
+        is a relative of the reference person in a non-GQ household, their last_name_id matches the reference person's.
 
-        pop["last_name_id"] = pop.index
+        Parameters
+        ----------
+        simulants_to_assign
+            Dataframe of simulants who may be assigned a linked last name ID.
+            This dataframe should already include a last_name_id column, which will not be changed if no link is made.
+            It should also include household_id and relation_to_household_head columns.
+        pop
+            Dataframe of full population, which includes all reference people the last_name_id may be linked to.
+
+        Returns
+        -------
+        simulants_to_assign with updated last_name_ids.
+        """
 
         # Match last names for relatives of reference person
-        relatives_idx = pop.index[
-            (~pop["relation_to_household_head"].isin(NON_RELATIVES + ["Reference person"]))
-            & (~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
+        relatives_idx = simulants_to_assign.index[
+            (
+                ~simulants_to_assign["relation_to_household_head"].isin(
+                    NON_RELATIVES + ["Reference person"]
+                )
+            )
+            & (~simulants_to_assign["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP))
         ]
-        # Get series to map to with household_ids and reference person last name id
+
+        # Get mapping from household_id to current reference person last_name_id
         reference_person_last_name_ids = pop.loc[
             pop["relation_to_household_head"] == "Reference person",
             ["household_id", "last_name_id"],
         ].set_index("household_id")["last_name_id"]
-        pop.loc[relatives_idx, "last_name_id"] = pop["household_id"].map(
-            reference_person_last_name_ids
-        )
 
-        return pop["last_name_id"]
+        # NOTE: Because we are mutating the very value we are linking to, it would break if
+        # a simulants_to_assign row were both linked *to* and linked *from* here!
+        # That only one or the other occurs is guaranteed by our relation_to_household_head
+        # criteria above.
+        simulants_to_assign.loc[relatives_idx, "last_name_id"] = simulants_to_assign.loc[
+            relatives_idx, "household_id"
+        ].map(reference_person_last_name_ids)
+
+        return simulants_to_assign
 
     def get_updated_relation_to_reference_person(self, idx: pd.Index) -> pd.Series:
         """
