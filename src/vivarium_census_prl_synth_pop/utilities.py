@@ -348,8 +348,8 @@ def sample_acs_group_quarters(
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Samples GQ people from ACS.
-    Returns the household and persons file rows for the sampled people.
-    The chosen people include households-file columns (pre-merged).
+    The persons returned include the state and puma columns
+    (currently in households data only, hence the need for the acs_households argument).
     """
 
     # group quarters each house one person per census_household_id
@@ -363,16 +363,13 @@ def sample_acs_group_quarters(
     )
     chosen_units = acs_households.loc[chosen_units_index]
 
-    # create unique id for resampled households -- each census_household_id
-    # can be sampled multiple times.
-    chosen_units["acs_sample_household_id"] = np.arange(len(chosen_units))
-
     # get simulants per GQ unit
+    # Once state and puma are in the households pipeline, we will not need to do this
     chosen_persons = pd.merge(
-        chosen_units,
+        chosen_units[["state", "puma", "census_household_id"]],
         acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
         on="census_household_id",
         how="left",
     )
 
-    return chosen_units, chosen_persons
+    return chosen_persons

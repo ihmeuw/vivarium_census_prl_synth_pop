@@ -135,7 +135,7 @@ class Population:
         # Household sampling won't exactly hit its target population size -- we fill
         # in the remainder with GQ
         actual_gq_pop_size = self.config.population_size - len(non_gq_simulants)
-        _, chosen_persons = sample_acs_group_quarters(
+        chosen_persons = sample_acs_group_quarters(
             actual_gq_pop_size,
             acs_households=acs_households[~is_standard_household],
             acs_persons=self.population_data["persons"],
