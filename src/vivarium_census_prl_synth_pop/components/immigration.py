@@ -9,6 +9,7 @@ from vivarium_census_prl_synth_pop.constants import data_keys, data_values, meta
 from vivarium_census_prl_synth_pop.utilities import (
     sample_acs_group_quarters,
     sample_acs_persons,
+    sample_acs_standard_households,
 )
 
 
@@ -72,7 +73,7 @@ class Immigration:
 
         # Get the *household* (not person) weights for each household that can immigrate
         # in a household move, for use in sampling.
-        self.immigrant_households = households_data[
+        self.household_immigrant_households = households_data[
             households_data["census_household_id"].isin(
                 immigrant_reference_people["census_household_id"]
             )
@@ -129,6 +130,30 @@ class Immigration:
             "non_reference_person_immigrants",
             event.index,
         )
+
+        num_household_immigrants = self._round_stochastically(
+            self.household_immigrants_per_time_step, "num_household_immigrants"
+        )
+
+        if num_household_immigrants > 0:
+            chosen_households, chosen_persons = sample_acs_standard_households(
+                num_household_immigrants,
+                self.household_immigrant_households,
+                self.household_immigrants,
+                randomness=self.randomness,
+            )
+            self.simulant_creator(
+                len(chosen_persons),
+                population_configuration={
+                    "sim_state": "time_step",
+                    "creation_type": "household_immigrants",
+                    "acs_households": chosen_households,
+                    "acs_persons": chosen_persons,
+                    "current_population_index": event.index,
+                    # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198
+                    "parent_ids": -1,
+                },
+            )
 
     ##################
     # Helper methods #

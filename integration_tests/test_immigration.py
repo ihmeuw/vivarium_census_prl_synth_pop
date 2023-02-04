@@ -74,6 +74,8 @@ def test_immigration_into_existing_households(immigrants_by_timestep):
 
 
 def test_immigration_into_new_households(immigrants_by_timestep):
+    all_time_household_immigrants = []
+
     for before, after, immigrants in immigrants_by_timestep:
         existing_households = before[before["household_details.housing_type"] == "Standard"][
             "household_id"
@@ -113,5 +115,9 @@ def test_immigration_into_new_households(immigrants_by_timestep):
 
         assert expected_relationship.all()
 
-        # TODO: There should be some household immigrants
-        # household_immigrants = new_household_immigrants[~is_non_reference_person_immigrant]
+        household_immigrants = new_household_immigrants[~is_non_reference_person_immigrant]
+        all_time_household_immigrants.append(household_immigrants)
+
+    all_time_household_immigrants = pd.concat(all_time_household_immigrants)
+
+    assert len(all_time_household_immigrants) > 0
