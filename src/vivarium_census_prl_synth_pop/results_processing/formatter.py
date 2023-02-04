@@ -25,7 +25,7 @@ def format_simulant_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["simulant_id"].astype(str)
 
 
-def get_state_name(data: pd.DataFrame, metadate=None) -> pd.Series:
+def get_state_name(data: pd.DataFrame) -> pd.Series:
     state_map = dict((v, k) for k, v in metadata.CENSUS_STATE_IDS.items())
     return data["state"].map(state_map)
 
