@@ -108,8 +108,12 @@ def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
             df = pd.read_csv(file)
             df["random_seed"] = file.name.split(".")[0].split("_")[-1]
             # Process columns to map for observers
-            for column in formatter.COLUMN_FORMATTERS:
-                df[column] = formatter.COLUMN_FORMATTERS[column](df)
+            for output_column, (
+                column_formatter,
+                required_columns,
+            ) in formatter.COLUMN_FORMATTERS.items():
+                if set(required_columns).issubset(set(df.columns)):
+                    df[output_column] = column_formatter(df[required_columns])
             obs_data.append(df)
 
         observers_results[obs_dir.name] = pd.concat(obs_data)
