@@ -10,7 +10,9 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.results_processing import formatter
-from vivarium_census_prl_synth_pop.results_processing.addresses import get_household_address_map
+from vivarium_census_prl_synth_pop.results_processing.addresses import (
+    get_household_address_map,
+)
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,

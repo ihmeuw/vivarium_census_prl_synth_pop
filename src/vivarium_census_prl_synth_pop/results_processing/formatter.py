@@ -59,6 +59,12 @@ def format_data_for_mapping(
     output_columns: List[str],
 ) -> pd.DataFrame:
     data_to_map = [obs_data[output_columns] for obs_data in obs_results.values()]
+
+    data_to_map = [
+        obs_data[output_columns]
+        for obs_data in obs_results.values()
+        if set(output_columns).issubset(set(obs_data.columns))
+    ]
     data = pd.concat(data_to_map).drop_duplicates()
     data = data[output_columns].set_index(index_name)
 
