@@ -31,8 +31,8 @@ def format_address_id(data: pd.DataFrame) -> pd.Series:
 
 def get_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
-    state_abbrev_map = data["state"].map(state_id_map)
-    return data["state"].map(state_abbrev_map)
+    state_name_map = data["state"].map(state_id_map)
+    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
 
 
 def get_state_id(data: pd.DataFrame) -> pd.Series:
