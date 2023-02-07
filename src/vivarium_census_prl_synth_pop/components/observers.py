@@ -31,6 +31,8 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
+        "state",
+        "puma",
     ]
     DEFAULT_OUTPUT_COLUMNS = [
         "first_name_id",
