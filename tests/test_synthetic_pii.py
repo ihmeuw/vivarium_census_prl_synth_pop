@@ -1,15 +1,17 @@
 # Sample Test passing with nose and pytest
+import string
 from types import MethodType
 from typing import List
 
 import numpy as np
 import pandas as pd
 import pytest
-import string
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
-from vivarium_census_prl_synth_pop.results_processing.addresses import get_household_address_map
+from vivarium_census_prl_synth_pop.results_processing.addresses import (
+    get_household_address_map,
+)
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
@@ -274,11 +276,13 @@ def test_last_name_from_oldest_member(mocker):
 
 def test_address(mocker):
     # Fake synthetic pii address data
-    synthetic_address_data = pd.DataFrame({
-        "StreetNumber": list(range(26)),
-        "StreetName": list(string.ascii_lowercase),
-        "Unit": list(range(26)),
-    })
+    synthetic_address_data = pd.DataFrame(
+        {
+            "StreetNumber": list(range(26)),
+            "StreetName": list(string.ascii_lowercase),
+            "Unit": list(range(26)),
+        }
+    )
     synthetic_address_data.set_index(["StreetNumber", "StreetName", "Unit"], inplace=True)
     # Mock artifact
     artifact = mocker.MagicMock()
@@ -295,10 +299,11 @@ def test_address(mocker):
         artifact,
         randomness,
     )
-    expected_keys = ["street_number", "street_name", "unit"]
-    # todo: test index of fake_obs_data is index of generated addresses and all are present
-    assert all(key in expected_keys for key in address_map.keys())
-    for key, value in address_map.values():
-        assert (address_map.values()[key].index == address_ids["address_ids"]).all()
+    expected_keys = ["street_number", "street_name", "unit_number"]
 
-    # FIXME: come up with a more robust test of the synthetic content
+    assert all(street_key in expected_keys for street_key in address_map.keys())
+    for street_key, series in address_map.items():
+        assert (address_map[street_key].index == address_ids["address_id"]).all()
+        assert len(address_map[street_key].index.unique()) == len(
+            address_map[street_key].index
+        )
