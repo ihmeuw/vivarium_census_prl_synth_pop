@@ -754,6 +754,7 @@ class TaxDependentsObserver(BaseObserver):
         "sex",
         "ssn",
         "tax_year",
+        "race_ethnicity",
     ]
 
     def __init__(self, w2_observer):
