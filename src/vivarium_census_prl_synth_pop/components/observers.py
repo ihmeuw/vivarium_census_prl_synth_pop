@@ -550,6 +550,8 @@ class TaxW2Observer(BaseObserver):
         "ssn",
         "ssn_id",  # simulant id for ssn from another simulant
         "address_id",
+        "state",
+        "puma",
         "po_box",
         "employer_id",
         "employer_name",
@@ -673,6 +675,8 @@ class TaxW2Observer(BaseObserver):
             "sex",
             "ssn",
             "address_id",
+            "state",
+            "puma",
             "housing_type",
             "race_ethnicity",
         ]:
@@ -742,9 +746,11 @@ class TaxDependentsObserver(BaseObserver):
         "last_name_id",
         "age",
         "date_of_birth",
+        "address_id",
+        "state",
+        "puma",
         "sex",
         "ssn",
-        "address_id",
         "tax_year",
     ]
 
@@ -866,6 +872,8 @@ class Tax1040Observer(BaseObserver):
         "sex",
         "ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
+        "state",
+        "puma",
         "relation_to_household_head",  # needed to identify couples filing jointly
         "housing_type",
         "tax_year",
