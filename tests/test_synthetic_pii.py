@@ -5,9 +5,11 @@ from typing import List
 import numpy as np
 import pandas as pd
 import pytest
+import string
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
+from vivarium_census_prl_synth_pop.results_processing.addresses import get_household_address_map
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
@@ -271,17 +273,33 @@ def test_last_name_from_oldest_member(mocker):
 
 
 @pytest.mark.slow
-def test_address():
-    g = synthetic_pii.Address()
+def test_address(mocker):
+    # Fake synthetic pii address data
+    synthetic_address_data = pd.DataFrame({
+        "StreetNumber": [list(range(26))],
+        "StreetName": list(string.ascii_lowercase),
+        "Unit": [list(range(26))]
+    })
+    synthetic_address_data.set_index(["StreetNumber", "StreetName", "Unit"], inplace=True)
 
-    index = range(10)
-    df_in = pd.DataFrame(index=index)
+    # Mock artifact
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = synthetic_address_data
+    # Address_ids will just be an series of ids so we just need a unique series in a one column dataframe
+    address_ids = pd.DataFrame()
+    address_ids["address_id"] = list(range(10))
+    fake_obs_data = {"address_id": address_ids}
 
-    df = g.generate(df_in)
+    address_map = get_household_address_map(
+        "address_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+    )
 
-    assert len(df) == len(
-        index
-    ), "expect result to be a dataframe with rows corresponding to `index`"
+    # todo: test keys of address_map
+    # todo: test columns of generated addresses
+    # todo: test index of fake_obs_data is index of generated addresses and all are present
 
     assert "zip_code" in df.columns
     assert "address" in df.columns
