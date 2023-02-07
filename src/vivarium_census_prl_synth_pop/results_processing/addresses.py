@@ -44,8 +44,9 @@ def get_household_address_map(
             n_to_choose=len(address_data),
             randomness_stream=randomness,
             additional_key=obs_column,
-        )
-        address_data[obs_column] = address_details.fillna("", axis=0)
+        ).values
+        address_data[obs_column] = address_details
+        address_data.fillna("", inplace=True)
         # Update map
         address_map[obs_column] = address_data[obs_column]
 

@@ -272,19 +272,18 @@ def test_last_name_from_oldest_member(mocker):
     assert (last_names_map["last_name"] == expected).all()
 
 
-@pytest.mark.slow
 def test_address(mocker):
     # Fake synthetic pii address data
     synthetic_address_data = pd.DataFrame({
-        "StreetNumber": [list(range(26))],
+        "StreetNumber": list(range(26)),
         "StreetName": list(string.ascii_lowercase),
-        "Unit": [list(range(26))]
+        "Unit": list(range(26)),
     })
     synthetic_address_data.set_index(["StreetNumber", "StreetName", "Unit"], inplace=True)
-
     # Mock artifact
     artifact = mocker.MagicMock()
     artifact.load.return_value = synthetic_address_data
+
     # Address_ids will just be an series of ids so we just need a unique series in a one column dataframe
     address_ids = pd.DataFrame()
     address_ids["address_id"] = list(range(10))
@@ -296,13 +295,10 @@ def test_address(mocker):
         artifact,
         randomness,
     )
-
-    # todo: test keys of address_map
-    # todo: test columns of generated addresses
+    expected_keys = ["street_number", "street_name", "unit"]
     # todo: test index of fake_obs_data is index of generated addresses and all are present
+    assert all(key in expected_keys for key in address_map.keys())
+    for key, value in address_map.values():
+        assert (address_map.values()[key].index == address_ids["address_ids"]).all()
 
-    assert "zip_code" in df.columns
-    assert "address" in df.columns
-    assert not np.any(df.address.isnull())
-    assert not np.any(df.zip_code.isnull())
     # FIXME: come up with a more robust test of the synthetic content
