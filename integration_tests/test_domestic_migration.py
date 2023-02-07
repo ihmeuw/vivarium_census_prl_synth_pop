@@ -268,17 +268,15 @@ def test_addresses_during_moves(simulants_on_adjacent_timesteps, unit_id_col, ad
 
 
 def test_po_box(tracked_live_populations):
-    """Tests that the prevalence of PO Boxes and ."""
+    """Tests the prevalence of PO Boxes."""
     for pop in tracked_live_populations:
         # Check that actual proportion of households without PO Boxes (i.e., physical
         # address is the same as mailing) is close to the expected proportion
         assert np.isclose(
-            len(
-                pop[pop["household_details.po_box"] == data_values.NO_PO_BOX].groupby(
-                    "household_id"
-                )
-            )
-            / len(pop.groupby("household_id")),
+            pop[pop["household_details.po_box"] == data_values.NO_PO_BOX][
+                "household_id"
+            ].nunique()
+            / pop["household_id"].nunique(),
             data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
             rtol=0.01,
         )
