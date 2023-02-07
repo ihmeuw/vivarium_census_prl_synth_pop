@@ -25,6 +25,10 @@ def format_simulant_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["simulant_id"].astype(str)
 
 
+def format_address_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["address_id"].astype(str)
+
+
 def get_state_name(data: pd.DataFrame) -> pd.Series:
     state_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
     return data["state"].map(state_map)
@@ -38,6 +42,7 @@ COLUMN_FORMATTERS = {
     "middle_name_id": (get_middle_name_id, ["middle_name_id", "random_seed"]),
     "last_name_id": (get_last_name_id, ["last_name_id", "random_seed"]),
     "state": (get_state_name, ["state"]),
+    "address_id": (format_address_id, ["address_id", "random_seed"]),
 }
 
 
