@@ -41,6 +41,8 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "date_of_birth",
         "address_id",
+        "state",
+        "puma",
         "guardian_1",
         "guardian_2",
         "guardian_1_address_id",
@@ -154,15 +156,11 @@ class HouseholdSurveyObserver(BaseObserver):
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "household_id",
-        "state",
-        "puma",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "survey_date",
         "household_id",
         "housing_type",
-        "state",
-        "puma",
     ]
     SAMPLING_RATE_PER_MONTH = {
         "acs": 12000,
