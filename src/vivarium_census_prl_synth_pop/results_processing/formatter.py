@@ -29,9 +29,14 @@ def format_address_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["address_id"].astype(str)
 
 
-def get_state_name(data: pd.DataFrame) -> pd.Series:
-    state_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
-    return data["state"].map(state_map)
+def get_state_abbreviation(data: pd.DataFrame) -> pd.Series:
+    state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
+    state_name_map = data["state"].map(state_id_map)
+    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+
+
+def get_state_id(data: pd.DataFrame) -> pd.Series:
+    return data["state"]
 
 
 # Fixme: Add formatting functions as necessary
@@ -41,7 +46,9 @@ COLUMN_FORMATTERS = {
     "first_name_id": (get_first_name_id, ["first_name_id", "random_seed"]),
     "middle_name_id": (get_middle_name_id, ["middle_name_id", "random_seed"]),
     "last_name_id": (get_last_name_id, ["last_name_id", "random_seed"]),
-    "state": (get_state_name, ["state"]),
+    # fixme: This is a temp fix until state is moved to household details pipeline - MIC 3728
+    "state_id": (get_state_id, ["state"]),
+    "state": (get_state_abbreviation, ["state"]),
     "address_id": (format_address_id, ["address_id", "random_seed"]),
 }
 
