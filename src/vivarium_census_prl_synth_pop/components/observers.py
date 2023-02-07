@@ -876,6 +876,7 @@ class Tax1040Observer(BaseObserver):
         "address_id",  # we do not need to include household_id because we can find it from address_id
         "state",
         "puma",
+        "race_ethnicity",
         "relation_to_household_head",  # needed to identify couples filing jointly
         "housing_type",
         "tax_year",
