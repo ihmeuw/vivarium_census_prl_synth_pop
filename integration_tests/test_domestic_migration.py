@@ -273,10 +273,10 @@ def test_po_box(tracked_live_populations):
         # Check that actual proportion of households without PO Boxes (i.e., physical
         # address is the same as mailing) is close to the expected proportion
         assert np.isclose(
-            pop[
-                pop["household_details.po_box"] == data_values.NO_PO_BOX
-            ].household_id.nunique()
-            / pop.household_id.nunique(),
+            pop[pop["household_details.po_box"] == data_values.NO_PO_BOX][
+                "household_id"
+            ].nunique()
+            / pop["household_id"].nunique(),
             data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
             rtol=0.01,
         )
