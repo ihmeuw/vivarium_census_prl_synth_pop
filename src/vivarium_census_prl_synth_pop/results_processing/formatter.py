@@ -46,7 +46,7 @@ COLUMN_FORMATTERS = {
     "first_name_id": (get_first_name_id, ["first_name_id", "random_seed"]),
     "middle_name_id": (get_middle_name_id, ["middle_name_id", "random_seed"]),
     "last_name_id": (get_last_name_id, ["last_name_id", "random_seed"]),
-    # This is a temp fix until the pipeline is change in the simulation and needs to happen before abbreviation
+    # fixme: This is a temp fix until state is moved to household details pipeline - MIC 3728
     "state_id": (get_state_id, ["state"]),
     "state": (get_state_abbreviation, ["state"]),
     "address_id": (format_address_id, ["address_id", "random_seed"]),
