@@ -734,12 +734,7 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = [
-        "alive",
-        "in_united_states",
-        "tracked",
-        "ssn",
-    ]
+    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "ssn"]
     OUTPUT_COLUMNS = [
         "guardian_id",
         "dependent_id",
