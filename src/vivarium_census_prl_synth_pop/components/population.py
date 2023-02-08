@@ -182,8 +182,12 @@ class Population:
         ]
 
         new_simulants = self.initialize_new_simulants_from_acs(chosen_persons, pop_data)
-
-        household_ids = self.households.create_households(len(chosen_households))
+        household_ids = self.households.create_households(
+            num_households=len(chosen_households),
+            states_pumas=chosen_households[["state", "puma"]].rename(
+                columns={"state": "state_id"}
+            ),
+        )
         household_id_mapping = pd.Series(
             household_ids, index=chosen_households["census_sample_household_id"]
         )

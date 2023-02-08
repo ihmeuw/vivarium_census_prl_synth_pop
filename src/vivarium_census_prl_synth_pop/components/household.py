@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -59,6 +61,9 @@ class Households:
                 "address_id": data_values.GQ_HOUSING_TYPE_MAP.keys(),
                 "housing_type": data_values.GQ_HOUSING_TYPE_MAP.values(),
                 "po_box": data_values.NO_PO_BOX,
+                # Add dummy state_id and puma during setup b/c we do not have
+                # access to the randomness stream - these will be sampled
+                # during initialization
                 "state_id": -1,
                 "puma": -1,
             },
@@ -105,7 +110,7 @@ class Households:
                 .astype(HOUSEHOLD_ID_DTYPE)
                 .rename("household_id")
             )
-            states_pumas = self.generate_states_pumas(gq_household_ids)
+            states_pumas = self.randomly_sample_states_pumas(gq_household_ids)
             self._households.loc[gq_household_ids, ["state_id", "puma"]] = states_pumas
 
     ##################
@@ -113,10 +118,15 @@ class Households:
     ##################
 
     def create_households(
-        self, num_households: int, housing_type: str = "Standard"
+        self,
+        num_households: int,
+        housing_type: str = "Standard",
+        states_pumas: Optional[pd.DataFrame] = None,
     ) -> pd.Series:
         """
         Create a specified number of new households, with new, unique address_ids.
+        This updates the _households data structure with the new household data
+        and also returns a pd.Series of the new household IDs
 
         Parameters
         ----------
@@ -124,6 +134,9 @@ class Households:
             The number of households to create.
         housing_type
             The housing type of the new households.
+        states_pumas (optional)
+            A dataframe of the households' state_ids and pumas. If it is None, then
+            new states ande pumas will be sampled from ACS data.
 
         Returns
         -------
@@ -135,15 +148,18 @@ class Households:
             num_households, taken=self._households["address_id"]
         )
         po_boxes = self.generate_po_boxes(num_households)
-        states_pumas = self.generate_states_pumas(household_ids)
+        if states_pumas is None:
+            states_pumas = self.randomly_sample_states_pumas(household_ids)
+        states = np.array(states_pumas["state_id"])
+        pumas = np.array(states_pumas["puma"])
 
         new_households = pd.DataFrame(
             {
                 "address_id": address_ids,
                 "housing_type": housing_type,
                 "po_box": po_boxes,
-                "state_id": states_pumas["state_id"],
-                "puma": states_pumas["puma"],
+                "state_id": states,
+                "puma": pumas,
             },
             index=household_ids.astype(HOUSEHOLD_ID_DTYPE),
         ).astype(HOUSEHOLD_DETAILS_DTYPES)
@@ -154,8 +170,8 @@ class Households:
 
     def update_household_addresses(self, household_ids: pd.Series) -> None:
         """
-        Changes the address_id associated with each household_id in household_ids
-        to a new, unique value.
+        Changes the address information (address_id, state, puma) associated with
+        each household_id in household_ids to new values with unique address_ids.
 
         Parameters
         ----------
@@ -166,7 +182,7 @@ class Households:
             len(household_ids), taken=self._households["address_id"]
         )
         po_boxes = self.generate_po_boxes(len(household_ids))
-        states_pumas = self.generate_states_pumas(household_ids)
+        states_pumas = self.randomly_sample_states_pumas(household_ids)
         self._households.loc[household_ids, "address_id"] = new_address_ids
         self._households.loc[household_ids, "po_box"] = po_boxes
         self._households.loc[household_ids, ["state_id", "puma"]] = states_pumas
@@ -217,7 +233,7 @@ class Households:
         )
         return np.array(po_boxes)
 
-    def generate_states_pumas(self, household_ids) -> pd.DataFrame:
+    def randomly_sample_states_pumas(self, household_ids) -> pd.DataFrame:
         states_pumas = pd.DataFrame(
             vectorized_choice(
                 options=np.array(self.state_puma_options, dtype="i,i"),
