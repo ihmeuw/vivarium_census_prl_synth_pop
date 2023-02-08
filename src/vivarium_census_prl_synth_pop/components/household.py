@@ -1,15 +1,19 @@
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.population import SimulantData
+from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.constants import data_values
-from vivarium_census_prl_synth_pop.utilities import random_integers
+from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
 
 HOUSEHOLD_ID_DTYPE = int
 HOUSEHOLD_DETAILS_DTYPES = {
     "address_id": int,
     "housing_type": pd.CategoricalDtype(categories=data_values.HOUSING_TYPES),
     "po_box": int,
+    "puma": int,
+    "state_id": int,
 }
 
 
@@ -32,12 +36,17 @@ class Households:
     #################
 
     def setup(self, builder: Builder):
+        self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.randomness = builder.randomness.get_stream(self.name)
         self.columns_used = [
             "tracked",
             "household_id",
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
+        self.state_puma_options = self._get_state_puma_options(
+            builder.data.load("population.households")
+        )
 
         # GQ households are special, with fixed IDs
         gq_household_ids = (
@@ -50,6 +59,8 @@ class Households:
                 "address_id": data_values.GQ_HOUSING_TYPE_MAP.keys(),
                 "housing_type": data_values.GQ_HOUSING_TYPE_MAP.values(),
                 "po_box": data_values.NO_PO_BOX,
+                "state_id": -1,
+                "puma": -1,
             },
             index=gq_household_ids,
         ).astype(HOUSEHOLD_DETAILS_DTYPES)
@@ -60,7 +71,9 @@ class Households:
             requires_columns=["household_id", "tracked"],
         )
 
-        self.randomness = builder.randomness.get_stream(self.name)
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -79,6 +92,21 @@ class Households:
         )
         household_details = household_details.astype(HOUSEHOLD_DETAILS_DTYPES)
         return household_details
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        "Sample the GQ household states/pumas on initialization"
+        if pop_data.creation_time < self.start_time:
+            gq_household_ids = (
+                pd.Series(data_values.GQ_HOUSING_TYPE_MAP.keys())
+                .astype(HOUSEHOLD_ID_DTYPE)
+                .rename("household_id")
+            )
+            states_pumas = self.generate_states_pumas(gq_household_ids)
+            self._households.loc[gq_household_ids, ["state_id", "puma"]] = states_pumas
 
     ##################
     # Public methods #
@@ -107,12 +135,15 @@ class Households:
             num_households, taken=self._households["address_id"]
         )
         po_boxes = self.generate_po_boxes(num_households)
+        states_pumas = self.generate_states_pumas(household_ids)
 
         new_households = pd.DataFrame(
             {
                 "address_id": address_ids,
                 "housing_type": housing_type,
                 "po_box": po_boxes,
+                "state_id": states_pumas["state_id"],
+                "puma": states_pumas["puma"],
             },
             index=household_ids.astype(HOUSEHOLD_ID_DTYPE),
         ).astype(HOUSEHOLD_DETAILS_DTYPES)
@@ -135,12 +166,22 @@ class Households:
             len(household_ids), taken=self._households["address_id"]
         )
         po_boxes = self.generate_po_boxes(len(household_ids))
+        states_pumas = self.generate_states_pumas(household_ids)
         self._households.loc[household_ids, "address_id"] = new_address_ids
         self._households.loc[household_ids, "po_box"] = po_boxes
+        self._households.loc[household_ids, ["state_id", "puma"]] = states_pumas
 
     ##################
     # Helper methods #
     ##################
+
+    @staticmethod
+    def _get_state_puma_options(df: pd.DataFrame) -> pd.Series:
+        state_puma_map = df.groupby("state")["puma"].unique()
+        state_puma_options = []
+        for state in state_puma_map.index:
+            state_puma_options.extend([(state, puma) for puma in state_puma_map[state]])
+        return state_puma_options
 
     @staticmethod
     def _next_available_ids(num_ids: int, taken: pd.Series):
@@ -175,3 +216,16 @@ class Households:
             additional_key="po_box_number",
         )
         return np.array(po_boxes)
+
+    def generate_states_pumas(self, household_ids) -> pd.DataFrame:
+        states_pumas = pd.DataFrame(
+            vectorized_choice(
+                options=np.array(self.state_puma_options, dtype="i,i"),
+                n_to_choose=len(household_ids),
+                randomness_stream=self.randomness,
+                additional_key="state_puma",
+            ),
+            index=household_ids,
+        )
+        states_pumas.columns = ["state_id", "puma"]
+        return states_pumas

@@ -202,7 +202,6 @@ def _capitalize_names(name):
 
 
 def load_last_name_data(key: str, location: str) -> pd.DataFrame:
-
     df_census_names = pd.read_csv(paths.LAST_NAME_DATA_PATH, na_values=["(S)"])
 
     df_census_names["name"] = df_census_names["name"].apply(_capitalize_names)

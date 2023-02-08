@@ -326,7 +326,6 @@ class Businesses:
         return new_employers
 
     def calculate_income(self, idx: pd.Index) -> pd.Series:
-
         income = pd.Series(0.0, index=idx)
         pop = self.population_view.get(idx, query="tracked")
         employed_idx = pop.index[pop["employer_id"] != data_values.Unemployed.EMPLOYER_ID]

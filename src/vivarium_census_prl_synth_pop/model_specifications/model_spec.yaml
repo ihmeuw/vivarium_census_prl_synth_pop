@@ -20,7 +20,8 @@ components:
 
 configuration:
     input_data:
-        artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/united_states_of_america.hdf'
+        # artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/united_states_of_america.hdf'
+        artifact_path: '/Users/sbachmei/scratch/prl/artifacts/united_states_of_america.hdf'
         input_draw_number: 0
     output_data:
         results_directory: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/results/'
