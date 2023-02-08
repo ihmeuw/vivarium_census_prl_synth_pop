@@ -46,9 +46,9 @@ class Households:
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
-        self.state_puma_options = self._get_state_puma_options(
-            builder.data.load("population.households")
-        )
+        self.state_puma_options = builder.data.load("population.households")[
+            ["state", "puma"]
+        ].drop_duplicates()
 
         # GQ households are special, with fixed IDs
         gq_household_ids = (
@@ -192,14 +192,6 @@ class Households:
     ##################
 
     @staticmethod
-    def _get_state_puma_options(df: pd.DataFrame) -> pd.Series:
-        state_puma_map = df.groupby("state")["puma"].unique()
-        state_puma_options = []
-        for state in state_puma_map.index:
-            state_puma_options.extend([(state, puma) for puma in state_puma_map[state]])
-        return state_puma_options
-
-    @staticmethod
     def _next_available_ids(num_ids: int, taken: pd.Series):
         # NOTE: Our approach to finding available IDs assumes that households are never deleted --
         # because if the household with the highest ID were deleted, and we only used the current
@@ -234,14 +226,13 @@ class Households:
         return np.array(po_boxes)
 
     def randomly_sample_states_pumas(self, household_ids) -> pd.DataFrame:
-        states_pumas = pd.DataFrame(
-            vectorized_choice(
-                options=np.array(self.state_puma_options, dtype="i,i"),
-                n_to_choose=len(household_ids),
-                randomness_stream=self.randomness,
-                additional_key="state_puma",
-            ),
-            index=household_ids,
+        states_pumas_idx = vectorized_choice(
+            options=self.state_puma_options.index,
+            n_to_choose=len(household_ids),
+            randomness_stream=self.randomness,
+            additional_key="state_puma",
         )
-        states_pumas.columns = ["state_id", "puma"]
+        states_pumas = self.state_puma_options.loc[states_pumas_idx]
+        states_pumas.index = household_ids
+        states_pumas.rename(columns={"state": "state_id"}, inplace=True)
         return states_pumas
