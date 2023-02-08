@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Tuple
@@ -91,7 +92,11 @@ def perform_post_processing(
 
         logger.info(f"Writing final results for {observer}.")
         # fixme: Process columns for final outputs - columns being mapped are no longer dropped
-        obs_data.to_csv(final_output_dir / f"{observer}.csv.bz2", index=False)
+        obs_data.to_csv(
+            final_output_dir / f"{observer}.csv.bz2",
+            index=False,
+            quoting=csv.QUOTE_NONNUMERIC,
+        )
 
 
 def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
