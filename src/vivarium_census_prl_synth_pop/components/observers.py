@@ -469,7 +469,7 @@ class SocialSecurityObserver(BaseObserver):
 
     @property
     def output_columns(self):
-        return list(set(self.OUTPUT_COLUMNS) - set(self.EXTRA_OUTPUT_COLUMNS))
+        return self.OUTPUT_COLUMNS
 
     def setup(self, builder: Builder):
         super().setup(builder)
