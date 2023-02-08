@@ -137,15 +137,12 @@ def test_state_complete_coverage(populations, sim):
         assert states_in_artifact == set(pop["state"])
 
 
-@pytest.mark.parametrize(
-    "pop_type", [pytest.param("gq", marks=pytest.mark.xfail(reason="MIC-3728")), "non_gq"]
-)
-def test_pumas_states(populations, pop_type):
-    """Each unique non-GQ initialized address_id should have identical puma/state"""
-    pop = populations[0]
-    gq_housing_mask = pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
-    sub_population = pop[gq_housing_mask] if pop_type == "gq" else pop[~gq_housing_mask]
-    assert (
-        sub_population.groupby("household_details.address_id")[["state", "puma"]].nunique()
-        == 1
-    ).values.all()
+def test_pumas_states(populations):
+    """Each unique address_id should have identical puma/state"""
+    for pop in populations:
+        assert (
+            pop.groupby("household_details.address_id")[
+                ["household_details.state_id", "household_details.puma"]
+            ].nunique()
+            == 1
+        ).values.all()

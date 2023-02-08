@@ -137,7 +137,6 @@ def fake_population() -> pd.DataFrame:
 
 
 def test_update_to_reference_person_and_relationships(mocker, fake_population):
-
     expected_relationships_1 = pd.Series(
         data=[
             "Reference person",
