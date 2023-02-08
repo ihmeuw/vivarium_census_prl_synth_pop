@@ -161,7 +161,13 @@ class Population:
     ) -> pd.DataFrame:
         new_simulants = self.initialize_new_simulants_from_acs(acs_persons, pop_data)
 
-        household_ids = self.households.create_households(len(acs_households))
+        household_ids = self.households.create_households(
+            num_households=len(acs_households),
+            states_pumas=acs_households[["state", "puma"]].rename(
+                columns={"state": "state_id"}
+            ),
+        )
+
         household_id_mapping = pd.Series(
             household_ids, index=acs_households["acs_sample_household_id"]
         )
