@@ -88,11 +88,9 @@ def perform_post_processing(
             if column in maps:
                 for target_column_name, column_map in maps[column].items():
                     obs_data[target_column_name] = obs_data[column].map(column_map)
-                # This assumes the column we are mapping will be dropped
-                obs_data.drop(columns=column, inplace=True)
 
         logger.info(f"Writing final results for {observer}.")
-        # fixme: Process columns for final outputs
+        # fixme: Process columns for final outputs - columns being mapped are no longer dropped
         obs_data.to_csv(final_output_dir / f"{observer}.csv.bz2", index=False)
 
 
