@@ -158,7 +158,6 @@ class HouseholdSurveyObserver(BaseObserver):
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "household_id",
-        "address_id",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "survey_date",
@@ -248,7 +247,7 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head", "address_id"]
+    ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "relation_to_household_head",
         "census_year",
@@ -303,7 +302,7 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
-    ADDITIONAL_OUTPUT_COLUMNS = ["wic_year", "address_id"]
+    ADDITIONAL_OUTPUT_COLUMNS = ["wic_year"]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
     WIC_RACE_ETHNICITIES = ["White", "Black", "Latino", "Other"]
@@ -448,7 +447,6 @@ class SocialSecurityObserver(BaseObserver):
         "sex",
         "race_ethnicity",
     ]
-    EXTRA_OUTPUT_COLUMNS = ["address_id"]
     POST_PROCESSING_FIRST_NAME_METADATA_COLS = [
         "first_name_id",
         "middle_name_id",
@@ -543,7 +541,6 @@ class TaxW2Observer(BaseObserver):
         "tracked",
         "ssn",
         "employer_id",
-        "address_id",
     ]
     OUTPUT_COLUMNS = [
         "first_name_id",
@@ -737,7 +734,7 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "ssn", "address_id"]
+    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "ssn"]
     OUTPUT_COLUMNS = [
         "guardian_id",
         "dependent_id",
@@ -863,7 +860,6 @@ class Tax1040Observer(BaseObserver):
         "tracked",
         "ssn",
         "relation_to_household_head",
-        "address_id",
     ]
     OUTPUT_COLUMNS = [
         "first_name_id",
