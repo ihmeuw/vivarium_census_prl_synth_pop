@@ -18,6 +18,43 @@ HOUSEHOLD_ADDRESS_COL_MAP = {
 }
 
 
+def get_address_id_maps(
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
+    artifact: Artifact,
+    randomness: RandomnessStream,
+):
+    """
+    Get all maps that are indexed by `address_id`.
+    """
+    if column_name != "address_id":
+        raise ValueError(f"Expected `address_id`, got `{column_name}`")
+    maps = dict()
+    maps.update(get_zip_map(column_name, obs_data, randomness))
+    maps.update(get_household_address_map(column_name, obs_data, artifact, randomness))
+    return maps
+
+
+def get_zip_map(
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
+    randomness: RandomnessStream,
+) -> Dict[str, pd.Series]:
+    zip_map = {}
+    output_cols = [column_name]
+    address_ids = format_data_for_mapping(
+        index_name=column_name,
+        obs_results=obs_data,
+        output_columns=output_cols,
+    )
+    zip_data = pd.DataFrame(index=address_ids.index)
+
+    # Read in CSV
+
+
+    # Map against obs_data
+
+
 def get_household_address_map(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],

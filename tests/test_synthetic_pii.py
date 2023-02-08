@@ -309,3 +309,9 @@ def test_address(mocker):
             address_map[street_key].index
         )
         assert not (address_map["street_name"].isnull().any())
+
+# TODO: Tests for ZIP
+# - all address_ids from input should be in output map, and only once
+# - input of address_id from observer, csvs of puma and state->zip, check that n addresses w/state/puma combination that
+#   zip codes match a given proportion (dummy) (see test for names above)
+#
