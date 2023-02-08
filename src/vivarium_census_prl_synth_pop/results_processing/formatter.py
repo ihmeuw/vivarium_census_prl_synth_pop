@@ -58,7 +58,6 @@ def format_data_for_mapping(
     obs_results: Dict[str, pd.DataFrame],
     output_columns: List[str],
 ) -> pd.DataFrame:
-    data_to_map = [obs_data[output_columns] for obs_data in obs_results.values()]
 
     data_to_map = [
         obs_data[output_columns]
