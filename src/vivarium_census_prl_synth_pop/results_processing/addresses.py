@@ -35,7 +35,7 @@ def get_household_address_map(
     )
     address_data = pd.DataFrame(index=address_ids.index)
 
-    # Load address dazta from artifact
+    # Load address data from artifact
     synthetic_address_data = artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES).reset_index()
     # Generate addresses
     for artifact_column, obs_column in HOUSEHOLD_ADDRESS_COL_MAP.items():
