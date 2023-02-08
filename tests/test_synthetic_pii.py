@@ -307,3 +307,4 @@ def test_address(mocker):
         assert len(address_map[street_key].index.unique()) == len(
             address_map[street_key].index
         )
+        assert not (address_map["street_name"].isnull().any())
