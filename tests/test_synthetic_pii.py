@@ -1,4 +1,5 @@
 # Sample Test passing with nose and pytest
+import string
 from types import MethodType
 from typing import List
 
@@ -8,6 +9,9 @@ import pytest
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
+from vivarium_census_prl_synth_pop.results_processing.addresses import (
+    get_household_address_map,
+)
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
@@ -270,21 +274,37 @@ def test_last_name_from_oldest_member(mocker):
     assert (last_names_map["last_name"] == expected).all()
 
 
-@pytest.mark.slow
-def test_address():
-    g = synthetic_pii.Address()
+def test_address(mocker):
+    # Fake synthetic pii address data
+    synthetic_address_data = pd.DataFrame(
+        {
+            "StreetNumber": list(range(26)),
+            "StreetName": list(string.ascii_lowercase),
+            "Unit": list(range(26)),
+        }
+    )
+    synthetic_address_data.set_index(["StreetNumber", "StreetName", "Unit"], inplace=True)
+    # Mock artifact
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = synthetic_address_data
 
-    index = range(10)
-    df_in = pd.DataFrame(index=index)
+    # Address_ids will just be an series of ids so we just need a unique series in a one column dataframe
+    address_ids = pd.DataFrame()
+    address_ids["address_id"] = list(range(10))
+    fake_obs_data = {"address_id": address_ids}
 
-    df = g.generate(df_in)
+    address_map = get_household_address_map(
+        "address_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+    )
+    expected_keys = ["street_number", "street_name", "unit_number"]
 
-    assert len(df) == len(
-        index
-    ), "expect result to be a dataframe with rows corresponding to `index`"
-
-    assert "zip_code" in df.columns
-    assert "address" in df.columns
-    assert not np.any(df.address.isnull())
-    assert not np.any(df.zip_code.isnull())
-    # FIXME: come up with a more robust test of the synthetic content
+    assert all(street_key in expected_keys for street_key in address_map.keys())
+    for street_key, series in address_map.items():
+        assert (address_map[street_key].index == address_ids["address_id"]).all()
+        assert len(address_map[street_key].index.unique()) == len(
+            address_map[street_key].index
+        )
+        assert not (address_map["street_name"].isnull().any())
