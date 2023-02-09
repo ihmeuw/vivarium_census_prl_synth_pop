@@ -90,7 +90,7 @@ def get_last_name_map(
     )
     oldest = name_data.reset_index().drop_duplicates("last_name_id").set_index("last_name_id")
 
-    last_names_map = pd.Series(index=oldest.index, dtype=str)
+    last_names_map = pd.Series("", index=oldest.index)
     for race_eth, df_race_eth in oldest.groupby("race_ethnicity"):
         last_names_map.loc[df_race_eth.index] = random_last_names(
             race_eth, len(df_race_eth), column_name, artifact, randomness
