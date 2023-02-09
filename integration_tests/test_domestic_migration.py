@@ -193,7 +193,12 @@ def test_only_living_people_change_households(simulants_on_adjacent_timesteps):
             "household_details.state_id",
             "household_details.puma",
         ),
-        ("household_id", "household_details.po_box", "household_details.state_id", "household_details.puma"),
+        (
+            "household_id",
+            "household_details.po_box",
+            "household_details.state_id",
+            "household_details.puma",
+        ),
     ],
 )
 def test_unit_members_share_address(
@@ -218,7 +223,12 @@ def test_unit_members_share_address(
             "household_details.state_id",
             "household_details.puma",
         ),
-        ("household_id", "household_details.po_box", "household_details.state_id", "household_details.puma"),
+        (
+            "household_id",
+            "household_details.po_box",
+            "household_details.state_id",
+            "household_details.puma",
+        ),
     ],
 )
 def test_unit_address_uniqueness(
@@ -235,7 +245,6 @@ def test_unit_address_uniqueness(
             assert (pop.groupby(address_cols)[unit_id_col].nunique() == 1).all()
 
 
-
 @pytest.mark.parametrize(
     "state_id_col, puma_col",
     [
@@ -243,15 +252,14 @@ def test_unit_address_uniqueness(
         ("household_details.state_id", "household_details.puma"),
     ],
 )
-def test_pumas_exist_in_states(
-    sim, populations, state_id_col, puma_col
-):
+def test_pumas_exist_in_states(sim, populations, state_id_col, puma_col):
     """Check that PUMAs map to correct state.
 
     NOTE: This is an imperfect test because PUMAs are only unique within states
     and so one PUMA can exist in multiple states. Here we only ensure no
     impossible PUMAs exist in each state
     """
+    # FIXME: Use the US households static file for states/pumas
     state_puma_map = (
         sim._data.artifact.load("population.households")
         .reset_index()

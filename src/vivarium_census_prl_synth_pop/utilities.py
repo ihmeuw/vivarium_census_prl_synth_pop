@@ -8,7 +8,7 @@ import pandas as pd
 from loguru import logger
 from scipy import stats
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.randomness import Array, RandomnessStream, get_hash
+from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
 from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -169,15 +169,27 @@ def get_norm_from_quantiles(
 def vectorized_choice(
     options: Array,
     n_to_choose: int,
-    randomness_stream: RandomnessStream,
+    randomness_stream: RandomnessStream = None,
     weights: Array = None,
     additional_key: Any = None,
+    random_seed: int = None,
 ):
+    if not randomness_stream and not (str(additional_key) and str(random_seed)):
+        raise RuntimeError(
+            "An additonal_key and a ransom_seed are required in 'vectorized_choice'"
+            + "if no RandomnessStream is passed in"
+        )
     if weights is None:
         n = len(options)
         weights = np.ones(n) / n
     # for each of n_to_choose, sample uniformly between 0 and 1
-    probs = randomness_stream.get_draw(np.arange(n_to_choose), additional_key=additional_key)
+    index = pd.Index(np.arange(n_to_choose))
+    if randomness_stream is None:
+        # Generate an additional_key on-the-fly and use that in randomness.random
+        additional_key = f"{additional_key}_{random_seed}"
+        probs = random(str(additional_key), index)
+    else:
+        probs = randomness_stream.get_draw(index, additional_key=additional_key)
 
     # build cdf based on weights
     pmf = weights / weights.sum()

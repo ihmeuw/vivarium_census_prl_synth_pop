@@ -46,6 +46,7 @@ class Households:
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
+        # FIXME: Use the US address static file for states/pumas
         self.state_puma_options = builder.data.load("population.households")[
             ["state", "puma"]
         ].drop_duplicates()
@@ -56,6 +57,9 @@ class Households:
             .astype(HOUSEHOLD_ID_DTYPE)
             .rename("household_id")
         )
+        states_pumas = self.randomly_sample_states_pumas(
+            gq_household_ids, random_seed=builder.configuration.randomness.random_seed
+        )
         self._households = pd.DataFrame(
             {
                 "address_id": data_values.GQ_HOUSING_TYPE_MAP.keys(),
@@ -64,8 +68,8 @@ class Households:
                 # Add dummy state_id and puma during setup b/c we do not have
                 # access to the randomness stream - these will be sampled
                 # during initialization
-                "state_id": -1,
-                "puma": -1,
+                "state_id": states_pumas["state_id"],
+                "puma": states_pumas["puma"],
             },
             index=gq_household_ids,
         ).astype(HOUSEHOLD_DETAILS_DTYPES)
@@ -74,10 +78,6 @@ class Households:
             "household_details",
             source=self.get_household_details,
             requires_columns=["household_id", "tracked"],
-        )
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
         )
 
     ##################################
@@ -97,21 +97,6 @@ class Households:
         )
         household_details = household_details.astype(HOUSEHOLD_DETAILS_DTYPES)
         return household_details
-
-    ########################
-    # Event-driven methods #
-    ########################
-
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        "Sample the GQ household states/pumas on initialization"
-        if pop_data.creation_time < self.start_time:
-            gq_household_ids = (
-                pd.Series(data_values.GQ_HOUSING_TYPE_MAP.keys())
-                .astype(HOUSEHOLD_ID_DTYPE)
-                .rename("household_id")
-            )
-            states_pumas = self.randomly_sample_states_pumas(gq_household_ids)
-            self._households.loc[gq_household_ids, ["state_id", "puma"]] = states_pumas
 
     ##################
     # Public methods #
@@ -225,12 +210,19 @@ class Households:
         )
         return np.array(po_boxes)
 
-    def randomly_sample_states_pumas(self, household_ids) -> pd.DataFrame:
+    def randomly_sample_states_pumas(
+        self, household_ids: pd.Series, random_seed: int = None
+    ) -> pd.DataFrame:
+        if random_seed is None:  # Use the randomness_stream
+            randomness_stream = self.randomness
+        else:
+            randomness_stream = None
         states_pumas_idx = vectorized_choice(
             options=self.state_puma_options.index,
             n_to_choose=len(household_ids),
-            randomness_stream=self.randomness,
-            additional_key="state_puma",
+            randomness_stream=randomness_stream,
+            additional_key="sample_states_pumas",
+            random_seed=random_seed,
         )
         states_pumas = self.state_puma_options.loc[states_pumas_idx]
         states_pumas.index = household_ids
