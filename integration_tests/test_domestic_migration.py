@@ -224,24 +224,29 @@ def test_unit_address_uniqueness(
 
 
 @pytest.mark.parametrize(
-    "unit_id_col, address_id_col, state_puma_cols",
+    "unit_id_col, address_id_col, state_id_col, puma_col",
     [
-        ("employer_id", "business_details.employer_address_id", []),
+        (
+            "employer_id",
+            "business_details.employer_address_id",
+            None,
+            None,
+        ),
         (
             "household_id",
             "household_details.address_id",
-            ["household_details.state_id", "household_details.puma"],
+            "household_details.state_id",
+            "household_details.puma",
         ),
     ],
 )
 def test_addresses_during_moves(
-    simulants_on_adjacent_timesteps, unit_id_col, address_id_col, state_puma_cols
+    simulants_on_adjacent_timesteps, unit_id_col, address_id_col, state_id_col, puma_col
 ):
-    """Check that unit (household and business) address details change after a move.
-    NOTE: This test requires a rather large pop size (>~200k) to work since the
-    rate of business moves is quite low
-    """
-    address_cols = [address_id_col] + state_puma_cols
+    """Check that unit (household and business) address details change after a move."""
+    address_cols = [address_id_col, state_id_col, puma_col]
+    address_cols = [x for x in address_cols if x is not None]
+    total_num_moved = 0
     for before, after in simulants_on_adjacent_timesteps:
         # get the unique unit (household or employer) dataset for before and after
         before_units = before.groupby(unit_id_col)[address_cols].first()
@@ -251,7 +256,10 @@ def test_addresses_during_moves(
         before_units = before_units.reindex(total_index)
         after_units = after_units.reindex(total_index)
         mask_moved_units = before_units[address_id_col] != after_units[address_id_col]
+        if not mask_moved_units.any():
+            continue
 
+        total_num_moved += mask_moved_units.sum()
         # Check that the number of moved units that have the same details is very low
         # NOTE: we cannot assert that all moved units have different details
         # because they are free to move within the same state or even PUMA
@@ -268,17 +276,22 @@ def test_addresses_during_moves(
             before_units[~mask_moved_units], after_units[~mask_moved_units]
         )
 
-        # TODO Check that *most* are in a new state when we add all locations
-        # Some movers are in a new state.
-        # assert any(before.loc[mask_movers, "state"] != after.loc[mask_movers, "state"])
-        # Most movers are in a different PUMA
-        puma_col = [x for x in state_puma_cols if "puma" in x]
-        if puma_col:  # TODO: remove conditioinal when puma/state implemented for businesses
-            puma_col = puma_col[0]
+        # Check that some movers are in a new state
+        # TODO Check that *most* are in a new state when we add all 50+ locations
+        if state_id_col:  # TODO: remove conditional when state is implemented for businesses
+            assert any(
+                before_units.loc[mask_moved_units, state_id_col]
+                != after_units.loc[mask_moved_units, state_id_col]
+            )
+        # Check that most movers are in a different PUMA
+        if puma_col:  # TODO: remove conditional when pumanis implemented for businesses
             assert (
                 before_units.loc[mask_moved_units, puma_col]
                 != after_units.loc[mask_moved_units, puma_col]
             ).mean() >= 0.95  # TODO: pick a smarter number?
+
+    # Check that at least some units moved during the sim
+    assert total_num_moved > 0
 
 
 def test_po_box(tracked_live_populations):
