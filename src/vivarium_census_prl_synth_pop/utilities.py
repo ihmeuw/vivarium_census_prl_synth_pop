@@ -353,39 +353,25 @@ def sample_acs_standard_households(
     return chosen_households, chosen_persons
 
 
-def sample_acs_group_quarters(
+def sample_acs_persons(
     target_number_sims: int,
-    acs_households: pd.DataFrame,
     acs_persons: pd.DataFrame,
     randomness: RandomnessStream,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    additional_key: str,
+) -> pd.DataFrame:
     """
-    Samples GQ people from ACS.
-    The persons returned include the state and puma columns
-    (currently in households data only, hence the need for the acs_households argument).
+    Samples persons from ACS individually with person weights.
     """
 
-    # group quarters each house one person per census_household_id
-    # they have NA household weights, but appropriately weighted person weights.
-    chosen_units_index = vectorized_choice(
-        options=acs_households.index,
+    chosen_persons_index = vectorized_choice(
+        options=acs_persons.index,
         n_to_choose=target_number_sims,
         randomness_stream=randomness,
-        weights=acs_households["person_weight"],
-        additional_key="choose_gq_units",
-    )
-    chosen_units = acs_households.loc[chosen_units_index]
-
-    # get simulants per GQ unit
-    # Once state and puma are in the households pipeline, we will not need to do this
-    chosen_persons = pd.merge(
-        chosen_units[["state", "puma", "census_household_id"]],
-        acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
-        on="census_household_id",
-        how="left",
+        weights=acs_persons["person_weight"],
+        additional_key=additional_key,
     )
 
-    return chosen_persons
+    return acs_persons.loc[chosen_persons_index].reset_index(drop=True)
 
 
 def randomly_sample_states_pumas(

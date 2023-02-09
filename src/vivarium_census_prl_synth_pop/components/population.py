@@ -12,7 +12,7 @@ from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import (
-    sample_acs_group_quarters,
+    sample_acs_persons,
     sample_acs_standard_households,
     vectorized_choice,
 )
@@ -43,6 +43,9 @@ class Population:
         )
         self.proportion_with_ssn = builder.lookup.build_table(
             data=data_values.PROPORTION_INITIALIZATION_WITH_SSN
+        )
+        self.proportion_immigrants_with_ssn = builder.lookup.build_table(
+            data=data_values.PROPORTION_IMMIGRANTS_WITH_SSN
         )
 
         self.start_time = get_time_stamp(builder.configuration.time.start)
@@ -95,9 +98,7 @@ class Population:
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
-        persons = builder.data.load(data_keys.POPULATION.PERSONS)[
-            metadata.PERSONS_COLUMNS_TO_INITIALIZE
-        ]
+        persons = builder.data.load(data_keys.POPULATION.PERSONS)
         return {"households": households, "persons": persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -108,9 +109,14 @@ class Population:
             # however, we don't need it after creating the initial population and want to avoid keeping
             # it in memory.
             self.population_data = None
-        # if new simulants are born into the sim
-        else:
+        elif pop_data.user_data["creation_type"] == "fertility":
             self.initialize_newborns(pop_data)
+        elif pop_data.user_data["creation_type"] == "gq_immigrants":
+            self.initialize_gq_immigrants(pop_data)
+        elif pop_data.user_data["creation_type"] == "non_reference_person_immigrants":
+            self.initialize_non_reference_person_immigrants(pop_data)
+        else:
+            raise ValueError("Unknown simulant creation type")
 
     def generate_initial_population(self, pop_data: SimulantData) -> None:
         target_gq_pop_size = int(
@@ -135,11 +141,22 @@ class Population:
         # Household sampling won't exactly hit its target population size -- we fill
         # in the remainder with GQ
         actual_gq_pop_size = self.config.population_size - len(non_gq_simulants)
-        chosen_persons = sample_acs_group_quarters(
+
+        # TODO: If we did a merge when creating the artifact that added the household_type
+        # column to the persons data, we would not have to do this quasi-merge
+        # (using the households data to determine which persons rows are GQ) at run time.
+        gq_household_ids = acs_households[~is_standard_household][
+            "census_household_id"
+        ].unique()
+        gq_persons = self.population_data["persons"][
+            self.population_data["persons"]["census_household_id"].isin(gq_household_ids)
+        ]
+
+        chosen_persons = sample_acs_persons(
             actual_gq_pop_size,
-            acs_households=acs_households[~is_standard_household],
-            acs_persons=self.population_data["persons"],
+            acs_persons=gq_persons,
             randomness=self.randomness,
+            additional_key="choose_gq_persons",
         )
         gq_simulants = self.initialize_group_quarters(
             acs_persons=chosen_persons,
@@ -293,6 +310,103 @@ class Population:
 
         self.population_view.update(new_births[self.columns_created])
 
+    def initialize_gq_immigrants(self, pop_data: SimulantData) -> None:
+        """
+        Initializes simulants who have newly immigrated into
+        the US into group quarters.
+
+        Parameters
+        ----------
+        pop_data
+            The SimulantData on the simulant creation call, which must supply the ACS
+            rows the simulants should be based on.
+        """
+        new_simulants = self.initialize_group_quarters(
+            pop_data.user_data["acs_persons"], pop_data
+        ).set_index(pop_data.index)
+
+        existing_simulants = self.population_view.get(
+            pop_data.user_data["current_population_index"],
+            query="alive == 'alive' and in_united_states == True and tracked == True",
+        )
+        new_simulants = self.initialize_simulant_link_columns(
+            new_simulants, existing_simulants
+        )
+
+        # We need to do this each time we initialize more simulants, otherwise the
+        # addition of NaNs in household_id before it was initialized makes
+        # the column a float.
+        new_simulants["household_id"] = new_simulants["household_id"].astype(int)
+
+        self.population_view.update(new_simulants[self.columns_created])
+
+    def initialize_non_reference_person_immigrants(self, pop_data: SimulantData) -> None:
+        """
+        Initializes simulants who have newly immigrated into
+        the US into existing, non-GQ households.
+
+        Parameters
+        ----------
+        pop_data
+            The SimulantData on the simulant creation call, which must supply the ACS
+            rows the simulants should be based on.
+        """
+        new_simulants = self.initialize_new_simulants_from_acs(
+            pop_data.user_data["acs_persons"], pop_data
+        ).set_index(pop_data.index)
+        new_simulants["age"] = self.perturb_individual_age(new_simulants)
+
+        existing_simulants = self.population_view.get(
+            pop_data.user_data["current_population_index"],
+            query="alive == 'alive' and in_united_states == True and tracked == True",
+        )
+        existing_household_ids = existing_simulants[
+            ~existing_simulants["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
+        ]["household_id"].unique()
+
+        # TODO: For now, we do a simple random sample of households.
+        # As part of future PUMA perturbation work, we plan to actually use
+        # the PUMA value in the ACS row in choosing the household they should join.
+        # NOTE: This does not do anything to state and PUMA, leaving them whatever they
+        # were for the ACS individual this immigrant is based on!
+        # This is obviously nonsensical, but mirrors the current behavior of domestic
+        # migration, where state and PUMA do not update on move.
+        new_simulants["household_id"] = vectorized_choice(
+            existing_household_ids,
+            n_to_choose=len(new_simulants),
+            randomness_stream=self.randomness,
+            additional_key="household_id",
+        ).astype(existing_simulants["household_id"].dtype)
+
+        # We avoid non-reference-person immigrants having these relationships, because
+        # otherwise they may cause there to be an impossible number of said relationships
+        # within a household, i.e. >2 parents or >1 spouse/partner
+        new_simulants["relation_to_household_head"] = (
+            new_simulants["relation_to_household_head"]
+            .replace(
+                {
+                    "Parent": "Other relative",
+                    "Parent-in-law": "Other relative",
+                    "Opp-sex spouse": "Other relative",
+                    "Same-sex spouse": "Other relative",
+                    "Opp-sex partner": "Other nonrelative",
+                    "Same-sex partner": "Other nonrelative",
+                }
+            )
+            .astype(existing_simulants["relation_to_household_head"].dtype)
+        )
+
+        new_simulants = self.initialize_simulant_link_columns(
+            new_simulants, existing_simulants
+        )
+
+        # We need to do this each time we initialize more simulants, otherwise the
+        # addition of NaNs in household_id before it was initialized makes
+        # the column a float.
+        new_simulants["household_id"] = new_simulants["household_id"].astype(int)
+
+        self.population_view.update(new_simulants[self.columns_created])
+
     def on_time_step__cleanup(self, event: Event):
         """Ages simulants each time step.
         Parameters
@@ -333,6 +447,7 @@ class Population:
         self,
         new_simulants: pd.DataFrame,
         pop_data: SimulantData,
+        immigrants: bool = False,
     ) -> pd.DataFrame:
         """
         Initializes simulants that are based on ACS persons rows.
@@ -343,6 +458,8 @@ class Population:
             Dataframe of the new simulants, containing ACS columns.
         pop_data
             The SimulantData of the simulant creation event.
+        immigrants
+            Whether or not the new_simulants are immigrants, which determines how many will have SSNs.
 
         Returns
         -------
@@ -362,6 +479,9 @@ class Population:
         )
 
         # Determine if simulants have SSN
+        proportion_with_ssn = (
+            self.proportion_immigrants_with_ssn if immigrants else self.proportion_with_ssn
+        )
         new_simulants["ssn"] = False
         # Give simulants born in US a SSN
         native_born_idx = new_simulants.index[new_simulants["born_in_us"]]
@@ -369,7 +489,7 @@ class Population:
         # Choose which non-native simulants get a SSN
         ssn_idx = self.randomness.filter_for_probability(
             new_simulants.index.difference(native_born_idx),
-            self.proportion_with_ssn(new_simulants.index.difference(native_born_idx)),
+            proportion_with_ssn(new_simulants.index.difference(native_born_idx)),
             "ssn",
         )
         new_simulants.loc[ssn_idx, "ssn"] = True
@@ -1091,9 +1211,13 @@ class Population:
         # a simulants_to_assign row were both linked *to* and linked *from* here!
         # That only one or the other occurs is guaranteed by our relation_to_household_head
         # criteria above.
-        simulants_to_assign.loc[relatives_idx, "last_name_id"] = simulants_to_assign.loc[
-            relatives_idx, "household_id"
-        ].map(reference_person_last_name_ids)
+        # We have to set the type because it will have become a float with the addition of
+        # NaNs.
+        simulants_to_assign.loc[relatives_idx, "last_name_id"] = (
+            simulants_to_assign.loc[relatives_idx, "household_id"]
+            .map(reference_person_last_name_ids)
+            .astype(int)
+        )
 
         return simulants_to_assign
 

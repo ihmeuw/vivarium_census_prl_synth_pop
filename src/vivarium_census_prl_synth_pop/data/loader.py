@@ -154,6 +154,8 @@ def load_households(key: str, location: str) -> pd.DataFrame:
     data = data[data["census_household_id"].isin(persons["census_household_id"])]
 
     # merge in person weights for GQ
+    # FIXME -- this is no longer necessary, since person_weights in the household file
+    # are not used by the simulation anymore.
     gq_households = data[data["household_type"] != "Housing unit"]
     gq_persons = persons[
         persons["census_household_id"].isin(gq_households["census_household_id"])

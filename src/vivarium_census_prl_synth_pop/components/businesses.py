@@ -118,33 +118,31 @@ class Businesses:
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """
-        Assign everyone working age and older an employer
+        Assign everyone working age and older an employer and initialize
+        income propensity columns.
         """
         if pop_data.creation_time < self.start_time:
+            # Initial population setup
             self.businesses = self.generate_businesses(pop_data)
-            pop = self.population_view.subview(["age", "household_id"]).get(
-                pop_data.index, query="tracked"
-            )
-            pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
-            working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
-            pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
-            # Give military gq sims military employment
-            military_index = pop.loc[
-                (
-                    pop["household_id"]
-                    == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
-                )
-                & (pop["age"] >= data_values.WORKING_AGE)
-            ].index
-            if not military_index.empty:
-                pop.loc[
-                    military_index, "employer_id"
-                ] = data_values.MilitaryEmployer.EMPLOYER_ID
-            self.population_view.update(pop)
-        else:
-            pop = self.population_view.get(pop_data.index, query="tracked")
-            pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
+        pop = self.population_view.subview(["age", "household_id"]).get(
+            pop_data.index, query="tracked"
+        )
+
+        pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
+        working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
+        pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
+
+        # Give military gq sims military employment
+        military_index = pop.index[
+            (
+                pop["household_id"]
+                == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
+            )
+            & (pop["age"] >= data_values.WORKING_AGE)
+        ]
+        if not military_index.empty:
+            pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
 
         # Create income propensity columns
         pop["personal_income_propensity"] = self.randomness.get_draw(
@@ -156,7 +154,7 @@ class Businesses:
             additional_key="employer_income_propensity",
         )
 
-        self.population_view.update(pop)
+        self.population_view.update(pop[self.columns_created])
 
     def on_time_step(self, event: Event):
         """
