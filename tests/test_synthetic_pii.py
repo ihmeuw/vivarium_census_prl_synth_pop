@@ -205,6 +205,7 @@ def test_last_names_proportions(mocker, last_names, fake_obs_data):
     assert np.isclose(
         last_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
+    assert not (last_names_map["last_name"].isnull().any())
 
 
 def test_last_name_from_oldest_member(mocker):
