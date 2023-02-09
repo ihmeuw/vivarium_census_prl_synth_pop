@@ -119,7 +119,20 @@ def all_time_emigration_condition(
 
     for before, after in simulants_on_adjacent_timesteps:
         assert before.index.equals(after.index)
-        all_time_links.append(before.join(after, lsuffix="_before", rsuffix="_after"))
+        # It is important that the subset to living and tracked happens before
+        # condition_func -- otherwise the custom condition may consider simulants
+        # who were already dead/untracked before this time step
+        # (e.g. when determining which households still exist in the US)
+        if subset_to_living_tracked:
+            living_tracked = (before["alive"] == "alive") & before["tracked"]
+            before = before[living_tracked]
+            after = after[living_tracked]
+
+        all_time_links.append(
+            before.join(after, lsuffix="_before", rsuffix="_after")
+            .reset_index()
+            .rename(columns={"index": "simulant_id"})
+        )
         all_time_condition.append(
             before["in_united_states"]
             & ~after["in_united_states"]
@@ -128,12 +141,5 @@ def all_time_emigration_condition(
 
     all_time_links = pd.concat(all_time_links, ignore_index=True)
     all_time_condition = pd.concat(all_time_condition, ignore_index=True)
-
-    if subset_to_living_tracked:
-        living_tracked = (all_time_links["alive_before"] == "alive") & all_time_links[
-            "tracked_before"
-        ]
-        all_time_links = all_time_links[living_tracked]
-        all_time_condition = all_time_condition[living_tracked]
 
     return all_time_links, all_time_condition
