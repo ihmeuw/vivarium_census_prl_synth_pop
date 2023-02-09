@@ -65,9 +65,6 @@ class Households:
                 "address_id": data_values.GQ_HOUSING_TYPE_MAP.keys(),
                 "housing_type": data_values.GQ_HOUSING_TYPE_MAP.values(),
                 "po_box": data_values.NO_PO_BOX,
-                # Add dummy state_id and puma during setup b/c we do not have
-                # access to the randomness stream - these will be sampled
-                # during initialization
                 "state_id": states_pumas["state_id"],
                 "puma": states_pumas["puma"],
             },
