@@ -164,6 +164,8 @@ def random_last_names(
     nd.ndarray of [size] last names sampled from people of race and ethnicity [race_eth]
     """
     df_census_names = artifact.load(data_keys.SYNTHETIC_DATA.LAST_NAMES).reset_index()
+    # fixme: Nan in artifact data for last names.
+    df_census_names = df_census_names.loc[~df_census_names["name"].isnull()]
 
     # randomly sample last names
     last_names = vectorized_choice(
