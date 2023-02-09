@@ -375,6 +375,7 @@ class Population:
             .replace(
                 {
                     "Parent": "Other relative",
+                    "Parent-in-law": "Other relative",
                     "Opp-sex spouse": "Other relative",
                     "Same-sex spouse": "Other relative",
                     "Opp-sex partner": "Other nonrelative",

@@ -4,29 +4,33 @@ import pandas as pd
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def immigrants_by_timestep(populations) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
     timestep_values = []
 
     for before, after in zip(populations, populations[1:]):
         new_simulants = after.index.difference(before.index)
-        immigrants = after.index[after["parent_id"] == -1].intersection(new_simulants)
+        # NOTE: We assume that immigrants never have tracked parents.
+        # If this changes in the future, we'll need to identify them differently.
+        immigrants = new_simulants.intersection(after.index[after["parent_id"] == -1])
         timestep_values.append((before, after, after.loc[immigrants]))
 
     return timestep_values
 
 
-def test_there_is_immigration(immigrants_by_timestep):
+def test_there_is_immigration(immigrants_by_timestep, sim):
     # This is a very rare event, so we can't assert that it happens
     # on every timestep; instead, we aggregate across all timesteps.
     all_time_immigrants = pd.concat(
         [immigrants for _, _, immigrants in immigrants_by_timestep]
     )
 
-    assert len(all_time_immigrants) > 0
+    # Super conservative bounds on how much immigration should occur
+    population_size = sim.configuration.population.population_size
+    assert (population_size * 0.0005) < len(all_time_immigrants) < (population_size * 0.10)
 
 
-def test_immigration_into_gq(immigrants_by_timestep):
+def test_immigration_into_gq(immigrants_by_timestep, sim):
     all_time_gq_immigrants = pd.concat(
         [
             immigrants[immigrants["household_details.housing_type"] != "Standard"]
@@ -34,10 +38,12 @@ def test_immigration_into_gq(immigrants_by_timestep):
         ]
     )
 
-    assert len(all_time_gq_immigrants) > 0
+    # GQ immigration is so rare we can't put a lower bound on it even at 20k population
+    population_size = sim.configuration.population.population_size
+    assert 0 < len(all_time_gq_immigrants) < (population_size * 0.05)
 
 
-def test_immigration_into_existing_households(immigrants_by_timestep):
+def test_immigration_into_existing_households(immigrants_by_timestep, sim):
     all_time_existing_household_immigrants = []
 
     for before, _, immigrants in immigrants_by_timestep:
@@ -70,7 +76,13 @@ def test_immigration_into_existing_households(immigrants_by_timestep):
 
     all_time_existing_household_immigrants = pd.concat(all_time_existing_household_immigrants)
 
-    assert len(all_time_existing_household_immigrants) > 0
+    # Super conservative bounds on how much immigration should occur into existing households
+    population_size = sim.configuration.population.population_size
+    assert (
+        (population_size * 0.00025)
+        < len(all_time_existing_household_immigrants)
+        < (population_size * 0.05)
+    )
 
 
 def test_immigration_into_new_households(immigrants_by_timestep):

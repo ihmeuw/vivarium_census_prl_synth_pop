@@ -68,8 +68,6 @@ class HouseholdEmigration:
         """
         Choose which households emigrate, and make them untracked.
         """
-        # NOTE: Currently, it is possible for a household not to have a living reference person;
-        # in this case, that household can no longer emigrate.
         pop = self.population_view.get(
             event.index,
             query="alive == 'alive' and in_united_states == True and tracked == True",

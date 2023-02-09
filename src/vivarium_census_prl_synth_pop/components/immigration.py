@@ -1,11 +1,12 @@
-from math import floor
+from math import ceil, floor
+from typing import Callable
 
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.utilities import from_yearly
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata
 from vivarium_census_prl_synth_pop.utilities import (
     sample_acs_group_quarters,
     sample_acs_persons,
@@ -78,7 +79,7 @@ class Immigration:
                 immigrant_reference_people["census_household_id"]
             )
         ]
-        # HACK -- this can go away once state and PUMA are in the households pipeline, because
+        # FIXME -- this can go away once state and PUMA are in the households pipeline, because
         # we will no longer need household rows to join to individuals
         self.non_reference_person_immigrant_households = households_data[
             households_data["census_household_id"].isin(
@@ -113,6 +114,7 @@ class Immigration:
             The event that triggered the function call.
         """
 
+        # Create GQ immigrants
         self._create_individual_immigrants(
             self.gq_immigrants_per_time_step,
             sample_acs_group_quarters,
@@ -122,6 +124,7 @@ class Immigration:
             event.index,
         )
 
+        # Create non-reference-person immigrants
         self._create_individual_immigrants(
             self.non_reference_person_immigrants_per_time_step,
             sample_acs_persons,
@@ -173,13 +176,13 @@ class Immigration:
 
     def _create_individual_immigrants(
         self,
-        expected_num,
-        sampling_function,
-        acs_households,
-        acs_persons,
-        creation_type,
-        current_population_index,
-    ):
+        expected_num: float,
+        sampling_function: Callable,
+        acs_households: pd.DataFrame,
+        acs_persons: pd.DataFrame,
+        creation_type: str,
+        current_population_index: pd.Index,
+    ) -> None:
         num_immigrants = self._round_stochastically(expected_num, f"num_{creation_type}")
 
         if num_immigrants > 0:
@@ -201,7 +204,7 @@ class Immigration:
                 },
             )
 
-    def _round_stochastically(self, num, additional_key):
+    def _round_stochastically(self, num: float, additional_key: str) -> int:
         """
         Implements stochastic rounding.
         For example, a value of 2.23 will round up to 3 with 23% probability, and down to 2
@@ -209,6 +212,13 @@ class Immigration:
         If we used traditional rounding, a value of e.g. 0.4 would round down to 0 on every
         single timestep, and that immigration event would *never* happen.
         """
-        return floor(
-            num + self.randomness.get_draw(pd.Index([0]), additional_key=additional_key)
-        )
+        # We have to make a dummy index to use get_draw for a single float
+        random_draw = self.randomness.get_draw(
+            pd.Index([0]), additional_key=additional_key
+        ).loc[0]
+
+        round_up = (num % 1) > random_draw
+        if round_up:
+            return ceil(num)
+        else:
+            return floor(num)

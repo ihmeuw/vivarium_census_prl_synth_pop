@@ -129,13 +129,13 @@ class Businesses:
         pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
         # Give military gq sims military employment
-        military_index = pop.loc[
+        military_index = pop.index[
             (
                 pop["household_id"]
                 == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
             )
             & (pop["age"] >= data_values.WORKING_AGE)
-        ].index
+        ]
         if not military_index.empty:
             pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
 
