@@ -148,7 +148,7 @@ def generate_maps(
     randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
     # Add column maps to mapper here
-    # key should be the index of the map (TODO: handle what to do with dupe keys)
+    # The key should be the index of the map and the mapping function the value
     mappers = {
         "first_name_id": get_given_name_map,
         "middle_name_id": get_middle_initial_map,

@@ -41,6 +41,22 @@ def get_zip_map(
     obs_data: Dict[str, pd.DataFrame],
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
+    """Adds a logging sink to the global process logger.
+
+    Parameters
+    ----------
+    column_name
+        Name of the column to use as an index
+    obs_data
+        Observer DataFrame with key for the observer name
+    randomness
+        RandomnessStream to use in choosing zipcodes proportionally
+
+    Returns
+    -------
+    A pd.Series suitable for pd.Series.map, indexed by column_name, with key "zipcode"
+
+    """
     zip_map_dict = {}
     output_cols = [column_name, "state", "puma"]  # columns in the output we use to map
     address_ids = format_data_for_mapping(
