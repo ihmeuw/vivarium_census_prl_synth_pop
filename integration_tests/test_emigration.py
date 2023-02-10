@@ -101,8 +101,9 @@ def test_nothing_happens_to_untracked_people(
         if untracked.sum() == 0:
             continue
 
+        known_changing_cols = pipeline_columns + ["time", "state_id_for_lookup"]
         columns_that_should_not_change = [
-            c for c in before.columns if c != "time" and c not in pipeline_columns
+            c for c in before.columns if c not in known_changing_cols
         ]
         assert before.loc[untracked, columns_that_should_not_change].equals(
             after.loc[untracked, columns_that_should_not_change]

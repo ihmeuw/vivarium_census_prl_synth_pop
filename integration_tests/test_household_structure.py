@@ -130,11 +130,11 @@ def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
 
 def test_state_complete_coverage(populations, sim):
     """States should include all locations from artifact"""
+    states_in_artifact = set(
+        sim._data.artifact.load("population.households").index.unique(level="state")
+    )
     for pop in populations:
-        states_in_artifact = set(
-            sim._data.artifact.load("population.households").index.unique(level="state")
-        )
-        assert states_in_artifact == set(pop["state"])
+        assert states_in_artifact == set(pop["household_details.state_id"])
 
 
 def test_pumas_states(populations):
