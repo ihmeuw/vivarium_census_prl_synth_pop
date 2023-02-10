@@ -312,21 +312,60 @@ def test_address(mocker):
         assert not (address_map["street_name"].isnull().any())
 
 
-# TODO: Tests for ZIP
-# - all address_ids from input should be in output map, and only once
-# - input of address_id from observer, csvs of puma and state->zip, check that n addresses w/state/puma combination that
-#   zip codes match a given proportion (dummy) (see test for names above)
-#
-def test_zip_mapping():
-    """6,3756,90706,0.5884
-    6,3756,90723,0.4116"""
-    address_ids = pd.DataFrame()
-    address_ids["address_id"] = [f"123_{n}" for n in range(11)]
-    address_ids["state"] = 6
-    address_ids["puma"] = 3756  # 90706 at p=0.5884 or 90723 at p=0.4116
-    address_ids["silly_column"] = "extra column, not useful for mapping"
-    fake_obs_data = {"fake_observer": pd.concat([address_ids, address_ids, address_ids])}
-    mapping_series = get_zip_map("address_id", fake_obs_data, randomness)
-    # assert that each address_id is in the index once
+def test_zipcode_mapping():
+    """Tests ZIP code mapping logic.
 
-    # assert that the 30 simulants get assigned the correct proportion of zip code
+    Specifically:
+    - all address_ids from input should be in output map, and only once
+    - For n addresses with state/puma combinations that zip codes match
+    expected proportions, n needing to be sufficiently large
+
+    This test relies on one of the few cases of two possible ZIP codes:
+
+    state,puma,zipcode,proportion
+    6,3756,90706,0.5884
+    6,3756,90723,0.4116
+
+    """
+    num_ids = 1000  # the number of simulants
+    num_unique_ids = int(num_ids / 2)  # the number of unique address_ids
+    expected_proportion_90706 = 0.5884  # from PUMA_TO_ZIP_DATA_PATH
+    expected_proportion_90723 = 0.4116  # from PUMA_TO_ZIP_DATA_PATH
+
+    address_ids = pd.DataFrame()
+    address_ids["address_id"] = [f"123_{n}" for n in range(num_unique_ids)]
+    address_ids["state"] = 6  # from PUMA_TO_ZIP_DATA_PATH
+    address_ids["puma"] = 3756  # from PUMA_TO_ZIP_DATA_PATH
+    address_ids["silly_column"] = "yada yada yada"
+    fake_obs_data = {
+        "fake_observer": pd.concat([address_ids, address_ids])
+    }  # concatenation allows for dupe address_id
+
+    # Function under test
+    mapper = get_zip_map("address_id", fake_obs_data, randomness)
+
+    # Assert that each address_id is in the index once
+    assert (
+        len(mapper["zipcode"].reset_index()["address_id"].drop_duplicates()) == num_unique_ids
+    )
+
+    # Assert that the `num_ids` simulants get assigned the correct proportion of zip code
+    fake_obs_data["fake_observer"]["zipcode"] = address_ids["address_id"].map(
+        mapper["zipcode"]
+    )
+    assert np.isclose(
+        (
+            fake_obs_data["fake_observer"]["zipcode"].value_counts()[90723]
+            / len(fake_obs_data["fake_observer"]["zipcode"])
+        ),
+        expected_proportion_90723,
+        rtol=0.1,
+    )
+    assert np.isclose(
+        (
+            fake_obs_data["fake_observer"]["zipcode"].value_counts()[90706]
+            / len(fake_obs_data["fake_observer"]["zipcode"])
+        ),
+        expected_proportion_90706,
+        rtol=0.1,
+    )

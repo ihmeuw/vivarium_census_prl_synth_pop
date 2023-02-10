@@ -50,7 +50,7 @@ def get_zip_map(
     )
     zip_map = pd.Series(index=address_ids.index)
 
-    # Read in CSV
+    # Read in CSV and normalize
     map_data = pd.read_csv(PUMA_TO_ZIP_DATA_PATH)
     proportions = (
         map_data.groupby(["state", "puma"])
@@ -58,14 +58,14 @@ def get_zip_map(
         .reset_index()
         .set_index(["state", "puma"])
     )
-    normalized_groups = (
+    normalized_groupby = (
         (map_data.set_index(["state", "puma", "zipcode"]) / proportions)
         .reset_index()
         .groupby(["state", "puma"])
     )
 
     for (state, puma), df_locale in address_ids.groupby(["state", "puma"]):
-        locale_group = normalized_groups.get_group((state, puma))
+        locale_group = normalized_groupby.get_group((state, puma))
         zip_map.loc[df_locale.index] = vectorized_choice(
             options=locale_group["zipcode"],
             n_to_choose=len(df_locale),
@@ -75,7 +75,7 @@ def get_zip_map(
         ).to_numpy()
 
     # Map against obs_data
-    zip_map_dict["zipcode"] = zip_map
+    zip_map_dict["zipcode"] = zip_map.astype(int)
     return zip_map_dict
 
 
