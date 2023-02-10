@@ -11,7 +11,11 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
-from vivarium_census_prl_synth_pop.utilities import vectorized_choice
+from vivarium_census_prl_synth_pop.utilities import (
+    sample_acs_group_quarters,
+    sample_acs_standard_households,
+    vectorized_choice,
+)
 
 # Family/household relationships helper lists
 NON_RELATIVES = ["Roommate", "Other nonrelative"]
@@ -116,20 +120,29 @@ class Population:
 
         acs_households = self.population_data["households"]
         is_standard_household = acs_households["household_type"] == "Housing unit"
-        non_gq_simulants = self.sample_simulants_from_standard_households(
+        chosen_households, chosen_persons = sample_acs_standard_households(
             target_standard_housing_pop_size,
             acs_households=acs_households[is_standard_household],
             acs_persons=self.population_data["persons"],
+            randomness=self.randomness,
+        )
+        non_gq_simulants = self.initialize_standard_households(
+            acs_households=chosen_households,
+            acs_persons=chosen_persons,
             pop_data=pop_data,
         )
 
         # Household sampling won't exactly hit its target population size -- we fill
         # in the remainder with GQ
         actual_gq_pop_size = self.config.population_size - len(non_gq_simulants)
-        gq_simulants = self.sample_simulants_from_group_quarters(
+        chosen_persons = sample_acs_group_quarters(
             actual_gq_pop_size,
             acs_households=acs_households[~is_standard_household],
             acs_persons=self.population_data["persons"],
+            randomness=self.randomness,
+        )
+        gq_simulants = self.initialize_group_quarters(
+            acs_persons=chosen_persons,
             pop_data=pop_data,
         )
 
@@ -140,58 +153,25 @@ class Population:
 
         self.population_view.update(pop[self.columns_created])
 
-    def sample_simulants_from_standard_households(
+    def initialize_standard_households(
         self,
-        target_number_sims: int,
         acs_households: pd.DataFrame,
         acs_persons: pd.DataFrame,
         pop_data: SimulantData,
     ) -> pd.DataFrame:
-        # oversample households -- each household has at least one person,
-        # so if we get as many households as we need people, we will always
-        # have enough people (and probably far too many)
-        chosen_households_index = vectorized_choice(
-            options=acs_households.index,
-            n_to_choose=target_number_sims,
-            randomness_stream=self.randomness,
-            weights=acs_households["household_weight"],
-        )
-        chosen_households = acs_households.loc[chosen_households_index]
+        new_simulants = self.initialize_new_simulants_from_acs(acs_persons, pop_data)
 
-        # create unique id for resampled households -- each census_household_id
-        # can be sampled multiple times.
-        chosen_households["census_sample_household_id"] = np.arange(len(chosen_households))
-
-        # get all simulants per household
-        chosen_persons = pd.merge(
-            chosen_households,
-            acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
-            on="census_household_id",
-            how="left",
-        )
-
-        # get rid of simulants and households in excess of desired pop size
-        households_to_discard = chosen_persons.loc[
-            target_number_sims:, "census_sample_household_id"
-        ].unique()
-        chosen_persons = chosen_persons.loc[
-            ~chosen_persons["census_sample_household_id"].isin(households_to_discard)
-        ]
-        chosen_households = chosen_households.loc[
-            ~chosen_households["census_sample_household_id"].isin(households_to_discard)
-        ]
-
-        new_simulants = self.initialize_new_simulants_from_acs(chosen_persons, pop_data)
         household_ids = self.households.create_households(
-            num_households=len(chosen_households),
-            states_pumas=chosen_households[["state", "puma"]].rename(
+            num_households=len(acs_households),
+            states_pumas=acs_households[["state", "puma"]].rename(
                 columns={"state": "state_id"}
             ),
         )
+
         household_id_mapping = pd.Series(
-            household_ids, index=chosen_households["census_sample_household_id"]
+            household_ids, index=acs_households["acs_sample_household_id"]
         )
-        new_simulants["household_id"] = new_simulants["census_sample_household_id"].map(
+        new_simulants["household_id"] = new_simulants["acs_sample_household_id"].map(
             household_id_mapping
         )
 
@@ -201,32 +181,12 @@ class Population:
 
         return new_simulants
 
-    def sample_simulants_from_group_quarters(
+    def initialize_group_quarters(
         self,
-        target_number_sims: int,
-        acs_households: pd.DataFrame,
         acs_persons: pd.DataFrame,
         pop_data: SimulantData,
     ) -> pd.DataFrame:
-        # group quarters each house one person per census_household_id
-        # they have NA household weights, but appropriately weighted person weights.
-        chosen_units_index = vectorized_choice(
-            options=acs_households.index,
-            n_to_choose=target_number_sims,
-            randomness_stream=self.randomness,
-            weights=acs_households["person_weight"],
-        )
-        chosen_units = acs_households.loc[chosen_units_index]
-
-        # get simulants per GQ unit
-        chosen_persons = pd.merge(
-            chosen_units,
-            acs_persons[metadata.PERSONS_COLUMNS_TO_INITIALIZE],
-            on="census_household_id",
-            how="left",
-        )
-
-        new_simulants = self.initialize_new_simulants_from_acs(chosen_persons, pop_data)
+        new_simulants = self.initialize_new_simulants_from_acs(acs_persons, pop_data)
         new_simulants["age"] = self.perturb_individual_age(new_simulants)
 
         noninstitutionalized = new_simulants.loc[

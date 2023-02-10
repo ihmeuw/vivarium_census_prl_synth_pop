@@ -31,6 +31,8 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
+        "state",
+        "puma",
     ]
     DEFAULT_OUTPUT_COLUMNS = [
         "first_name_id",
@@ -41,6 +43,8 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "date_of_birth",
         "address_id",
+        "state",
+        "puma",
         "guardian_1",
         "guardian_2",
         "guardian_1_address_id",
@@ -154,15 +158,11 @@ class HouseholdSurveyObserver(BaseObserver):
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "household_id",
-        "state",
-        "puma",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "survey_date",
         "household_id",
         "housing_type",
-        "state",
-        "puma",
     ]
     SAMPLING_RATE_PER_MONTH = {
         "acs": 12000,
@@ -552,6 +552,8 @@ class TaxW2Observer(BaseObserver):
         "ssn",
         "ssn_id",  # simulant id for ssn from another simulant
         "address_id",
+        "state",
+        "puma",
         "po_box",
         "employer_id",
         "employer_name",
@@ -675,6 +677,8 @@ class TaxW2Observer(BaseObserver):
             "sex",
             "ssn",
             "address_id",
+            "state",
+            "puma",
             "housing_type",
             "race_ethnicity",
         ]:
@@ -730,12 +734,7 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = [
-        "alive",
-        "in_united_states",
-        "tracked",
-        "ssn",
-    ]
+    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "ssn"]
     OUTPUT_COLUMNS = [
         "guardian_id",
         "dependent_id",
@@ -744,10 +743,13 @@ class TaxDependentsObserver(BaseObserver):
         "last_name_id",
         "age",
         "date_of_birth",
+        "address_id",
+        "state",
+        "puma",
         "sex",
         "ssn",
-        "address_id",
         "tax_year",
+        "race_ethnicity",
     ]
 
     def __init__(self, w2_observer):
@@ -868,6 +870,9 @@ class Tax1040Observer(BaseObserver):
         "sex",
         "ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
+        "state",
+        "puma",
+        "race_ethnicity",
         "relation_to_household_head",  # needed to identify couples filing jointly
         "housing_type",
         "tax_year",
