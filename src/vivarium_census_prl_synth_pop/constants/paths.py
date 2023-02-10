@@ -30,9 +30,7 @@ HOUSEHOLD_DOMESTIC_MIGRATION_RATES_PATH = (
 NON_REFERENCE_PERSON_EMIGRATION_RATES_PATH = (
     RAW_DATA_ROOT / "non_reference_person_emigration_rates.csv"
 )
-GQ_PERSON_EMIGRATION_RATES_PATH = (
-    RAW_DATA_ROOT / "group_quarters_person_emigration_rates.csv"
-)
+GQ_PERSON_EMIGRATION_RATES_PATH = RAW_DATA_ROOT / "group_quarters_person_emigration_rates.csv"
 HOUSEHOLD_EMIGRATION_RATES_PATH = RAW_DATA_ROOT / "household_emigration_rates.csv"
 
 BUSINESS_NAMES_DATA = PROJECT_ROOT / "data/raw_data/business_names.csv.bz2"
