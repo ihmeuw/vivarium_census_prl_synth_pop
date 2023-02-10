@@ -27,6 +27,22 @@ def get_address_id_maps(
 ):
     """
     Get all maps that are indexed by `address_id`.
+
+    Parameters
+    ----------
+    column_name
+        Name of the column to use as an index
+    obs_data
+        Observer DataFrame with key for the observer name
+    artifact
+        A vivarium Artifact object needed by mapper
+    randomness
+        RandomnessStream to use in choosing zipcodes proportionally
+
+    Returns
+    -------
+    A dictionary of pd.Series suitable for pd.Series.map, indexed by `address_id`
+
     """
     if column_name != "address_id":
         raise ValueError(f"Expected `address_id`, got `{column_name}`")
@@ -41,7 +57,7 @@ def get_zip_map(
     obs_data: Dict[str, pd.DataFrame],
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
-    """Adds a logging sink to the global process logger.
+    """Gets a mapper for `address_id` to zipcode, based on state, puma, and proportion.
 
     Parameters
     ----------
