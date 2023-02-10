@@ -1,6 +1,7 @@
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.lookup import LookupTable
 
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 
@@ -31,17 +32,17 @@ class HouseholdEmigration:
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
-
-        emigration_rate_data = builder.lookup.build_table(
+        self.household_details = builder.value.get_value("household_details")
+        self.emigration_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
                 paths.HOUSEHOLD_EMIGRATION_RATES_PATH,
-            ),
-            key_columns=["sex", "race_ethnicity", "state", "born_in_us"],
+            ).rename(columns={"state": "state_id_for_lookup"}),
+            key_columns=["sex", "race_ethnicity", "state_id_for_lookup", "born_in_us"],
             parameter_columns=["age"],
             value_columns=["household_emigration_rate"],
         )
         self.household_move_rate = builder.value.register_rate_producer(
-            f"{self.name}.move_rate", source=emigration_rate_data
+            f"{self.name}.move_rate", source=self.get_household_move_rates
         )
 
         self.population_view = builder.population.get_view(
@@ -51,6 +52,7 @@ class HouseholdEmigration:
                 "in_united_states",
                 "exit_time",
                 "tracked",
+                "state_id_for_lookup",
             ]
         )
 
@@ -59,6 +61,17 @@ class HouseholdEmigration:
             self.on_time_step,
             priority=metadata.PRIORITY_MAP["household_emigration.on_time_step"],
         )
+
+    def get_household_move_rates(self, idx: pd.Index) -> LookupTable:
+        """The emigration rates lookup table requires a state_id column in the
+        state table. Since the state_id column exists as part of the
+        household_details pipeline, this method updates the state_id_for_lookup
+        column with the pipeline values and then returns the lookup table
+        """
+        pop = self.population_view.get(idx)
+        pop["state_id_for_lookup"] = self.household_details(idx)["state_id"]
+        self.population_view.update(pop)
+        return self.emigration_rate_data(idx)
 
     ########################
     # Event-driven methods #

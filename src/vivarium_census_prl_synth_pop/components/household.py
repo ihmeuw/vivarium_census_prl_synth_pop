@@ -43,6 +43,7 @@ class Households:
         self.columns_used = [
             "tracked",
             "household_id",
+            "state_id_for_lookup",
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
@@ -77,6 +78,11 @@ class Households:
             requires_columns=["household_id", "tracked"],
         )
 
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=["state_id_for_lookup"],
+        )
+
     ##################################
     # Pipeline sources and modifiers #
     ##################################
@@ -94,6 +100,20 @@ class Households:
         )
         household_details = household_details.astype(HOUSEHOLD_DETAILS_DTYPES)
         return household_details
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        """Initialize the state_id_for_lookup column with the initialized
+        household_details.state_id values
+        """
+        pop_update = pd.DataFrame(
+            {"state_id_for_lookup": self.household_details(pop_data.index)["state_id"]},
+            index=pop_data.index,
+        )
+        self.population_view.update(pop_update)
 
     ##################
     # Public methods #
