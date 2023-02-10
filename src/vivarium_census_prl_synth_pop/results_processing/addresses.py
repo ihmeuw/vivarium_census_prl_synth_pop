@@ -6,6 +6,7 @@ from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.constants.paths import PUMA_TO_ZIP_DATA_PATH
 from vivarium_census_prl_synth_pop.results_processing.formatter import (
     format_data_for_mapping,
 )
@@ -40,19 +41,42 @@ def get_zip_map(
     obs_data: Dict[str, pd.DataFrame],
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
-    zip_map = {}
-    output_cols = [column_name]
+    zip_map_dict = {}
+    output_cols = [column_name, "state", "puma"]  # columns in the output we use to map
     address_ids = format_data_for_mapping(
         index_name=column_name,
         obs_results=obs_data,
         output_columns=output_cols,
     )
-    zip_data = pd.DataFrame(index=address_ids.index)
+    zip_map = pd.Series(index=address_ids.index)
 
     # Read in CSV
+    map_data = pd.read_csv(PUMA_TO_ZIP_DATA_PATH)
+    proportions = (
+        map_data.groupby(["state", "puma"])
+        .apply(sum)["proportion"]
+        .reset_index()
+        .set_index(["state", "puma"])
+    )
+    normalized_groups = (
+        (map_data.set_index(["state", "puma", "zipcode"]) / proportions)
+        .reset_index()
+        .groupby(["state", "puma"])
+    )
 
+    for (state, puma), df_locale in address_ids.groupby(["state", "puma"]):
+        locale_group = normalized_groups.get_group((state, puma))
+        zip_map.loc[df_locale.index] = vectorized_choice(
+            options=locale_group["zipcode"],
+            n_to_choose=len(df_locale),
+            randomness_stream=randomness,
+            weights=locale_group["proportion"],
+            additional_key=f"zip_map_{state}_{puma}",
+        ).to_numpy()
 
     # Map against obs_data
+    zip_map_dict["zipcode"] = zip_map
+    return zip_map_dict
 
 
 def get_household_address_map(

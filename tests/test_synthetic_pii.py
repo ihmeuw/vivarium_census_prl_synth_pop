@@ -11,6 +11,7 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium_census_prl_synth_pop.components import synthetic_pii
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_household_address_map,
+    get_zip_map,
 )
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
@@ -310,8 +311,22 @@ def test_address(mocker):
         )
         assert not (address_map["street_name"].isnull().any())
 
+
 # TODO: Tests for ZIP
 # - all address_ids from input should be in output map, and only once
 # - input of address_id from observer, csvs of puma and state->zip, check that n addresses w/state/puma combination that
 #   zip codes match a given proportion (dummy) (see test for names above)
 #
+def test_zip_mapping():
+    """6,3756,90706,0.5884
+    6,3756,90723,0.4116"""
+    address_ids = pd.DataFrame()
+    address_ids["address_id"] = [f"123_{n}" for n in range(11)]
+    address_ids["state"] = 6
+    address_ids["puma"] = 3756  # 90706 at p=0.5884 or 90723 at p=0.4116
+    address_ids["silly_column"] = "extra column, not useful for mapping"
+    fake_obs_data = {"fake_observer": pd.concat([address_ids, address_ids, address_ids])}
+    mapping_series = get_zip_map("address_id", fake_obs_data, randomness)
+    # assert that each address_id is in the index once
+
+    # assert that the 30 simulants get assigned the correct proportion of zip code
