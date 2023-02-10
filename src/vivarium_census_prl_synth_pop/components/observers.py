@@ -655,13 +655,9 @@ class TaxW2Observer(BaseObserver):
         return self.clock() < tax_date <= event.time
 
     def get_observation(self, event: Event) -> pd.DataFrame:
-        breakpoint()
         pop_full = self.population_view.get(event.index)
         business_details = self.pipelines["business_details"](pop_full.index)
         pop_full = self.add_address(pop_full)
-        pop_full[["employer_address_id", "employer_name"]] = business_details[
-            ["employer_address_id", "employer_name"]
-        ]
 
         ### create dataframe of all person/employment pairs
 
@@ -686,8 +682,6 @@ class TaxW2Observer(BaseObserver):
             "housing_type",
             "race_ethnicity",
             "po_box",
-            "employer_address_id",
-            "employer_name",
         ]:
             df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
 
@@ -715,11 +709,9 @@ class TaxW2Observer(BaseObserver):
         df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
 
         # merge in employer columns based on employer_id
-        emp = pop.groupby("employer_id").first()
-        df_w2_0 = df_w2.copy()
+        emp = business_details.groupby("employer_id").first()
         for col in ["employer_address_id", "employer_name"]:
             df_w2[col] = df_w2["employer_id"].map(emp[col])
-        breakpoint()  # check
 
         return df_w2[self.output_columns]
 
