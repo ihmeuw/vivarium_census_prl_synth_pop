@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List
 
-from loguru import logger
 import numpy as np
 import pandas as pd
+from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
@@ -150,7 +150,6 @@ class BaseObserver(ABC):
         else:
             self.responses.index.names = ["simulant_id"]
             self.responses.to_csv(output_dir / f"{self.name}_{self.seed}.csv.bz2")
-    
 
     ##################
     # Helper methods #
