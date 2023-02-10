@@ -174,9 +174,9 @@ def vectorized_choice(
     additional_key: Any = None,
     random_seed: int = None,
 ):
-    if not randomness_stream and not (str(additional_key) and str(random_seed)):
+    if not randomness_stream and (additional_key == None and random_seed == None):
         raise RuntimeError(
-            "An additonal_key and a ransom_seed are required in 'vectorized_choice'"
+            "An additional_key and a random_seed are required in 'vectorized_choice'"
             + "if no RandomnessStream is passed in"
         )
     if weights is None:
