@@ -711,7 +711,12 @@ class TaxW2Observer(BaseObserver):
 
         # merge in employer columns based on employer_id
         emp = business_details.groupby("employer_id").first()
-        for col in ["employer_address_id", "employer_state_id", "employer_puma", "employer_name"]:
+        for col in [
+            "employer_address_id",
+            "employer_state_id",
+            "employer_puma",
+            "employer_name",
+        ]:
             df_w2[col] = df_w2["employer_id"].map(emp[col])
 
         return df_w2[self.output_columns]
