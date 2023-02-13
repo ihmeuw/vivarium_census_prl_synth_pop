@@ -85,7 +85,7 @@ def test_immigration_into_existing_households(immigrants_by_timestep, sim):
     )
 
 
-def test_immigration_into_new_households(immigrants_by_timestep):
+def test_immigration_into_new_households(immigrants_by_timestep, sim):
     all_time_household_immigrants = []
 
     for before, after, immigrants in immigrants_by_timestep:
@@ -132,4 +132,10 @@ def test_immigration_into_new_households(immigrants_by_timestep):
 
     all_time_household_immigrants = pd.concat(all_time_household_immigrants)
 
-    assert len(all_time_household_immigrants) > 0
+    # Super conservative bounds on how much household immigration should occur
+    population_size = sim.configuration.population.population_size
+    assert (
+        (population_size * 0.00025)
+        < len(all_time_household_immigrants)
+        < (population_size * 0.05)
+    )
