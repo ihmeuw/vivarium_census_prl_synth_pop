@@ -1,6 +1,5 @@
 from typing import Dict
 
-import numpy as np
 import pandas as pd
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
@@ -24,7 +23,7 @@ def get_address_id_maps(
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     randomness: RandomnessStream,
-):
+) -> Dict:
     """
     Get all maps that are indexed by `address_id`.
 
@@ -47,14 +46,20 @@ def get_address_id_maps(
     if column_name != "address_id":
         raise ValueError(f"Expected `address_id`, got `{column_name}`")
     maps = dict()
-    maps.update(get_zip_map(column_name, obs_data, randomness))
-    maps.update(get_household_address_map(column_name, obs_data, artifact, randomness))
+    output_cols_superset = [column_name, "state", "puma"]
+    formatted_obs_data = format_data_for_mapping(
+        index_name=column_name,
+        obs_results=obs_data,
+        output_columns=output_cols_superset,
+    )
+    maps.update(get_zipcode_map(column_name, formatted_obs_data, randomness))
+    maps.update(get_household_address_map(column_name, formatted_obs_data, artifact, randomness))
     return maps
 
 
-def get_zip_map(
+def get_zipcode_map(
     column_name: str,
-    obs_data: Dict[str, pd.DataFrame],
+    obs_data: pd.DataFrame,
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
     """Gets a mapper for `address_id` to zipcode, based on state, puma, and proportion.
@@ -75,18 +80,14 @@ def get_zip_map(
     """
     zip_map_dict = {}
     output_cols = [column_name, "state", "puma"]  # columns in the output we use to map
-    address_ids = format_data_for_mapping(
-        index_name=column_name,
-        obs_results=obs_data,
-        output_columns=output_cols,
-    )
-    zip_map = pd.Series(index=address_ids.index)
+    simulation_addresses = obs_data.reset_index()[output_cols].drop_duplicates().set_index("address_id")
+    zip_map = pd.Series(index=simulation_addresses.index)
 
     # Read in CSV and normalize
     map_data = pd.read_csv(PUMA_TO_ZIP_DATA_PATH)
     proportions = (
         map_data.groupby(["state", "puma"])
-        .apply(sum)["proportion"]
+        .sum()["proportion"]
         .reset_index()
         .set_index(["state", "puma"])
     )
@@ -96,7 +97,7 @@ def get_zip_map(
         .groupby(["state", "puma"])
     )
 
-    for (state, puma), df_locale in address_ids.groupby(["state", "puma"]):
+    for (state, puma), df_locale in simulation_addresses.groupby(["state", "puma"]):
         locale_group = normalized_groupby.get_group((state, puma))
         zip_map.loc[df_locale.index] = vectorized_choice(
             options=locale_group["zipcode"],
@@ -113,7 +114,7 @@ def get_zip_map(
 
 def get_household_address_map(
     column_name: str,
-    obs_data: Dict[str, pd.DataFrame],
+    obs_data: pd.DataFrame,
     artifact: Artifact,
     randomness: RandomnessStream,
 ) -> Dict[str, Dict[str, pd.Series]]:
@@ -121,11 +122,7 @@ def get_household_address_map(
 
     address_map = {}
     output_cols = [column_name]
-    address_ids = format_data_for_mapping(
-        index_name=column_name,
-        obs_results=obs_data,
-        output_columns=output_cols,
-    )
+    address_ids = obs_data[output_cols]
     address_data = pd.DataFrame(index=address_ids.index)
 
     # Load address data from artifact
