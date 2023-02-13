@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium_census_prl_synth_pop.constants import data_values
+from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 
 def test_individuals_move(simulants_on_adjacent_timesteps):
@@ -327,7 +327,8 @@ def test_addresses_during_moves(
 
         # Check that some movers are in a new state
         # TODO Check that *most* are in a new state when we add all 50+ locations
-        if state_id_col:  # TODO: remove conditional when state is implemented for businesses
+        # TODO: remove state_id_col conditional when state is implemented for businesses
+        if state_id_col and len(metadata.UNITED_STATES_LOCATIONS) > 1:
             assert any(
                 before_units.loc[mask_moved_units, state_id_col]
                 != after_units.loc[mask_moved_units, state_id_col]
