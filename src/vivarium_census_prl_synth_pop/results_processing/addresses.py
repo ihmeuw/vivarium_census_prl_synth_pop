@@ -53,7 +53,9 @@ def get_address_id_maps(
         output_columns=output_cols_superset,
     )
     maps.update(get_zipcode_map(column_name, formatted_obs_data, randomness))
-    maps.update(get_household_address_map(column_name, formatted_obs_data, artifact, randomness))
+    maps.update(
+        get_household_address_map(column_name, formatted_obs_data, artifact, randomness)
+    )
     return maps
 
 
@@ -80,7 +82,9 @@ def get_zipcode_map(
     """
     zip_map_dict = {}
     output_cols = [column_name, "state", "puma"]  # columns in the output we use to map
-    simulation_addresses = obs_data.reset_index()[output_cols].drop_duplicates().set_index("address_id")
+    simulation_addresses = (
+        obs_data.reset_index()[output_cols].drop_duplicates().set_index("address_id")
+    )
     zip_map = pd.Series(index=simulation_addresses.index)
 
     # Read in CSV and normalize

@@ -337,7 +337,9 @@ def test_zipcode_mapping():
     simulation_addresses["state"] = 6  # from PUMA_TO_ZIP_DATA_PATH
     simulation_addresses["puma"] = 3756  # from PUMA_TO_ZIP_DATA_PATH
     simulation_addresses["silly_column"] = "yada yada yada"
-    fake_obs_data = pd.concat([simulation_addresses, simulation_addresses])  # concatenation allows for dupe address_id
+    fake_obs_data = pd.concat(
+        [simulation_addresses, simulation_addresses]
+    )  # concatenation allows for dupe address_id
 
     # Function under test
     mapper = get_zipcode_map("address_id", fake_obs_data, randomness)
@@ -348,22 +350,14 @@ def test_zipcode_mapping():
     )
 
     # Assert that the `num_ids` simulants get assigned the correct proportion of zip code
-    fake_obs_data["zipcode"] = simulation_addresses["address_id"].map(
-        mapper["zipcode"]
-    )
+    fake_obs_data["zipcode"] = simulation_addresses["address_id"].map(mapper["zipcode"])
     assert np.isclose(
-        (
-            fake_obs_data["zipcode"].value_counts()[90723]
-            / len(fake_obs_data["zipcode"])
-        ),
+        (fake_obs_data["zipcode"].value_counts()[90723] / len(fake_obs_data["zipcode"])),
         expected_proportion_90723,
         rtol=0.1,
     )
     assert np.isclose(
-        (
-            fake_obs_data["zipcode"].value_counts()[90706]
-            / len(fake_obs_data["zipcode"])
-        ),
+        (fake_obs_data["zipcode"].value_counts()[90706] / len(fake_obs_data["zipcode"])),
         expected_proportion_90706,
         rtol=0.1,
     )
