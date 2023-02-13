@@ -287,10 +287,11 @@ def convert_middle_name_to_initial(pop: pd.DataFrame) -> pd.DataFrame:
 
 
 def sample_acs_standard_households(
-    target_number_sims: int,
+    num_households: Optional[int],
     acs_households: pd.DataFrame,
     acs_persons: pd.DataFrame,
     randomness: RandomnessStream,
+    target_number_sims: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Samples households from ACS using household weights and gets the associated persons.
@@ -298,16 +299,26 @@ def sample_acs_standard_households(
     The acs_sample_household_id in both returned dataframes (chosen households and persons)
     represents the unique household sampling event, even if multiple instances of
     the same ACS household were sampled.
-    Aims for the target_number_sims and slightly undershoots it if it doesn't come out to
+
+    Requires either num_households or target_number_sims to be provided.
+    In the former case, samples that many households, regardless of how many people are in them.
+    In the latter case, aims for the target_number_sims and slightly undershoots it if it doesn't come out to
     a round number of households.
     """
+    if (num_households is None) == (target_number_sims is None):
+        raise ValueError(
+            "Exactly one of num_households and target_number_sims should be provided."
+        )
 
-    # oversample households -- each household has at least one person,
-    # so if we get as many households as we need people, we will always
-    # have enough people (and probably far too many)
+    if num_households is None:
+        # oversample households -- each household has at least one person,
+        # so if we get as many households as we need people, we will always
+        # have enough people (and probably far too many)
+        num_households = target_number_sims
+
     chosen_households_index = vectorized_choice(
         options=acs_households.index,
-        n_to_choose=target_number_sims,
+        n_to_choose=num_households,
         randomness_stream=randomness,
         weights=acs_households["household_weight"],
         additional_key="choose_standard_households",
@@ -326,16 +337,17 @@ def sample_acs_standard_households(
         how="left",
     )
 
-    # get rid of simulants and households in excess of desired pop size
-    households_to_discard = chosen_persons.loc[
-        target_number_sims:, "acs_sample_household_id"
-    ].unique()
-    chosen_persons = chosen_persons.loc[
-        ~chosen_persons["acs_sample_household_id"].isin(households_to_discard)
-    ]
-    chosen_households = chosen_households.loc[
-        ~chosen_households["acs_sample_household_id"].isin(households_to_discard)
-    ]
+    if target_number_sims is not None:
+        # get rid of simulants and households in excess of desired pop size
+        households_to_discard = chosen_persons.loc[
+            target_number_sims:, "acs_sample_household_id"
+        ].unique()
+        chosen_persons = chosen_persons.loc[
+            ~chosen_persons["acs_sample_household_id"].isin(households_to_discard)
+        ]
+        chosen_households = chosen_households.loc[
+            ~chosen_households["acs_sample_household_id"].isin(households_to_discard)
+        ]
 
     return chosen_households, chosen_persons
 
