@@ -7,7 +7,10 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.constants import data_values
-from vivarium_census_prl_synth_pop.utilities import random_integers, vectorized_choice
+from vivarium_census_prl_synth_pop.utilities import (
+    random_integers,
+    randomly_sample_states_pumas,
+)
 
 HOUSEHOLD_ID_DTYPE = int
 HOUSEHOLD_DETAILS_DTYPES = {
@@ -40,6 +43,9 @@ class Households:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
+        self.states_in_artifact = list(
+            builder.data.load("population.households")["state"].drop_duplicates()
+        )
         self.columns_used = [
             "tracked",
             "household_id",
@@ -47,10 +53,6 @@ class Households:
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
-        # FIXME: Use the US address static file for states/pumas
-        self.state_puma_options = builder.data.load("population.households")[
-            ["state", "puma"]
-        ].drop_duplicates()
 
         # GQ households are special, with fixed IDs
         gq_household_ids = (
@@ -58,8 +60,11 @@ class Households:
             .astype(HOUSEHOLD_ID_DTYPE)
             .rename("household_id")
         )
-        states_pumas = self.randomly_sample_states_pumas(
-            gq_household_ids, random_seed=builder.configuration.randomness.random_seed
+        states_pumas = randomly_sample_states_pumas(
+            unit_ids=gq_household_ids,
+            available_states=self.states_in_artifact,
+            additional_key="gq_states_pumas",
+            random_seed=builder.configuration.randomness.random_seed,
         )
         self._households = pd.DataFrame(
             {
@@ -152,7 +157,12 @@ class Households:
         )
         po_boxes = self.generate_po_boxes(num_households)
         if states_pumas is None:
-            states_pumas = self.randomly_sample_states_pumas(household_ids)
+            states_pumas = randomly_sample_states_pumas(
+                unit_ids=household_ids,
+                available_states=self.states_in_artifact,
+                additional_key="new_household_states_pumas",
+                randomness_stream=self.randomness,
+            )
         states = np.array(states_pumas["state_id"])
         pumas = np.array(states_pumas["puma"])
 
@@ -185,10 +195,16 @@ class Households:
             len(household_ids), taken=self._households["address_id"]
         )
         po_boxes = self.generate_po_boxes(len(household_ids))
-        states_pumas = self.randomly_sample_states_pumas(household_ids)
+        states_pumas = randomly_sample_states_pumas(
+            unit_ids=household_ids,
+            available_states=self.states_in_artifact,
+            additional_key="updated_household_states_pumas",
+            randomness_stream=self.randomness,
+        )
         self._households.loc[household_ids, "address_id"] = new_address_ids
         self._households.loc[household_ids, "po_box"] = po_boxes
-        self._households.loc[household_ids, ["state_id", "puma"]] = states_pumas
+        self._households.loc[household_ids, "state_id"] = states_pumas["state_id"]
+        self._households.loc[household_ids, "puma"] = states_pumas["puma"]
 
     ##################
     # Helper methods #
@@ -227,22 +243,3 @@ class Households:
             additional_key="po_box_number",
         )
         return np.array(po_boxes)
-
-    def randomly_sample_states_pumas(
-        self, household_ids: pd.Series, random_seed: int = None
-    ) -> pd.DataFrame:
-        if random_seed is None:  # Use the randomness_stream
-            randomness_stream = self.randomness
-        else:
-            randomness_stream = None
-        states_pumas_idx = vectorized_choice(
-            options=self.state_puma_options.index,
-            n_to_choose=len(household_ids),
-            randomness_stream=randomness_stream,
-            additional_key="sample_states_pumas",
-            random_seed=random_seed,
-        )
-        states_pumas = self.state_puma_options.loc[states_pumas_idx]
-        states_pumas.index = household_ids
-        states_pumas.rename(columns={"state": "state_id"}, inplace=True)
-        return states_pumas
