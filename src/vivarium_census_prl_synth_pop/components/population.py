@@ -594,18 +594,6 @@ class Population:
         new_simulants = self.assign_general_population_guardians(new_simulants, full_pop)
         new_simulants = self.assign_college_simulants_guardians(new_simulants, full_pop)
 
-        # Ensure these stay integers -- they will have become floats in the existing_simulants due to
-        # the addition of NaNs
-        link_cols = [
-            "first_name_id",
-            "middle_name_id",
-            "last_name_id",
-            "guardian_1",
-            "guardian_2",
-        ]
-        for link_col in link_cols:
-            new_simulants[link_col] = new_simulants[link_col].astype(int)
-
         return new_simulants
 
     def assign_general_population_guardians(
@@ -1258,9 +1246,13 @@ class Population:
         # a simulants_to_assign row were both linked *to* and linked *from* here!
         # That only one or the other occurs is guaranteed by our relation_to_household_head
         # criteria above.
-        simulants_to_assign.loc[relatives_idx, "last_name_id"] = simulants_to_assign.loc[
-            relatives_idx, "household_id"
-        ].map(reference_person_last_name_ids)
+        # We have to set the type because it will have become a float with the addition of
+        # NaNs.
+        simulants_to_assign.loc[relatives_idx, "last_name_id"] = (
+            simulants_to_assign.loc[relatives_idx, "household_id"]
+            .map(reference_person_last_name_ids)
+            .astype(int)
+        )
 
         return simulants_to_assign
 
