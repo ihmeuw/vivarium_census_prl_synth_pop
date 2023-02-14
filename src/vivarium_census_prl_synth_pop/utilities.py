@@ -439,5 +439,5 @@ def get_state_puma_options(builder: Builder) -> pd.DataFrame:
     state_puma_options = state_puma_options[
         state_puma_options["state"].isin(states_in_artifact)
     ]
-    
+
     return state_puma_options
