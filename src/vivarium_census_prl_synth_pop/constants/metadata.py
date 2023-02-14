@@ -18,8 +18,7 @@ MAKE_ARTIFACT_SLEEP = 10
 
 LOCATIONS = ["United States of America", "Florida"]
 UNITED_STATES_LOCATIONS = [
-    "California",
-    "Florida",
+    # Leave empty for all locations in ACS dataset,
 ]
 
 ARTIFACT_INDEX_COLUMNS = ["sex", "age_start", "age_end", "year_start", "year_end"]
