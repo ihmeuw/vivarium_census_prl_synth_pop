@@ -29,7 +29,6 @@ from vivarium_census_prl_synth_pop.utilities import (
 
 
 def running_from_cluster() -> bool:
-
     import vivarium_cluster_tools as vct
 
     on_cluster = True

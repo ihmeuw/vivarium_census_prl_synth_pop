@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
@@ -90,7 +91,7 @@ def get_last_name_map(
     )
     oldest = name_data.reset_index().drop_duplicates("last_name_id").set_index("last_name_id")
 
-    last_names_map = pd.Series(index=oldest.index, dtype=str)
+    last_names_map = pd.Series("", index=oldest.index)
     for race_eth, df_race_eth in oldest.groupby("race_ethnicity"):
         last_names_map.loc[df_race_eth.index] = random_last_names(
             race_eth, len(df_race_eth), column_name, artifact, randomness
@@ -164,6 +165,11 @@ def random_last_names(
     nd.ndarray of [size] last names sampled from people of race and ethnicity [race_eth]
     """
     df_census_names = artifact.load(data_keys.SYNTHETIC_DATA.LAST_NAMES).reset_index()
+    l = len(df_census_names)
+    # fixme: Nan in artifact data for last names.
+    df_census_names = df_census_names.loc[~df_census_names["name"].isnull()]
+    if len(df_census_names) < l:
+        logger.info("Artifact contains missing values for last names data...")
 
     # randomly sample last names
     last_names = vectorized_choice(

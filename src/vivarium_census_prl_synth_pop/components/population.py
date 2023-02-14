@@ -53,8 +53,6 @@ class Population:
 
         self.columns_created = [
             "household_id",
-            "state",
-            "puma",
             "relation_to_household_head",
             "sex",
             "age",
@@ -72,7 +70,9 @@ class Population:
             "born_in_us",
         ]
         self.register_simulants = builder.randomness.register_simulants
-        self.population_view = builder.population.get_view(self.columns_created)
+        self.population_view = builder.population.get_view(
+            self.columns_created + ["state_id_for_lookup"]
+        )
         self.households = builder.components.get_component("households")
 
         # HACK: ACS data must be loaded in setup, since it comes from the artifact;
@@ -172,7 +172,13 @@ class Population:
     ) -> pd.DataFrame:
         new_simulants = self.initialize_new_simulants_from_acs(acs_persons, pop_data)
 
-        household_ids = self.households.create_households(len(acs_households))
+        household_ids = self.households.create_households(
+            num_households=len(acs_households),
+            states_pumas=acs_households[["state", "puma"]].rename(
+                columns={"state": "state_id"}
+            ),
+        )
+
         household_id_mapping = pd.Series(
             household_ids, index=acs_households["acs_sample_household_id"]
         )
@@ -232,8 +238,6 @@ class Population:
 
         inherited_traits = [
             "household_id",
-            "state",
-            "puma",
             "race_ethnicity",
             "relation_to_household_head",
             "last_name_id",
@@ -489,9 +493,6 @@ class Population:
         """
         # Add basic, non-ACS columns
         new_simulants = self.initialize_new_simulants(new_simulants, pop_data)
-
-        # set state dtype
-        new_simulants["state"] = new_simulants["state"].astype("int64")
 
         # Age is recorded in ACS as an integer, floored.
         # We shift ages to a random floating point value between the reported age and the next.

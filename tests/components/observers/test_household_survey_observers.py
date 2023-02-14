@@ -40,6 +40,9 @@ def mocked_household_details_pipeline(mocked_pop_view):
         df = mocked_pop_view[["household_id"]]
         df["housing_type"] = ["Van", "Standard"]
         df["address_id"] = [100, 200]
+        df["po_box"] = [-1, -2]
+        df["state_id"] = [-1, -2]
+        df["puma"] = [-1, -2]
         return df
 
     return _mocked_pipeline
@@ -84,8 +87,10 @@ def test_get_observation(
     expected["middle_initial"] = ["J", "M"]
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2
-    expected[["housing_type", "address_id"]] = mocked_household_details_pipeline("dummy")[
-        ["housing_type", "address_id"]
+    expected[
+        ["housing_type", "address_id", "state_id", "puma"]
+    ] = mocked_household_details_pipeline("dummy")[
+        ["housing_type", "address_id", "state_id", "puma"]
     ]
     pd.testing.assert_frame_equal(expected[observer.output_columns], observation)
 
@@ -115,8 +120,13 @@ def test_multiple_observation(
     expected["middle_initial"] = ["J", "M"] * 2
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2 + [event.time] * 2
-    expected[["housing_type", "address_id"]] = pd.concat(
-        [mocked_household_details_pipeline("dummy")[["housing_type", "address_id"]]] * 2,
+    expected[["housing_type", "address_id", "state_id", "puma"]] = pd.concat(
+        [
+            mocked_household_details_pipeline("dummy")[
+                ["housing_type", "address_id", "state_id", "puma"]
+            ]
+        ]
+        * 2,
         axis=0,
     )
     pd.testing.assert_frame_equal(expected[observer.output_columns], observer.responses)
