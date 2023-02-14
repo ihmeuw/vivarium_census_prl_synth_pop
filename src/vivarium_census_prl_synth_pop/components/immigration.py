@@ -135,29 +135,7 @@ class Immigration:
             event.index,
         )
 
-        num_households_immigrating = self._round_stochastically(
-            self.households_immigrating_per_time_step, "num_households_immigrating"
-        )
-
-        if num_households_immigrating > 0:
-            chosen_households, chosen_persons = sample_acs_standard_households(
-                num_households=num_households_immigrating,
-                acs_households=self.household_immigrant_households,
-                acs_persons=self.household_immigrants,
-                randomness=self.randomness,
-            )
-            self.simulant_creator(
-                len(chosen_persons),
-                population_configuration={
-                    "sim_state": "time_step",
-                    "creation_type": "household_immigrants",
-                    "acs_households": chosen_households,
-                    "acs_persons": chosen_persons,
-                    "current_population_index": event.index,
-                    # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198
-                    "parent_ids": -1,
-                },
-            )
+        self._create_household_immigrants(event.index)
 
     ##################
     # Helper methods #
@@ -195,6 +173,32 @@ class Immigration:
                 population_configuration={
                     "sim_state": "time_step",
                     "creation_type": creation_type,
+                    "acs_persons": chosen_persons,
+                    "current_population_index": current_population_index,
+                    # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198
+                    "parent_ids": -1,
+                },
+            )
+
+    def _create_household_immigrants(self, current_population_index: pd.Index) -> None:
+        num_households_immigrating = self._round_stochastically(
+            self.households_immigrating_per_time_step, "num_households_immigrating"
+        )
+
+        if num_households_immigrating > 0:
+            chosen_households, chosen_persons = sample_acs_standard_households(
+                target_number_sims=None,
+                acs_households=self.household_immigrant_households,
+                acs_persons=self.household_immigrants,
+                randomness=self.randomness,
+                num_households=num_households_immigrating,
+            )
+            self.simulant_creator(
+                len(chosen_persons),
+                population_configuration={
+                    "sim_state": "time_step",
+                    "creation_type": "household_immigrants",
+                    "acs_households": chosen_households,
                     "acs_persons": chosen_persons,
                     "current_population_index": current_population_index,
                     # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198

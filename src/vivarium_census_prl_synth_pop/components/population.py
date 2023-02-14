@@ -131,11 +131,11 @@ class Population:
         acs_households = self.population_data["households"]
         is_standard_household = acs_households["household_type"] == "Housing unit"
         chosen_households, chosen_persons = sample_acs_standard_households(
-            num_households=None,
+            target_number_sims=target_standard_housing_pop_size,
             acs_households=acs_households[is_standard_household],
             acs_persons=self.population_data["persons"],
             randomness=self.randomness,
-            target_number_sims=target_standard_housing_pop_size,
+            num_households=None,
         )
         non_gq_simulants = self.initialize_standard_households(
             acs_households=chosen_households,

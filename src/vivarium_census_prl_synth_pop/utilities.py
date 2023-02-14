@@ -287,11 +287,11 @@ def convert_middle_name_to_initial(pop: pd.DataFrame) -> pd.DataFrame:
 
 
 def sample_acs_standard_households(
-    num_households: Optional[int],
+    target_number_sims: Optional[int],
     acs_households: pd.DataFrame,
     acs_persons: pd.DataFrame,
     randomness: RandomnessStream,
-    target_number_sims: Optional[int] = None,
+    num_households: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Samples households from ACS using household weights and gets the associated persons.
@@ -300,10 +300,10 @@ def sample_acs_standard_households(
     represents the unique household sampling event, even if multiple instances of
     the same ACS household were sampled.
 
-    Requires either num_households or target_number_sims to be provided.
-    In the former case, samples that many households, regardless of how many people are in them.
-    In the latter case, aims for the target_number_sims and slightly undershoots it if it doesn't come out to
+    Requires either target_number_sims or num_households to be provided.
+    In the former case, aims for the target_number_sims and slightly undershoots it if it doesn't come out to
     a round number of households.
+    In the latter case, samples the given number of households, regardless of how many people are in them.
     """
     if (num_households is None) == (target_number_sims is None):
         raise ValueError(
