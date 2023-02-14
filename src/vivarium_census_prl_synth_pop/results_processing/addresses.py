@@ -56,6 +56,7 @@ def get_address_id_maps(
     maps.update(
         get_household_address_map(column_name, formatted_obs_data, artifact, randomness)
     )
+    maps.update(get_city_map(column_name, formatted_obs_data, artifact, randomness))
     return maps
 
 
@@ -145,3 +146,29 @@ def get_household_address_map(
         address_map[obs_column] = address_data[obs_column]
 
     return address_map
+
+
+def get_city_map(
+    column_name: str,
+    obs_data: pd.DataFrame,
+    artifact: Artifact,
+    randomness: RandomnessStream,
+) -> Dict[str, pd.Series]:
+
+    # Load addresses data fro artifact
+    addresses = artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES).reset_index()
+    # Get observer data to map
+    output_cols = [column_name, "state"]
+    city_data = obs_data.reset_index()[output_cols].drop_duplicates().set_index("address_id")
+
+    for state in city_data["state"].str.lower().unique():
+        cities = vectorized_choice(
+            options=addresses.loc[addresses["Province"] == state, "Municipality"],
+            n_to_choose=len(city_data.loc[city_data["state"] == state.upper()]),
+            randomness_stream=randomness,
+            additional_key="city",
+        ).to_numpy()
+        city_data.loc[city_data["state"] == state.upper(), "city"] = cities
+
+    city_map = {"city": city_data["city"]}
+    return city_map

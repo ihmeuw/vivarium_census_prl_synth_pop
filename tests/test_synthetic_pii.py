@@ -10,6 +10,7 @@ from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.components import synthetic_pii
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
+    get_city_map,
     get_household_address_map,
     get_zipcode_map,
 )
@@ -361,3 +362,42 @@ def test_zipcode_mapping():
         expected_proportion_90706,
         rtol=0.1,
     )
+
+
+def test_city_address(mocker):
+    # This tests that we assign cities based on the correct state
+
+    # Mock artifact data
+    addresses = pd.DataFrame(
+        {
+            "Municipality": ["San Diego", "Irvine", "Seattle", "Portland"],
+            "Province": ["ca", "ca", "wa", "or"],
+        }
+    )
+    addresses = addresses.set_index(["Municipality", "Province"])
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = addresses
+
+    # Fake observer data
+    fake_obs_data = pd.DataFrame(
+        {"address_id": list(range(15)), "state": ["CA", "OR", "WA"] * 5}
+    )
+
+    city_map = get_city_map(
+        "address_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+    )
+
+    expected_keys = ["city"]
+    assert all(address_key in expected_keys for address_key in city_map.keys())
+    assert not (city_map["city"].isnull().any())
+
+    # Helper indexes for city_map
+    ca_idx = fake_obs_data.index[fake_obs_data["state"] == "CA"]
+    or_idx = fake_obs_data.index[fake_obs_data["state"] == "OR"]
+    wa_idx = fake_obs_data.index[fake_obs_data["state"] == "WA"]
+    assert (city_map["city"].loc[ca_idx].isin(["San Diego", "Irvine"])).all()
+    assert (city_map["city"].loc[or_idx] == "Portland").all()
+    assert (city_map["city"].loc[wa_idx] == "Seattle").all()
