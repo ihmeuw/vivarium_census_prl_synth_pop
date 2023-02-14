@@ -8,7 +8,6 @@ from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
 from vivarium_census_prl_synth_pop.utilities import (
-    sample_acs_group_quarters,
     sample_acs_persons,
     sample_acs_standard_households,
 )
@@ -80,19 +79,6 @@ class Immigration:
             builder.configuration,
         )
 
-        # FIXME -- this can go away once state and PUMA are in the households pipeline, because
-        # we will no longer need household rows to join to individuals
-        self.non_reference_person_immigrant_households = households_data[
-            households_data["census_household_id"].isin(
-                self.non_reference_person_immigrants["census_household_id"]
-            )
-        ]
-        self.gq_immigrant_households = households_data[
-            households_data["census_household_id"].isin(
-                self.gq_immigrants["census_household_id"]
-            )
-        ]
-
         self.simulant_creator = builder.population.get_simulant_creator()
 
         builder.event.register_listener(
@@ -118,8 +104,6 @@ class Immigration:
         # Create GQ immigrants
         self._create_individual_immigrants(
             self.gq_immigrants_per_time_step,
-            sample_acs_group_quarters,
-            self.gq_immigrant_households,
             self.gq_immigrants,
             "gq_immigrants",
             event.index,
@@ -128,8 +112,6 @@ class Immigration:
         # Create non-reference-person immigrants
         self._create_individual_immigrants(
             self.non_reference_person_immigrants_per_time_step,
-            sample_acs_persons,
-            self.non_reference_person_immigrant_households,
             self.non_reference_person_immigrants,
             "non_reference_person_immigrants",
             event.index,
@@ -153,8 +135,6 @@ class Immigration:
     def _create_individual_immigrants(
         self,
         expected_num: float,
-        sampling_function: Callable,
-        acs_households: pd.DataFrame,
         acs_persons: pd.DataFrame,
         creation_type: str,
         current_population_index: pd.Index,
@@ -162,11 +142,11 @@ class Immigration:
         num_immigrants = self._round_stochastically(expected_num, f"num_{creation_type}")
 
         if num_immigrants > 0:
-            chosen_persons = sampling_function(
+            chosen_persons = sample_acs_persons(
                 num_immigrants,
-                acs_households,
                 acs_persons,
                 randomness=self.randomness,
+                additional_key=f"sample_{creation_type}",
             )
             self.simulant_creator(
                 len(chosen_persons),

@@ -12,7 +12,7 @@ from vivarium_public_health.utilities import DAYS_PER_YEAR, to_years
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.utilities import (
-    sample_acs_group_quarters,
+    sample_acs_persons,
     sample_acs_standard_households,
     vectorized_choice,
 )
@@ -98,9 +98,7 @@ class Population:
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
-        persons = builder.data.load(data_keys.POPULATION.PERSONS)[
-            metadata.PERSONS_COLUMNS_TO_INITIALIZE
-        ]
+        persons = builder.data.load(data_keys.POPULATION.PERSONS)
         return {"households": households, "persons": persons}
 
     def initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -146,11 +144,22 @@ class Population:
         # Household sampling won't exactly hit its target population size -- we fill
         # in the remainder with GQ
         actual_gq_pop_size = self.config.population_size - len(non_gq_simulants)
-        chosen_persons = sample_acs_group_quarters(
+
+        # TODO: If we did a merge when creating the artifact that added the household_type
+        # column to the persons data, we would not have to do this quasi-merge
+        # (using the households data to determine which persons rows are GQ) at run time.
+        gq_household_ids = acs_households[~is_standard_household][
+            "census_household_id"
+        ].unique()
+        gq_persons = self.population_data["persons"][
+            self.population_data["persons"]["census_household_id"].isin(gq_household_ids)
+        ]
+
+        chosen_persons = sample_acs_persons(
             actual_gq_pop_size,
-            acs_households=acs_households[~is_standard_household],
-            acs_persons=self.population_data["persons"],
+            acs_persons=gq_persons,
             randomness=self.randomness,
+            additional_key="choose_gq_persons",
         )
         gq_simulants = self.initialize_group_quarters(
             acs_persons=chosen_persons,
@@ -584,6 +593,18 @@ class Population:
 
         new_simulants = self.assign_general_population_guardians(new_simulants, full_pop)
         new_simulants = self.assign_college_simulants_guardians(new_simulants, full_pop)
+
+        # Ensure these stay integers -- they will have become floats in the existing_simulants due to
+        # the addition of NaNs
+        link_cols = [
+            "first_name_id",
+            "middle_name_id",
+            "last_name_id",
+            "guardian_1",
+            "guardian_2",
+        ]
+        for link_col in link_cols:
+            new_simulants[link_col] = new_simulants[link_col].astype(int)
 
         return new_simulants
 
