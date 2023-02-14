@@ -9,6 +9,7 @@ from vivarium.framework.utilities import from_yearly
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
 from vivarium_census_prl_synth_pop.utilities import (
     sample_acs_persons,
+    sample_acs_standard_households,
 )
 
 
@@ -45,8 +46,8 @@ class Immigration:
         gq_households = households_data[households_data["household_type"] != "Housing unit"]
         is_gq = immigrants["census_household_id"].isin(gq_households["census_household_id"])
         self.gq_immigrants = immigrants[is_gq]
-        self.gq_immigrants_per_time_step = self._immigrants_per_time_step(
-            self.gq_immigrants,
+        self.gq_immigrants_per_time_step = self._rescale_acs_value(
+            self.gq_immigrants["person_weight"].sum(),
             builder.configuration,
         )
 
@@ -59,24 +60,24 @@ class Immigration:
             immigrant_reference_people["census_household_id"]
         )
 
-        self.household_immigrants = non_gq_immigrants[is_household_immigrant]
-        self.household_immigrants_per_time_step = self._immigrants_per_time_step(
-            self.household_immigrants,
-            builder.configuration,
-        )
         self.non_reference_person_immigrants = non_gq_immigrants[~is_household_immigrant]
-        self.non_reference_person_immigrants_per_time_step = self._immigrants_per_time_step(
-            self.non_reference_person_immigrants,
+        self.non_reference_person_immigrants_per_time_step = self._rescale_acs_value(
+            self.non_reference_person_immigrants["person_weight"].sum(),
             builder.configuration,
         )
 
+        self.household_immigrants = non_gq_immigrants[is_household_immigrant]
         # Get the *household* (not person) weights for each household that can immigrate
-        # in a household move, for use in sampling.
-        self.immigrant_households = households_data[
+        # in a household move.
+        self.household_immigrant_households = households_data[
             households_data["census_household_id"].isin(
                 immigrant_reference_people["census_household_id"]
             )
         ]
+        self.households_immigrating_per_time_step = self._rescale_acs_value(
+            self.household_immigrant_households["household_weight"].sum(),
+            builder.configuration,
+        )
 
         self.simulant_creator = builder.population.get_simulant_creator()
 
@@ -116,21 +117,20 @@ class Immigration:
             event.index,
         )
 
+        self._create_household_immigrants(event.index)
+
     ##################
     # Helper methods #
     ##################
 
-    def _immigrants_per_time_step(self, immigrants, configuration):
-        immigrants_per_year = (
-            # We rescale the proportion between immigrant population and total population to the
-            # simulation's initial population size.
-            # This value will not change over time during the simulation.
-            (immigrants["person_weight"].sum() / self.total_person_weight)
-            * configuration.population.population_size
+    def _rescale_acs_value(self, num: float, configuration):
+        # We rescale the the absolute number of events from the ACS PUMS' scale to the
+        # simulation's configured population size.
+        # This value will not change over time during the simulation.
+        events_per_year = num * (
+            configuration.population.population_size / self.total_person_weight
         )
-        return from_yearly(
-            immigrants_per_year, pd.Timedelta(days=configuration.time.step_size)
-        )
+        return from_yearly(events_per_year, pd.Timedelta(days=configuration.time.step_size))
 
     def _create_individual_immigrants(
         self,
@@ -153,6 +153,32 @@ class Immigration:
                 population_configuration={
                     "sim_state": "time_step",
                     "creation_type": creation_type,
+                    "acs_persons": chosen_persons,
+                    "current_population_index": current_population_index,
+                    # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198
+                    "parent_ids": -1,
+                },
+            )
+
+    def _create_household_immigrants(self, current_population_index: pd.Index) -> None:
+        num_households_immigrating = self._round_stochastically(
+            self.households_immigrating_per_time_step, "num_households_immigrating"
+        )
+
+        if num_households_immigrating > 0:
+            chosen_households, chosen_persons = sample_acs_standard_households(
+                target_number_sims=None,
+                acs_households=self.household_immigrant_households,
+                acs_persons=self.household_immigrants,
+                randomness=self.randomness,
+                num_households=num_households_immigrating,
+            )
+            self.simulant_creator(
+                len(chosen_persons),
+                population_configuration={
+                    "sim_state": "time_step",
+                    "creation_type": "household_immigrants",
+                    "acs_households": chosen_households,
                     "acs_persons": chosen_persons,
                     "current_population_index": current_population_index,
                     # Fertility component in VPH depends on this being present: https://github.com/ihmeuw/vivarium_public_health/blob/58485f1206a7b85b6d2aac3185ce71600fef6e60/src/vivarium_public_health/population/add_new_birth_cohorts.py#L195-L198

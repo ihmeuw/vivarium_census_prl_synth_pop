@@ -115,6 +115,8 @@ class Population:
             self.initialize_gq_immigrants(pop_data)
         elif pop_data.user_data["creation_type"] == "non_reference_person_immigrants":
             self.initialize_non_reference_person_immigrants(pop_data)
+        elif pop_data.user_data["creation_type"] == "household_immigrants":
+            self.initialize_household_immigrants(pop_data)
         else:
             raise ValueError("Unknown simulant creation type")
 
@@ -127,10 +129,11 @@ class Population:
         acs_households = self.population_data["households"]
         is_standard_household = acs_households["household_type"] == "Housing unit"
         chosen_households, chosen_persons = sample_acs_standard_households(
-            target_standard_housing_pop_size,
+            target_number_sims=target_standard_housing_pop_size,
             acs_households=acs_households[is_standard_household],
             acs_persons=self.population_data["persons"],
             randomness=self.randomness,
+            num_households=None,
         )
         non_gq_simulants = self.initialize_standard_households(
             acs_households=chosen_households,
@@ -396,6 +399,38 @@ class Population:
             .astype(existing_simulants["relation_to_household_head"].dtype)
         )
 
+        new_simulants = self.initialize_simulant_link_columns(
+            new_simulants, existing_simulants
+        )
+
+        # We need to do this each time we initialize more simulants, otherwise the
+        # addition of NaNs in household_id before it was initialized makes
+        # the column a float.
+        new_simulants["household_id"] = new_simulants["household_id"].astype(int)
+
+        self.population_view.update(new_simulants[self.columns_created])
+
+    def initialize_household_immigrants(self, pop_data: SimulantData) -> None:
+        """
+        Initializes entire household units of simulants who have newly immigrated into
+        the US.
+
+        Parameters
+        ----------
+        pop_data
+            The SimulantData on the simulant creation call, which must supply the ACS
+            rows (both household and persons) the simulants should be based on.
+        """
+        new_simulants = self.initialize_standard_households(
+            acs_households=pop_data.user_data["acs_households"],
+            acs_persons=pop_data.user_data["acs_persons"],
+            pop_data=pop_data,
+        ).set_index(pop_data.index)
+
+        existing_simulants = self.population_view.get(
+            pop_data.user_data["current_population_index"],
+            query="alive == 'alive' and in_united_states == True and tracked == True",
+        )
         new_simulants = self.initialize_simulant_link_columns(
             new_simulants, existing_simulants
         )
