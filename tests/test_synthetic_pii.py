@@ -335,7 +335,7 @@ def test_zipcode_mapping():
 
     simulation_addresses = pd.DataFrame()
     simulation_addresses["address_id"] = [f"123_{n}" for n in range(num_unique_ids)]
-    simulation_addresses["state"] = 6  # from PUMA_TO_ZIP_DATA_PATH
+    simulation_addresses["state_id"] = 6  # from PUMA_TO_ZIP_DATA_PATH
     simulation_addresses["puma"] = 3756  # from PUMA_TO_ZIP_DATA_PATH
     simulation_addresses["silly_column"] = "yada yada yada"
     fake_obs_data = pd.concat(
