@@ -12,7 +12,7 @@ from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
-    get_household_address_map,
+    get_address_id_maps,
 )
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
@@ -148,11 +148,12 @@ def generate_maps(
     randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
     # Add column maps to mapper here
+    # The key should be the index of the map and the mapping function the value
     mappers = {
         "first_name_id": get_given_name_map,
         "middle_name_id": get_middle_initial_map,
         "last_name_id": get_last_name_map,
-        "address_id": get_household_address_map,
+        "address_id": get_address_id_maps,
     }
     maps = {
         column: mapper(column, obs_data, artifact, randomness)

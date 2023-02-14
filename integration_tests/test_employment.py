@@ -149,3 +149,36 @@ def test_employer_name_uniqueness(simulants_on_adjacent_timesteps):
     """Employers should have unique names that never change"""
     for before, after in simulants_on_adjacent_timesteps:
         ...
+
+
+@pytest.mark.skip(reason="TODO when employer state/puma is implemented")
+def test_pumas_states(populations):
+    """Each unique address_id should have identical puma/state"""
+    for pop in populations:
+        assert (
+            pop.groupby("business_details.employer_address_id")[
+                ["business_details.employer_state_id", "business_details.employer_puma"]
+            ].nunique()
+            == 1
+        ).values.all()
+
+
+def test_employer_id_and_employer_address_id_correspond(tracked_live_populations):
+    for pop in tracked_live_populations:
+        assert pop["employer_id"].notnull().all()
+        assert pop["business_details.employer_address_id"].notnull().all()
+        # 1-to-1 at any given point in time
+        assert (
+            pop.groupby("employer_id")["business_details.employer_address_id"].nunique() == 1
+        ).all()
+        assert (
+            pop.groupby("business_details.employer_address_id")["employer_id"].nunique() == 1
+        ).all()
+    # Even over time, there is only 1 employer_id for each employer_address_id -- employer_address_ids are not reused.
+    all_time_pop = pd.concat(tracked_live_populations, ignore_index=True)
+    assert (
+        all_time_pop.groupby("business_details.employer_address_id")["employer_id"].nunique()
+        == 1
+    ).all()
+    # Note, however, that the reverse is not true: an employer_id can span multiple address_ids
+    # (over multiple time steps) because the business can move.

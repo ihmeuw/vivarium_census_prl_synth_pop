@@ -1,6 +1,7 @@
 import datetime as dt
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -31,8 +32,6 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
-        "state",
-        "puma",
     ]
     DEFAULT_OUTPUT_COLUMNS = [
         "first_name_id",
@@ -43,7 +42,7 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "date_of_birth",
         "address_id",
-        "state",
+        "state_id",
         "puma",
         "guardian_1",
         "guardian_2",
@@ -152,6 +151,16 @@ class BaseObserver(ABC):
             self.responses.index.names = ["simulant_id"]
             self.responses.to_csv(output_dir / f"{self.name}_{self.seed}.csv.bz2")
 
+    ##################
+    # Helper methods #
+    ##################
+
+    def add_address(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Adds address columns to dataframe"""
+        cols_to_add = ["address_id", "housing_type", "state_id", "puma", "po_box"]
+        df[cols_to_add] = self.pipelines["household_details"](df.index)[cols_to_add]
+        return df
+
 
 class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
@@ -231,9 +240,7 @@ class HouseholdSurveyObserver(BaseObserver):
         ]
         # Must be a timestamp, not an actual `date` type, in order to save to HDF in table mode
         new_responses["survey_date"] = pd.Timestamp(event.time.date())
-        new_responses[["address_id", "housing_type"]] = self.pipelines["household_details"](
-            new_responses.index
-        )[["address_id", "housing_type"]]
+        new_responses = self.add_address(new_responses)
         new_responses = utilities.add_guardian_address_ids(new_responses)
         # Apply column schema and concatenate
         return new_responses[self.output_columns]
@@ -289,9 +296,7 @@ class DecennialCensusObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # census should include only living simulants
         )
-        pop[["address_id", "housing_type"]] = self.pipelines["household_details"](pop.index)[
-            ["address_id", "housing_type"]
-        ]
+        pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
         pop["census_year"] = event.time.year
 
@@ -346,7 +351,7 @@ class WICObserver(BaseObserver):
 
         # add columns for output
         pop["wic_year"] = event.time.year
-        pop[["address_id"]] = self.pipelines["household_details"](pop.index)[["address_id"]]
+        pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
 
         # add additional columns for simulating coverage
@@ -552,7 +557,7 @@ class TaxW2Observer(BaseObserver):
         "ssn",
         "ssn_id",  # simulant id for ssn from another simulant
         "address_id",
-        "state",
+        "state_id",
         "puma",
         "po_box",
         "employer_id",
@@ -650,14 +655,8 @@ class TaxW2Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop_full = self.population_view.get(event.index)
-        household_details = self.pipelines["household_details"](pop_full.index)
         business_details = self.pipelines["business_details"](pop_full.index)
-        pop_full[["address_id", "housing_type", "po_box"]] = household_details[
-            ["address_id", "housing_type", "po_box"]
-        ]
-        pop_full[["employer_address_id", "employer_name"]] = business_details[
-            ["employer_address_id", "employer_name"]
-        ]
+        pop_full = self.add_address(pop_full)
 
         ### create dataframe of all person/employment pairs
 
@@ -677,16 +676,13 @@ class TaxW2Observer(BaseObserver):
             "sex",
             "ssn",
             "address_id",
-            "state",
+            "state_id",
             "puma",
             "housing_type",
             "race_ethnicity",
+            "po_box",
         ]:
             df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
-
-        df_w2["address_id"] = df_w2["simulant_id"].map(household_details["address_id"])
-        df_w2["housing_type"] = df_w2["simulant_id"].map(household_details["housing_type"])
-        df_w2["po_box"] = df_w2["simulant_id"].map(household_details["po_box"])
 
         # Tracked, US population to be dependents or get their SSNs borrowed
         pop = pop_full[
@@ -712,7 +708,7 @@ class TaxW2Observer(BaseObserver):
         df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
 
         # merge in employer columns based on employer_id
-        emp = pop.groupby("employer_id").first()
+        emp = business_details.groupby("employer_id").first()
         for col in ["employer_address_id", "employer_name"]:
             df_w2[col] = df_w2["employer_id"].map(emp[col])
 
@@ -744,7 +740,7 @@ class TaxDependentsObserver(BaseObserver):
         "age",
         "date_of_birth",
         "address_id",
-        "state",
+        "state_id",
         "puma",
         "sex",
         "ssn",
@@ -786,10 +782,7 @@ class TaxDependentsObserver(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop_full = self.population_view.get(event.index)
-        household_details = self.pipelines["household_details"](pop_full.index)
-        pop_full[["address_id", "housing_type"]] = household_details[
-            ["address_id", "housing_type"]
-        ]
+        pop_full = self.add_address(pop_full)
 
         # Tracked, US population to be dependents
         pop = pop_full[
@@ -870,7 +863,7 @@ class Tax1040Observer(BaseObserver):
         "sex",
         "ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
-        "state",
+        "state_id",
         "puma",
         "race_ethnicity",
         "relation_to_household_head",  # needed to identify couples filing jointly
@@ -914,10 +907,7 @@ class Tax1040Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(event.index)
-        household_details = self.pipelines["household_details"](pop.index)
-        pop[["address_id", "housing_type"]] = household_details[
-            ["address_id", "housing_type"]
-        ]
+        pop = self.add_address(pop)
 
         # add derived columns
         pop["tax_year"] = event.time.year - 1

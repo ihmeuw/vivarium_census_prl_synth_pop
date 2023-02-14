@@ -1,6 +1,9 @@
+from functools import partial
+
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 
 from vivarium_census_prl_synth_pop.constants import metadata, paths
@@ -42,40 +45,37 @@ class PersonEmigration:
             "in_united_states",
             "exit_time",
             "tracked",
+            "state_id_for_lookup",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
         self.updated_relation_to_reference_person = builder.value.get_value(
             "updated_relation_to_reference_person"
         )
 
-        non_reference_person_move_rates_data = pd.read_csv(
-            paths.NON_REFERENCE_PERSON_EMIGRATION_RATES_PATH,
-        )
-
         non_reference_person_move_rates_lookup_table = builder.lookup.build_table(
-            data=non_reference_person_move_rates_data,
-            key_columns=["sex", "race_ethnicity", "state", "born_in_us"],
+            data=pd.read_csv(paths.NON_REFERENCE_PERSON_EMIGRATION_RATES_PATH).rename(
+                columns={"state": "state_id_for_lookup"}
+            ),
+            key_columns=["sex", "race_ethnicity", "state_id_for_lookup", "born_in_us"],
             parameter_columns=["age"],
             value_columns=["non_reference_person_emigration_rate"],
         )
         self.non_reference_person_move_rates = builder.value.register_rate_producer(
             f"{self.name}.non_reference_person_move_rates",
-            source=non_reference_person_move_rates_lookup_table,
-        )
-
-        gq_person_move_rates_data = pd.read_csv(
-            paths.GQ_PERSON_EMIGRATION_RATES_PATH,
+            source=partial(self.get_move_rates, non_reference_person_move_rates_lookup_table),
         )
 
         gq_person_move_rates_lookup_table = builder.lookup.build_table(
-            data=gq_person_move_rates_data,
-            key_columns=["sex", "race_ethnicity", "state", "born_in_us"],
+            data=pd.read_csv(
+                paths.GQ_PERSON_EMIGRATION_RATES_PATH,
+            ).rename(columns={"state": "state_id_for_lookup"}),
+            key_columns=["sex", "race_ethnicity", "state_id_for_lookup", "born_in_us"],
             parameter_columns=["age"],
             value_columns=["gq_person_emigration_rate"],
         )
         self.gq_person_move_rates = builder.value.register_rate_producer(
             f"{self.name}.gq_person_move_rates",
-            source=gq_person_move_rates_lookup_table,
+            source=partial(self.get_move_rates, gq_person_move_rates_lookup_table),
         )
 
         builder.population.initializes_simulants(
@@ -87,6 +87,17 @@ class PersonEmigration:
             self.on_time_step,
             priority=metadata.PRIORITY_MAP["person_emigration.on_time_step"],
         )
+
+    def get_move_rates(self, lookup_table: LookupTable, idx: pd.Index) -> LookupTable:
+        """The emigration rates lookup tables require a state_id column in the
+        state table. Since the state_id column exists as part of the
+        household_details pipeline, this method updates the state_id_for_lookup
+        column with the pipeline values and then returns the lookup table
+        """
+        pop = self.population_view.get(idx)
+        pop["state_id_for_lookup"] = self.household_details(idx)["state_id"]
+        self.population_view.update(pop)
+        return lookup_table(idx)
 
     ########################
     # Event-driven methods #
