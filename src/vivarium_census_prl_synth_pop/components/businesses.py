@@ -12,6 +12,7 @@ from vivarium_public_health import utilities
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
+    get_state_puma_options,
     randomly_sample_states_pumas,
 )
 
@@ -56,9 +57,7 @@ class Businesses:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
-        self.states_in_artifact = list(
-            builder.data.load("population.households")["state"].drop_duplicates()
-        )
+        self.state_puma_options = get_state_puma_options(builder)
         self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
         self.columns_created = [
@@ -298,7 +297,7 @@ class Businesses:
         # Randomly assign employer states/PUMAs
         states_pumas = randomly_sample_states_pumas(
             unit_ids=businesses.index,
-            available_states=self.states_in_artifact,
+            state_puma_options=self.state_puma_options,
             additional_key="initial_business_states_pumas",
             randomness_stream=self.randomness,
         )
@@ -396,7 +395,7 @@ class Businesses:
             ] = self.employer_address_id_count + np.arange(len(moving_business_ids))
             states_pumas = randomly_sample_states_pumas(
                 unit_ids=moving_business_ids,
-                available_states=self.states_in_artifact,
+                state_puma_options=self.state_puma_options,
                 additional_key="update_business_states_pumas",
                 randomness_stream=self.randomness,
             )

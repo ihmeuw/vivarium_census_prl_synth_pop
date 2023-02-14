@@ -8,6 +8,7 @@ from vivarium.framework.time import get_time_stamp
 
 from vivarium_census_prl_synth_pop.constants import data_values
 from vivarium_census_prl_synth_pop.utilities import (
+    get_state_puma_options,
     random_integers,
     randomly_sample_states_pumas,
 )
@@ -43,9 +44,7 @@ class Households:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
-        self.states_in_artifact = list(
-            builder.data.load("population.households")["state"].drop_duplicates()
-        )
+        self.state_puma_options = get_state_puma_options(builder)
         self.columns_used = [
             "tracked",
             "household_id",
@@ -62,7 +61,7 @@ class Households:
         )
         states_pumas = randomly_sample_states_pumas(
             unit_ids=gq_household_ids,
-            available_states=self.states_in_artifact,
+            state_puma_options=self.state_puma_options,
             additional_key="gq_states_pumas",
             random_seed=builder.configuration.randomness.random_seed,
         )
@@ -144,7 +143,7 @@ class Households:
             The housing type of the new households.
         states_pumas (optional)
             A dataframe of the households' state_ids and pumas. If it is None, then
-            new states ande pumas will be sampled from ACS data.
+            new states ande pumas will be sampled.
 
         Returns
         -------
@@ -159,7 +158,7 @@ class Households:
         if states_pumas is None:
             states_pumas = randomly_sample_states_pumas(
                 unit_ids=household_ids,
-                available_states=self.states_in_artifact,
+                state_puma_options=self.state_puma_options,
                 additional_key="new_household_states_pumas",
                 randomness_stream=self.randomness,
             )
@@ -197,7 +196,7 @@ class Households:
         po_boxes = self.generate_po_boxes(len(household_ids))
         states_pumas = randomly_sample_states_pumas(
             unit_ids=household_ids,
-            available_states=self.states_in_artifact,
+            state_puma_options=self.state_puma_options,
             additional_key="updated_household_states_pumas",
             randomness_stream=self.randomness,
         )

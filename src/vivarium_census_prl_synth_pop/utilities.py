@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
+from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
 from vivarium.framework.values import Pipeline
@@ -389,7 +390,7 @@ def sample_acs_group_quarters(
 
 def randomly_sample_states_pumas(
     unit_ids: pd.Series,
-    available_states: List[int],
+    state_puma_options: pd.DataFrame,
     additional_key: str,
     randomness_stream: RandomnessStream = None,
     random_seed: int = None,
@@ -398,7 +399,7 @@ def randomly_sample_states_pumas(
 
     Args:
         unit_ids (pd.Series): household_ids or business_ids to sample for
-        available_states (List[int]): states in the artifact data
+        state_puma_options (pd.DataFrame): dataframe with state and puma columns
         additional_key (str): standard RandomnessStream additional_key
         randomness_stream (RandomnessStream, optional): Defaults to None.
         random_seed (int, optional): Only used when trying to call
@@ -413,14 +414,6 @@ def randomly_sample_states_pumas(
     if random_seed is not None and randomness_stream is not None:
         raise RuntimeError("Only one of randomness_stream or random_seed should be provided")
 
-    state_puma_options = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)[
-        ["state", "puma"]
-    ].drop_duplicates()
-    # Subset to only states that exist in the artifact
-    state_puma_options = state_puma_options[
-        state_puma_options["state"].isin(available_states)
-    ]
-
     states_pumas_idx = vectorized_choice(
         options=state_puma_options.index,
         n_to_choose=len(unit_ids),
@@ -433,3 +426,18 @@ def randomly_sample_states_pumas(
     states_pumas = states_pumas.rename(columns={"state": "state_id"})
 
     return states_pumas
+
+
+def get_state_puma_options(builder: Builder) -> pd.DataFrame:
+    states_in_artifact = list(
+        builder.data.load("population.households")["state"].drop_duplicates()
+    )
+    state_puma_options = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)[
+        ["state", "puma"]
+    ].drop_duplicates()
+    # Subset to only states that exist in the artifact
+    state_puma_options = state_puma_options[
+        state_puma_options["state"].isin(states_in_artifact)
+    ]
+    
+    return state_puma_options
