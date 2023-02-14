@@ -7,11 +7,12 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
+from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.constants import metadata
+from vivarium_census_prl_synth_pop.constants import metadata, paths
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
@@ -385,3 +386,58 @@ def sample_acs_group_quarters(
     )
 
     return chosen_persons
+
+
+def randomly_sample_states_pumas(
+    unit_ids: pd.Series,
+    state_puma_options: pd.DataFrame,
+    additional_key: str,
+    randomness_stream: RandomnessStream = None,
+    random_seed: int = None,
+) -> pd.DataFrame:
+    """Randomly sample new states and pumas from the raw data file.
+
+    Args:
+        unit_ids (pd.Series): household_ids or business_ids to sample for
+        state_puma_options (pd.DataFrame): dataframe with state and puma columns
+        additional_key (str): standard RandomnessStream additional_key
+        randomness_stream (RandomnessStream, optional): Defaults to None.
+        random_seed (int, optional): Only used when trying to call
+            vectorized_choice when no RandomnessStream is available
+            (eg during setup). Defaults to None.
+
+    Returns:
+        pd.DataFrame: Index are the unit_ids and has columns [['state_id', 'puma']]
+    """
+    if random_seed is None and randomness_stream is None:
+        raise RuntimeError("A randomness_stream or random_seed must be provided")
+    if random_seed is not None and randomness_stream is not None:
+        raise RuntimeError("Only one of randomness_stream or random_seed should be provided")
+
+    states_pumas_idx = vectorized_choice(
+        options=state_puma_options.index,
+        n_to_choose=len(unit_ids),
+        randomness_stream=randomness_stream,
+        additional_key=additional_key,
+        random_seed=random_seed,
+    )
+    states_pumas = state_puma_options.loc[states_pumas_idx]
+    states_pumas.index = unit_ids
+    states_pumas = states_pumas.rename(columns={"state": "state_id"})
+
+    return states_pumas
+
+
+def get_state_puma_options(builder: Builder) -> pd.DataFrame:
+    states_in_artifact = list(
+        builder.data.load("population.households")["state"].drop_duplicates()
+    )
+    state_puma_options = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)[
+        ["state", "puma"]
+    ].drop_duplicates()
+    # Subset to only states that exist in the artifact
+    state_puma_options = state_puma_options[
+        state_puma_options["state"].isin(states_in_artifact)
+    ]
+
+    return state_puma_options

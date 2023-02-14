@@ -10,7 +10,11 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
-from vivarium_census_prl_synth_pop.utilities import filter_by_rate
+from vivarium_census_prl_synth_pop.utilities import (
+    filter_by_rate,
+    get_state_puma_options,
+    randomly_sample_states_pumas,
+)
 
 
 class Businesses:
@@ -53,6 +57,7 @@ class Businesses:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
+        self.state_puma_options = get_state_puma_options(builder)
         self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
         self.columns_created = [
@@ -173,7 +178,7 @@ class Businesses:
             "moving_businesses",
         )
 
-        self.update_business_address_ids(businesses_that_move_idx)
+        self.update_business_addresses(businesses_that_move_idx)
 
         # change jobs by rate as well as if the household moves (only includes
         # working-age simulants and excludes simulants living in military GQ)
@@ -289,6 +294,15 @@ class Businesses:
         )
 
         businesses = pd.concat([known_employers, random_employers], ignore_index=True)
+        # Randomly assign employer states/PUMAs
+        states_pumas = randomly_sample_states_pumas(
+            unit_ids=businesses.index,
+            state_puma_options=self.state_puma_options,
+            additional_key="initial_business_states_pumas",
+            randomness_stream=self.randomness,
+        )
+        businesses["employer_state_id"] = states_pumas["state_id"]
+        businesses["employer_puma"] = states_pumas["puma"]
         self.employer_address_id_count = len(businesses)  # So next address will be unique
 
         return businesses.set_index("employer_id")
@@ -357,15 +371,18 @@ class Businesses:
         """Source of the business details pipeline"""
         pop = self.population_view.get(idx)[["employer_id"]]
         business_details = pop.join(
-            self.businesses[["employer_name", "employer_address_id"]], on="employer_id"
+            self.businesses[
+                ["employer_name", "employer_address_id", "employer_state_id", "employer_puma"]
+            ],
+            on="employer_id",
         )
 
         return business_details
 
-    def update_business_address_ids(self, moving_business_ids: pd.Index) -> None:
+    def update_business_addresses(self, moving_business_ids: pd.Index) -> None:
         """
-        Change the address_id associated with each of the provided business_ids to
-        a new, unique value.
+        Change the address information associated with each of the provided
+        business_ids to a new, unique address.
 
         Parameters
         ----------
@@ -376,4 +393,14 @@ class Businesses:
             self.businesses.loc[
                 moving_business_ids, "employer_address_id"
             ] = self.employer_address_id_count + np.arange(len(moving_business_ids))
+            states_pumas = randomly_sample_states_pumas(
+                unit_ids=moving_business_ids,
+                state_puma_options=self.state_puma_options,
+                additional_key="update_business_states_pumas",
+                randomness_stream=self.randomness,
+            )
+            self.businesses.loc[moving_business_ids, "employer_state_id"] = states_pumas[
+                "state_id"
+            ]
+            self.businesses.loc[moving_business_ids, "employer_puma"] = states_pumas["puma"]
             self.employer_address_id_count += len(moving_business_ids)

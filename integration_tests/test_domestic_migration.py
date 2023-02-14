@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium_census_prl_synth_pop.constants import data_values, metadata
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 
 def test_individuals_move(simulants_on_adjacent_timesteps):
@@ -185,8 +185,12 @@ def test_only_living_people_change_households(simulants_on_adjacent_timesteps):
 @pytest.mark.parametrize(
     "unit_id_col, address_id_col, state_id_col, puma_col",
     [
-        # TODO: add employer state/puma
-        ("employer_id", "business_details.employer_address_id", None, None),
+        (
+            "employer_id",
+            "business_details.employer_address_id",
+            "business_details.employer_state_id",
+            "business_details.employer_puma",
+        ),
         (
             "household_id",
             "household_details.address_id",
@@ -206,8 +210,6 @@ def test_unit_members_share_address(
 ):
     """Check that all simulants in the same unit have the same address"""
     address_cols = [unit_id_col, address_id_col, state_id_col, puma_col]
-    # FIXME: remove when employer state/puma are added
-    address_cols = [x for x in address_cols if x is not None]
     for pop in populations:
         assert (pop.groupby(unit_id_col)[address_cols].nunique() == 1).all().all()
 
@@ -215,8 +217,12 @@ def test_unit_members_share_address(
 @pytest.mark.parametrize(
     "unit_id_col, address_id_col, state_id_col, puma_col",
     [
-        # TODO: add employer state/puma
-        ("employer_id", "business_details.employer_address_id", None, None),
+        (
+            "employer_id",
+            "business_details.employer_address_id",
+            "business_details.employer_state_id",
+            "business_details.employer_puma",
+        ),
         (
             "household_id",
             "household_details.address_id",
@@ -238,8 +244,6 @@ def test_unit_address_uniqueness(
     (unless it's a PO Box, which has relaxed requirements)
     """
     address_cols = [unit_id_col, address_id_col, state_id_col, puma_col]
-    # FIXME: remove when employer state/puma are added
-    address_cols = [x for x in address_cols if x is not None]
     for pop in populations:
         if address_id_col != "household_details.po_box":
             assert (pop.groupby(address_cols)[unit_id_col].nunique() == 1).all()
@@ -248,23 +252,19 @@ def test_unit_address_uniqueness(
 @pytest.mark.parametrize(
     "state_id_col, puma_col",
     [
-        # TODO: add employer state/puma
         ("household_details.state_id", "household_details.puma"),
+        ("business_details.employer_state_id", "business_details.employer_puma"),
     ],
 )
-def test_pumas_exist_in_states(sim, populations, state_id_col, puma_col):
+def test_pumas_exist_in_states(populations, state_id_col, puma_col):
     """Check that PUMAs map to correct state.
 
     NOTE: This is an imperfect test because PUMAs are only unique within states
     and so one PUMA can exist in multiple states. Here we only ensure no
     impossible PUMAs exist in each state
     """
-    # FIXME: Use the US households static file for states/pumas
     state_puma_map = (
-        sim._data.artifact.load("population.households")
-        .reset_index()
-        .groupby("state")["puma"]
-        .unique()
+        pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH).groupby("state")["puma"].unique()
     )
     for pop in populations:
         for state_id, puma in pop[[state_id_col, puma_col]].drop_duplicates().values:
@@ -277,8 +277,8 @@ def test_pumas_exist_in_states(sim, populations, state_id_col, puma_col):
         (
             "employer_id",
             "business_details.employer_address_id",
-            None,
-            None,
+            "business_details.employer_state_id",
+            "business_details.employer_puma",
         ),
         (
             "household_id",
@@ -293,8 +293,6 @@ def test_addresses_during_moves(
 ):
     """Check that unit (household and business) address details change after a move."""
     address_cols = [address_id_col, state_id_col, puma_col]
-    # FIXME: remove when employer state/puma are added
-    address_cols = [x for x in address_cols if x is not None]
     total_num_moved = 0
     for before, after in simulants_on_adjacent_timesteps:
         # get the unique unit (household or employer) dataset for before and after
@@ -327,18 +325,16 @@ def test_addresses_during_moves(
 
         # Check that some movers are in a new state
         # TODO Check that *most* are in a new state when we add all 50+ locations
-        # TODO: remove state_id_col conditional when state is implemented for businesses
-        if state_id_col and len(metadata.UNITED_STATES_LOCATIONS) > 1:
+        if len(metadata.UNITED_STATES_LOCATIONS) > 1 and mask_moved_units.sum() > 1:
             assert any(
                 before_units.loc[mask_moved_units, state_id_col]
                 != after_units.loc[mask_moved_units, state_id_col]
             )
         # Check that most movers are in a different PUMA
-        if puma_col:  # TODO: remove conditional when pumanis implemented for businesses
-            assert (
-                before_units.loc[mask_moved_units, puma_col]
-                != after_units.loc[mask_moved_units, puma_col]
-            ).mean() >= 0.95  # TODO: pick a smarter number?
+        assert (
+            before_units.loc[mask_moved_units, puma_col]
+            != after_units.loc[mask_moved_units, puma_col]
+        ).mean() >= 0.95  # TODO: pick a smarter number?
 
     # Check that at least some units moved during the sim
     assert total_num_moved > 0

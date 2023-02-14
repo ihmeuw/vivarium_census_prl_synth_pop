@@ -151,7 +151,6 @@ def test_employer_name_uniqueness(simulants_on_adjacent_timesteps):
         ...
 
 
-@pytest.mark.skip(reason="TODO when employer state/puma is implemented")
 def test_pumas_states(populations):
     """Each unique address_id should have identical puma/state"""
     for pop in populations:
