@@ -345,15 +345,15 @@ def _read_and_format_raw_data(
     data = data.rename(columns=column_map)
 
     if location == "United States of America":
-        location_ids = [
-            v
-            for k, v in metadata.CENSUS_STATE_IDS.items()
-            if k in metadata.UNITED_STATES_LOCATIONS
-        ]
-        data = data.query(f"state in {location_ids}")
+        if metadata.UNITED_STATES_LOCATIONS:
+            location_ids = [
+                v
+                for k, v in metadata.CENSUS_STATE_IDS.items()
+                if k in metadata.UNITED_STATES_LOCATIONS
+            ]
+            data = data.query(f"state in {location_ids}")
     elif location in metadata.CENSUS_STATE_IDS:
         data = data.query(f"state == {metadata.CENSUS_STATE_IDS[location]}")
     else:
         raise RuntimeError(f"location {location} not found in metadata.CENSUS_STATE_IDS")
-
     return data
