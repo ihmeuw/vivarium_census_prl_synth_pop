@@ -46,7 +46,7 @@ def get_address_id_maps(
     if column_name != "address_id":
         raise ValueError(f"Expected `address_id`, got `{column_name}`")
     maps = dict()
-    output_cols_superset = [column_name, "state", "puma"]
+    output_cols_superset = [column_name, "state_id", "state", "puma"]
     formatted_obs_data = format_data_for_mapping(
         index_name=column_name,
         obs_results=obs_data,
@@ -56,6 +56,7 @@ def get_address_id_maps(
     maps.update(
         get_household_address_map(column_name, formatted_obs_data, artifact, randomness)
     )
+    maps.update(get_city_map(column_name, formatted_obs_data, artifact, randomness))
     return maps
 
 
@@ -81,7 +82,7 @@ def get_zipcode_map(
 
     """
     zip_map_dict = {}
-    output_cols = [column_name, "state", "puma"]  # columns in the output we use to map
+    output_cols = [column_name, "state_id", "puma"]  # columns in the output we use to map
     simulation_addresses = (
         obs_data.reset_index()[output_cols].drop_duplicates().set_index("address_id")
     )
@@ -101,14 +102,14 @@ def get_zipcode_map(
         .groupby(["state", "puma"])
     )
 
-    for (state, puma), df_locale in simulation_addresses.groupby(["state", "puma"]):
-        locale_group = normalized_groupby.get_group((state, puma))
+    for (state_id, puma), df_locale in simulation_addresses.groupby(["state_id", "puma"]):
+        locale_group = normalized_groupby.get_group((state_id, puma))
         zip_map.loc[df_locale.index] = vectorized_choice(
             options=locale_group["zipcode"],
             n_to_choose=len(df_locale),
             randomness_stream=randomness,
             weights=locale_group["proportion"],
-            additional_key=f"zip_map_{state}_{puma}",
+            additional_key=f"zip_map_{state_id}_{puma}",
         ).to_numpy()
 
     # Map against obs_data
@@ -121,12 +122,14 @@ def get_household_address_map(
     obs_data: pd.DataFrame,
     artifact: Artifact,
     randomness: RandomnessStream,
-) -> Dict[str, Dict[str, pd.Series]]:
+) -> Dict[str, pd.Series]:
     # This will return address_id mapped to address number, street name, and unit number.
 
     address_map = {}
     output_cols = [column_name]
-    address_ids = obs_data[output_cols]
+    address_ids = (
+        obs_data.reset_index()[output_cols].drop_duplicates().set_index("address_id")
+    )
     address_data = pd.DataFrame(index=address_ids.index)
 
     # Load address data from artifact
@@ -145,3 +148,29 @@ def get_household_address_map(
         address_map[obs_column] = address_data[obs_column]
 
     return address_map
+
+
+def get_city_map(
+    column_name: str,
+    obs_data: pd.DataFrame,
+    artifact: Artifact,
+    randomness: RandomnessStream,
+) -> Dict[str, pd.Series]:
+
+    # Load addresses data from artifact
+    addresses = artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES).reset_index()
+    # Get observer data to map
+    output_cols = [column_name, "state"]
+    city_data = obs_data.reset_index()[output_cols].drop_duplicates().set_index("address_id")
+
+    for state in city_data["state"].str.lower().unique():
+        cities = vectorized_choice(
+            options=addresses.loc[addresses["Province"] == state, "Municipality"],
+            n_to_choose=len(city_data.loc[city_data["state"] == state.upper()]),
+            randomness_stream=randomness,
+            additional_key="city",
+        ).to_numpy()
+        city_data.loc[city_data["state"] == state.upper(), "city"] = cities
+
+    city_map = {"city": city_data["city"]}
+    return city_map
