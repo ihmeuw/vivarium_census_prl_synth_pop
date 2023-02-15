@@ -160,6 +160,7 @@ def generate_maps(
         "address_id": get_address_id_maps,
         "employer_id": get_employer_name_map,
         "simulant_id": get_simulant_id_maps,
+        "employer_address_id": get_address_id_maps,
     }
     maps = {
         column: mapper(column, obs_data, artifact, randomness)
