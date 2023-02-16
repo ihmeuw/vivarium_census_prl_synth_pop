@@ -1136,7 +1136,7 @@ class Population:
         )
         # Convert to normal distribution with mean=0 and sd=10
         age_shift = pd.Series(
-            data=stats.norm.ppf(age_shift_propensity, loc=0, scale=10),
+            data=stats.norm.ppf(age_shift_propensity, loc=0, scale=1),
             index=age_shift_propensity.index,
         )
         # Map age_shift to households so each member's age is perturbed the same amount
@@ -1176,7 +1176,7 @@ class Population:
             )
             # Convert to normal distribution with mean=0 and sd=10
             age_shift = pd.Series(
-                data=stats.norm.ppf(age_shift_propensity, loc=0, scale=10),
+                data=stats.norm.ppf(age_shift_propensity, loc=0, scale=1),
                 index=age_shift_propensity.index,
             )
 
