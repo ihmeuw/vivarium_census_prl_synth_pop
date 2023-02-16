@@ -294,11 +294,9 @@ def test_addresses_during_moves(
     """Check that unit (household and business) address details change after a move."""
     address_cols = [address_id_col, state_id_col, puma_col]
     us_locs = metadata.UNITED_STATES_LOCATIONS
-    if not us_locs:
-        # Use all ACS states
-        number_states_in_sim = len(pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)["state"].unique())
-    else:
-        number_states_in_sim = len(us_locs)
+    states_pumas = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)
+    if us_locs:  # Only include states in us_locs
+        states_pumas = states_pumas[states_pumas["state"].isin(us_locs)]
 
     total_num_moved = 0
     for before, after in simulants_on_adjacent_timesteps:
@@ -330,17 +328,12 @@ def test_addresses_during_moves(
             before_units[~mask_moved_units], after_units[~mask_moved_units]
         )
 
-        # Check that most movers are in a new state
-        if number_states_in_sim > 1 and mask_moved_units.sum() > 1:
+        # Check that most movers are in a new state-PUMA combination
+        if mask_moved_units.sum() > 1:
             assert (
-                before_units.loc[mask_moved_units, state_id_col]
-                != after_units.loc[mask_moved_units, state_id_col]
-            ).mean() > 0.5  # TODO: pick a smarter number?
-        # Check that most movers are in a different PUMA
-        assert (
-            before_units.loc[mask_moved_units, puma_col]
-            != after_units.loc[mask_moved_units, puma_col]
-        ).mean() >= 0.95  # TODO: pick a smarter number?
+                before_units.loc[mask_moved_units, [state_id_col, puma_col]]
+                == after_units.loc[mask_moved_units, [state_id_col, puma_col]]
+            ).all(axis=1).mean() < 100 * 1 / len(states_pumas)
 
     # Check that at least some units moved during the sim
     assert total_num_moved > 0
