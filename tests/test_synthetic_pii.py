@@ -65,11 +65,11 @@ def test_itin_generation():
     serials = itins.apply(lambda x: int(x.split("-")[2]))
     assert (areas >= 900).all() and (areas <= 999).all()
     assert (
-            ((groups >= 50) & (groups <= 65))
-            | ((groups >= 70) & (groups <= 88))
-            | ((groups >= 90) & (groups <= 92))
-            | ((groups >= 94) & (groups <= 99))
-            ).all()
+        ((groups >= 50) & (groups <= 65))
+        | ((groups >= 70) & (groups <= 88))
+        | ((groups >= 90) & (groups <= 92))
+        | ((groups >= 94) & (groups <= 99))
+    ).all()
     assert (serials >= 1).all() and (serials <= 9999).all()
 
 

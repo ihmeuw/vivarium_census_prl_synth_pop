@@ -8,9 +8,9 @@ from vivarium_census_prl_synth_pop.utilities import random_integers
 
 
 def generate_itin(
-        size: int,
-        additional_key: Any,
-        randomness: RandomnessStream,
+    size: int,
+    additional_key: Any,
+    randomness: RandomnessStream,
 ) -> np.ndarray:
     """
     Generate a np.ndarray of length `size` of hopefully unique ITIN values.
@@ -60,7 +60,9 @@ def generate_itin(
         additional_key=f"{additional_key}_itin_serial",
     )
     itin["itin"] = ""
-    itin["itin"] += itin["area"].astype(str) + "-"  # no zfill needed, values should be 900-999
+    itin["itin"] += (
+        itin["area"].astype(str) + "-"
+    )  # no zfill needed, values should be 900-999
     itin["itin"] += itin["group"].astype(str) + "-"  # no zfill needed likewise
     itin["itin"] += itin["serial"].astype(str).str.zfill(4)
 
