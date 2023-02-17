@@ -102,7 +102,7 @@ EMPLOYER_INCOME_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.187691**0.
 class MilitaryEmployer(NamedTuple):
     EMPLOYER_ID = 1
     EMPLOYER_ADDRESS_ID = 1
-    EMPLOYER_NAME = "military"
+    EMPLOYER_NAME = "Military"
     PROPORTION_WORKFORCE_EMPLOYED = 0.0032
 
 

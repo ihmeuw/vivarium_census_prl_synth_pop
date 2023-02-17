@@ -258,6 +258,11 @@ def get_employer_name_map(
     ).to_numpy()
     employer_names["employer_name"] = names
 
+    # Preserve known employers from simulation
+    employer_names.loc[
+        data_values.MilitaryEmployer.EMPLOYER_ID, "employer_name"
+    ] = data_values.MilitaryEmployer.EMPLOYER_NAME
+
     duplicate_mask = employer_names.duplicated(subset=["employer_name"])
     while sum(duplicate_mask) > 0:
         employer_names.loc[duplicate_mask, "employer_name"] = vectorized_choice(
