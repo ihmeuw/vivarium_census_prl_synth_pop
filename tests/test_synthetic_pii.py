@@ -424,11 +424,14 @@ def test_city_address(mocker):
     assert (city_map["city"].loc[wa_idx] == "Seattle").all()
 
 
-def test_employer_name_map():
+def test_employer_name_map(mocker):
     # This test just needs to test that we generate a list of  unique names that is the length of a index.
 
     fake_obs_data = {"fake_observer": pd.DataFrame({"employer_id": list(range(100))})}
-    employer_names = get_employer_name_map("employer_id", fake_obs_data, randomness)
+    # Mock artifact - we do not use the artifact for employer names
+    artifact = mocker.MagicMock()
+
+    employer_names = get_employer_name_map("employer_id", fake_obs_data, artifact, randomness)
     assert len(fake_obs_data["fake_observer"]) == len(employer_names["employer_name"])
     assert employer_names["employer_name"].duplicated().sum() == 0
     assert not (employer_names["employer_name"].isnull().any())
