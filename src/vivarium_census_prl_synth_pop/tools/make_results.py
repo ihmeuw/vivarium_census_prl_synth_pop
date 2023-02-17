@@ -17,7 +17,7 @@ from vivarium_census_prl_synth_pop.results_processing.addresses import (
 from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
-    get_middle_initial_map,
+    get_middle_initial_map, get_employer_name_map,
 )
 
 FINAL_OBSERVERS = [
@@ -154,6 +154,7 @@ def generate_maps(
         "middle_name_id": get_middle_initial_map,
         "last_name_id": get_last_name_map,
         "address_id": get_address_id_maps,
+        "employer_id": get_employer_name_map,
     }
     maps = {
         column: mapper(column, obs_data, artifact, randomness)

@@ -421,3 +421,8 @@ def test_city_address(mocker):
     assert (city_map["city"].loc[ca_idx].isin(["San Diego", "Irvine"])).all()
     assert (city_map["city"].loc[or_idx] == "Portland").all()
     assert (city_map["city"].loc[wa_idx] == "Seattle").all()
+
+
+def test_employer_name_map(mocker):
+    # todo: Add test
+    pass
