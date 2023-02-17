@@ -230,6 +230,7 @@ def random_last_names(
 def get_employer_name_map(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
+    artifact: Artifact,
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
     # Note:  For clarity on variable names, business names refers to the generated business_names.  Employer names will

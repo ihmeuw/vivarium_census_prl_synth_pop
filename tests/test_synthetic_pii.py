@@ -424,7 +424,7 @@ def test_city_address(mocker):
     assert (city_map["city"].loc[wa_idx] == "Seattle").all()
 
 
-def test_employer_name_map(mocker):
+def test_employer_name_map():
     # This test just needs to test that we generate a list of  unique names that is the length of a index.
 
     fake_obs_data = {"fake_observer": pd.DataFrame({"employer_id": list(range(100))})}
