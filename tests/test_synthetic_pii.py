@@ -18,6 +18,7 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
 )
+from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import generate_itin
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -51,6 +52,25 @@ def test_ssn(mocker):
     assert len(group) == 2
     assert len(serial) == 4
     # todo: Add test of uniqueness
+
+
+def test_itin_generation():
+    itins = pd.Series(generate_itin(10_000, "test_itin_generation", randomness))
+
+    # FIXME: Uniqueness test accepts duplicates pending resolution of MIC-3837
+    assert itins.duplicated().sum() < 5
+
+    areas = itins.apply(lambda x: int(x.split("-")[0]))
+    groups = itins.apply(lambda x: int(x.split("-")[1]))
+    serials = itins.apply(lambda x: int(x.split("-")[2]))
+    assert (areas >= 900).all() and (areas <= 999).all()
+    assert (
+        ((groups >= 50) & (groups <= 65))
+        | ((groups >= 70) & (groups <= 88))
+        | ((groups >= 90) & (groups <= 92))
+        | ((groups >= 94) & (groups <= 99))
+    ).all()
+    assert (serials >= 1).all() and (serials <= 9999).all()
 
 
 @pytest.fixture()
