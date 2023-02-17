@@ -15,9 +15,10 @@ from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_address_id_maps,
 )
 from vivarium_census_prl_synth_pop.results_processing.names import (
+    get_employer_name_map,
     get_given_name_map,
     get_last_name_map,
-    get_middle_initial_map, get_employer_name_map,
+    get_middle_initial_map,
 )
 
 FINAL_OBSERVERS = [

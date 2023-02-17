@@ -14,10 +14,10 @@ from vivarium_census_prl_synth_pop.utilities import vectorized_choice
 
 
 def get_given_name_map(
-        column_name: str,
-        obs_data: Dict[str, pd.DataFrame],
-        artifact: Artifact,
-        randomness: RandomnessStream,
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
+    artifact: Artifact,
+    randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -50,10 +50,10 @@ def get_given_name_map(
 
 
 def get_middle_initial_map(
-        column_name: str,
-        obs_data: Dict[str, pd.DataFrame],
-        artifact: Artifact,
-        randomness: RandomnessStream,
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
+    artifact: Artifact,
+    randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
     middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness)
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
@@ -62,10 +62,10 @@ def get_middle_initial_map(
 
 
 def get_last_name_map(
-        column_name: str,
-        obs_data: Dict[str, pd.DataFrame],
-        artifact: Artifact,
-        randomness: RandomnessStream,
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
+    artifact: Artifact,
+    randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -101,12 +101,12 @@ def get_last_name_map(
 
 
 def random_first_names(
-        yob: int,
-        sex: str,
-        size: int,
-        additional_key: Any,
-        artifact: Artifact,
-        randomness: RandomnessStream,
+    yob: int,
+    sex: str,
+    size: int,
+    additional_key: Any,
+    artifact: Artifact,
+    randomness: RandomnessStream,
 ) -> np.ndarray:
     """
 
@@ -146,11 +146,11 @@ def random_first_names(
 
 
 def random_last_names(
-        race_eth: str,
-        size: int,
-        additional_key: Any,
-        artifact: Artifact,
-        randomness: RandomnessStream,
+    race_eth: str,
+    size: int,
+    additional_key: Any,
+    artifact: Artifact,
+    randomness: RandomnessStream,
 ) -> np.ndarray:
     """
     Parameters
@@ -191,18 +191,18 @@ def random_last_names(
     # for some names, add a hyphen between two randomly samples last names
     probability_of_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
     hyphen_rows = (
-            randomness.get_draw(last_names.index, "choose_hyphen_sims") < probability_of_hyphen
+        randomness.get_draw(last_names.index, "choose_hyphen_sims") < probability_of_hyphen
     )
     if hyphen_rows.sum() > 0:
         last_names[hyphen_rows] += (
-                "-"
-                + vectorized_choice(
-            options=df_census_names.name,
-            n_to_choose=hyphen_rows.sum(),
-            randomness_stream=randomness,
-            weights=df_census_names[race_eth],
-            additional_key="hyphen_last_names",
-        ).to_numpy()
+            "-"
+            + vectorized_choice(
+                options=df_census_names.name,
+                n_to_choose=hyphen_rows.sum(),
+                randomness_stream=randomness,
+                weights=df_census_names[race_eth],
+                additional_key="hyphen_last_names",
+            ).to_numpy()
         )
 
     # add spaces to some names
@@ -210,32 +210,34 @@ def random_last_names(
     space_rows = randomness.get_draw(
         last_names.index, "choose_space_sims"
     ) < probability_of_space * (
-                         1 - hyphen_rows
-                 )  # HACK: don't put spaces in names that are already hyphenated
+        1 - hyphen_rows
+    )  # HACK: don't put spaces in names that are already hyphenated
     if space_rows.sum() > 0:
         last_names[space_rows] += (
-                " "
-                + vectorized_choice(
-            options=df_census_names.name,
-            n_to_choose=space_rows.sum(),
-            randomness_stream=randomness,
-            weights=df_census_names[race_eth],
-            additional_key="space_last_names",
-        ).to_numpy()
+            " "
+            + vectorized_choice(
+                options=df_census_names.name,
+                n_to_choose=space_rows.sum(),
+                randomness_stream=randomness,
+                weights=df_census_names[race_eth],
+                additional_key="space_last_names",
+            ).to_numpy()
         )
 
     return last_names.to_numpy()
 
 
 def get_employer_name_map(
-        column_name: str,
-        obs_data: Dict[str, pd.DataFrame],
-        randomness: RandomnessStream,
+    column_name: str,
+    obs_data: Dict[str, pd.DataFrame],
+    randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
     # Note:  For clarity on variable names, business names refers to the generated business_names.  Employer names will
     # be the chosen names that will be assigned to employer_ids for final results.
 
-    business_names_data = pd.read_csv(paths.GENERATED_BUSINESS_NAMES_DATA_PATH).drop_duplicates()
+    business_names_data = pd.read_csv(
+        paths.GENERATED_BUSINESS_NAMES_DATA_PATH
+    ).drop_duplicates()
     output_cols = [column_name]
     employer_names = format_data_for_mapping(
         index_name=column_name,
@@ -266,8 +268,10 @@ def get_employer_name_map(
         duplicate_mask = employer_names.duplicated(subset=["employer_name"])
         counter += 1
         if counter == 10:
-            logger.info(f"Resampled employer names {counter} times and data still contains {duplicate_mask.sum()}"
-                             f"duplicates remaining.  Check data or usage of randomness stream.")
+            logger.info(
+                f"Resampled employer names {counter} times and data still contains {duplicate_mask.sum()}"
+                f"duplicates remaining.  Check data or usage of randomness stream."
+            )
 
     employer_name_map = {"employer_name": employer_names["employer_name"]}
     return employer_name_map
