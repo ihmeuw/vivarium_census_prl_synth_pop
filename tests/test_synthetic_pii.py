@@ -15,6 +15,7 @@ from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_zipcode_map,
 )
 from vivarium_census_prl_synth_pop.results_processing.names import (
+    get_employer_name_map,
     get_given_name_map,
     get_last_name_map,
 )
@@ -421,3 +422,16 @@ def test_city_address(mocker):
     assert (city_map["city"].loc[ca_idx].isin(["San Diego", "Irvine"])).all()
     assert (city_map["city"].loc[or_idx] == "Portland").all()
     assert (city_map["city"].loc[wa_idx] == "Seattle").all()
+
+
+def test_employer_name_map(mocker):
+    # This test just needs to test that we generate a list of  unique names that is the length of a index.
+
+    fake_obs_data = {"fake_observer": pd.DataFrame({"employer_id": list(range(100))})}
+    # Mock artifact - we do not use the artifact for employer names
+    artifact = mocker.MagicMock()
+
+    employer_names = get_employer_name_map("employer_id", fake_obs_data, artifact, randomness)
+    assert len(fake_obs_data["fake_observer"]) == len(employer_names["employer_name"])
+    assert employer_names["employer_name"].duplicated().sum() == 0
+    assert not (employer_names["employer_name"].isnull().any())
