@@ -233,8 +233,15 @@ def get_employer_name_map(
     artifact: Artifact,
     randomness: RandomnessStream,
 ) -> Dict[str, pd.Series]:
-    # Note:  For clarity on variable names, business names refers to the generated business_names.  Employer names will
+    """
+    column_name: Name of column that is being mapped - employer_id
+    obs_data: Raw results from observer outputs
+
+    Returns: Dict with key "employer_name" and value is series of names.
+    Note:  For clarity on variable names, business names refers to the generated business_names.  Employer names will
     # be the chosen names that will be assigned to employer_ids for final results.
+
+    """
 
     business_names_data = pd.read_csv(
         paths.GENERATED_BUSINESS_NAMES_DATA_PATH
@@ -245,9 +252,6 @@ def get_employer_name_map(
         obs_results=obs_data,
         output_columns=output_cols,
     )
-
-    # todo: Use clock to pass as part of additional key if we want to get different employer names each time we run
-    #   make_results.
 
     counter = 0
     names = vectorized_choice(
