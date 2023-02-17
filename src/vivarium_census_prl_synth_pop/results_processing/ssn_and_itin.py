@@ -48,7 +48,7 @@ def generate_itin(
     pre_shift_groups = itin["group"].copy()
     itin.loc[pre_shift_groups <= 16, "group"] += 49
     itin.loc[((pre_shift_groups <= 35) & (pre_shift_groups >= 17)), "group"] += 53
-    itin.loc[((pre_shift_groups <= 38) & (pre_shift_groups >= 36)), "group"] += 52
+    itin.loc[((pre_shift_groups <= 38) & (pre_shift_groups >= 36)), "group"] += 54
     itin.loc[pre_shift_groups >= 39, "group"] += 55
 
     # Serial numbers 1-9999 inclusive
