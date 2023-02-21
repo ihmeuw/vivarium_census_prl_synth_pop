@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, NamedTuple
 
 import pandas as pd
 from loguru import logger
@@ -24,21 +24,14 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     get_simulant_id_maps,
 )
 
-FINAL_OBSERVERS = [
-    "decennial_census_observer",
-    "household_survey_observer_acs",
-    "household_survey_observer_cps",
-    "wic_observer",
-    "social_security_observer",
-    "tax_w2_observer",
-]
-COLUMNS_TO_NOT_MAP = {
-    "decennial_census_observer": [],
-    "household_survey_observer_acs": [],
-    "household_survey_observer_cps": [],
-    "wic_observer": [],
-    "social_security_observer": ["sex", "race_ethnicity"],
-    "tax_w2_observer": ["race_ethnicity"],
+# todo: add columns for each observer from documentation
+FINAL_OBSERVERS = {
+    "decennial_census_observer": {},
+    "household_survey_observer_acs": {},
+    "household_survey_observer_cps": {},
+    "wic_observer": {},
+    "social_security_observer": {},
+    "tax_w2_observer": {},
 }
 
 
@@ -88,12 +81,15 @@ def perform_post_processing(
         # Fixme: This code assumes a 1 to 1 relationship of raw to final observers
         obs_data = processed_results[observer]
 
-        obs_data = obs_data.drop(columns=COLUMNS_TO_NOT_MAP[observer])
         for column in obs_data.columns:
-            if column in maps:
-                for target_column_name, column_map in maps[column].items():
-                    obs_data[target_column_name] = obs_data[column].map(column_map)
+            if column not in maps:
+                continue
+            for target_column_name, column_map in maps[column].items():
+                if target_column_name not in FINAL_OBSERVERS[observer]:
+                    continue
+                obs_data[target_column_name] = obs_data[column].map(column_map)
 
+        obs_data = obs_data[FINAL_OBSERVERS[observer]]
         logger.info(f"Writing final results for {observer}.")
         # fixme: Process columns for final outputs - columns being mapped are no longer dropped
         obs_data.to_csv(
