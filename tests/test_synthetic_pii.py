@@ -1,6 +1,4 @@
-# Sample Test passing with nose and pytest
 import string
-from types import MethodType
 from typing import List
 
 import numpy as np
@@ -8,7 +6,6 @@ import pandas as pd
 import pytest
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.components import synthetic_pii
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_city_map,
     get_household_address_map,
@@ -19,7 +16,10 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
 )
-from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import generate_itin
+from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
+    generate_itins,
+    get_simulant_id_maps,
+)
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -33,33 +33,11 @@ def get_draw(self, index, additional_key=None) -> pd.Series:
     return pd.Series(data=s, index=index)
 
 
-def test_ssn(mocker):
-    g = synthetic_pii.SSNGenerator()
-
-    index = range(10)
-    df_in = pd.DataFrame(index=index)
-
-    # Patch randomness stream to a mock object, point randomness.get_draw to a dummy function
-    g.randomness = mocker.Mock()
-    mocker.patch.object(g.randomness, "get_draw")
-    g.randomness.get_draw = MethodType(get_draw, g)
-    df = g.generate(df_in)
-
-    assert len(df) == 10, "expect result to be a dataframe with 10 rows"
-
-    ssn1 = df.loc[0, "ssn"]
-    area, group, serial = ssn1.split("-")
-    assert len(area) == 3
-    assert len(group) == 2
-    assert len(serial) == 4
-    # todo: Add test of uniqueness
-
-
 def test_itin_generation():
-    itins = pd.Series(generate_itin(10_000, "test_itin_generation", randomness))
+    """Tests for uniqueness of ITINs and their ranges."""
+    itins = pd.Series(generate_itins(10_000, "test_itin_generation", randomness))
 
-    # FIXME: Uniqueness test accepts duplicates pending resolution of MIC-3837
-    assert itins.duplicated().sum() < 5
+    assert itins.nunique() == 10_000
 
     areas = itins.apply(lambda x: int(x.split("-")[0]))
     groups = itins.apply(lambda x: int(x.split("-")[1]))
@@ -435,3 +413,34 @@ def test_employer_name_map(mocker):
     assert len(fake_obs_data["fake_observer"]) == len(employer_names["employer_name"])
     assert employer_names["employer_name"].duplicated().sum() == 0
     assert not (employer_names["employer_name"].isnull().any())
+
+
+def test_ssn_mapping():
+    """Tests SSN map creation, uniqueness, and range checking."""
+    # Create population observer data
+    num_unique_ids = 30_000
+    simulants = pd.DataFrame()
+    simulants["simulant_id"] = [f"123_{n}" for n in range(num_unique_ids)]
+    simulants["has_ssn"] = [True if n % 2 == 0 else False for n in range(num_unique_ids)]
+
+    # Get the map
+    ssn_map = get_simulant_id_maps(
+        "simulant_id", {"silly_observer": simulants}, None, randomness
+    )["ssn"]
+
+    # Check that all the SSNs are unique (Half of population size plus one for no SSN)
+    assert ssn_map.nunique() == num_unique_ids / 2 + 1
+
+    # Check that all SSNs are populated if ssn is True, not if False
+    simulants_indexed = simulants.set_index(["simulant_id"])
+    assert ssn_map[simulants_indexed["has_ssn"]].nunique() == num_unique_ids // 2
+    assert (ssn_map[~simulants_indexed["has_ssn"]] == "").all()
+
+    # Check that area, group, and serial segments are within bounds
+    areas = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[0]))
+    groups = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[1]))
+    serials = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[2]))
+    assert (areas != 666).all()
+    assert (areas >= 1).all() and (areas <= 899).all()
+    assert (groups >= 1).all() and (groups <= 99).all()
+    assert (serials >= 1).all() and (serials <= 9999).all()
