@@ -219,7 +219,7 @@ class HouseholdSurveyObserver(BaseObserver):
             * builder.configuration.time.step_size
             / DAYS_PER_YEAR
             * builder.configuration.population.population_size
-            / data_values.US_POPULATION
+            / builder.configuration.us_population_size
         )
 
     ########################
@@ -657,7 +657,6 @@ class TaxW2Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop_full = self.population_view.get(event.index)
-        business_details = self.pipelines["business_details"](pop_full.index)
         pop_full = self.add_address(pop_full)
 
         ### create dataframe of all person/employment pairs
@@ -695,7 +694,6 @@ class TaxW2Observer(BaseObserver):
 
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
-
         simulants_wo_ssn = pd.Series(
             df_w2[~df_w2["ssn"]].index, index=df_w2[~df_w2["ssn"]].index
         )
@@ -703,21 +701,23 @@ class TaxW2Observer(BaseObserver):
             pop[pop["ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
-
         ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
-
         df_w2["ssn_id"] = ssn_for_simulants_wo
         df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
 
-        # merge in employer columns based on employer_id
-        emp = business_details.groupby("employer_id").first()
+        # merge in *current* employer details based on employer_id
+        business_details = (
+            self.pipelines["business_details"](df_w2["employer_id"])
+            .groupby("employer_id")
+            .first()
+        )
         for col in [
             "employer_address_id",
             "employer_state_id",
             "employer_puma",
             "employer_name",
         ]:
-            df_w2[col] = df_w2["employer_id"].map(emp[col])
+            df_w2[col] = df_w2["employer_id"].map(business_details[col])
 
         return df_w2[self.output_columns]
 
