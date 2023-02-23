@@ -11,7 +11,7 @@ from vivarium_census_prl_synth_pop.constants import paths
 
 # TODO: implement gbd call (vivarium_inputs.get_population_structure("United States"))
 US_POPULATION = 333339776
-PROPORTION_18_PLUS = 0.7756
+PROPORTION_WORKING_AGE = 0.7756
 
 MAX_HOUSEHOLD_SIZE = 17
 PROP_POPULATION_IN_GQ = 0.03

@@ -139,9 +139,7 @@ class Businesses:
 
         pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
         working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
-        pop.loc[working_age, "employer_id"] = self.assign_random_employer(
-            working_age, randomness_stream=self.business_moves_randomness
-        )
+        pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
         # Give military gq sims military employment
         military_index = pop.index[
@@ -186,7 +184,7 @@ class Businesses:
             "moving_businesses",
         )
 
-        self.update_business_addresses(businesses_that_move_idx, event)
+        self.update_business_addresses(businesses_that_move_idx)
 
         # change jobs by rate as well as if the household moves (only includes
         # working-age simulants and excludes simulants living in military GQ)
@@ -285,20 +283,20 @@ class Businesses:
         pct_adults_needing_employers = 1 - known_employers["prevalence"].sum()
         n_need_employers = np.round(
             self.us_population_size
-            * data_values.PROPORTION_18_PLUS
+            * data_values.PROPORTION_WORKING_AGE
             * pct_adults_needing_employers
         )
-        n_businesses = int(n_need_employers // data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
-        random_employers_idx = np.arange(2, n_businesses + 2)
+        n_businesses = int(n_need_employers / data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
+        random_employers_ids = np.arange(2, n_businesses + 2)
         employee_count_propensity = self.business_moves_randomness.get_draw(
-            random_employers_idx
+            random_employers_ids
         )
         employee_counts = stats.lognorm.ppf(
             q=employee_count_propensity, s=1, scale=np.exp(4)
         ).round()
         random_employers = pd.DataFrame(
             {
-                "employer_id": random_employers_idx,
+                "employer_id": random_employers_ids,
                 "employer_name": ["not implemented"] * n_businesses,
                 "prevalence": employee_counts / employee_counts.sum(),
                 "employer_address_id": np.arange(
@@ -308,7 +306,7 @@ class Businesses:
         )
 
         # Combine and add details
-        businesses = pd.concat([known_employers, random_employers], ignore_index=True)
+        businesses = pd.concat([known_employers, random_employers]).set_index("employer_id")
         states_pumas = randomly_sample_states_pumas(
             unit_ids=businesses.index,
             state_puma_options=self.state_puma_options,
@@ -321,20 +319,17 @@ class Businesses:
         # Update employer_address_id_count
         self.employer_address_id_count = len(businesses)
 
-        return businesses.set_index("employer_id")
+        return businesses
 
     def assign_random_employer(
         self,
         sim_index: pd.Index,
         additional_seed: Any = None,
-        randomness_stream: RandomnessStream = None,
     ) -> pd.Series:
-        if randomness_stream == None:
-            randomness_stream = self.randomness
         return vectorized_choice(
             options=self.businesses.index,
             n_to_choose=len(sim_index),
-            randomness_stream=randomness_stream,
+            randomness_stream=self.randomness,
             weights=self.businesses["prevalence"],
             additional_key=additional_seed,
         )
@@ -396,6 +391,9 @@ class Businesses:
             ids (Union[pd.Index, pd.Series]): The state table index (ie simulant
                 ids) or series of employer_ids to add the business details
                 to.
+                NOTE: if a pd.Series is passed in, it must be named
+                "employer_id" and the expectation is that it has an index
+                consisting of simulant IDs.
 
         Returns:
             pd.DataFrame: employer details per person or for a series of
@@ -414,7 +412,7 @@ class Businesses:
 
         return business_details
 
-    def update_business_addresses(self, moving_business_ids: pd.Index, event) -> None:
+    def update_business_addresses(self, moving_business_ids: pd.Index) -> None:
         """
         Change the address information associated with each of the provided
         business_ids to a new, unique address.
