@@ -107,14 +107,14 @@ def generate_itins(
             randomness=randomness,
             additional_key=f"{extra_additional_key}_itin_serial",
         )
-        itin["itin"] = ""
-        itin["itin"] += (
-            itin["area"].astype(str) + "-"
-        )  # no zfill needed, values should be 900-999
-        itin["itin"] += itin["group"].astype(str) + "-"  # no zfill needed likewise
-        itin["itin"] += itin["serial"].astype(str).str.zfill(4)
 
-        return itin["itin"].to_numpy()
+        return (
+            itin["area"].astype(str)  # no zfill needed, values should be 900-999
+            + "-"
+            + itin["group"].astype(str)  # no zfill needed likewise
+            + "-"
+            + itin["serial"].astype(str).str.zfill(4)
+        ).to_numpy()
 
     if additional_key is None:
         additional_key = 1
@@ -166,7 +166,7 @@ def generate_ssns(
             randomness=randomness,
             additional_key=f"{extra_additional_key}_ssn_area",
         )
-        area = np.where(area == 666, 667, area)  # XXX is this reasonable?
+        area = np.where(area == 666, 667, area)
         ssn["ssn_area"] = area
 
         group = random_integers(
@@ -187,11 +187,13 @@ def generate_ssns(
         )
         ssn["ssn_serial"] = serial
 
-        ssn["ssn"] = ssn.ssn_area.astype(str).str.zfill(3) + "-"
-        ssn["ssn"] += ssn.ssn_group.astype(str).str.zfill(2) + "-"
-        ssn["ssn"] += ssn.ssn_serial.astype(str).str.zfill(4)
-
-        return ssn["ssn"].to_numpy()
+        return (
+            ssn["ssn_area"].astype(str).str.zfill(3)
+            + "-"
+            + ssn["ssn_group"].astype(str).str.zfill(2)
+            + "-"
+            + ssn["ssn_serial"].astype(str).str.zfill(4)
+        ).to_numpy()
 
     if additional_key is None:
         additional_key = 1
