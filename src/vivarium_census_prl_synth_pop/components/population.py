@@ -31,6 +31,8 @@ PARTNERS = [
 
 
 class Population:
+    configuration_defaults = {"us_population_size": data_values.US_POPULATION}
+
     @property
     def name(self):
         return "population"
