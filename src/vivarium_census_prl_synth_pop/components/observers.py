@@ -441,7 +441,7 @@ class WICObserver(BaseObserver):
 class SocialSecurityObserver(BaseObserver):
     """Class for observing columns relevant to Social Security registry."""
 
-    ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "ssn"]
+    ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "has_ssn"]
     OUTPUT_COLUMNS = [
         "first_name_id",
         "middle_name_id",
@@ -544,7 +544,7 @@ class TaxW2Observer(BaseObserver):
         "alive",
         "in_united_states",
         "tracked",
-        "ssn",
+        "has_ssn",
         "employer_id",
     ]
     OUTPUT_COLUMNS = [
@@ -554,7 +554,7 @@ class TaxW2Observer(BaseObserver):
         "age",
         "date_of_birth",
         "sex",
-        "ssn",
+        "has_ssn",
         "ssn_id",  # simulant id for ssn from another simulant
         "address_id",
         "state_id",
@@ -675,7 +675,7 @@ class TaxW2Observer(BaseObserver):
             "age",
             "date_of_birth",
             "sex",
-            "ssn",
+            "has_ssn",
             "address_id",
             "state_id",
             "puma",
@@ -695,10 +695,10 @@ class TaxW2Observer(BaseObserver):
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
         simulants_wo_ssn = pd.Series(
-            df_w2[~df_w2["ssn"]].index, index=df_w2[~df_w2["ssn"]].index
+            df_w2[~df_w2["has_ssn"]].index, index=df_w2[~df_w2["has_ssn"]].index
         )
         household_members_w_ssn = (
-            pop[pop["ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
+            pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
         ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
@@ -737,7 +737,7 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "ssn"]
+    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "has_ssn"]
     OUTPUT_COLUMNS = [
         "guardian_id",
         "dependent_id",
@@ -750,7 +750,7 @@ class TaxDependentsObserver(BaseObserver):
         "state_id",
         "puma",
         "sex",
-        "ssn",
+        "has_ssn",
         "tax_year",
         "race_ethnicity",
     ]
@@ -858,7 +858,7 @@ class Tax1040Observer(BaseObserver):
         "alive",
         "in_united_states",
         "tracked",
-        "ssn",
+        "has_ssn",
         "relation_to_household_head",
     ]
     OUTPUT_COLUMNS = [
@@ -868,7 +868,7 @@ class Tax1040Observer(BaseObserver):
         "age",
         "date_of_birth",
         "sex",
-        "ssn",
+        "has_ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
         "state_id",
         "puma",

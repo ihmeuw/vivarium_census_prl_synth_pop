@@ -63,7 +63,7 @@ class Population:
             "first_name_id",
             "middle_name_id",
             "last_name_id",
-            "ssn",
+            "has_ssn",
             "alive",
             "entrance_time",
             "exit_time",
@@ -299,7 +299,7 @@ class Population:
             p=[0.5, 0.5],
             additional_key="sex_of_child",
         ).astype(pd.CategoricalDtype(categories=metadata.SEXES))
-        new_births["ssn"] = True
+        new_births["has_ssn"] = True
         new_births["born_in_us"] = True
 
         # add first and middle names
@@ -519,17 +519,17 @@ class Population:
         proportion_with_ssn = (
             self.proportion_immigrants_with_ssn if immigrants else self.proportion_with_ssn
         )
-        new_simulants["ssn"] = False
+        new_simulants["has_ssn"] = False
         # Give simulants born in US a SSN
         native_born_idx = new_simulants.index[new_simulants["born_in_us"]]
-        new_simulants.loc[native_born_idx, "ssn"] = True
+        new_simulants.loc[native_born_idx, "has_ssn"] = True
         # Choose which non-native simulants get a SSN
         ssn_idx = self.randomness.filter_for_probability(
             new_simulants.index.difference(native_born_idx),
             proportion_with_ssn(new_simulants.index.difference(native_born_idx)),
-            "ssn",
+            "has_ssn",
         )
-        new_simulants.loc[ssn_idx, "ssn"] = True
+        new_simulants.loc[ssn_idx, "has_ssn"] = True
 
         return new_simulants
 
