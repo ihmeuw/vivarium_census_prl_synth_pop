@@ -489,7 +489,7 @@ class SocialSecurityObserver(BaseObserver):
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(
             event.index,
-            query="ssn == True",  # only include simulants with a SSN
+            query="has_ssn == True",  # only include simulants with a SSN
         )
         df_creation = pop.filter(self.POST_PROCESSING_FIRST_NAME_METADATA_COLS)
         df_creation["event_type"] = "creation"
