@@ -271,7 +271,7 @@ def get_employer_name_map(
     while sum(duplicate_mask) > 0:
         employer_names.loc[duplicate_mask, "employer_name"] = vectorized_choice(
             options=business_names_data["business_names"],
-            n_to_choose=len(employer_names.index),
+            n_to_choose=duplicate_mask.sum(),
             randomness_stream=randomness,
             additional_key=f"employer_names_{counter}",
         ).to_numpy()
