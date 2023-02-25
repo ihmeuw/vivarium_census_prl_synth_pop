@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import pytest
+from .conftest import FuzzyTest
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
@@ -128,13 +128,39 @@ def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
         assert not after.index.duplicated().any()
 
 
-def test_state_complete_coverage(populations, sim):
+def test_state_complete_coverage(populations, sim, fuzzy_tester: FuzzyTest):
     """States should include all locations from artifact"""
-    states_in_artifact = set(
-        sim._data.artifact.load("population.households").index.unique(level="state")
+    # We want the proportion of the *households* in each state in ACS PUMS.
+    # That's because it's only the location of *households* that are independent
+    # of each other.
+    # The GQ population is a whole other issue (we know we are way off in the
+    # state distribution) which is ignored here.
+    state_proportions = (
+        sim._data.artifact.load("population.households")
+        .reset_index()
+        .pipe(lambda df: df[df["household_type"] == "Housing unit"])
+        .groupby("state")
+        .household_weight.sum()
     )
+    state_proportions = state_proportions / state_proportions.sum()
+
     for pop in populations:
-        assert states_in_artifact == set(pop["household_details.state_id"])
+        # No states in sim that were not in artifact
+        assert set(state_proportions.index) >= set(pop["household_details.state_id"])
+
+        household_states = (
+            pop[pop["household_details.housing_type"] == "Standard"]
+            .groupby("household_id")["household_details.state_id"]
+            .first()
+        )
+
+        for state_id, proportion in state_proportions.items():
+            fuzzy_tester.fuzzy_assert_proportion(
+                household_states == state_id,
+                # Relative size of states can change over time in the sim due to differential immigration, emigration
+                true_value_min=proportion * 0.8,
+                true_value_max=proportion * 1.2,
+            )
 
 
 def test_pumas_states(populations):
