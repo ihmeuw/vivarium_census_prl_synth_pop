@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
-from .conftest import FuzzyTest
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
+
+from .conftest import FuzzyTest
 
 # TODO: Broader test coverage
 
