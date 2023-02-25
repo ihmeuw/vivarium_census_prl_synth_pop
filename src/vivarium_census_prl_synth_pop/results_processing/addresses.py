@@ -59,10 +59,7 @@ def get_address_id_maps(
         )
 
     maps = dict()
-<<<<<<< HEAD
     output_cols_superset = [column_name, "state_id", "state", "puma", "po_box"]
-=======
->>>>>>> caaa200 (Implementation refactor for employer address - format state column and refactor to address.py)
     formatted_obs_data = format_data_for_mapping(
         index_name=column_name,
         obs_results=obs_data,
@@ -136,11 +133,7 @@ def get_zipcode_map(
             n_to_choose=len(df_locale),
             randomness_stream=randomness,
             weights=locale_group["proportion"],
-<<<<<<< HEAD
             additional_key=f"{additional_key}zip_map_{state_id}_{puma}",
-=======
-            additional_key=f"{column_name}_zip_map_{state_id}_{puma}",
->>>>>>> caaa200 (Implementation refactor for employer address - format state column and refactor to address.py)
         ).to_numpy()
 
     # Map against obs_data
@@ -207,11 +200,7 @@ def get_city_map(
             options=addresses.loc[addresses["Province"] == state, "Municipality"],
             n_to_choose=len(city_data.loc[city_data["state"] == state.upper()]),
             randomness_stream=randomness,
-<<<<<<< HEAD
             additional_key=f"{additional_key}city_map",
-=======
-            additional_key=f"{column_name}_city_{state}",
->>>>>>> caaa200 (Implementation refactor for employer address - format state column and refactor to address.py)
         ).to_numpy()
         city_data.loc[city_data["state"] == state.upper(), "city"] = cities
 
