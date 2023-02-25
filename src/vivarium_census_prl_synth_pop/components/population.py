@@ -31,6 +31,8 @@ PARTNERS = [
 
 
 class Population:
+    configuration_defaults = {"us_population_size": data_values.US_POPULATION}
+
     @property
     def name(self):
         return "population"
@@ -61,7 +63,7 @@ class Population:
             "first_name_id",
             "middle_name_id",
             "last_name_id",
-            "ssn",
+            "has_ssn",
             "alive",
             "entrance_time",
             "exit_time",
@@ -297,7 +299,7 @@ class Population:
             p=[0.5, 0.5],
             additional_key="sex_of_child",
         ).astype(pd.CategoricalDtype(categories=metadata.SEXES))
-        new_births["ssn"] = True
+        new_births["has_ssn"] = True
         new_births["born_in_us"] = True
 
         # add first and middle names
@@ -367,19 +369,25 @@ class Population:
             ~existing_simulants["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
         ]["household_id"].unique()
 
-        # TODO: For now, we do a simple random sample of households.
-        # As part of future PUMA perturbation work, we plan to actually use
-        # the PUMA value in the ACS row in choosing the household they should join.
-        # NOTE: This does not do anything to state and PUMA, leaving them whatever they
-        # were for the ACS individual this immigrant is based on!
-        # This is obviously nonsensical, but mirrors the current behavior of domestic
-        # migration, where state and PUMA do not update on move.
-        new_simulants["household_id"] = vectorized_choice(
-            existing_household_ids,
-            n_to_choose=len(new_simulants),
-            randomness_stream=self.randomness,
-            additional_key="household_id",
-        ).astype(existing_simulants["household_id"].dtype)
+        if len(existing_household_ids) == 0:
+            # Extremely rare edge case when there are no existing households to assign to.
+            # Should only ever happen with very small population sizes.
+            # We just create new households and make the immigrants the reference people.
+            household_ids = self.households.create_households(
+                num_households=len(new_simulants),
+            )
+            new_simulants["household_id"] = household_ids
+            new_simulants["relation_to_household_head"] = "Reference person"
+        else:
+            # TODO: For now, we do a simple random sample of households.
+            # As part of future PUMA perturbation work, we plan to actually use
+            # the PUMA value in the ACS row in choosing the household they should join.
+            new_simulants["household_id"] = vectorized_choice(
+                existing_household_ids,
+                n_to_choose=len(new_simulants),
+                randomness_stream=self.randomness,
+                additional_key="household_id",
+            )
 
         # We avoid non-reference-person immigrants having these relationships, because
         # otherwise they may cause there to be an impossible number of said relationships
@@ -517,17 +525,17 @@ class Population:
         proportion_with_ssn = (
             self.proportion_immigrants_with_ssn if immigrants else self.proportion_with_ssn
         )
-        new_simulants["ssn"] = False
+        new_simulants["has_ssn"] = False
         # Give simulants born in US a SSN
         native_born_idx = new_simulants.index[new_simulants["born_in_us"]]
-        new_simulants.loc[native_born_idx, "ssn"] = True
+        new_simulants.loc[native_born_idx, "has_ssn"] = True
         # Choose which non-native simulants get a SSN
         ssn_idx = self.randomness.filter_for_probability(
             new_simulants.index.difference(native_born_idx),
             proportion_with_ssn(new_simulants.index.difference(native_born_idx)),
-            "ssn",
+            "has_ssn",
         )
-        new_simulants.loc[ssn_idx, "ssn"] = True
+        new_simulants.loc[ssn_idx, "has_ssn"] = True
 
         return new_simulants
 
@@ -935,7 +943,7 @@ class Population:
             .reset_index()
             .rename(columns={"index": "partner_id"})
             .groupby("household_id")["partner_id"]
-            .apply(np.random.choice)
+            .first()
         )
         potential_guardians_data = reference_persons.join(
             partners_of_reference_persons, on="household_id", how="left"
@@ -1033,23 +1041,27 @@ class Population:
                         race_reference_person_ids["race_ethnicity"] == race,
                         "reference_person_id",
                     ]
-                race_guardian_ids = self.randomness.choice(
-                    race_college_sims_with_guardian_idx,
-                    choices=race_reference_person_ids,
-                    additional_key=f"{race}_{guardian_type}_guardian_ids",
-                )
 
-                simulants_to_assign.loc[
-                    race_guardian_ids.index, "guardian_1"
-                ] = race_guardian_ids
+                # If there is still nobody to assign as the guardian (which should basically never happen),
+                # we give up and leave simulants_to_assign without guardians
+                if not race_reference_person_ids.empty:
+                    race_guardian_ids = self.randomness.choice(
+                        race_college_sims_with_guardian_idx,
+                        choices=race_reference_person_ids,
+                        additional_key=f"{race}_{guardian_type}_guardian_ids",
+                    )
 
-                if guardian_type == "partnered":
-                    race_partner_ids = households_with_partners.reset_index().set_index(
-                        "reference_person_id"
-                    )["partner_id"]
                     simulants_to_assign.loc[
-                        race_guardian_ids.index, "guardian_2"
-                    ] = simulants_to_assign["guardian_1"].map(race_partner_ids)
+                        race_guardian_ids.index, "guardian_1"
+                    ] = race_guardian_ids
+
+                    if guardian_type == "partnered":
+                        race_partner_ids = households_with_partners.reset_index().set_index(
+                            "reference_person_id"
+                        )["partner_id"]
+                        simulants_to_assign.loc[
+                            race_guardian_ids.index, "guardian_2"
+                        ] = simulants_to_assign["guardian_1"].map(race_partner_ids)
 
         return simulants_to_assign
 

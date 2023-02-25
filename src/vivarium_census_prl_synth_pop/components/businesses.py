@@ -1,11 +1,13 @@
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
@@ -14,6 +16,7 @@ from vivarium_census_prl_synth_pop.utilities import (
     filter_by_rate,
     get_state_puma_options,
     randomly_sample_states_pumas,
+    vectorized_choice,
 )
 
 
@@ -55,8 +58,14 @@ class Businesses:
     #################
 
     def setup(self, builder: Builder):
+        self.us_population_size = builder.configuration.us_population_size
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
+        # create a randomness stream for business moves; use a common random number
+        # for identical business move behavior across parallel sims
+        self.business_moves_randomness = RandomnessStream(
+            key="business_moves", clock=builder.time.clock(), seed=12345
+        )
         self.state_puma_options = get_state_puma_options(builder)
         self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
@@ -123,7 +132,7 @@ class Businesses:
         """
         if pop_data.creation_time < self.start_time:
             # Initial population setup
-            self.businesses = self.generate_businesses(pop_data)
+            self.businesses = self.generate_businesses()
 
         pop = self.population_view.subview(["age", "household_id"]).get(
             pop_data.index, query="tracked"
@@ -171,7 +180,7 @@ class Businesses:
         ]
         businesses_that_move_idx = filter_by_rate(
             all_businesses,
-            self.randomness,
+            self.business_moves_randomness,
             self.businesses_move_rate,
             "moving_businesses",
         )
@@ -246,10 +255,9 @@ class Businesses:
     # Helper methods #
     ##################
 
-    def generate_businesses(self, pop_data: SimulantData) -> pd.DataFrame():
-        pop = self.population_view.subview(["age"]).get(pop_data.index, query="tracked")
-        n_working_age = len(pop.loc[pop["age"] >= data_values.WORKING_AGE])
-
+    def generate_businesses(self) -> pd.DataFrame():
+        """Create a data structure of businesses and their relevant data"""
+        # Define known employers
         # TODO: when have more known employers, maybe move to csv
         known_employers = pd.DataFrame(
             {
@@ -272,68 +280,84 @@ class Businesses:
             }
         )
 
+        # Generate random employers
         pct_adults_needing_employers = 1 - known_employers["prevalence"].sum()
-        n_need_employers = np.round(n_working_age * pct_adults_needing_employers)
-        employee_counts = np.random.lognormal(
-            4, 1, size=int(n_need_employers // data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
+        n_need_employers = np.round(
+            self.us_population_size
+            * data_values.PROPORTION_WORKING_AGE
+            * pct_adults_needing_employers
+        )
+        n_businesses = int(n_need_employers / data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
+        random_employers_ids = np.arange(2, n_businesses + 2)
+        employee_count_propensity = self.business_moves_randomness.get_draw(
+            random_employers_ids
+        )
+        employee_counts = stats.lognorm.ppf(
+            q=employee_count_propensity, s=1, scale=np.exp(4)
         ).round()
-        n_businesses = len(employee_counts)
         random_employers = pd.DataFrame(
             {
-                "employer_id": np.arange(2, n_businesses + 2),
+                "employer_id": random_employers_ids,
                 "employer_name": ["not implemented"] * n_businesses,
-                "prevalence": employee_counts
-                / employee_counts.sum()
-                * pct_adults_needing_employers,
+                "prevalence": employee_counts / employee_counts.sum(),
                 "employer_address_id": np.arange(
                     len(known_employers), n_businesses + len(known_employers)
                 ),
             }
         )
 
-        businesses = pd.concat([known_employers, random_employers], ignore_index=True)
-        # Randomly assign employer states/PUMAs
+        # Combine and add details
+        businesses = pd.concat([known_employers, random_employers]).set_index("employer_id")
         states_pumas = randomly_sample_states_pumas(
             unit_ids=businesses.index,
             state_puma_options=self.state_puma_options,
             additional_key="initial_business_states_pumas",
-            randomness_stream=self.randomness,
+            randomness_stream=self.business_moves_randomness,
         )
         businesses["employer_state_id"] = states_pumas["state_id"]
         businesses["employer_puma"] = states_pumas["puma"]
-        self.employer_address_id_count = len(businesses)  # So next address will be unique
 
-        return businesses.set_index("employer_id")
+        # Update employer_address_id_count
+        self.employer_address_id_count = len(businesses)
+
+        return businesses
 
     def assign_random_employer(
-        self, sim_index: pd.Index, additional_seed: Any = None
+        self,
+        sim_index: pd.Index,
+        additional_seed: Any = None,
     ) -> pd.Series:
-        return self.randomness.choice(
-            index=sim_index,
-            choices=self.businesses.index,
-            p=self.businesses["prevalence"],
+        return vectorized_choice(
+            options=self.businesses.index,
+            n_to_choose=len(sim_index),
+            randomness_stream=self.randomness,
+            weights=self.businesses["prevalence"],
             additional_key=additional_seed,
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
-        # TODO: This limits employers to those existing in the pop table. If
-        # we want all employers that were initialized to be included, we can
-        # instead use the business data structure.
-        current_employers = (
-            self.population_view.subview(["employer_id"])
-            .get(changing_jobs, query="tracked")
-            .squeeze()
-        )
+        current_employers = self.population_view.subview(["employer_id"]).get(
+            changing_jobs, query="tracked"
+        )["employer_id"]
 
         new_employers = current_employers.copy()
-        additional_seed = 0
-        while (current_employers == new_employers).any():
+
+        for iteration in range(10):
             unchanged_employers = current_employers == new_employers
+            if not unchanged_employers.any():
+                break
+
             new_employers[unchanged_employers] = self.assign_random_employer(
                 sim_index=new_employers[unchanged_employers].index,
-                additional_seed=additional_seed,
+                additional_seed=iteration,
             )
-            additional_seed += 1
+
+        if (current_employers == new_employers).sum() > 0:
+            logger.info(
+                f"Maximum iterations for resampling of employer reached. "
+                f"The number of simulants whose employer_id was not changed despite being "
+                f"selected for an employment change is {(current_employers == new_employers).sum()}"
+            )
 
         return new_employers
 
@@ -365,10 +389,26 @@ class Businesses:
 
         return income
 
-    def get_business_details(self, idx: pd.Index) -> pd.DataFrame:
-        """Source of the business details pipeline"""
-        pop = self.population_view.get(idx)[["employer_id"]]
-        business_details = pop.join(
+    def get_business_details(self, ids: Union[pd.Index, pd.Series]) -> pd.DataFrame:
+        """Source of the business details pipeline.
+
+        Args:
+            ids (Union[pd.Index, pd.Series]): The state table index (ie simulant
+                ids) or series of employer_ids to add the business details
+                to.
+                NOTE: if a pd.Series is passed in, it must be named
+                "employer_id" and the expectation is that it has an index
+                consisting of simulant IDs.
+
+        Returns:
+            pd.DataFrame: employer details per person or for a series of
+                employer_ids
+        """
+        if isinstance(ids, pd.Index):
+            df = self.population_view.get(ids)[["employer_id"]]
+        else:
+            df = pd.DataFrame(ids)
+        business_details = df.join(
             self.businesses[
                 ["employer_name", "employer_address_id", "employer_state_id", "employer_puma"]
             ],
@@ -395,7 +435,7 @@ class Businesses:
                 unit_ids=moving_business_ids,
                 state_puma_options=self.state_puma_options,
                 additional_key="update_business_states_pumas",
-                randomness_stream=self.randomness,
+                randomness_stream=self.business_moves_randomness,
             )
             self.businesses.loc[moving_business_ids, "employer_state_id"] = states_pumas[
                 "state_id"

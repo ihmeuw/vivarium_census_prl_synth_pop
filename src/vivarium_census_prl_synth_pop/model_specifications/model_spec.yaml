@@ -44,3 +44,4 @@ configuration:
         step_size: 28 # Days
     population:
         population_size: 250_000
+    # us_population_size: 250_000  # Override the default US population size
