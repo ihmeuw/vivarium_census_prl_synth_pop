@@ -9,6 +9,7 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_city_map,
     get_household_address_map,
+    get_mailing_address_map,
     get_zipcode_map,
 )
 from vivarium_census_prl_synth_pop.results_processing.names import (
@@ -444,3 +445,81 @@ def test_ssn_mapping():
     assert (areas >= 1).all() and (areas <= 899).all()
     assert (groups >= 1).all() and (groups <= 99).all()
     assert (serials >= 1).all() and (serials <= 9999).all()
+
+
+def test_mailing_address(mocker):
+    # Mock necessary artifact and observer data
+    addresses = pd.DataFrame(
+        {
+            "Municipality": [
+                "San Diego",
+                "Irvine",
+                "Seattle",
+                "Vancouver",
+                "Portland",
+                "Medford",
+            ],
+            "Province": ["ca", "ca", "wa", "wa", "or", "or"],
+        }
+    )
+    addresses = addresses.set_index(["Municipality", "Province"])
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = addresses
+
+    # Fake observer data
+    fake_obs_data = pd.DataFrame(
+        {
+            "address_id": list(range(150)),
+            "state": ["CA", "OR", "WA"] * 50,
+            "state_id": [6, 41, 53] * 50,  # State ids for CA, OR, and WA
+            "puma": [3756, 1324, 11900] * 50,
+            "po_box": [0, 0, 0, 1, 11, 111, 0, 0, 0, 0, 0, 0, 0, 0, 1111] * 10,
+        }
+    )
+    fake_obs_data = fake_obs_data.set_index("address_id")
+    po_box_mask = fake_obs_data["po_box"] != 0
+
+    # Generate fake maps
+    fake_maps = {}
+    fake_maps["street_number"] = pd.Series(list(range(150)), index=fake_obs_data.index)
+    fake_maps["street_name"] = pd.Series(["A", "B", "C"] * 50, index=fake_obs_data.index)
+    fake_maps["unit_number"] = pd.Series(list(range(150)), index=fake_obs_data.index)
+    fake_maps["city"] = pd.Series(
+        ["San Diego", "Portland", "Seattle"] * 50, index=fake_obs_data.index
+    )
+    fake_maps["zipcode"] = pd.Series([92630, 97221, 98368] * 50, index=fake_obs_data.index)
+
+    mailing_map = get_mailing_address_map(
+        "address_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        fake_maps,
+    )
+    expected_keys = [
+        "mailing_address_street_number",
+        "mailing_address_street_name",
+        "mailing_address_unit_number",
+        "mailing_address_po_box",
+        "mailing_address_state",
+        "mailing_address_city",
+        "mailing_address_zipcode",
+    ]
+
+    assert all(street_key in expected_keys for street_key in mailing_map.keys())
+
+    for column in ["street_number", "street_name", "unit_number"]:
+        assert (mailing_map[f"mailing_address_{column}"][po_box_mask] == "").all()
+        assert (
+            mailing_map[f"mailing_address_{column}"][~po_box_mask]
+            == fake_maps[column][~po_box_mask]
+        ).all()
+
+    for column in ["po_box", "state"]:
+        assert (mailing_map[f"mailing_address_{column}"] == fake_obs_data[column]).all()
+
+    for column in ["city", "zipcode"]:
+        assert (
+            mailing_map[f"mailing_address_{column}"][po_box_mask]
+            != fake_maps[column][po_box_mask]
+        ).any()

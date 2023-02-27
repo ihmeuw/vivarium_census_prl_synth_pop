@@ -42,6 +42,7 @@ class BaseObserver(ABC):
         "date_of_birth",
         "address_id",
         "state_id",
+        "po_box",
         "puma",
         "guardian_1",
         "guardian_2",
@@ -742,6 +743,7 @@ class TaxDependentsObserver(BaseObserver):
         "age",
         "date_of_birth",
         "address_id",
+        "po_box",
         "state_id",
         "puma",
         "sex",
@@ -865,6 +867,7 @@ class Tax1040Observer(BaseObserver):
         "sex",
         "has_ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
+        "po_box",
         "state_id",
         "puma",
         "race_ethnicity",
