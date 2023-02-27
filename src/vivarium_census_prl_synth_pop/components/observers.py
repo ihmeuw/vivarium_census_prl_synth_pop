@@ -715,6 +715,7 @@ class TaxW2Observer(BaseObserver):
         ]:
             df_w2[col] = df_w2["employer_id"].map(business_details[col])
 
+        df_w2 = df_w2.set_index(["simulant_id"])
         return df_w2[self.output_columns]
 
 
