@@ -45,7 +45,7 @@ def get_address_id_maps(
     """
 
     if column_name == "address_id":
-        output_cols_superset = [column_name, "state_id", "state", "puma"]
+        output_cols_superset = [column_name, "state_id", "state", "puma", "po_box"]
     elif column_name == "employer_address_id":
         output_cols_superset = [
             column_name,
