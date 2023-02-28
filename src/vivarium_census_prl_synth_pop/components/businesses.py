@@ -2,6 +2,7 @@ from typing import Any, Union
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -335,24 +336,30 @@ class Businesses:
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
-        # TODO: This limits employers to those existing in the pop table. If
-        # we want all employers that were initialized to be included, we can
-        # instead use the business data structure.
         current_employers = (
             self.population_view.subview(["employer_id"])
             .get(changing_jobs, query="tracked")
-            .squeeze()
+            .squeeze(axis=1)
         )
 
         new_employers = current_employers.copy()
-        additional_seed = 0
-        while (current_employers == new_employers).any():
+
+        for iteration in range(10):
             unchanged_employers = current_employers == new_employers
+            if not unchanged_employers.any():
+                break
+
             new_employers[unchanged_employers] = self.assign_random_employer(
                 sim_index=new_employers[unchanged_employers].index,
-                additional_seed=additional_seed,
+                additional_seed=iteration,
             )
-            additional_seed += 1
+
+        if (current_employers == new_employers).sum() > 0:
+            logger.info(
+                f"Maximum iterations for resampling of employer reached. "
+                f"The number of simulants whose employer_id was not changed despite being "
+                f"selected for an employment change is {(current_employers == new_employers).sum()}"
+            )
 
         return new_employers
 

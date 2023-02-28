@@ -226,16 +226,19 @@ class PersonMigration:
         to_move = movers
         household_id_values = pop.loc[movers, "household_id"]
 
-        for iteration in range(10):
-            if to_move.empty:
-                break
+        # There is an edge case in very small populations where there are no households
+        # to move to; in that case, the move is not performed
+        if len(households_with_non_movers) > 0:
+            for iteration in range(10):
+                if to_move.empty:
+                    break
 
-            household_id_values[to_move] = self.randomness.choice(
-                to_move,
-                choices=households_with_non_movers,
-                additional_key=f"non_reference_person_move_household_ids_{iteration}",
-            )
-            to_move = movers[household_id_values == pop.loc[movers, "household_id"]]
+                household_id_values[to_move] = self.randomness.choice(
+                    to_move,
+                    choices=households_with_non_movers,
+                    additional_key=f"non_reference_person_move_household_ids_{iteration}",
+                )
+                to_move = movers[household_id_values == pop.loc[movers, "household_id"]]
 
         if len(to_move) > 0:
             logger.info(
