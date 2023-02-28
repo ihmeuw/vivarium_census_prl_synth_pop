@@ -1,10 +1,10 @@
-from typing import Dict
+from typing import Any, Dict
 
 import pandas as pd
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.constants import data_keys
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 from vivarium_census_prl_synth_pop.constants.paths import PUMA_TO_ZIP_DATA_PATH
 from vivarium_census_prl_synth_pop.results_processing.formatter import (
     format_data_for_mapping,
@@ -46,7 +46,7 @@ def get_address_id_maps(
     if column_name != "address_id":
         raise ValueError(f"Expected `address_id`, got `{column_name}`")
     maps = dict()
-    output_cols_superset = [column_name, "state_id", "state", "puma"]
+    output_cols_superset = [column_name, "state_id", "state", "puma", "po_box"]
     formatted_obs_data = format_data_for_mapping(
         index_name=column_name,
         obs_results=obs_data,
@@ -57,6 +57,9 @@ def get_address_id_maps(
         get_household_address_map(column_name, formatted_obs_data, artifact, randomness)
     )
     maps.update(get_city_map(column_name, formatted_obs_data, artifact, randomness))
+    maps.update(
+        get_mailing_address_map(column_name, formatted_obs_data, artifact, randomness, maps)
+    )
     return maps
 
 
@@ -64,6 +67,7 @@ def get_zipcode_map(
     column_name: str,
     obs_data: pd.DataFrame,
     randomness: RandomnessStream,
+    additional_key: str = "",
 ) -> Dict[str, pd.Series]:
     """Gets a mapper for `address_id` to zipcode, based on state, puma, and proportion.
 
@@ -75,6 +79,8 @@ def get_zipcode_map(
         Observer DataFrame with key for the observer name
     randomness
         RandomnessStream to use in choosing zipcodes proportionally
+    additional_key
+        Key for RandomnessStream.  The use case here is for resampling of mailing addresses.
 
     Returns
     -------
@@ -109,7 +115,7 @@ def get_zipcode_map(
             n_to_choose=len(df_locale),
             randomness_stream=randomness,
             weights=locale_group["proportion"],
-            additional_key=f"zip_map_{state_id}_{puma}",
+            additional_key=f"{additional_key}zip_map_{state_id}_{puma}",
         ).to_numpy()
 
     # Map against obs_data
@@ -155,6 +161,7 @@ def get_city_map(
     obs_data: pd.DataFrame,
     artifact: Artifact,
     randomness: RandomnessStream,
+    additional_key: str = "",
 ) -> Dict[str, pd.Series]:
     # Load addresses data from artifact
     addresses = artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES).reset_index()
@@ -167,9 +174,60 @@ def get_city_map(
             options=addresses.loc[addresses["Province"] == state, "Municipality"],
             n_to_choose=len(city_data.loc[city_data["state"] == state.upper()]),
             randomness_stream=randomness,
-            additional_key="city",
+            additional_key=f"{additional_key}city_map",
         ).to_numpy()
         city_data.loc[city_data["state"] == state.upper(), "city"] = cities
 
     city_map = {"city": city_data["city"]}
     return city_map
+
+
+def get_mailing_address_map(
+    column_name: str,
+    formatted_obs_data: pd.DataFrame,
+    artifact: Artifact,
+    randomness: RandomnessStream,
+    maps: Dict[str, pd.Series],
+) -> Dict[str, pd.Series]:
+    """
+    Returns a dict with mailing addresses mapped to address_id.  These mailing addresses will have the same columns that
+    physical addresses have - street number, street name, and unit number will be blanked for addresses WITH A PO box.
+    Note: We need to generate mailing addresses after physical addresses for address_ids that do not have a different
+    mailing address.  In this case, we will just copy the values over for each column.
+    Note: This must occur after a physical address has been generated for address_ids.  In other words, maps.keys()
+    must contain columns for physical address ["street_number", "street_name", etc].
+    """
+
+    # Get address_ds that have a PO box
+    po_box_address_ids = formatted_obs_data["po_box"] != data_values.NO_PO_BOX
+    # Setup mailing address map
+    mailing_address_map = {}
+    # Copy address line one columns and blank out columns for PO box address_ids.
+    for column in HOUSEHOLD_ADDRESS_COL_MAP.values():
+        mailing_address_map[f"mailing_address_{column}"] = pd.Series(
+            "", index=formatted_obs_data.index
+        )
+        # Move over address details for non-PO box addresses
+        mailing_address_map[f"mailing_address_{column}"][~po_box_address_ids] = maps[column][
+            ~po_box_address_ids
+        ]
+
+    # Copy over address detail columns that will remain the same for all address_ids or be updated for just address_ids
+    #  with a PO box.
+    for column in ["po_box", "state"]:
+        mailing_address_map[f"mailing_address_{column}"] = formatted_obs_data[column].copy()
+    for column in ["city", "zipcode"]:
+        mailing_address_map[f"mailing_address_{column}"] = maps[column].copy()
+
+    # Resample city and zipcode for mailing address
+    # Note: Address line 1 is already blanked with creation of mailing_address_map
+    # Get subset of observer data that is just PO boxes for resampling
+    po_boxes = formatted_obs_data[po_box_address_ids]
+    zipcode_map = get_zipcode_map(column_name, po_boxes, randomness, "mailing_")
+    mailing_address_map["mailing_address_zipcode"][po_box_address_ids] = zipcode_map[
+        "zipcode"
+    ]
+    city_map = get_city_map(column_name, po_boxes, artifact, randomness, "mailing_")
+    mailing_address_map["mailing_address_city"][po_box_address_ids] = city_map["city"]
+
+    return mailing_address_map

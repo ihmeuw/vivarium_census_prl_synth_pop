@@ -1,7 +1,6 @@
 import datetime as dt
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -43,6 +42,7 @@ class BaseObserver(ABC):
         "date_of_birth",
         "address_id",
         "state_id",
+        "po_box",
         "puma",
         "guardian_1",
         "guardian_2",
@@ -594,9 +594,7 @@ class TaxW2Observer(BaseObserver):
         super().setup(builder)
         self.clock = builder.time.clock()
 
-        vivarium_randomness = builder.randomness.get_stream(
-            self.name, for_initialization=True
-        )
+        vivarium_randomness = builder.randomness.get_stream(self.name)
         np_random_seed = 12345 + int(vivarium_randomness.seed)
         self.np_randomness = np.random.default_rng(np_random_seed)
 
@@ -694,9 +692,7 @@ class TaxW2Observer(BaseObserver):
 
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
-        simulants_wo_ssn = pd.Series(
-            df_w2[~df_w2["has_ssn"]].index, index=df_w2[~df_w2["has_ssn"]].index
-        )
+        simulants_wo_ssn = df_w2.loc[~df_w2["has_ssn"], "address_id"]
         household_members_w_ssn = (
             pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
@@ -747,6 +743,7 @@ class TaxDependentsObserver(BaseObserver):
         "age",
         "date_of_birth",
         "address_id",
+        "po_box",
         "state_id",
         "puma",
         "sex",
@@ -870,6 +867,7 @@ class Tax1040Observer(BaseObserver):
         "sex",
         "has_ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
+        "po_box",
         "state_id",
         "puma",
         "race_ethnicity",
