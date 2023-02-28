@@ -43,17 +43,17 @@ def get_address_id_maps(
     A dictionary of pd.Series suitable for pd.Series.map, indexed by `address_id`
 
     """
-
-    if column_name == "address_id":
-        output_cols_superset = [column_name, "state_id", "state", "puma", "po_box"]
-    elif column_name == "employer_address_id":
-        output_cols_superset = [
-            column_name,
-            "employer_state_id",
-            "employer_state",
-            "employer_puma",
-        ]
-    else:
+    try:
+        output_cols_superset = {
+            "address_id": [column_name, "state_id", "state", "puma", "po_box"],
+            "employer_address_id": [
+                column_name,
+                "employer_state_id",
+                "employer_state",
+                "employer_puma",
+            ],
+        }[column_name]
+    except KeyError:
         raise ValueError(
             f"Expected `address_id` or 'employer_address_id', got `{column_name}`"
         )
@@ -101,32 +101,38 @@ def get_zipcode_map(
 
     """
     zip_map_dict = {}
-    if column_name == "address_id":
-        output_cols = [column_name, "state_id", "puma"]  # columns in the output we use to map
-        groupby_cols = ["state_id", "puma"]
-    else:
-        output_cols = [column_name, "employer_state_id", "employer_puma"]
-        groupby_cols = ["employer_state_id", "employer_puma"]
+    try:
+        output_cols = {
+            "address_id": [column_name, "state_id", "puma"],
+            "employer_address_id": [column_name, "employer_state_id", "employer_puma"],
+        }[column_name]
+    except KeyError:
+        raise ValueError(
+            f"Expected `address_id` or 'employer_address_id', got `{column_name}`"
+        )
+
     simulation_addresses = (
         obs_data.reset_index()[output_cols].drop_duplicates().set_index(column_name)
     )
     zip_map = pd.Series(index=simulation_addresses.index)
 
     # Read in CSV and normalize
+    groupby_cols = ["state", "puma"]
     map_data = pd.read_csv(PUMA_TO_ZIP_DATA_PATH)
     proportions = (
-        map_data.groupby(["state", "puma"])
+        map_data.groupby(groupby_cols)
         .sum()["proportion"]
         .reset_index()
-        .set_index(["state", "puma"])
+        .set_index(groupby_cols)
     )
     normalized_groupby = (
         (map_data.set_index(["state", "puma", "zipcode"]) / proportions)
         .reset_index()
-        .groupby(["state", "puma"])
+        .groupby(groupby_cols)
     )
 
-    for (state_id, puma), df_locale in simulation_addresses.groupby(groupby_cols):
+    output_cols.pop(0)
+    for (state_id, puma), df_locale in simulation_addresses.groupby(output_cols):
         locale_group = normalized_groupby.get_group((state_id, puma))
         zip_map.loc[df_locale.index] = vectorized_choice(
             options=locale_group["zipcode"],
@@ -155,7 +161,7 @@ def get_street_details_map(
 
     address_map = {}
     output_cols = [column_name]
-    address_ids = obs_data.reset_index()[output_cols].drop_duplicates().set_index(column_name)
+    address_ids = obs_data.reset_index()[output_cols].set_index(column_name)
     address_data = pd.DataFrame(index=address_ids.index)
 
     # Load address data from artifact
@@ -191,24 +197,26 @@ def get_city_map(
     # Get observer data to map
     if column_name == "address_id":
         state_col = "state"
+        city_col = "city"
     else:
         state_col = "employer_state"
+        city_col = "employer_city"
     output_cols = [column_name, state_col]
-    city_data = obs_data.reset_index()[output_cols].drop_duplicates().set_index(column_name)
+    city_data = obs_data.reset_index()[output_cols].set_index(column_name)
 
-    for state in city_data[state_col].str.lower().unique():
+    for state in pd.Series(city_data[state_col].str.lower()).unique():
         cities = vectorized_choice(
             options=addresses.loc[addresses["Province"] == state, "Municipality"],
             n_to_choose=len(city_data.loc[city_data[state_col] == state.upper()]),
             randomness_stream=randomness,
             additional_key=f"{additional_key}{column_name}_city_map",
         ).to_numpy()
-        city_data.loc[city_data[state_col] == state.upper(), "city"] = cities
+        city_data.loc[city_data[state_col] == state.upper(), city_col] = cities
 
     if column_name == "address_id":
-        city_map = {"city": city_data["city"]}
+        city_map = {"city": city_data[city_col]}
     else:
-        city_map = {"employer_city": city_data["city"]}
+        city_map = {"employer_city": city_data[city_col]}
     return city_map
 
 
