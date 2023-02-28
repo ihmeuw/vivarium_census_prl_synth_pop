@@ -338,7 +338,7 @@ class Businesses:
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
         current_employers = self.population_view.subview(["employer_id"]).get(
             changing_jobs, query="tracked"
-        )["employer_id"]
+        ).squeeze(axis=1)
 
         new_employers = current_employers.copy()
 
