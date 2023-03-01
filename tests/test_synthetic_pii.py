@@ -294,7 +294,7 @@ def test_last_name_from_oldest_member(mocker):
         ),
     ],
 )
-def test_address(
+def test_address_mapping(
     mocker, input_address_col, street_number_col, street_name_col, unit_number_col
 ):
     # Fake synthetic pii address data
@@ -374,10 +374,9 @@ def test_zipcode_mapping(input_address_col, zipcode_col, state_id_col, puma_col)
     simulation_addresses[state_id_col] = 6  # from PUMA_TO_ZIP_DATA_PATH
     simulation_addresses[puma_col] = 3756  # from PUMA_TO_ZIP_DATA_PATH
     simulation_addresses["silly_column"] = "yada yada yada"
-    fake_obs_data = pd.concat(
-        [simulation_addresses, simulation_addresses]
-    )  # concatenation allows for dupe address_id
-
+    fake_obs_data = pd.concat([simulation_addresses, simulation_addresses])
+    # The second level functions need to have NO duplicates which is handled in the top level of get_address_id map.
+    fake_obs_data = fake_obs_data.drop_duplicates(subset=input_address_col)
     # Function under test
     mapper = get_zipcode_map(input_address_col, fake_obs_data, randomness)
 

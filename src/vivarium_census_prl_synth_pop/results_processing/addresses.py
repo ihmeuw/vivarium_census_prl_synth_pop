@@ -67,6 +67,7 @@ def get_address_id_maps(
     maps.update(get_zipcode_map(column_name, formatted_obs_data, randomness))
     maps.update(get_street_details_map(column_name, formatted_obs_data, artifact, randomness))
     maps.update(get_city_map(column_name, formatted_obs_data, artifact, randomness))
+    # Note employer addresses do not have a mailing address
     if column_name == "address_id":
         maps.update(
             get_mailing_address_map(
@@ -111,10 +112,8 @@ def get_zipcode_map(
             f"Expected `address_id` or 'employer_address_id', got `{column_name}`"
         )
 
-    simulation_addresses = (
-        obs_data.reset_index()[output_cols].drop_duplicates().set_index(column_name)
-    )
-    zip_map = pd.Series(index=simulation_addresses.index)
+    simulation_addresses = obs_data.reset_index()[output_cols].set_index(column_name)
+    zip_map = pd.Series(index=simulation_addresses.index, dtype=int)
 
     # Read in CSV and normalize
     groupby_cols = ["state", "puma"]
@@ -144,9 +143,9 @@ def get_zipcode_map(
 
     # Map against obs_data
     if column_name == "address_id":
-        zip_map_dict["zipcode"] = zip_map.astype(int)
+        zip_map_dict["zipcode"] = zip_map
     else:
-        zip_map_dict["employer_zipcode"] = zip_map.astype(int)
+        zip_map_dict["employer_zipcode"] = zip_map
     return zip_map_dict
 
 
@@ -195,12 +194,17 @@ def get_city_map(
     # Load addresses data from artifact
     addresses = artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES).reset_index()
     # Get observer data to map
-    if column_name == "address_id":
-        state_col = "state"
-        city_col = "city"
-    else:
-        state_col = "employer_state"
-        city_col = "employer_city"
+    try:
+        state_col = {
+            "address_id": "state",
+            "employer_address_id": "employer_state",
+        }[column_name]
+        city_col = {"address_id": "city", "employer_address_id": "employer_city"}[column_name]
+    except KeyError:
+        raise ValueError(
+            f"Expected `address_id` or 'employer_address_id', got `{column_name}`"
+        )
+
     output_cols = [column_name, state_col]
     city_data = obs_data.reset_index()[output_cols].set_index(column_name)
 
