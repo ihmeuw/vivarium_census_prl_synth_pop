@@ -35,6 +35,12 @@ def get_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
 
 
+def get_employer_state_abbreviation(data: pd.DataFrame) -> pd.Series:
+    state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
+    state_name_map = data["employer_state_id"].map(state_id_map)
+    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+
+
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
     "simulant_id": (format_simulant_id, ["simulant_id", "random_seed"]),
@@ -44,6 +50,7 @@ COLUMN_FORMATTERS = {
     "last_name_id": (get_last_name_id, ["last_name_id", "random_seed"]),
     "state": (get_state_abbreviation, ["state_id"]),
     "address_id": (format_address_id, ["address_id", "random_seed"]),
+    "employer_state": (get_employer_state_abbreviation, ["employer_state_id"]),
 }
 
 
