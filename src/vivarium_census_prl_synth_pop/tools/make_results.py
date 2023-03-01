@@ -24,7 +24,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     get_simulant_id_maps,
 )
 
-# todo: add columns for each observer from documentation
+
 FINAL_OBSERVERS = {
     "decennial_census_observer": {
         "simulant_id",
@@ -44,6 +44,7 @@ FINAL_OBSERVERS = {
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
         "guardian_1_addrress_id",
         "guardian_2_address_id" "housing_type",
     },
@@ -64,6 +65,7 @@ FINAL_OBSERVERS = {
         "state",
         "guardian_1",
         "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
         "guardian_1_addrress_id",
         "guardian_2_address_id" "housing_type",
         "housing_type",
@@ -85,6 +87,7 @@ FINAL_OBSERVERS = {
         "state",
         "guardian_1",
         "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
         "guardian_1_addrress_id",
         "guardian_2_address_id" "housing_type",
         "housing_type",
@@ -108,8 +111,10 @@ FINAL_OBSERVERS = {
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
         "guardian_1_addrress_id",
-        "guardian_2_address_id" "housing_type",
+        "guardian_2_address_id",
+        "housing_type",
     },
     "social_security_observer": {
         "simulant_id",
@@ -275,9 +280,16 @@ def generate_maps(
         column: mapper(column, obs_data, artifact, randomness)
         for column, mapper in mappers.items()
     }
-    # maps["guardian_1_address_id"] = {"guardian_1_address_" + str(maps["address_id"])
-    # maps["guardian_2_address_id"] = maps["address_id"]
-    # todo: fix keys for guardian addresses
+    # todo: Include with MIC-3846
+    # Add guardian address details and change dict keys for address_ids map to be clear.
+    # maps["guardian_1_address_id"] = {
+    #   outer_k: {"uardian_1_"+ inner_k: inner_v for inner_k, inner_v in outer_v.items()}
+    #   for outer_k, outer_v in maps["address_id.items()
+    #   }
+    # maps["guardian_2_address_id"] = {
+    #   outer_k: {"uardian_2_"+ inner_k: inner_v for inner_k, inner_v in outer_v.items()}
+    #   for outer_k, outer_v in maps["address_id.items()
+    #   }
 
     return maps
 
