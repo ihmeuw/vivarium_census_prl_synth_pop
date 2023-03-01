@@ -159,8 +159,7 @@ def generate_maps(
         "last_name_id": get_last_name_map,
         "address_id": get_address_id_maps,
         "employer_id": get_employer_name_map,
-        # "simulant_id": get_simulant_id_maps,
-        # fixme: MIC-3841 issue with W2 observer
+        "simulant_id": get_simulant_id_maps,
     }
     maps = {
         column: mapper(column, obs_data, artifact, randomness)
