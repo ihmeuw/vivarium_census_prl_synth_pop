@@ -41,6 +41,18 @@ def get_employer_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
 
 
+def get_household_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["household_id"].astype(str)
+
+
+def get_guardian_1_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_1"].astype(str)
+
+
+def get_guardian_2_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_2"].astype(str)
+
+
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
     "simulant_id": (format_simulant_id, ["simulant_id", "random_seed"]),
@@ -51,6 +63,9 @@ COLUMN_FORMATTERS = {
     "state": (get_state_abbreviation, ["state_id"]),
     "address_id": (format_address_id, ["address_id", "random_seed"]),
     "employer_state": (get_employer_state_abbreviation, ["employer_state_id"]),
+    "household_id": (get_household_id, ["household_id", "random_seed"]),
+    "guardian_1": (get_guardian_1_id, ["guardian_1", "random_seed"]),
+    "guardian_2": (get_guardian_2_id, ["guardian_2", "random_seed"]),
 }
 
 
