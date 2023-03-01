@@ -308,6 +308,7 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
+    ADDITIONAL_INPUT_COLUMNS = ["household_id"]
     ADDITIONAL_OUTPUT_COLUMNS = ["wic_year", "household_id"]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
@@ -322,7 +323,7 @@ class WICObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
     @property
     def input_values(self):
