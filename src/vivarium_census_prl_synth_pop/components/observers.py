@@ -48,6 +48,7 @@ class BaseObserver(ABC):
         "guardian_2",
         "guardian_1_address_id",
         "guardian_2_address_id",
+        # todo: add necessary guardian address columns
     ]
 
     def __repr__(self):
@@ -307,7 +308,16 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
-    ADDITIONAL_OUTPUT_COLUMNS = ["wic_year"]
+    ADDITIONAL_INPUT_COLUMNS = [
+        "household_id",
+        "relation_to_household_head",
+    ]
+    ADDITIONAL_OUTPUT_COLUMNS = [
+        "wic_year",
+        "household_id",
+        "housing_type",
+        "relation_to_household_head",
+    ]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
     WIC_RACE_ETHNICITIES = ["White", "Black", "Latino", "Other"]
@@ -321,7 +331,7 @@ class WICObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
     @property
     def input_values(self):
@@ -569,6 +579,7 @@ class TaxW2Observer(BaseObserver):
         "housing_type",
         "tax_year",
         "race_ethnicity",
+        "is_w2",
     ]
 
     def __repr__(self):
@@ -716,6 +727,8 @@ class TaxW2Observer(BaseObserver):
             df_w2[col] = df_w2["employer_id"].map(business_details[col])
 
         df_w2 = df_w2.set_index(["simulant_id"])
+
+        df_w2["is_w2"] = True
         return df_w2[self.output_columns]
 
 

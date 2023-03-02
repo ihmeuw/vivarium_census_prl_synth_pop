@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, NamedTuple, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -24,21 +24,134 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     get_simulant_id_maps,
 )
 
-FINAL_OBSERVERS = [
-    "decennial_census_observer",
-    "household_survey_observer_acs",
-    "household_survey_observer_cps",
-    "wic_observer",
-    "social_security_observer",
-    "tax_w2_observer",
-]
-COLUMNS_TO_NOT_MAP = {
-    "decennial_census_observer": [],
-    "household_survey_observer_acs": [],
-    "household_survey_observer_cps": [],
-    "wic_observer": [],
-    "social_security_observer": ["sex", "race_ethnicity"],
-    "tax_w2_observer": ["race_ethnicity"],
+FINAL_OBSERVERS = {
+    "decennial_census_observer": {
+        "simulant_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "street_number",
+        "street_name",
+        "unit_number",
+        "city",
+        "zipcode",
+        "state",
+        "relation_to_household_head",
+        "sex",
+        "race_ethnicity",
+        "guardian_1",
+        "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
+        "housing_type",
+    },
+    "household_survey_observer_acs": {
+        "simulant_id",
+        "household_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "sex",
+        "street_number",
+        "street_name",
+        "unit_number",
+        "city",
+        "zipcode",
+        "state",
+        "guardian_1",
+        "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
+        "housing_type",
+    },
+    "household_survey_observer_cps": {
+        "household_id",
+        "simulant_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "sex",
+        "street_number",
+        "street_name",
+        "unit_number",
+        "city",
+        "zipcode",
+        "state",
+        "guardian_1",
+        "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
+        "housing_type",
+    },
+    "wic_observer": {
+        "simulant_id",
+        "household_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "street_number",
+        "street_name",
+        "unit_number",
+        "city",
+        "zipcode",
+        "state",
+        "relation_to_household_head",
+        "sex",
+        "race_ethnicity",
+        "guardian_1",
+        "guardian_2",
+        # todo: Update with additional address columns in MIC-3846
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
+        "housing_type",
+    },
+    "social_security_observer": {
+        "simulant_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "date_of_birth",
+        "ssn",
+        "event_type",
+        "event_date",
+    },
+    "tax_w2_observer": {
+        "simulant_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "mailing_address_street_number",
+        "mailing_address_street_name",
+        "mailing_address_unit_number",
+        "mailing_address_city",
+        "mailing_address_zipcode",
+        "mailing_address_state",
+        "income",
+        "employer_id",
+        "employer_name",
+        "employer_street_number",
+        "employer_street_name",
+        "employer_unit_number",
+        "employer_city",
+        "employer_zipcode",
+        "employer_state",
+        "ssn",
+        "is_w2",
+    },
+    # todo: Add tax 1040 observer
 }
 
 
@@ -88,14 +201,16 @@ def perform_post_processing(
         # Fixme: This code assumes a 1 to 1 relationship of raw to final observers
         obs_data = processed_results[observer]
 
-        obs_data = obs_data.drop(columns=COLUMNS_TO_NOT_MAP[observer])
         for column in obs_data.columns:
-            if column in maps:
-                for target_column_name, column_map in maps[column].items():
-                    obs_data[target_column_name] = obs_data[column].map(column_map)
+            if column not in maps:
+                continue
+            for target_column_name, column_map in maps[column].items():
+                if target_column_name not in FINAL_OBSERVERS[observer]:
+                    continue
+                obs_data[target_column_name] = obs_data[column].map(column_map)
 
+        obs_data = obs_data[FINAL_OBSERVERS[observer]]
         logger.info(f"Writing final results for {observer}.")
-        # fixme: Process columns for final outputs - columns being mapped are no longer dropped
         obs_data.to_csv(
             final_output_dir / f"{observer}.csv.bz2",
             index=False,
@@ -166,6 +281,16 @@ def generate_maps(
         column: mapper(column, obs_data, artifact, randomness)
         for column, mapper in mappers.items()
     }
+    # todo: Include with MIC-3846
+    # Add guardian address details and change dict keys for address_ids map to be clear.
+    # maps["guardian_1_address_id"] = {
+    #   outer_k: {"uardian_1_"+ inner_k: inner_v for inner_k, inner_v in outer_v.items()}
+    #   for outer_k, outer_v in maps["address_id.items()
+    #   }
+    # maps["guardian_2_address_id"] = {
+    #   outer_k: {"uardian_2_"+ inner_k: inner_v for inner_k, inner_v in outer_v.items()}
+    #   for outer_k, outer_v in maps["address_id.items()
+    #   }
 
     return maps
 

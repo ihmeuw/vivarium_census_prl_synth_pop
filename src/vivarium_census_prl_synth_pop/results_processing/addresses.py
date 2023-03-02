@@ -43,6 +43,7 @@ def get_address_id_maps(
     A dictionary of pd.Series suitable for pd.Series.map, indexed by `address_id`
 
     """
+
     try:
         output_cols_superset = {
             "address_id": [column_name, "state_id", "state", "puma", "po_box"],
@@ -146,6 +147,7 @@ def get_zipcode_map(
         zip_map_dict["zipcode"] = zip_map
     else:
         zip_map_dict["employer_zipcode"] = zip_map
+
     return zip_map_dict
 
 
@@ -191,6 +193,7 @@ def get_city_map(
     randomness: RandomnessStream,
     additional_key: str = "",
 ) -> Dict[str, pd.Series]:
+
     # Load addresses data from artifact
     addresses = artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES).reset_index()
     # Get observer data to map
@@ -221,6 +224,7 @@ def get_city_map(
         city_map = {"city": city_data[city_col]}
     else:
         city_map = {"employer_city": city_data[city_col]}
+
     return city_map
 
 
