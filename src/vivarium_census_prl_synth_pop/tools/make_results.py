@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Tuple, NamedTuple
+from typing import Dict, NamedTuple, Tuple
 
 import pandas as pd
 from loguru import logger
@@ -23,7 +23,6 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
 from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     get_simulant_id_maps,
 )
-
 
 FINAL_OBSERVERS = {
     "decennial_census_observer": {

@@ -74,8 +74,14 @@ COLUMN_FORMATTERS = {
     "household_id": (get_household_id, ["household_id", "random_seed"]),
     "guardian_1": (get_guardian_1_id, ["guardian_1", "random_seed"]),
     "guardian_2": (get_guardian_2_id, ["guardian_2", "random_seed"]),
-    "guardian_1_address_id": (get_guardian_1_id, ["guardian_1_address_id", "random_seed"]),
-    "guardian_2_address_id": (get_guardian_2_id, ["guardian_2_address_id", "random_seed"]),
+    "guardian_1_address_id": (
+        get_guardian_1_address_id,
+        ["guardian_1_address_id", "random_seed"],
+    ),
+    "guardian_2_address_id": (
+        get_guardian_2_address_id,
+        ["guardian_2_address_id", "random_seed"],
+    ),
 }
 
 
