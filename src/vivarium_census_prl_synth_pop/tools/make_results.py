@@ -72,7 +72,7 @@ FINAL_OBSERVERS = {
         "housing_type",
     },
     "household_survey_observer_cps": {
-        "household-id",
+        "household_id",
         "simulant_id",
         "first_name",
         "middle_initial",
