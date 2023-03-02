@@ -44,8 +44,8 @@ FINAL_OBSERVERS = {
         "guardian_1",
         "guardian_2",
         # todo: Update with additional address columns in MIC-3846
-        "guardian_1_addrress_id",
-        "guardian_2_address_id",
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
         "housing_type",
     },
     "household_survey_observer_acs": {
@@ -66,8 +66,8 @@ FINAL_OBSERVERS = {
         "guardian_1",
         "guardian_2",
         # todo: Update with additional address columns in MIC-3846
-        "guardian_1_addrress_id",
-        "guardian_2_address_id",
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
         "housing_type",
         "housing_type",
     },
@@ -89,8 +89,8 @@ FINAL_OBSERVERS = {
         "guardian_1",
         "guardian_2",
         # todo: Update with additional address columns in MIC-3846
-        "guardian_1_addrress_id",
-        "guardian_2_address_id",
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
         "housing_type",
         "housing_type",
     },
@@ -114,8 +114,8 @@ FINAL_OBSERVERS = {
         "guardian_1",
         "guardian_2",
         # todo: Update with additional address columns in MIC-3846
-        "guardian_1_addrress_id",
-        "guardian_2_address_id",
+        # "guardian_1_addrress_id",
+        # "guardian_2_address_id",
         "housing_type",
     },
     "social_security_observer": {
