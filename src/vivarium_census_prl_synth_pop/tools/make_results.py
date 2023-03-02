@@ -69,7 +69,6 @@ FINAL_OBSERVERS = {
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
         "housing_type",
-        "housing_type",
     },
     "household_survey_observer_cps": {
         "household_id",
@@ -91,7 +90,6 @@ FINAL_OBSERVERS = {
         # todo: Update with additional address columns in MIC-3846
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
-        "housing_type",
         "housing_type",
     },
     "wic_observer": {
