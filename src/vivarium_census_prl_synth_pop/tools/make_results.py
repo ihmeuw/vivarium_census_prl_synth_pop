@@ -45,7 +45,8 @@ FINAL_OBSERVERS = {
         "guardian_2",
         # todo: Update with additional address columns in MIC-3846
         "guardian_1_addrress_id",
-        "guardian_2_address_id" "housing_type",
+        "guardian_2_address_id",
+        "housing_type",
     },
     "household_survey_observer_acs": {
         "simulant_id",
@@ -66,7 +67,8 @@ FINAL_OBSERVERS = {
         "guardian_2",
         # todo: Update with additional address columns in MIC-3846
         "guardian_1_addrress_id",
-        "guardian_2_address_id" "housing_type",
+        "guardian_2_address_id",
+        "housing_type",
         "housing_type",
     },
     "household_survey_observer_cps": {
@@ -88,7 +90,8 @@ FINAL_OBSERVERS = {
         "guardian_2",
         # todo: Update with additional address columns in MIC-3846
         "guardian_1_addrress_id",
-        "guardian_2_address_id" "housing_type",
+        "guardian_2_address_id",
+        "housing_type",
         "housing_type",
     },
     "wic_observer": {
@@ -146,7 +149,8 @@ FINAL_OBSERVERS = {
         "employer_unit_number",
         "employer_city",
         "employer_zipcode",
-        "employer_state" "ssn",
+        "employer_state",
+        "ssn",
         "is_w2",
     },
     # todo: Add tax 1040 observer
