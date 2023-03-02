@@ -308,8 +308,16 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["household_id", "relation_to_household_head",]
-    ADDITIONAL_OUTPUT_COLUMNS = ["wic_year", "household_id", "housing_type", "relation_to_household_head"]
+    ADDITIONAL_INPUT_COLUMNS = [
+        "household_id",
+        "relation_to_household_head",
+    ]
+    ADDITIONAL_OUTPUT_COLUMNS = [
+        "wic_year",
+        "household_id",
+        "housing_type",
+        "relation_to_household_head",
+    ]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
     WIC_RACE_ETHNICITIES = ["White", "Black", "Latino", "Other"]
