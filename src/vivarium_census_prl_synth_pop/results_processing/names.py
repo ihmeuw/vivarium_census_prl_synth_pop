@@ -170,7 +170,7 @@ def random_last_names(
     df_census_names = df_census_names.loc[~df_census_names["name"].isnull()]
     if len(df_census_names) < l:
         logger.info(
-            "Artifact contains missing values for last names data."
+            "Artifact contains missing values for last names data.  "
             "Removing null values from last name data..."
         )
 
