@@ -27,11 +27,11 @@ if __name__ == "__main__":
         "tables",
         "pyyaml",
         "faker==13.6.0",
-        "jobmon_installer_ihme==10.6.0",
     ]
 
     # use "pip install -e .[dev]" to install required components + extra components
     data_requires = [
+        "jobmon_installer_ihme==10.6.0",
         "vivarium_cluster_tools>=1.3.8",
         "vivarium_inputs[data]==4.0.10",
     ]
