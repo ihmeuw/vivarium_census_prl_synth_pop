@@ -125,3 +125,8 @@ COVERAGE_PROBABILITY_WIC = {
     3: dict(Latino=0.512, Black=0.469, White=0.346, Other=0.455),
     4: dict(Latino=0.287, Black=0.263, White=0.194, Other=0.255),
 }
+
+
+class Taxes(NamedTuple):
+    PERCENT_W2_RECEIVED = 0.9465
+    PERCENT_1099_RECEIVED = 0.0535

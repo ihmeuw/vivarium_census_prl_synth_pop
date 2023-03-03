@@ -605,8 +605,8 @@ class TaxW2Observer(BaseObserver):
         super().setup(builder)
         self.clock = builder.time.clock()
 
-        vivarium_randomness = builder.randomness.get_stream(self.name)
-        np_random_seed = 12345 + int(vivarium_randomness.seed)
+        self.vivarium_randomness = builder.randomness.get_stream(self.name)
+        np_random_seed = 12345 + int(self.vivarium_randomness.seed)
         self.np_randomness = np.random.default_rng(np_random_seed)
 
         # increment income based on the job the simulant has during
@@ -728,7 +728,15 @@ class TaxW2Observer(BaseObserver):
 
         df_w2 = df_w2.set_index(["simulant_id"])
 
-        df_w2["is_w2"] = True
+        df_w2["is_w2"] = self.vivarium_randomness.choice(
+            index=df_w2.index,
+            choices=[True, False],
+            p=[
+                data_values.Taxes.PERCENT_W2_RECEIVED,
+                data_values.Taxes.PERCENT_1099_RECEIVED,
+            ],
+            additional_key="type_of_form",
+        )
         return df_w2[self.output_columns]
 
 
