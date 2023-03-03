@@ -7,9 +7,10 @@ from vivarium.framework.utilities import handle_exceptions
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
     build_artifacts,
-    build_results,
     configure_logging_to_terminal,
 )
+from vivarium_census_prl_synth_pop.tools.jobmon import run_make_results_workflow
+from vivarium_census_prl_synth_pop.tools.make_results import do_build_results
 
 
 @click.command()
@@ -65,19 +66,16 @@ def make_artifacts(
     is_flag=True,
     help="Drop into python debugger if an error occurs.",
 )
-@click.option(
-    "-b",
-    "--mark-best",
-    is_flag=True,
-)
+@click.option("-b", "--mark-best", is_flag=True)
 @click.option(
     "-t",
     "--test-run",
     is_flag=True,
 )
 @click.option(
-    "-a", "--artifact_path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
+    "-a", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
 )
+@click.option("-j", "--jobmon", is_flag=True)
 def make_results(
     output_dir: str,
     verbose: int,
@@ -85,7 +83,13 @@ def make_results(
     mark_best: bool,
     test_run: bool,
     artifact_path: str,
+    jobmon: bool,
 ) -> None:
+    """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(build_results, logger, with_debugger=with_debugger)
+    if jobmon:
+        func = run_make_results_workflow
+    else:
+        func = do_build_results
+    main = handle_exceptions(func, logger, with_debugger=with_debugger)
     main(output_dir, mark_best, test_run, artifact_path)

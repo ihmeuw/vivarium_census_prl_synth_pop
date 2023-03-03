@@ -1,8 +1,9 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, NamedTuple, Tuple
+from typing import Dict, Tuple
 
+import click
 import pandas as pd
 from loguru import logger
 from vivarium import Artifact
@@ -197,8 +198,40 @@ FINAL_OBSERVERS = {
 }
 
 
+@click.command()
+@click.argument("output_dir", type=click.Path(exists=True))
+@click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
+@click.option(
+    "--pdb",
+    "with_debugger",
+    is_flag=True,
+    help="Drop into python debugger if an error occurs.",
+)
+@click.option("-b", "--mark-best", is_flag=True)
+@click.option(
+    "-t",
+    "--test-run",
+    is_flag=True,
+)
+@click.option(
+    "-a", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
+)
 def build_results(
-    results_dir: str, mark_best: bool, test_run: bool, artifact_path: str
+    output_dir: str,
+    verbose: int,
+    with_debugger: bool,
+    mark_best: bool,
+    test_run: bool,
+    artifact_path: str,
+) -> None:
+    """Wrapper for 'do_build_results' so it can be run from command line or
+    via jobmon
+    """
+    do_build_results(output_dir, mark_best, test_run, artifact_path)
+
+
+def do_build_results(
+    output_dir: str, mark_best: bool, test_run: bool, artifact_path: str
 ) -> None:
     if mark_best and test_run:
         logger.error(
@@ -207,7 +240,11 @@ def build_results(
         )
         return
     logger.info("Creating final results directory.")
-    raw_output_dir, final_output_dir = build_final_results_directory(results_dir)
+    raw_output_dir, final_output_dir = build_final_results_directory(output_dir)
+    # TODO: Refactor so final results directory is made outside of the function
+    # so that we can save the jobmon logs to "final_results" (if not the
+    # actual date-stamped folder). This will required refactoring the
+    # symlink building below as well.
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
     perform_post_processing(raw_output_dir, final_output_dir, artifact_path)

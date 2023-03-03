@@ -14,6 +14,7 @@ __summary__ = "Research repository for the vivarium_census_prl_synth_pop project
 __uri__ = "https://github.com/ihmeuw/vivarium_census_prl_synth_pop"
 
 __version__ = "1.0.0"
+__jobmon_tool_version__ = 1212
 
 __author__ = "The vivarium developers"
 __email__ = "vivarium.dev@gmail.com"
