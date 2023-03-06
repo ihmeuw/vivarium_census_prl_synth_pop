@@ -62,7 +62,7 @@ def get_guardian_2_address_id(data: pd.DataFrame) -> pd.Series:
 
 
 def get_guardian_id(data: pd.DataFrame) -> pd.Series:
-    return data["random_seed"].astype(str) + "_" + data["guardian_id"]
+    return data["random_seed"].astype(str) + "_" + data["guardian_id"].astype(str)
 
 
 # Fixme: Add formatting functions as necessary
