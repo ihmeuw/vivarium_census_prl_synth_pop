@@ -1,12 +1,21 @@
 import shutil
 import uuid
+from pathlib import Path
+from typing import Union
 
 from jobmon.client.tool import Tool
 from loguru import logger
 
 
 def run_make_results_workflow(
-    output_dir: str, mark_best: bool, test_run: bool, artifact_path: str
+    output_dir: Union[str, Path],
+    mark_best: bool,
+    test_run: bool,
+    artifact_path: Union[str, Path],
+    queue: str,
+    peak_memory: int,
+    max_runtime: str,
+    project: str,
 ) -> None:
     """Creates and runs a jobmon workflow to build results datasets
     from the raw data output by observers
@@ -35,11 +44,11 @@ def run_make_results_workflow(
     template_make_results = tool.get_task_template(
         template_name="make_results_template",
         default_compute_resources={
-            "queue": "long.q",
+            "queue": queue,
             "cores": 1,
-            "memory": "70G",
-            "runtime": "1:00:00",
-            "project": "proj_simscience",
+            "memory": peak_memory,
+            "runtime": max_runtime,
+            "project": project,
             "stdout": str(output_dir),
             "stderr": str(output_dir),
         },
@@ -53,7 +62,12 @@ def run_make_results_workflow(
             "-vvv "
         ),
         node_args=[],
-        task_args=["output_dir", "mark_best", "test_run", "artifact_path"],
+        task_args=[
+            "output_dir",
+            "mark_best",
+            "test_run",
+            "artifact_path",
+        ],
         op_args=[],
     )
     # Create tasks

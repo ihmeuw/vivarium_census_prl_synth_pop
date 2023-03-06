@@ -66,16 +66,72 @@ def make_artifacts(
     is_flag=True,
     help="Drop into python debugger if an error occurs.",
 )
-@click.option("-b", "--mark-best", is_flag=True)
+@click.option(
+    "-b",
+    "--mark-best",
+    is_flag=True,
+    help="Marks this version of results with a 'best' symlink.",
+)
 @click.option(
     "-t",
     "--test-run",
     is_flag=True,
+    help="Skips updating the 'latest' symlink with this version of results.",
 )
 @click.option(
-    "-a", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
+    "-a",
+    "--artifact-path",
+    type=click.Path(exists=True),
+    default=paths.DEFAULT_ARTIFACT,
+    show_default=True,
+    help="Path to artifact used in simulation.",
 )
-@click.option("-j", "--jobmon", is_flag=True)
+@click.option(
+    "-j",
+    "--jobmon",
+    is_flag=True,
+    help="Launches a jobmon workflow to generate results.",
+)
+@click.option(
+    "-q",
+    "--queue",
+    type=click.Choice(["all.q", "long.q"]),
+    help="NOTE: only required if --jobmon. "
+    "The cluster queue to assign jobmon tasks to. long.q allows for much "
+    "longer runtimes although there may be reasons to send jobs to that queue "
+    "even if they don't have runtime constraints (eg node availability). ",
+)
+@click.option(
+    "-m",
+    "--peak-memory",
+    type=int,
+    help="NOTE: only required if --jobmon. "
+    "The estimated maximum memory usage in GB of an individual simulate job. "
+    "The simulations will be run with this as a limit. ",
+)
+@click.option(
+    "-r",
+    "--max-runtime",
+    type=str,
+    help="NOTE: only required if --jobmon. "
+    "The estimated maximum runtime ('hh:mm:ss') of the jobmon tasks. "
+    "Once this time limit is hit, the cluster will terminate jobs regardless of "
+    "queue. The maximum supported runtime is 3 days. Keep in mind that the "
+    "session you are launching from must be able to live at least as long "
+    "as the simulation jobs, and that runtimes by node vary wildly. ",
+)
+@click.option(
+    "-P",
+    "--project",
+    type=click.Choice(
+        [
+            "proj_simscience",
+            "proj_simscience_prod",
+        ]
+    ),
+    help="NOTE: only required if --jobmon. "
+    "The cluster project under which to run the jobmon workflow. ",
+)
 def make_results(
     output_dir: str,
     verbose: int,
@@ -84,12 +140,40 @@ def make_results(
     test_run: bool,
     artifact_path: str,
     jobmon: bool,
+    queue: str,
+    peak_memory: int,
+    max_runtime: str,
+    project: str,
 ) -> None:
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
+    cluster_requests = {
+        "queue": queue,
+        "peak_memory": peak_memory,
+        "max_runtime": max_runtime,
+        "project": project,
+    }
+    if not jobmon and (queue or peak_memory or max_runtime or project):
+        requests = {k: v for k, v in cluster_requests.items() if v is not None}
+        logger.info(
+            "Passing in resource requests is only necessary for --jobmon. "
+            f"The following were provided but will not be used: {requests}"
+        )
+    if jobmon and not (queue and peak_memory and max_runtime and project):
+        missing_requests = [f"--{k}" for k, v in cluster_requests.items() if v is None]
+        raise RuntimeError(
+            "Passing in --jobmon requires all cluster request args to be defined. "
+            f"Missing: {missing_requests}."
+        )
+
     if jobmon:
-        func = run_make_results_workflow
-    else:
-        func = do_build_results
-    main = handle_exceptions(func, logger, with_debugger=with_debugger)
-    main(output_dir, mark_best, test_run, artifact_path)
+        main = handle_exceptions(
+            func=run_make_results_workflow, logger=logger, with_debugger=with_debugger
+        )
+        kwargs = cluster_requests
+        main(output_dir, mark_best, test_run, artifact_path, **kwargs)
+    else:  # run from current node
+        main = handle_exceptions(
+            func=do_build_results, logger=logger, with_debugger=with_debugger
+        )
+        main(output_dir, mark_best, test_run, artifact_path)

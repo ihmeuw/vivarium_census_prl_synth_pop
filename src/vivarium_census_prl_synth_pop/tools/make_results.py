@@ -1,13 +1,14 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import click
 import pandas as pd
 from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.utilities import handle_exceptions
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
@@ -25,6 +26,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     do_collide_ssns,
     get_simulant_id_maps,
 )
+from vivarium_census_prl_synth_pop.tools import configure_logging_to_terminal
 
 FINAL_OBSERVERS = {
     "decennial_census_observer": {
@@ -217,22 +219,26 @@ FINAL_OBSERVERS = {
     "-a", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
 )
 def build_results(
-    output_dir: str,
+    output_dir: Union[str, Path],
     verbose: int,
     with_debugger: bool,
     mark_best: bool,
     test_run: bool,
-    artifact_path: str,
+    artifact_path: Union[str, Path],
 ) -> None:
-    """Wrapper for 'do_build_results' so it can be run from command line or
-    via jobmon
-    """
-    do_build_results(output_dir, mark_best, test_run, artifact_path)
+    configure_logging_to_terminal(verbose)
+    main = handle_exceptions(
+        func=do_build_results, logger=logger, with_debugger=with_debugger
+    )
+    main(output_dir, mark_best, test_run, artifact_path)
 
 
 def do_build_results(
-    output_dir: str, mark_best: bool, test_run: bool, artifact_path: str
-) -> None:
+    output_dir: Union[str, Path],
+    mark_best: bool,
+    test_run: bool,
+    artifact_path: Union[str, Path],
+):
     if mark_best and test_run:
         logger.error(
             "A test run can't be marked best. "
@@ -243,7 +249,7 @@ def do_build_results(
     raw_output_dir, final_output_dir = build_final_results_directory(output_dir)
     # TODO: Refactor so final results directory is made outside of the function
     # so that we can save the jobmon logs to "final_results" (if not the
-    # actual date-stamped folder). This will required refactoring the
+    # actual date-stamped folder). This will require refactoring the
     # symlink building below as well.
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
