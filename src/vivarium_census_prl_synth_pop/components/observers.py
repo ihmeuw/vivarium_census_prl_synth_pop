@@ -957,7 +957,7 @@ class Tax1040Observer(BaseObserver):
             choices=[True, False],
             p=[
                 data_values.Taxes.PROBABILITY_OF_JOINT_FILER,
-                data_values.Taxes.PROBABILITY_OF_SEPARATELY_FILING,
+                1 - data_values.Taxes.PROBABILITY_OF_JOINT_FILER,
             ],
             additional_key="joint_filing_1040",
         )
