@@ -22,6 +22,7 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
 )
 from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     get_simulant_id_maps,
+    do_collide_ssns,
 )
 
 FINAL_OBSERVERS = {
@@ -249,6 +250,11 @@ def perform_post_processing(
                 if target_column_name not in FINAL_OBSERVERS[observer]:
                     continue
                 obs_data[target_column_name] = obs_data[column].map(column_map)
+
+        # if observer == "tax_w2_observer":
+        #     # For w2, we need to post-process to allow for SSN collisions in the data in cases where
+        #     #  the simulant has no SSN but is employed (they'd need to have supplied an SSN to their employer)
+        #     obs_data = do_collide_ssns(obs_data, maps["simulant_id"]["ssn"])
 
         obs_data = obs_data[FINAL_OBSERVERS[observer]]
         logger.info(f"Writing final results for {observer}.")

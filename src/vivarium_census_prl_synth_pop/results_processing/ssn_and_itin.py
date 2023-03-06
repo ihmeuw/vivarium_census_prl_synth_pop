@@ -139,6 +139,7 @@ def generate_ssns(
     size: int,
     additional_key: Any,
     randomness: RandomnessStream,
+    allow_duplicates: bool = False,
 ) -> np.ndarray:
     """
     Generate a np.ndarray of length `size` of unique SSN values.
@@ -150,6 +151,7 @@ def generate_ssns(
     :param size: The number of itins to generate
     :param additional_key: Additional key to be used by randomness
     :param randomness: RandomnessStream stream to use
+    :param allow_duplicates: True if duplicates are allowed, False (default) otherwise
 
     """
 
@@ -200,7 +202,7 @@ def generate_ssns(
     ssns = pd.Series(generate_ssn(size, additional_key))
     duplicate_mask = ssns.duplicated()
     counter = 0
-    while duplicate_mask.sum() > 0:
+    while duplicate_mask.sum() > 0 and not allow_duplicates:
         if counter >= 10:
             logger.info(
                 f"Resampled SSN {counter} times and data still contains {duplicate_mask.sum()}"
@@ -232,3 +234,19 @@ def get_ssn_map(
     # Map against obs_data
     ssn_map_dict["ssn"] = ssn_map.fillna("").astype(str)
     return ssn_map_dict
+
+
+def do_collide_ssns(obs_data: pd.DataFrame, ssn_map: pd.Series) -> pd.DataFrame:
+
+    # Mask off ssn_id != -1, employer_id != -1, ssn = "", has_ssn = False,
+    # use ssn_map to map
+    use_ssn_id = (obs_data["ssn_id"] != -1) & (obs_data["employer_id"] != -1)
+
+    # Mask off ssn_id == -1, employer_id != -1, ssn = "", has_ssn = False,
+    # generate a new SSN for each, duplicates don't matter.
+
+
+
+
+    return obs_data
+
