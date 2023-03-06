@@ -942,11 +942,12 @@ class Tax1040Observer(BaseObserver):
         # add derived columns
         pop["tax_year"] = event.time.year - 1
         # todo: Add joint filing random choice
-        partners = ["Opp-sex spouse",
-                    "Opp-sex partner",
-                    "Same-sex spouse",
-                    "Same-sex partner",
-                    ]
+        partners = [
+            "Opp-sex spouse",
+            "Opp-sex partner",
+            "Same-sex spouse",
+            "Same-sex partner",
+        ]
         partners_of_household_head_idx = pop.index[
             pop["relation_to_household-head"].isin(partners)
         ]
@@ -954,9 +955,11 @@ class Tax1040Observer(BaseObserver):
         pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
             index=partners_of_household_head_idx,
             choices=[True, False],
-            p=[data_values.Taxes.PROBABILITY_OF_JOINT_FILER,
-               data_values.Taxes.PROBABILITY_OF_SEPARATELY_FILING],
-            additional_key="joint_filing_1040"
+            p=[
+                data_values.Taxes.PROBABILITY_OF_JOINT_FILER,
+                data_values.Taxes.PROBABILITY_OF_SEPARATELY_FILING,
+            ],
+            additional_key="joint_filing_1040",
         )
 
         return pop[self.OUTPUT_COLUMNS]
