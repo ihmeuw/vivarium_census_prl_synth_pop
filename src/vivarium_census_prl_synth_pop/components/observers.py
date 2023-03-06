@@ -949,7 +949,7 @@ class Tax1040Observer(BaseObserver):
             "Same-sex partner",
         ]
         partners_of_household_head_idx = pop.index[
-            pop["relation_to_household-head"].isin(partners)
+            pop["relation_to_household_head"].isin(partners)
         ]
         pop["joint_filer"] = False
         pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
