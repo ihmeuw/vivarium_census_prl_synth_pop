@@ -172,16 +172,13 @@ def make_results(
         )
 
     if jobmon:
-        main = handle_exceptions(
-            func=run_make_results_workflow, logger=logger, with_debugger=with_debugger
-        )
+        func = run_make_results_workflow
         kwargs = cluster_requests
-        main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path, **kwargs)
     else:  # run from current node
-        main = handle_exceptions(
-            func=do_build_results, logger=logger, with_debugger=with_debugger
-        )
-        main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
+        func = do_build_results
+        kwargs = {}
+    main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
+    main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path, **kwargs)
 
 
 def _build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
