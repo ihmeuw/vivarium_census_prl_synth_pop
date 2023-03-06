@@ -1,9 +1,12 @@
+from datetime import datetime
+from pathlib import Path
 from typing import Tuple
 
 import click
 from loguru import logger
 from vivarium.framework.utilities import handle_exceptions
 
+from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
     build_artifacts,
@@ -147,6 +150,8 @@ def make_results(
 ) -> None:
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
+    logger.info("Creating final results directory.")
+    raw_output_dir, final_output_dir = _build_final_results_directory(output_dir)
     cluster_requests = {
         "queue": queue,
         "peak_memory": peak_memory,
@@ -171,9 +176,19 @@ def make_results(
             func=run_make_results_workflow, logger=logger, with_debugger=with_debugger
         )
         kwargs = cluster_requests
-        main(output_dir, mark_best, test_run, artifact_path, **kwargs)
+        main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path, **kwargs)
     else:  # run from current node
         main = handle_exceptions(
             func=do_build_results, logger=logger, with_debugger=with_debugger
         )
-        main(output_dir, mark_best, test_run, artifact_path)
+        main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
+
+
+def _build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
+    final_output_dir = utilities.build_output_dir(
+        Path(results_dir),
+        subdir=paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+    )
+    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
+
+    return raw_output_dir, final_output_dir

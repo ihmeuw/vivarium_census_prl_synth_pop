@@ -1,7 +1,6 @@
 import csv
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, Tuple, Union
+from typing import Dict, Union
 
 import click
 import pandas as pd
@@ -10,7 +9,6 @@ from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.utilities import handle_exceptions
 
-from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -201,7 +199,8 @@ FINAL_OBSERVERS = {
 
 
 @click.command()
-@click.argument("output_dir", type=click.Path(exists=True))
+@click.argument("raw_output_dir", type=click.Path(exists=True))
+@click.argument("final_output_dir", type=click.Path(exists=True))
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
     "--pdb",
@@ -219,7 +218,8 @@ FINAL_OBSERVERS = {
     "-a", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
 )
 def build_results(
-    output_dir: Union[str, Path],
+    raw_output_dir: Path,
+    final_output_dir: Path,
     verbose: int,
     with_debugger: bool,
     mark_best: bool,
@@ -230,11 +230,12 @@ def build_results(
     main = handle_exceptions(
         func=do_build_results, logger=logger, with_debugger=with_debugger
     )
-    main(output_dir, mark_best, test_run, artifact_path)
+    main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
 
 
 def do_build_results(
-    output_dir: Union[str, Path],
+    raw_output_dir: Union[str, Path],
+    final_output_dir: Union[str, Path],
     mark_best: bool,
     test_run: bool,
     artifact_path: Union[str, Path],
@@ -245,12 +246,8 @@ def do_build_results(
             "Please remove either the mark best or the test run flag."
         )
         return
-    logger.info("Creating final results directory.")
-    raw_output_dir, final_output_dir = build_final_results_directory(output_dir)
-    # TODO: Refactor so final results directory is made outside of the function
-    # so that we can save the jobmon logs to "final_results" (if not the
-    # actual date-stamped folder). This will require refactoring the
-    # symlink building below as well.
+    raw_output_dir = Path(raw_output_dir)
+    final_output_dir = Path(final_output_dir)
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
     perform_post_processing(raw_output_dir, final_output_dir, artifact_path)
@@ -265,7 +262,7 @@ def do_build_results(
 
 
 def create_results_link(output_dir: Path, link_name: Path) -> None:
-    logger.info(f"Marking results as {link_name}.")
+    logger.info(f"Marking results as {link_name}: {str(output_dir)}.")
     output_root_dir = output_dir.parent
     link_dir = output_root_dir / link_name
     link_dir.unlink(missing_ok=True)
@@ -384,13 +381,3 @@ def generate_maps(
     #   }
 
     return maps
-
-
-def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
-    final_output_dir = utilities.build_output_dir(
-        Path(results_dir),
-        subdir=paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
-    )
-    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
-
-    return raw_output_dir, final_output_dir

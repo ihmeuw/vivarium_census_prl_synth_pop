@@ -8,7 +8,8 @@ from loguru import logger
 
 
 def run_make_results_workflow(
-    output_dir: Union[str, Path],
+    raw_output_dir: Path,
+    final_output_dir: Path,
     mark_best: bool,
     test_run: bool,
     artifact_path: Union[str, Path],
@@ -20,7 +21,7 @@ def run_make_results_workflow(
     """Creates and runs a jobmon workflow to build results datasets
     from the raw data output by observers
     """
-    logger.info(f"Starting make_results workflow {output_dir}")
+    logger.info(f"Starting make_results workflow {final_output_dir}")
     wf_uuid = uuid.uuid4()
 
     # Deal with boolean args - click either the flag or nothing, not True/False
@@ -49,13 +50,14 @@ def run_make_results_workflow(
             "memory": peak_memory,
             "runtime": max_runtime,
             "project": project,
-            "stdout": str(output_dir),
-            "stderr": str(output_dir),
+            "stdout": str(final_output_dir),
+            "stderr": str(final_output_dir),
         },
         default_cluster_name="slurm",
         command_template=(
             f"{shutil.which('build_results')} "
-            "{output_dir} "
+            "{raw_output_dir} "
+            "{final_output_dir} "
             "{mark_best} "
             "{test_run} "
             "--artifact-path {artifact_path} "
@@ -63,7 +65,8 @@ def run_make_results_workflow(
         ),
         node_args=[],
         task_args=[
-            "output_dir",
+            "raw_output_dir",
+            "final_output_dir",
             "mark_best",
             "test_run",
             "artifact_path",
@@ -74,7 +77,8 @@ def run_make_results_workflow(
     task_make_results = template_make_results.create_task(
         name="make_results_task",
         upstream_tasks=[],
-        output_dir=output_dir,
+        raw_output_dir=raw_output_dir,
+        final_output_dir=final_output_dir,
         mark_best=mark_best_arg,
         test_run=test_run_arg,
         artifact_path=artifact_path,
