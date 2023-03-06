@@ -139,6 +139,7 @@ FINAL_OBSERVERS = {
         "mailing_address_city",
         "mailing_address_zipcode",
         "mailing_address_state",
+        "mailing_address_po_box",
         "income",
         "employer_id",
         "employer_name",
@@ -151,7 +152,47 @@ FINAL_OBSERVERS = {
         "ssn",
         "is_w2",
     },
-    # todo: Add tax 1040 observer
+    "tax_1040_observer": {
+        "simulant_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "mailing_address_street_number",
+        "mailing_address_street_name",
+        "mailing_address_unit_number",
+        "mailing_address_city",
+        "mailing_address_zipcode",
+        "mailing_address_state",
+        "mailing_address_po_box",
+        "housing_type",
+        "joint_filer",
+        "ssn",
+    },
+    "tax_dependents_observer": {
+        # Metadata is for a dependent.  This should capture each dependent/guardian pair.  Meaning that if a dependent
+        # has 2 guardians, there should be a duplicate row but the guardian_id column would contain the 2 simulant_ids
+        # for that dependent's guardians.
+        "simulant_id",
+        "first_name",
+        "middle_initial",
+        "last_name",
+        "age",
+        "date_of_birth",
+        "mailing_address_street_number",
+        "mailing_address_street_name",
+        "mailing_address_unit_number",
+        "mailing_address_city",
+        "mailing_address_zipcode",
+        "mailing_address_state",
+        "mailing_address_po_box",
+        "sex",
+        "ssn",
+        "tax_year",
+        "guardian_id",
+        "housing_type",
+    },
 }
 
 

@@ -61,6 +61,10 @@ def get_guardian_2_address_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["guardian_2_address_id"].astype(str)
 
 
+def get_guardian_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_id"].astype(str)
+
+
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
     "simulant_id": (format_simulant_id, ["simulant_id", "random_seed"]),
@@ -82,6 +86,7 @@ COLUMN_FORMATTERS = {
         get_guardian_2_address_id,
         ["guardian_2_address_id", "random_seed"],
     ),
+    "guardian_id": (get_guardian_id, ["guardian_id", "random_seed"]),
 }
 
 
