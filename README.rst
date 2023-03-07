@@ -136,7 +136,8 @@ Note: if when running with ``--jobmon`` causes a 'No route to host' or
 'Unexpected status code 404' error, it is likely that jobmon did not get 
 installed correctly. In this event, manually install and configure:
 
-   (vivarium_census_prl_synth_pop) :~$ pip install pip install jobmon_installer_ihme==<version>
+   (vivarium_census_prl_synth_pop) :~$ pip uninstall jobmon
+   (vivarium_census_prl_synth_pop) :~$ pip install jobmon_installer_ihme==<version>
    (vivarium_census_prl_synth_pop) :~$ <jobmon-config-command>
 
 where <version> is the jobmon installer version pinned in the setup.py and
