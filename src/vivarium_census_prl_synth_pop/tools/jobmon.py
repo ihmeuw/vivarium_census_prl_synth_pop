@@ -16,7 +16,7 @@ def run_make_results_workflow(
     queue: str,
     peak_memory: int,
     max_runtime: str,
-    project: str,
+    verbose: int,
 ) -> None:
     """Creates and runs a jobmon workflow to build results datasets
     from the raw data output by observers
@@ -31,6 +31,7 @@ def run_make_results_workflow(
     # TODO: there's got to be a better way to do this?
     mark_best_arg = "--mark-best" if mark_best else ""
     test_run_arg = "--test-run" if test_run else ""
+    verbose_arg = "-" + "v" * verbose if verbose else ""
 
     # Create tool
     tool = Tool(name="vivarium_census_prl_synth_pop.make_results")
@@ -46,7 +47,7 @@ def run_make_results_workflow(
             "cores": 1,
             "memory": peak_memory,
             "runtime": max_runtime,
-            "project": project,
+            "project": "proj_simscience_prod",
             "stdout": str(final_output_dir),
             "stderr": str(final_output_dir),
         },
@@ -55,10 +56,10 @@ def run_make_results_workflow(
             f"{shutil.which('jobmon_make_results_runner')} "
             "{raw_output_dir} "
             "{final_output_dir} "
+            "{verbose} "
             "{mark_best} "
             "{test_run} "
             "--artifact-path {artifact_path} "
-            "-vvv "
         ),
         node_args=[],
         task_args=[
@@ -68,7 +69,7 @@ def run_make_results_workflow(
             "test_run",
             "artifact_path",
         ],
-        op_args=[],
+        op_args=["verbose",],
     )
     # Create tasks
     task_make_results = template_make_results.create_task(
@@ -76,6 +77,7 @@ def run_make_results_workflow(
         upstream_tasks=[],
         raw_output_dir=raw_output_dir,
         final_output_dir=final_output_dir,
+        verbose=verbose_arg,
         mark_best=mark_best_arg,
         test_run=test_run_arg,
         artifact_path=artifact_path,

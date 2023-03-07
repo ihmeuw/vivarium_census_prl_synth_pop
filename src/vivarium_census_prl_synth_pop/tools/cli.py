@@ -112,8 +112,8 @@ def make_artifacts(
     default=200,
     show_default=True,
     help="NOTE: only required if --jobmon. "
-    "The estimated maximum memory usage in GB of an individual simulate job. "
-    "The simulations will be run with this as a limit. ",
+    "The estimated maximum memory usage in GB of an individual task. "
+    "The tasks will be run with this as a limit. ",
 )
 @click.option(
     "-r",
@@ -124,23 +124,8 @@ def make_artifacts(
     help="NOTE: only required if --jobmon. "
     "The estimated maximum runtime ('hh:mm:ss') of the jobmon tasks. "
     "Once this time limit is hit, the cluster will terminate jobs regardless of "
-    "queue. The maximum supported runtime is 3 days. Keep in mind that the "
-    "session you are launching from must be able to live at least as long "
-    "as the simulation jobs, and that runtimes by node vary wildly. ",
-)
-@click.option(
-    "-P",
-    "--project",
-    type=click.Choice(
-        [
-            "proj_simscience",
-            "proj_simscience_prod",
-        ]
-    ),
-    default="proj_simscience",
-    show_default=True,
-    help="NOTE: only required if --jobmon. "
-    "The cluster project under which to run the jobmon workflow. ",
+    "queue. The maximum supported runtime is 3 days. Keep in mind that "
+    "runtimes by node vary wildly. ",
 )
 def make_results(
     output_dir: str,
@@ -153,7 +138,6 @@ def make_results(
     queue: str,
     peak_memory: int,
     max_runtime: str,
-    project: str,
 ) -> None:
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
@@ -163,7 +147,6 @@ def make_results(
         "queue": queue,
         "peak_memory": peak_memory,
         "max_runtime": max_runtime,
-        "project": project,
     }
     user_cluster_requests = {
         k: v
@@ -180,6 +163,7 @@ def make_results(
     if jobmon:
         func = run_make_results_workflow
         kwargs = cluster_requests
+        kwargs["verbose"] = verbose
     else:  # run from current node
         func = build_results
         kwargs = {}
@@ -191,12 +175,6 @@ def make_results(
 @click.argument("raw_output_dir", type=click.Path(exists=True))
 @click.argument("final_output_dir", type=click.Path(exists=True))
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
-@click.option(
-    "--pdb",
-    "with_debugger",
-    is_flag=True,
-    help="Drop into python debugger if an error occurs.",
-)
 @click.option("-b", "--mark-best", is_flag=True)
 @click.option(
     "-t",
@@ -210,11 +188,10 @@ def jobmon_make_results_runner(
     raw_output_dir: Path,
     final_output_dir: Path,
     verbose: int,
-    with_debugger: bool,
     mark_best: bool,
     test_run: bool,
     artifact_path: Union[str, Path],
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(func=build_results, logger=logger, with_debugger=with_debugger)
+    main = handle_exceptions(func=build_results, logger=logger, with_debugger=False)
     main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
