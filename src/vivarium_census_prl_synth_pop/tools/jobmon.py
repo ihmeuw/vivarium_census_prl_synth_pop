@@ -69,7 +69,9 @@ def run_make_results_workflow(
             "test_run",
             "artifact_path",
         ],
-        op_args=["verbose",],
+        op_args=[
+            "verbose",
+        ],
     )
     # Create tasks
     task_make_results = template_make_results.create_task(
