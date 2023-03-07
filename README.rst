@@ -31,9 +31,11 @@ all necessary requirements as follows::
   (vivarium_census_prl_synth_pop) :~$ cd vivarium_census_prl_synth_pop
   (vivarium_census_prl_synth_pop) :~$ pip install -e .[dev]
   ...pip will install vivarium and other requirements...
-  (vivarium_census_prl_synth_pop) :~$ jobmon_config update --web_service_fqdn jobmon.scicomp.ihme.washington.edu --web_service_port 80
+  (vivarium_census_prl_synth_pop) :~$ <jobmon-config-command>
   ...configures jobmon...
 
+where <jobmon-config-command> is the corresponding command to run from
+https://hub.ihme.washington.edu/pages/viewpage.action?spaceKey=DataScience&title=Jobmon+Conda+Versions
 
 Note the ``-e`` flag that follows pip install. This will install the python
 package in-place, which is important for making the model specifications later.
@@ -130,8 +132,9 @@ The ``-j``, ``--jobmon`` flag uses jobmon to launch the post-processing
 pipeline. If it is not included, then it will launch the pipeline on the current
 node.
 
-Note: if when running with ``--jobmon`` causes a No route to host error, it is
-possible that jobmon did not get installed correctly. In this event,
+Note: if when running with ``--jobmon`` causes a 'No route to host' or 
+'Unexpected status code 404' error, it is likely that jobmon did not get 
+installed correctly. In this event, manually install and configure:
 
    (vivarium_census_prl_synth_pop) :~$ pip install pip install jobmon_installer_ihme==<version>
    (vivarium_census_prl_synth_pop) :~$ <jobmon-config-command>
