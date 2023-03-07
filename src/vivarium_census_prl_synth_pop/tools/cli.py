@@ -216,7 +216,5 @@ def jobmon_make_results_runner(
     artifact_path: Union[str, Path],
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(
-        func=build_results, logger=logger, with_debugger=with_debugger
-    )
+    main = handle_exceptions(func=build_results, logger=logger, with_debugger=with_debugger)
     main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
