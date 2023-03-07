@@ -49,7 +49,7 @@ def run_make_results_workflow(
         },
         default_cluster_name="slurm",
         command_template=(
-            f"{shutil.which('build_results')} "
+            f"{shutil.which('jobmon_make_results_runner')} "
             "{raw_output_dir} "
             "{final_output_dir} "
             "{mark_best} "

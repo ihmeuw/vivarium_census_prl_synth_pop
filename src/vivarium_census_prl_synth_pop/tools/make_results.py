@@ -198,7 +198,7 @@ FINAL_OBSERVERS = {
 }
 
 
-def do_build_results(
+def build_results(
     raw_output_dir: Union[str, Path],
     final_output_dir: Union[str, Path],
     mark_best: bool,

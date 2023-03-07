@@ -11,7 +11,7 @@ from vivarium_census_prl_synth_pop.tools import (
     configure_logging_to_terminal,
 )
 from vivarium_census_prl_synth_pop.tools.jobmon import run_make_results_workflow
-from vivarium_census_prl_synth_pop.tools.make_results import do_build_results
+from vivarium_census_prl_synth_pop.tools.make_results import build_results
 from vivarium_census_prl_synth_pop.utilities import build_final_results_directory
 
 
@@ -181,7 +181,7 @@ def make_results(
         func = run_make_results_workflow
         kwargs = cluster_requests
     else:  # run from current node
-        func = do_build_results
+        func = build_results
         kwargs = {}
     main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
     main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path, **kwargs)
@@ -206,7 +206,7 @@ def make_results(
 @click.option(
     "-i", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
 )
-def build_results(
+def jobmon_make_results_runner(
     raw_output_dir: Path,
     final_output_dir: Path,
     verbose: int,
@@ -217,6 +217,6 @@ def build_results(
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(
-        func=do_build_results, logger=logger, with_debugger=with_debugger
+        func=build_results, logger=logger, with_debugger=with_debugger
     )
     main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
