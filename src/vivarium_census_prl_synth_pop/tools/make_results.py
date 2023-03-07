@@ -198,41 +198,6 @@ FINAL_OBSERVERS = {
 }
 
 
-@click.command()
-@click.argument("raw_output_dir", type=click.Path(exists=True))
-@click.argument("final_output_dir", type=click.Path(exists=True))
-@click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
-@click.option(
-    "--pdb",
-    "with_debugger",
-    is_flag=True,
-    help="Drop into python debugger if an error occurs.",
-)
-@click.option("-b", "--mark-best", is_flag=True)
-@click.option(
-    "-t",
-    "--test-run",
-    is_flag=True,
-)
-@click.option(
-    "-a", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
-)
-def build_results(
-    raw_output_dir: Path,
-    final_output_dir: Path,
-    verbose: int,
-    with_debugger: bool,
-    mark_best: bool,
-    test_run: bool,
-    artifact_path: Union[str, Path],
-) -> None:
-    configure_logging_to_terminal(verbose)
-    main = handle_exceptions(
-        func=do_build_results, logger=logger, with_debugger=with_debugger
-    )
-    main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
-
-
 def do_build_results(
     raw_output_dir: Union[str, Path],
     final_output_dir: Union[str, Path],

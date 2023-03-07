@@ -63,5 +63,6 @@ if __name__ == "__main__":
             [console_scripts]
             make_artifacts=vivarium_census_prl_synth_pop.tools.cli:make_artifacts
             make_results=vivarium_census_prl_synth_pop.tools.cli:make_results
+            build_results=vivarium_census_prl_synth_pop.tools.cli:build_results
         """,
     )
