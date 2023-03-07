@@ -1,19 +1,17 @@
-from datetime import datetime
-from pathlib import Path
 from typing import Tuple
 
 import click
 from loguru import logger
 from vivarium.framework.utilities import handle_exceptions
 
-from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
     build_artifacts,
     configure_logging_to_terminal,
 )
 from vivarium_census_prl_synth_pop.tools.jobmon import run_make_results_workflow
-from vivarium_census_prl_synth_pop.tools.make_results import do_build_results
+from vivarium_census_prl_synth_pop.tools.make_results import build_results
+from vivarium_census_prl_synth_pop.utilities import build_final_results_directory
 
 
 @click.command()
@@ -82,7 +80,7 @@ def make_artifacts(
     help="Skips updating the 'latest' symlink with this version of results.",
 )
 @click.option(
-    "-a",
+    "-i",
     "--artifact-path",
     type=click.Path(exists=True),
     default=paths.DEFAULT_ARTIFACT,
@@ -99,6 +97,8 @@ def make_artifacts(
     "-q",
     "--queue",
     type=click.Choice(["all.q", "long.q"]),
+    default="all.q",
+    show_default=True,
     help="NOTE: only required if --jobmon. "
     "The cluster queue to assign jobmon tasks to. long.q allows for much "
     "longer runtimes although there may be reasons to send jobs to that queue "
@@ -108,6 +108,8 @@ def make_artifacts(
     "-m",
     "--peak-memory",
     type=int,
+    default=200,
+    show_default=True,
     help="NOTE: only required if --jobmon. "
     "The estimated maximum memory usage in GB of an individual simulate job. "
     "The simulations will be run with this as a limit. ",
@@ -116,6 +118,8 @@ def make_artifacts(
     "-r",
     "--max-runtime",
     type=str,
+    default="4:00:00",
+    show_default=True,
     help="NOTE: only required if --jobmon. "
     "The estimated maximum runtime ('hh:mm:ss') of the jobmon tasks. "
     "Once this time limit is hit, the cluster will terminate jobs regardless of "
@@ -132,6 +136,8 @@ def make_artifacts(
             "proj_simscience_prod",
         ]
     ),
+    default="proj_simscience",
+    show_default=True,
     help="NOTE: only required if --jobmon. "
     "The cluster project under which to run the jobmon workflow. ",
 )
@@ -151,41 +157,30 @@ def make_results(
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
     logger.info("Creating final results directory.")
-    raw_output_dir, final_output_dir = _build_final_results_directory(output_dir)
+    raw_output_dir, final_output_dir = build_final_results_directory(output_dir)
     cluster_requests = {
         "queue": queue,
         "peak_memory": peak_memory,
         "max_runtime": max_runtime,
         "project": project,
     }
-    if not jobmon and (queue or peak_memory or max_runtime or project):
-        requests = {k: v for k, v in cluster_requests.items() if v is not None}
-        logger.info(
+    user_cluster_requests = {
+        k: v
+        for k, v in cluster_requests.items()
+        if click.get_current_context().get_parameter_source(k).name != "DEFAULT"
+    }
+    if not jobmon and bool(user_cluster_requests):
+        requests = {k: v for k, v in cluster_requests.items() if k in user_cluster_requests}
+        logger.warning(
             "Passing in resource requests is only necessary for --jobmon. "
             f"The following were provided but will not be used: {requests}"
-        )
-    if jobmon and not (queue and peak_memory and max_runtime and project):
-        missing_requests = [f"--{k}" for k, v in cluster_requests.items() if v is None]
-        raise RuntimeError(
-            "Passing in --jobmon requires all cluster request args to be defined. "
-            f"Missing: {missing_requests}."
         )
 
     if jobmon:
         func = run_make_results_workflow
         kwargs = cluster_requests
     else:  # run from current node
-        func = do_build_results
+        func = build_results
         kwargs = {}
     main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
     main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path, **kwargs)
-
-
-def _build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
-    final_output_dir = utilities.build_output_dir(
-        Path(results_dir),
-        subdir=paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
-    )
-    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
-
-    return raw_output_dir, final_output_dir

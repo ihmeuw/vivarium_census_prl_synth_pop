@@ -26,14 +26,8 @@ def run_make_results_workflow(
 
     # Deal with boolean args - click either the flag or nothing, not True/False
     # TODO: there's got to be a better way to do this?
-    if mark_best:
-        mark_best_arg = "--mark-best"
-    else:
-        mark_best_arg = ""
-    if test_run:
-        test_run_arg = "--test-run"
-    else:
-        test_run_arg = ""
+    mark_best_arg = "--mark-best" if mark_best else ""
+    test_run_arg = "--test-run" if test_run else ""
 
     # Create tool
     tool = Tool(name="vivarium_census_prl_synth_pop.make_results")
@@ -55,7 +49,7 @@ def run_make_results_workflow(
         },
         default_cluster_name="slurm",
         command_template=(
-            f"{shutil.which('build_results')} "
+            f"{shutil.which('make_results')} "
             "{raw_output_dir} "
             "{final_output_dir} "
             "{mark_best} "
