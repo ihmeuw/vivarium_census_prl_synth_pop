@@ -21,6 +21,7 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_middle_initial_map,
 )
 from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
+    do_collide_ssns,
     get_simulant_id_maps,
 )
 
@@ -231,10 +232,16 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
 def perform_post_processing(
     raw_output_dir: Path, final_output_dir: Path, artifact_path: Path
 ) -> None:
+    # Create RandomnessStream for post-processing
+    key = "post_processing_maps"
+    clock = lambda: pd.Timestamp("2020-04-01")
+    seed = 0
+    randomness = RandomnessStream(key=key, clock=clock, seed=seed)
+
     processed_results = load_data(raw_output_dir)
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
-    maps = generate_maps(processed_results, artifact)
+    maps = generate_maps(processed_results, artifact, randomness)
 
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
@@ -250,7 +257,12 @@ def perform_post_processing(
                     continue
                 obs_data[target_column_name] = obs_data[column].map(column_map)
 
-        obs_data = obs_data[FINAL_OBSERVERS[observer]]
+        if observer == "tax_w2_observer":
+            # For w2, we need to post-process to allow for SSN collisions in the data in cases where
+            #  the simulant has no SSN but is employed (they'd need to have supplied an SSN to their employer)
+            obs_data = do_collide_ssns(obs_data, maps["simulant_id"]["ssn"], randomness)
+
+        obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
         logger.info(f"Writing final results for {observer}.")
         obs_data.to_csv(
             final_output_dir / f"{observer}.csv.bz2",
@@ -288,24 +300,19 @@ def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
 
 
 def generate_maps(
-    obs_data: Dict[str, pd.DataFrame], artifact: Artifact
+    obs_data: Dict[str, pd.DataFrame], artifact: Artifact, randomness: RandomnessStream
 ) -> Dict[str, Dict[str, pd.Series]]:
     """
     Parameters:
         obs_data: Dictionary of raw observer outputs with key being the observer name and the value being a dataframe.
         artifact: Artifact that contains data needed to generate values.
+        randomness: RandomnessStream to use in creating maps.
 
     Returns:
         maps: Dictionary with key being string of the name of the column to be mapped.  Example first_name_id or
           address_id.  Values for each key will be a dictionary named with the column to be mapped to as the key with a
           corresponding series containing the mapped values.
     """
-
-    # Create RandomnessStream for post-processing
-    key = "post_processing_maps"
-    clock = lambda: pd.Timestamp("2020-04-01")
-    seed = 0
-    randomness = RandomnessStream(key=key, clock=clock, seed=seed)
 
     # Add column maps to mapper here
     # The key should be the index of the map and the mapping function the value
