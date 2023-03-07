@@ -21,7 +21,10 @@ def run_make_results_workflow(
     """Creates and runs a jobmon workflow to build results datasets
     from the raw data output by observers
     """
-    logger.info(f"Starting make_results workflow {final_output_dir}")
+    logger.info(
+        "Starting jobmon 'make_results' workflow. Results will be written to "
+        f"{final_output_dir}"
+    )
     wf_uuid = uuid.uuid4()
 
     # Deal with boolean args - click either the flag or nothing, not True/False
