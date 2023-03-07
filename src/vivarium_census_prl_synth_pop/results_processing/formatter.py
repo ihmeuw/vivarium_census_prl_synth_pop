@@ -33,7 +33,9 @@ def format_ssn_id(data: pd.DataFrame) -> pd.Series:
     """Format ssn_id column to prepare random_seed to match simulant_id"""
     ssn_ids = pd.Series(data["ssn_id"].astype(str))
     # Only do the prepending where ssn_id points to another simulant
-    ssn_ids[ssn_ids != "-1"] = data["random_seed"].astype(str) + "_" + data["ssn_id"].astype(str)
+    ssn_ids[ssn_ids != "-1"] = (
+        data["random_seed"].astype(str) + "_" + data["ssn_id"].astype(str)
+    )
     return ssn_ids
 
 
@@ -95,7 +97,7 @@ COLUMN_FORMATTERS = {
         ["guardian_2_address_id", "random_seed"],
     ),
     "guardian_id": (get_guardian_id, ["guardian_id", "random_seed"]),
-    "ssn_id":  (format_ssn_id, ["ssn_id", "random_seed"]),
+    "ssn_id": (format_ssn_id, ["ssn_id", "random_seed"]),
 }
 
 
