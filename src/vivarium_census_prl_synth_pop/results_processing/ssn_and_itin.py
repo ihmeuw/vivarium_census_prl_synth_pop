@@ -236,17 +236,28 @@ def get_ssn_map(
     return ssn_map_dict
 
 
-def do_collide_ssns(obs_data: pd.DataFrame, ssn_map: pd.Series) -> pd.DataFrame:
+def do_collide_ssns(
+    obs_data: pd.DataFrame, ssn_map: pd.Series, randomness: RandomnessStream
+) -> pd.DataFrame:
+    """Apply SSN collision to simulants with no SSN but provided an SSN to an employer."""
+    # If a household member's SSN will be used, use ssn_map to map
+    use_ssn_id_mask = (
+        (obs_data["ssn_id"] != "-1")
+        & (obs_data["employer_id"] != -1)
+        & (~obs_data["has_ssn"])
+    )
+    obs_data.loc[use_ssn_id_mask, "ssn"] = obs_data[use_ssn_id_mask]["ssn_id"].map(ssn_map)
 
-    # Mask off ssn_id != -1, employer_id != -1, ssn = "", has_ssn = False,
-    # use ssn_map to map
-    use_ssn_id = (obs_data["ssn_id"] != -1) & (obs_data["employer_id"] != -1)
-
-    # Mask off ssn_id == -1, employer_id != -1, ssn = "", has_ssn = False,
-    # generate a new SSN for each, duplicates don't matter.
-
-
-
-
+    # If a household member's SSN is unavailable, generate a new SSN, duplicates don't matter.
+    create_ssn_mask = (
+        (obs_data["ssn_id"] == "-1")
+        & (obs_data["employer_id"] != -1)
+        & (~obs_data["has_ssn"])
+    )
+    obs_data.loc[create_ssn_mask, "ssn"] = generate_ssns(
+        size=create_ssn_mask.sum(),
+        additional_key="collide",
+        randomness=randomness,
+        allow_duplicates=True,
+    )
     return obs_data
-
