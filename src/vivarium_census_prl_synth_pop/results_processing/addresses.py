@@ -193,7 +193,6 @@ def get_city_map(
     randomness: RandomnessStream,
     additional_key: str = "",
 ) -> Dict[str, pd.Series]:
-
     # Load addresses data from artifact
     addresses = artifact.load(data_keys.SYNTHETIC_DATA.ADDRESSES).reset_index()
     # Get observer data to map

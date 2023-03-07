@@ -31,6 +31,7 @@ if __name__ == "__main__":
 
     # use "pip install -e .[dev]" to install required components + extra components
     data_requires = [
+        "jobmon_installer_ihme==10.6.0",
         "vivarium_cluster_tools>=1.3.8",
         "vivarium_inputs[data]==4.0.10",
     ]
@@ -62,5 +63,6 @@ if __name__ == "__main__":
             [console_scripts]
             make_artifacts=vivarium_census_prl_synth_pop.tools.cli:make_artifacts
             make_results=vivarium_census_prl_synth_pop.tools.cli:make_results
+            jobmon_make_results_runner=vivarium_census_prl_synth_pop.tools.cli:jobmon_make_results_runner
         """,
     )
