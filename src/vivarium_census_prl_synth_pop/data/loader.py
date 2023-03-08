@@ -12,6 +12,7 @@ for an example.
 
    No logging is done here. Logging is done in vivarium inputs itself and forwarded.
 """
+from itertools import product
 from pathlib import Path
 from typing import Dict, List
 
@@ -53,6 +54,8 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
         data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
         data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
+        data_keys.SYNTHETIC_DATA.SSNS: load_ssn_data,
+        data_keys.SYNTHETIC_DATA.ITINS: load_itin_data,
     }
     return mapping[lookup_key](lookup_key, location)
 
@@ -305,6 +308,58 @@ def load_address_data(key: str, location: str) -> pd.DataFrame:
     return df_deepparse_address_data
 
 
+def load_ssn_data(key: str, location: str) -> pd.DataFrame:
+    """Generate a randomly shuffled dataframe of all possible SSNs where each of
+    the three columns holds the allowable parts of a valid id. SSNs take the
+    form of <area>-<group>-<serial> with the following acceptable ranges:
+        - area: 001-899, excluding 666
+        - group: 01-99
+        - serial: 0001-9999
+    """
+    # Generate allowable integers
+    area = list(range(1, 666)) + list(range(667, 900))
+    group = list(range(1, 100))
+    serial = list(range(1, 10000))
+
+    return _generate_randomized_id_df(area, group, serial)
+
+
+def load_itin_data(key: str, location: str) -> pd.DataFrame:
+    """Generate a randomly shuffled dataframe of all possible ITINs where each of
+    the three columns holds the allowable parts of a valid id. ITINs take the
+    form of <area>-<group>-<serial> with the following acceptable ranges:
+        - area: 900-999
+        - group: 50-65, 70-88, 90-92, 94-99
+        - serial: 0001-9999
+    """
+    # Generate allowable integers
+    area = list(range(900, 1000))
+    group = (
+        list(range(50, 66)) + list(range(70, 89)) + list(range(90, 93)) + list(range(94, 100))
+    )
+    serial = list(range(1, 10000))
+
+    return _generate_randomized_id_df(area, group, serial)
+
+
+#####################
+#  Helper functions #
+#####################
+
+
+def _generate_randomized_id_df(
+    area: List[int], group: List[int], serial: List[int]
+) -> pd.DataFrame:
+    """Given lists of allowable area, group, and serial integers, generate a
+    randomly sorted dataframe of the product of the three groups
+    """
+    parts = [(area, group, serial) for area, group, serial in product(area, group, serial)]
+    ids = pd.DataFrame(data=parts, columns=["area", "group", "serial"])
+    ids = ids.sample(frac=1, random_state=12345).reset_index(drop=True)
+
+    return ids
+
+
 def create_draws(df: pd.DataFrame, key: str, location: str):
     """
     Parameters
@@ -327,11 +382,6 @@ def create_draws(df: pd.DataFrame, key: str, location: str):
     )
 
     return draws
-
-
-#####################
-#  Helper functions #
-#####################
 
 
 def _read_and_format_raw_data(
