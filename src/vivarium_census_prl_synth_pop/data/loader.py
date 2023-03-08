@@ -355,7 +355,7 @@ def _generate_randomized_id_df(
     """
     parts = [(area, group, serial) for area, group, serial in product(area, group, serial)]
     ids = pd.DataFrame(data=parts, columns=["area", "group", "serial"])
-    ids = ids.sample(frac=1).reset_index(drop=True)
+    ids = ids.sample(frac=1, random_state=12345).reset_index(drop=True)
 
     return ids
 
