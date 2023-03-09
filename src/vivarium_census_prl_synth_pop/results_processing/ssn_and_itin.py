@@ -39,95 +39,19 @@ def get_simulant_id_maps(
     """
     if column_name != "simulant_id":
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
+    maps = dict()
+    # ssn
+    maps.update(get_ssn_map(obs_data, column_name, artifact))
+    # itin
+    output_cols_superset = [column_name, "has_ssn"]
+    formatted_obs_data = format_data_for_mapping(
+        index_name=column_name,
+        obs_results=obs_data,
+        output_columns=output_cols_superset,
+    )
+    maps.update(get_itin_map(column_name, formatted_obs_data, artifact))
 
-    ssn_map = get_ssn_map(obs_data, column_name, artifact)
-
-    return ssn_map
-
-
-def generate_itins(
-    size: int,
-    additional_key: Any,
-    randomness: RandomnessStream,
-) -> np.ndarray:
-    """
-    Generate a np.ndarray of length `size` of unique ITIN values.
-
-        first three digits 900-999, followed by dash
-        next two digits between 50-65, 70-88, 90-92, or 94-99, followed by a dash
-        last four digits between 1-9999
-
-    :param size: The number of itins to generate
-    :param additional_key: Additional key to be used by randomness
-    :param randomness: RandomnessStream stream to use
-
-    """
-
-    def generate_itin(
-        count: int,
-        extra_additional_key: Any,
-    ):
-        itin = pd.DataFrame(index=pd.Index(range(count)))
-
-        # Area numbers have range 900-999, inclusive
-        itin["area"] = random_integers(
-            min_val=900,
-            max_val=999,
-            index=itin.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_itin_area",
-        )
-
-        # Group numbers have range 50-65, 70-88, 90-92, or 94-99, inclusive
-        itin["group"] = random_integers(
-            min_val=1,
-            max_val=44,  # (65-50+1)+(88-70+1)+(92-90+1)+(99-94+1)
-            index=itin.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_itin_group",
-        )
-
-        # Rescale the group digits to match expected ranges
-        pre_shift_groups = itin["group"].copy()
-        itin.loc[pre_shift_groups <= 16, "group"] += 49
-        itin.loc[((pre_shift_groups <= 35) & (pre_shift_groups >= 17)), "group"] += 53
-        itin.loc[((pre_shift_groups <= 38) & (pre_shift_groups >= 36)), "group"] += 54
-        itin.loc[pre_shift_groups >= 39, "group"] += 55
-
-        # Serial numbers 1-9999 inclusive
-        itin["serial"] = random_integers(
-            min_val=1,
-            max_val=9999,
-            index=itin.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_itin_serial",
-        )
-
-        return (
-            itin["area"].astype(str)  # no zfill needed, values should be 900-999
-            + "-"
-            + itin["group"].astype(str)  # no zfill needed likewise
-            + "-"
-            + itin["serial"].astype(str).str.zfill(4)
-        ).to_numpy()
-
-    if additional_key is None:
-        additional_key = 1
-    itins = pd.Series(generate_itin(size, additional_key))
-    duplicate_mask = itins.duplicated()
-    counter = 0
-    while duplicate_mask.sum() > 0:
-        if counter >= 10:
-            logger.info(
-                f"Resampled ITIN {counter} times and data still contains {duplicate_mask.sum()}"
-                f"duplicates remaining.  Check data or usage of randomness stream."
-            )
-            break
-        new_additional_key = f"{additional_key}_{counter}"
-        itins.loc[duplicate_mask] = generate_itin(duplicate_mask.sum(), new_additional_key)
-        duplicate_mask = itins.duplicated()
-        counter += 1
-    return itins.to_numpy()
+    return maps
 
 
 def generate_ssns(
@@ -227,6 +151,47 @@ def get_ssn_map(
     ).to_numpy()
 
     return {"ssn": pd.Series(ssns, index=need_ssns, name="ssn")}
+
+
+def get_itin_map(
+    column_name: str,
+    obs_data: pd.DataFrame,
+    artifact: Artifact,
+):
+    itin_map_dict = {}
+    output_cols = [column_name, "has_ssn"]  # columns in the output we use to map
+    simulant_data = (
+        obs_data.reset_index()[output_cols].drop_duplicates().set_index(column_name)
+    )
+    # Load (already-shuffled) ITINs and choose the appropriate number off the top
+    # NOTE: artifact.load does not currently have the option to select specific rows
+    # to load and so that was much slower than using pandas.
+    itin_mask = ~simulant_data["has_ssn"]
+    itins = pd.read_hdf(
+        artifact.path,
+        key="/synthetic_data/itins",
+        start=0,
+        stop=itin_mask.sum(),
+    )
+
+    itins = _convert_to_hyphenated_strings(itins)
+    
+    # Assign ITINs and create dictionary item
+    itin_map = pd.Series("", index=simulant_data.index)
+    itin_map[itin_mask] = itins
+    itin_map_dict["itin"] = itin_map
+
+    return itin_map_dict
+
+
+def _convert_to_hyphenated_strings(ids: pd.DataFrame) -> np.array:
+    return (
+        ids["area"].astype(str).str.zfill(3)
+        + "-"
+        + ids["group"].astype(str).str.zfill(2)
+        + "-"
+        + ids["serial"].astype(str).str.zfill(4)
+    ).to_numpy()
 
 
 def do_collide_ssns(

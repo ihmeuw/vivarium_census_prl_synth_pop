@@ -168,6 +168,7 @@ FINAL_OBSERVERS = {
         "housing_type",
         "joint_filer",
         "ssn",
+        "itin",
     },
     "tax_dependents_observer": {
         # Metadata is for a dependent.  This should capture each dependent/guardian pair.  Meaning that if a dependent
