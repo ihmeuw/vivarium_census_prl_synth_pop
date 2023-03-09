@@ -469,6 +469,7 @@ def test_employer_name_map(mocker):
     assert not (employer_names["employer_name"].isnull().any())
 
 
+@pytest.mark.slow
 def test_ssn_mapping(artifact):
     """Tests SSN map creation, uniqueness, and range checking."""
     # Create population observer data
