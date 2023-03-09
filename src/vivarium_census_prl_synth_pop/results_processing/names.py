@@ -270,8 +270,16 @@ def get_employer_name_map(
         data_values.MilitaryEmployer.EMPLOYER_ID, "employer_name"
     ] = data_values.MilitaryEmployer.EMPLOYER_NAME
 
+    # NOTE: This deduplication stuff will all be deleted in a following PR
     duplicate_mask = employer_names.duplicated(subset=["employer_name"])
     while sum(duplicate_mask) > 0:
+        if counter == 10:
+            logger.info(
+                f"Resampled employer names {counter} times and data still contains {duplicate_mask.sum()}"
+                f"duplicates.  Check data or usage of randomness stream."
+            )
+            break
+        counter += 1
         employer_names.loc[duplicate_mask, "employer_name"] = vectorized_choice(
             options=business_names_data["business_names"],
             n_to_choose=duplicate_mask.sum(),
@@ -279,12 +287,6 @@ def get_employer_name_map(
             additional_key=f"employer_names_{counter}",
         ).to_numpy()
         duplicate_mask = employer_names.duplicated(subset=["employer_name"])
-        counter += 1
-        if counter == 10:
-            logger.info(
-                f"Resampled employer names {counter} times and data still contains {duplicate_mask.sum()}"
-                f"duplicates remaining.  Check data or usage of randomness stream."
-            )
 
     employer_name_map = {"employer_name": employer_names["employer_name"]}
     return employer_name_map
