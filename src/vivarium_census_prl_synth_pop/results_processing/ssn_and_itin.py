@@ -247,6 +247,8 @@ def do_collide_ssns(
         & (obs_data["employer_id"] != -1)
         & (~obs_data["has_ssn"])
     )
+    # TODO: Replace with sampling from the artifact data if we figure out a
+    # more performant way of doing so (eg querying the hdf with randomized idx)
     obs_data.loc[create_ssn_mask, "ssn"] = generate_ssns(
         size=create_ssn_mask.sum(),
         additional_key="collide",
