@@ -204,7 +204,7 @@ def get_ssn_map(
     )
     ssn_map = pd.Series("", index=simulant_data.index)
     # Load (already-shuffled) SSNs and choose the appropriate number off the top
-    # TODO: look for a more performant method (it took ~3 minutes for ~1 million simulants. Good enough for now.)
+    # TODO: look for a more performant method (it takes several minutes - good enough for now.)
     ssns = artifact.load("synthetic_data.ssns")[: simulant_data["has_ssn"].sum()]
     # Convert to hyphenated string IDs
     ssns = (
