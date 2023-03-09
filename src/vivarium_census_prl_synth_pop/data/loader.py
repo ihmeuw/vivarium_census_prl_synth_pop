@@ -354,7 +354,7 @@ def _generate_randomized_id_df(
     randomly sorted dataframe of the product of the three groups
     """
     parts = [(area, group, serial) for area, group, serial in product(area, group, serial)]
-    ids = pd.DataFrame(data=parts, columns=["area", "group", "serial"])
+    ids = pd.DataFrame(data=parts, columns=["area", "group", "serial"]).astype("int32")
     ids = ids.sample(frac=1, random_state=12345).reset_index(drop=True)
 
     return ids
