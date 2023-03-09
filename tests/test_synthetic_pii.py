@@ -469,7 +469,7 @@ def test_employer_name_map(mocker):
     assert not (employer_names["employer_name"].isnull().any())
 
 
-def test_ssn_mapping():
+def test_ssn_mapping(artifact):
     """Tests SSN map creation, uniqueness, and range checking."""
     # Create population observer data
     num_unique_ids = 30_000
@@ -479,7 +479,7 @@ def test_ssn_mapping():
 
     # Get the map
     ssn_map = get_simulant_id_maps(
-        "simulant_id", {"silly_observer": simulants}, None, randomness
+        "simulant_id", {"silly_observer": simulants}, artifact, randomness
     )["ssn"]
 
     # Check that all the SSNs are unique (Half of population size plus one for no SSN)
