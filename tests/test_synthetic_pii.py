@@ -17,8 +17,10 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
 )
-from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import get_simulant_id_maps, generate_ssns
-
+from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
+    generate_ssns,
+    get_simulant_id_maps,
+)
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -100,7 +102,7 @@ def simulants():
     simulants = pd.DataFrame()
     simulants["simulant_id"] = [f"123_{n}" for n in range(num_unique_ids)]
     simulants["has_ssn"] = [True if n % 2 == 0 else False for n in range(num_unique_ids)]
-    
+
     return simulants
 
 
@@ -458,13 +460,10 @@ def test_employer_name_map(mocker):
     assert not (employer_names["employer_name"].isnull().any())
 
 
-@pytest.mark.parametrize(
-    "ssn_type",
-    ["assigned", "generated"]
-)
+@pytest.mark.parametrize("ssn_type", ["assigned", "generated"])
 def test_ssn_mapping(ssn_type, simulants, artifact):
     """Tests SSN map creation, uniqueness, and range checking."""
-    
+
     # Get the map
     if ssn_type == "assigned":
         try:
@@ -476,9 +475,7 @@ def test_ssn_mapping(ssn_type, simulants, artifact):
     else:
         ssn_map = pd.Series("", index=simulants["simulant_id"])
         generated_ssns = generate_ssns(
-            simulants["has_ssn"].sum(),
-            "test_ssn_generation",
-            randomness
+            simulants["has_ssn"].sum(), "test_ssn_generation", randomness
         )
         ssn_map[simulants.set_index("simulant_id")["has_ssn"]] = generated_ssns
 
@@ -502,7 +499,7 @@ def test_ssn_mapping(ssn_type, simulants, artifact):
 
 def test_itin_mapping(simulants, artifact):
     """Tests for uniqueness of ITINs and their ranges."""
-    
+
     # Get the map
     try:
         itins = get_simulant_id_maps(

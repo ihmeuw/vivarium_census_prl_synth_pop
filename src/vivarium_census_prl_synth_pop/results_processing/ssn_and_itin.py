@@ -175,7 +175,7 @@ def get_itin_map(
     )
 
     itins = _convert_to_hyphenated_strings(itins)
-    
+
     # Assign ITINs and create dictionary item
     itin_map = pd.Series("", index=simulant_data.index)
     itin_map[itin_mask] = itins
