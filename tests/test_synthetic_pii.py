@@ -469,7 +469,6 @@ def test_employer_name_map(mocker):
     assert not (employer_names["employer_name"].isnull().any())
 
 
-@pytest.mark.slow
 def test_ssn_mapping(artifact):
     """Tests SSN map creation, uniqueness, and range checking."""
     # Create population observer data
@@ -479,9 +478,12 @@ def test_ssn_mapping(artifact):
     simulants["has_ssn"] = [True if n % 2 == 0 else False for n in range(num_unique_ids)]
 
     # Get the map
-    ssn_map = get_simulant_id_maps(
-        "simulant_id", {"silly_observer": simulants}, artifact, randomness
-    )["ssn"]
+    try:
+        ssn_map = get_simulant_id_maps(
+            "simulant_id", {"silly_observer": simulants}, artifact, randomness
+        )["ssn"]
+    except FileNotFoundError:
+        pytest.skip(reason=f"Artifact not found at {artifact.path}")
 
     # Check that all the SSNs are unique (Half of population size plus one for no SSN)
     assert ssn_map.nunique() == num_unique_ids / 2 + 1
