@@ -11,7 +11,6 @@ from vivarium_census_prl_synth_pop.constants import paths
 def sim() -> InteractiveContext:
     """Initialize a simulation for use in tests"""
     simulation = InteractiveContext(paths.MODEL_SPEC_DIR / "model_spec.yaml", setup=False)
-    simulation.configuration.input_data.artifact_path = "/mnt/share/homes/sbachmei/scratch/vivarium/prl/artifacts/ids-dataframe/united_states_of_america.hdf"
     simulation.configuration.population.population_size = 250_000
     simulation.setup()
     return simulation
