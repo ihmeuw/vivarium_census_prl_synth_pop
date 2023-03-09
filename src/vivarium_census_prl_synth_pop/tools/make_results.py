@@ -294,7 +294,9 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
                 obs_data.append(df)
             obs_data = pd.concat(obs_data)
         else:
-            obs_data = pd.read_csv(obs_dir / f"{obs_dir.name}_{seed}.csv.bz2")
+            filename = f"{obs_dir.name}_{seed}.csv.bz2"
+            logger.info(f"Loading data for {filename}...")
+            obs_data = pd.read_csv(obs_dir / filename)
             obs_data["random_seed"] = seed
             obs_data = formatter.format_columns(obs_data)
 
