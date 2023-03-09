@@ -204,6 +204,8 @@ def get_ssn_map(
     )
     ssn_map = pd.Series("", index=simulant_data.index)
     # Load (already-shuffled) SSNs and choose the appropriate number off the top
+    # NOTE: artifact.load does not currently have the option to select specific rows
+    # to load and so that was much slower than using pandas.
     ssns = pd.read_hdf(
         artifact.path,
         key="/synthetic_data/ssns",
