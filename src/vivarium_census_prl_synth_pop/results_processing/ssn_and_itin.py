@@ -45,12 +45,16 @@ def get_simulant_id_maps(
 
     # Simulants in W2 observer who `has_ssn` need SSNs
     w2_data = obs_data["tax_w2_observer"][[column_name, "has_ssn", "ssn_id"]]
-    need_ssns = pd.concat([need_ssns, w2_data.loc[w2_data["has_ssn"], column_name]], axis=0).drop_duplicates()
+    need_ssns = pd.concat(
+        [need_ssns, w2_data.loc[w2_data["has_ssn"], column_name]], axis=0
+    ).drop_duplicates()
 
     # Simulants in W2 observer who are assigned as an `ssn_id` need to have SSNs
     # to be copied later
-    need_ssns = pd.concat([need_ssns, w2_data.loc[w2_data["ssn_id"] != "-1", "ssn_id"]], axis=0).drop_duplicates()
-    
+    need_ssns = pd.concat(
+        [need_ssns, w2_data.loc[w2_data["ssn_id"] != "-1", "ssn_id"]], axis=0
+    ).drop_duplicates()
+
     ssn_map = get_ssn_map(pd.DataFrame(index=need_ssns), artifact)  # pd.Index
 
     return ssn_map
