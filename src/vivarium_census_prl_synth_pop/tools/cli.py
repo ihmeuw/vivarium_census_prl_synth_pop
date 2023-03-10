@@ -19,7 +19,7 @@ from vivarium_census_prl_synth_pop.utilities import build_final_results_director
 @click.option(
     "-l",
     "--location",
-    default="all",
+    default="United States of America",
     show_default=True,
     type=click.Choice(metadata.LOCATIONS + ["all"]),
     help=(
