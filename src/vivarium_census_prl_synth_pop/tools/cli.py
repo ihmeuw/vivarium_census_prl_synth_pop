@@ -85,8 +85,8 @@ def make_artifacts(
     "--seed",
     type=str,
     default="",
-    help="Provide seed in order to run only on the files corresponding to that seed. "
-         "If no seed it provided, will run on all files."
+    help="Provide seed in order to run only on the files corresponding to that "
+    "seed. If no seed it provided, will run on all files.",
 )
 @click.option(
     "-i",
