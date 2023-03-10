@@ -4,7 +4,7 @@ import pytest
 from vivarium import Artifact
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def artifact(mocker):
     artifact_path = Path(
         "/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/united_states_of_america.hdf"

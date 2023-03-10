@@ -39,15 +39,21 @@ def get_simulant_id_maps(
     """
     if column_name != "simulant_id":
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
-    maps = dict()
-    output_cols_superset = [column_name, "has_ssn"]
-    formatted_obs_data = format_data_for_mapping(
-        index_name=column_name,
-        obs_results=obs_data,
-        output_columns=output_cols_superset,
-    )
-    maps.update(get_ssn_map(column_name, formatted_obs_data, artifact))
-    return maps
+
+    # Anyone in the SSN observer has SSNs by definition
+    need_ssns = obs_data["social_security_observer"][column_name]
+
+    # Simulants in W2 observer who `has_ssn` need SSNs
+    w2_data = obs_data["tax_w2_observer"][[column_name, "has_ssn", "ssn_id"]]
+    need_ssns = pd.concat([need_ssns, w2_data.loc[w2_data["has_ssn"], column_name]], axis=0).drop_duplicates()
+
+    # Simulants in W2 observer who are assigned as an `ssn_id` need to have SSNs
+    # to be copied later
+    need_ssns = pd.concat([need_ssns, w2_data.loc[w2_data["ssn_id"] != "-1", "ssn_id"]], axis=0).drop_duplicates()
+    
+    ssn_map = get_ssn_map(pd.DataFrame(index=need_ssns), artifact)  # pd.Index
+
+    return ssn_map
 
 
 def generate_itins(
@@ -193,16 +199,9 @@ def generate_ssns(
 
 
 def get_ssn_map(
-    column_name: str,
     obs_data: pd.DataFrame,
     artifact: Artifact,
-):
-    ssn_map_dict = {}
-    output_cols = [column_name, "has_ssn"]  # columns in the output we use to map
-    simulant_data = (
-        obs_data.reset_index()[output_cols].drop_duplicates().set_index(column_name)
-    )
-    ssn_map = pd.Series("", index=simulant_data.index)
+) -> Dict[str, pd.DataFrame]:
     # Load (already-shuffled) SSNs and choose the appropriate number off the top
     # NOTE: artifact.load does not currently have the option to select specific rows
     # to load and so that was much slower than using pandas.
@@ -210,8 +209,9 @@ def get_ssn_map(
         artifact.path,
         key="/synthetic_data/ssns",
         start=0,
-        stop=simulant_data["has_ssn"].sum(),
+        stop=len(obs_data),
     )
+
     # Convert to hyphenated string IDs
     ssns = (
         ssns["area"].astype(str).str.zfill(3)
@@ -220,12 +220,10 @@ def get_ssn_map(
         + "-"
         + ssns["serial"].astype(str).str.zfill(4)
     ).to_numpy()
-    # Assign SSNs and create dictionary item
-    ssn_map = pd.Series("", index=simulant_data.index)
-    ssn_map[simulant_data["has_ssn"]] = ssns
-    ssn_map_dict["ssn"] = ssn_map
 
-    return ssn_map_dict
+    obs_data["ssn"] = ssns
+
+    return {"ssn": obs_data.squeeze()}
 
 
 def do_collide_ssns(
@@ -246,8 +244,6 @@ def do_collide_ssns(
         & (obs_data["employer_id"] != -1)
         & (~obs_data["has_ssn"])
     )
-    # TODO: Replace with sampling from the artifact data if we figure out a
-    # more performant way of doing so (eg querying the hdf with randomized idx)
     obs_data.loc[create_ssn_mask, "ssn"] = generate_ssns(
         size=create_ssn_mask.sum(),
         additional_key="collide",

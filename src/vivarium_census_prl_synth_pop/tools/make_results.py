@@ -250,7 +250,6 @@ def perform_post_processing(
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing data for {observer}...")
-        # Fixme: This code assumes a 1 to 1 relationship of raw to final observers
         obs_data = processed_results[observer]
 
         for column in obs_data.columns:
