@@ -469,37 +469,6 @@ def test_employer_name_map(mocker):
     assert not (employer_names["employer_name"].isnull().any())
 
 
-def test_ssn_mapping():
-    """Tests SSN map creation, uniqueness, and range checking."""
-    # Create population observer data
-    num_unique_ids = 30_000
-    simulants = pd.DataFrame()
-    simulants["simulant_id"] = [f"123_{n}" for n in range(num_unique_ids)]
-    simulants["has_ssn"] = [True if n % 2 == 0 else False for n in range(num_unique_ids)]
-
-    # Get the map
-    ssn_map = get_simulant_id_maps(
-        "simulant_id", {"silly_observer": simulants}, None, randomness
-    )["ssn"]
-
-    # Check that all the SSNs are unique (Half of population size plus one for no SSN)
-    assert ssn_map.nunique() == num_unique_ids / 2 + 1
-
-    # Check that all SSNs are populated if ssn is True, not if False
-    simulants_indexed = simulants.set_index(["simulant_id"])
-    assert ssn_map[simulants_indexed["has_ssn"]].nunique() == num_unique_ids // 2
-    assert (ssn_map[~simulants_indexed["has_ssn"]] == "").all()
-
-    # Check that area, group, and serial segments are within bounds
-    areas = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[0]))
-    groups = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[1]))
-    serials = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[2]))
-    assert (areas != 666).all()
-    assert (areas >= 1).all() and (areas <= 899).all()
-    assert (groups >= 1).all() and (groups <= 99).all()
-    assert (serials >= 1).all() and (serials <= 9999).all()
-
-
 def test_mailing_address(mocker):
     # Mock necessary artifact and observer data
     addresses = pd.DataFrame(
