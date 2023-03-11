@@ -41,7 +41,7 @@ def get_simulant_id_maps(
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
 
     ssn_map = get_ssn_map(obs_data, column_name, artifact)
-    breakpoint()
+
     return ssn_map
 
 
