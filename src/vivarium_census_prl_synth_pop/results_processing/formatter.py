@@ -101,6 +101,17 @@ COLUMN_FORMATTERS = {
 }
 
 
+def format_columns(data: pd.DataFrame) -> pd.DataFrame:
+    # Process columns to map for observers
+    for output_column, (
+        column_formatter,
+        required_columns,
+    ) in COLUMN_FORMATTERS.items():
+        if set(required_columns).issubset(set(data.columns)):
+            data[output_column] = column_formatter(data[required_columns])
+    return data
+
+
 def format_data_for_mapping(
     index_name: str,
     obs_results: Dict[str, pd.DataFrame],

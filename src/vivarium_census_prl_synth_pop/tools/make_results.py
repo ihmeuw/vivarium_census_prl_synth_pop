@@ -2,12 +2,10 @@ import csv
 from pathlib import Path
 from typing import Dict, Union
 
-import click
 import pandas as pd
 from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.utilities import handle_exceptions
 
 from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.results_processing import formatter
@@ -24,7 +22,6 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     do_collide_ssns,
     get_simulant_id_maps,
 )
-from vivarium_census_prl_synth_pop.tools import configure_logging_to_terminal
 
 FINAL_OBSERVERS = {
     "decennial_census_observer": {
@@ -203,6 +200,7 @@ def build_results(
     final_output_dir: Union[str, Path],
     mark_best: bool,
     test_run: bool,
+    seed: str,
     artifact_path: Union[str, Path],
 ):
     if mark_best and test_run:
@@ -215,7 +213,7 @@ def build_results(
     final_output_dir = Path(final_output_dir)
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
-    perform_post_processing(raw_output_dir, final_output_dir, artifact_path)
+    perform_post_processing(raw_output_dir, final_output_dir, seed, artifact_path)
 
     if test_run:
         logger.info("Test run - not marking results as latest.")
@@ -235,15 +233,16 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
 
 
 def perform_post_processing(
-    raw_output_dir: Path, final_output_dir: Path, artifact_path: Path
+    raw_output_dir: Path, final_output_dir: Path, seed: str, artifact_path: Path
 ) -> None:
     # Create RandomnessStream for post-processing
-    key = "post_processing_maps"
-    clock = lambda: pd.Timestamp("2020-04-01")
-    seed = 0
-    randomness = RandomnessStream(key=key, clock=clock, seed=seed)
+    randomness = RandomnessStream(
+        key="post_processing_maps",
+        clock=lambda: pd.Timestamp("2020-04-01"),
+        seed=0,
+    )
 
-    processed_results = load_data(raw_output_dir)
+    processed_results = load_data(raw_output_dir, seed)
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
     maps = generate_maps(processed_results, artifact, randomness)
@@ -276,7 +275,7 @@ def perform_post_processing(
         )
 
 
-def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
+def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
     # Loads in all observer outputs and stores them in a dict with observer name as keys.
     observers_results = {}
 
@@ -284,22 +283,24 @@ def load_data(raw_results_dir: Path) -> Dict[str, pd.DataFrame]:
         obs_dir for obs_dir in raw_results_dir.glob("*") if obs_dir.is_dir()
     ]
     for obs_dir in observer_directories:
-        logger.info(f"Loading data for {obs_dir.name}...")
-        obs_files = obs_dir.glob("*.csv.bz2")
-        obs_data = []
-        for file in obs_files:
-            df = pd.read_csv(file)
-            df["random_seed"] = file.name.split(".")[0].split("_")[-1]
-            # Process columns to map for observers
-            for output_column, (
-                column_formatter,
-                required_columns,
-            ) in formatter.COLUMN_FORMATTERS.items():
-                if set(required_columns).issubset(set(df.columns)):
-                    df[output_column] = column_formatter(df[required_columns])
-            obs_data.append(df)
+        if seed == "":
+            logger.info(f"Loading data for {obs_dir.name}...")
+            obs_files = obs_dir.glob("*.csv.bz2")
+            obs_data = []
+            for file in obs_files:
+                df = pd.read_csv(file)
+                df["random_seed"] = file.name.split(".")[0].split("_")[-1]
+                df = formatter.format_columns(df)
+                obs_data.append(df)
+            obs_data = pd.concat(obs_data)
+        else:
+            filename = f"{obs_dir.name}_{seed}.csv.bz2"
+            logger.info(f"Loading data for {filename}...")
+            obs_data = pd.read_csv(obs_dir / filename)
+            obs_data["random_seed"] = seed
+            obs_data = formatter.format_columns(obs_data)
 
-        observers_results[obs_dir.name] = pd.concat(obs_data)
+        observers_results[obs_dir.name] = obs_data
 
     return observers_results
 

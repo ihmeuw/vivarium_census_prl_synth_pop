@@ -12,6 +12,7 @@ def run_make_results_workflow(
     final_output_dir: Path,
     mark_best: bool,
     test_run: bool,
+    seed: str,  # todo use this as a task arg
     artifact_path: Union[str, Path],
     queue: str,
     peak_memory: int,

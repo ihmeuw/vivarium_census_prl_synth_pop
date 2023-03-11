@@ -81,6 +81,14 @@ def make_artifacts(
     help="Skips updating the 'latest' symlink with this version of results.",
 )
 @click.option(
+    "-s",
+    "--seed",
+    type=str,
+    default="",
+    help="Provide seed in order to run only on the files corresponding to that "
+    "seed. If no seed it provided, will run on all files.",
+)
+@click.option(
     "-i",
     "--artifact-path",
     type=click.Path(exists=True),
@@ -133,6 +141,7 @@ def make_results(
     with_debugger: bool,
     mark_best: bool,
     test_run: bool,
+    seed: str,
     artifact_path: str,
     jobmon: bool,
     queue: str,
@@ -168,7 +177,7 @@ def make_results(
         func = build_results
         kwargs = {}
     main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path, **kwargs)
+    main(raw_output_dir, final_output_dir, mark_best, test_run, seed, artifact_path, **kwargs)
 
 
 @click.command()
