@@ -17,7 +17,7 @@ def get_simulant_id_maps(
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     randomness: RandomnessStream,
-) -> Dict:
+) -> Dict[str, pd.Series]:
     """
     Get all maps that are indexed by `simulant_id`.
 
@@ -40,23 +40,8 @@ def get_simulant_id_maps(
     if column_name != "simulant_id":
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
 
-    # Anyone in the SSN observer has SSNs by definition
-    need_ssns = obs_data["social_security_observer"][column_name]
-
-    # Simulants in W2 observer who `has_ssn` need SSNs
-    w2_data = obs_data["tax_w2_observer"][[column_name, "has_ssn", "ssn_id"]]
-    need_ssns = pd.concat(
-        [need_ssns, w2_data.loc[w2_data["has_ssn"], column_name]], axis=0
-    ).drop_duplicates()
-
-    # Simulants in W2 observer who are assigned as an `ssn_id` need to have SSNs
-    # to be copied later
-    need_ssns = pd.concat(
-        [need_ssns, w2_data.loc[w2_data["ssn_id"] != "-1", "ssn_id"]], axis=0
-    ).drop_duplicates()
-
-    ssn_map = get_ssn_map(pd.DataFrame(index=need_ssns), artifact)  # pd.Index
-
+    ssn_map = get_ssn_map(obs_data, column_name, artifact)
+    breakpoint()
     return ssn_map
 
 
@@ -204,8 +189,24 @@ def generate_ssns(
 
 def get_ssn_map(
     obs_data: pd.DataFrame,
+    column_name: str,
     artifact: Artifact,
-) -> Dict[str, pd.DataFrame]:
+) -> Dict[str, pd.Series]:
+    # Anyone in the SSN observer has SSNs by definition
+    need_ssns_ssn = obs_data["social_security_observer"][column_name]
+
+    # Simulants in W2 observer who `has_ssn` need SSNs
+    w2_data = obs_data["tax_w2_observer"][[column_name, "has_ssn", "ssn_id"]]
+    need_ssns_has_ssn = w2_data.loc[w2_data["has_ssn"], column_name]
+
+    # Simulants in W2 observer who are assigned as an `ssn_id` need to have SSNs
+    # to be copied later
+    need_ssns_ssn_id = w2_data.loc[w2_data["ssn_id"] != "-1", "ssn_id"]
+
+    need_ssns = pd.concat(
+        [need_ssns_ssn, need_ssns_has_ssn, need_ssns_ssn_id], axis=0
+    ).drop_duplicates()
+
     # Load (already-shuffled) SSNs and choose the appropriate number off the top
     # NOTE: artifact.load does not currently have the option to select specific rows
     # to load and so that was much slower than using pandas.
@@ -213,7 +214,7 @@ def get_ssn_map(
         artifact.path,
         key="/synthetic_data/ssns",
         start=0,
-        stop=len(obs_data),
+        stop=len(need_ssns),
     )
 
     # Convert to hyphenated string IDs
@@ -225,9 +226,7 @@ def get_ssn_map(
         + ssns["serial"].astype(str).str.zfill(4)
     ).to_numpy()
 
-    obs_data["ssn"] = ssns
-
-    return {"ssn": obs_data.squeeze()}
+    return {"ssn": pd.Series(ssns, index=need_ssns, name="ssn")}
 
 
 def do_collide_ssns(
