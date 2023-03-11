@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Dict
 
 import pandas as pd
 from vivarium import Artifact
@@ -23,6 +23,7 @@ def get_address_id_maps(
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
 ) -> Dict:
     """
     Get all maps that are indexed by `address_id`.
@@ -37,11 +38,13 @@ def get_address_id_maps(
         A vivarium Artifact object needed by mapper
     randomness
         RandomnessStream to use in choosing zipcodes proportionally
+    seed
+        vivarium random seed this is being run for. replace with 0 if running
+        for employer addresses
 
     Returns
     -------
     A dictionary of pd.Series suitable for pd.Series.map, indexed by `address_id`
-
     """
 
     try:
@@ -65,14 +68,19 @@ def get_address_id_maps(
         obs_results=obs_data,
         output_columns=output_cols_superset,
     )
-    maps.update(get_zipcode_map(column_name, formatted_obs_data, randomness))
-    maps.update(get_street_details_map(column_name, formatted_obs_data, artifact, randomness))
-    maps.update(get_city_map(column_name, formatted_obs_data, artifact, randomness))
+
+    seed = "0" if column_name == "employer_address_id" else seed
+
+    maps.update(get_zipcode_map(column_name, formatted_obs_data, randomness, seed))
+    maps.update(
+        get_street_details_map(column_name, formatted_obs_data, artifact, randomness, seed)
+    )
+    maps.update(get_city_map(column_name, formatted_obs_data, artifact, randomness, seed))
     # Note employer addresses do not have a mailing address
     if column_name == "address_id":
         maps.update(
             get_mailing_address_map(
-                column_name, formatted_obs_data, artifact, randomness, maps
+                column_name, formatted_obs_data, artifact, randomness, maps, seed
             )
         )
     return maps
@@ -82,6 +90,7 @@ def get_zipcode_map(
     column_name: str,
     obs_data: pd.DataFrame,
     randomness: RandomnessStream,
+    seed: str,
     additional_key: str = "",
 ) -> Dict[str, pd.Series]:
     """Gets a mapper for `address_id` to zipcode, based on state, puma, and proportion.
@@ -94,6 +103,8 @@ def get_zipcode_map(
         Observer DataFrame with key for the observer name
     randomness
         RandomnessStream to use in choosing zipcodes proportionally
+    seed
+        vivarium random seed this is being run for
     additional_key
         Key for RandomnessStream.  The use case here is for resampling of mailing addresses.
 
@@ -139,7 +150,7 @@ def get_zipcode_map(
             n_to_choose=len(df_locale),
             randomness_stream=randomness,
             weights=locale_group["proportion"],
-            additional_key=f"{additional_key}{column_name}_zip_map_{state_id}_{puma}",
+            additional_key=f"{additional_key}{column_name}_zip_map_{state_id}_{puma}_{seed}",
         ).to_numpy()
 
     # Map against obs_data
@@ -156,6 +167,7 @@ def get_street_details_map(
     obs_data: pd.DataFrame,
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
 ) -> Dict[str, pd.Series]:
     # This will return address_id mapped to address number, street name, and unit number.
     # This function will be used and get the same columns for address_id and employer_address_id
@@ -173,7 +185,7 @@ def get_street_details_map(
             options=synthetic_address_data[artifact_column],
             n_to_choose=len(address_data),
             randomness_stream=randomness,
-            additional_key=f"{column_name}_{obs_column}",
+            additional_key=f"{column_name}_{obs_column}_{seed}",
         ).to_numpy()
         address_data[obs_column] = address_details
         address_data.fillna("", inplace=True)
@@ -191,6 +203,7 @@ def get_city_map(
     obs_data: pd.DataFrame,
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
     additional_key: str = "",
 ) -> Dict[str, pd.Series]:
     # Load addresses data from artifact
@@ -215,7 +228,7 @@ def get_city_map(
             options=addresses.loc[addresses["Province"] == state, "Municipality"],
             n_to_choose=len(city_data.loc[city_data[state_col] == state.upper()]),
             randomness_stream=randomness,
-            additional_key=f"{additional_key}{column_name}_city_map",
+            additional_key=f"{additional_key}{column_name}_city_map_{seed}",
         ).to_numpy()
         city_data.loc[city_data[state_col] == state.upper(), city_col] = cities
 
@@ -233,6 +246,7 @@ def get_mailing_address_map(
     artifact: Artifact,
     randomness: RandomnessStream,
     maps: Dict[str, pd.Series],
+    seed: str,
 ) -> Dict[str, pd.Series]:
     """
     Returns a dict with mailing addresses mapped to address_id.  These mailing addresses will have the same columns that
@@ -268,11 +282,11 @@ def get_mailing_address_map(
     # Note: Address line 1 is already blanked with creation of mailing_address_map
     # Get subset of observer data that is just PO boxes for resampling
     po_boxes = formatted_obs_data[po_box_address_ids]
-    zipcode_map = get_zipcode_map(column_name, po_boxes, randomness, "mailing_")
+    zipcode_map = get_zipcode_map(column_name, po_boxes, randomness, seed, "mailing_")
     mailing_address_map["mailing_address_zipcode"][po_box_address_ids] = zipcode_map[
         "zipcode"
     ]
-    city_map = get_city_map(column_name, po_boxes, artifact, randomness, "mailing_")
+    city_map = get_city_map(column_name, po_boxes, artifact, randomness, seed, "mailing_")
     mailing_address_map["mailing_address_city"][po_box_address_ids] = city_map["city"]
 
     return mailing_address_map

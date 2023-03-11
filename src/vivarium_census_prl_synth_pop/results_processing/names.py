@@ -18,14 +18,16 @@ def get_given_name_map(
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
     -------
     column_name: Column name to map (example: first_name_id)
-    obs_data: Dict of key observer names and value being dataframe of all that observers concated results.
+    obs_data: Dict of key observer names and value being dataframe of all that observers concatenated results.
     artifact: Artifact containing synthetic name data
     randomness: Randomness stream for post-processing
+    seed: vivarium random seed this is being run for
 
     Returns
     -------
@@ -43,7 +45,7 @@ def get_given_name_map(
     for (yob, sex), df_age in name_data.groupby(["year_of_birth", "sex"]):
         n = len(df_age)
         names_map.loc[df_age.index] = random_first_names(
-            yob, sex, n, column_name, artifact, randomness
+            yob, sex, n, column_name, artifact, randomness, seed
         )
 
     return {column_name.removesuffix("_id"): names_map}
@@ -54,8 +56,23 @@ def get_middle_initial_map(
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
 ) -> Dict[str, pd.Series]:
-    middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness)
+    """
+    Parameters:
+    -------
+    column_name: Column name to map (example: first_name_id)
+    obs_data: Dict of key observer names and value being dataframe of all that observers concatenated results.
+    artifact: Artifact containing synthetic name data
+    randomness: Randomness stream for post-processing
+    seed: vivarium random seed this is being run for
+
+    Returns
+    -------
+    Dict with column name as key and pd.Series with middle initial as index and
+    string names as values
+    """
+    middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness, seed)
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
     return {"middle_initial": middle_initial_map}
@@ -66,6 +83,7 @@ def get_last_name_map(
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -74,6 +92,7 @@ def get_last_name_map(
     obs_data: Dict of key observer names and value being dataframe of all that observers concated results.
     artifact: Artifact containing synthetic name data
     randomness: Randomness stream for post-processing
+    seed: vivarium random seed this is being run for
     Returns
     -------
     Dict with column name as key and pd.Series with name_ids as index and string names as values
@@ -94,7 +113,7 @@ def get_last_name_map(
     last_names_map = pd.Series("", index=oldest.index)
     for race_eth, df_race_eth in oldest.groupby("race_ethnicity"):
         last_names_map.loc[df_race_eth.index] = random_last_names(
-            race_eth, len(df_race_eth), column_name, artifact, randomness
+            race_eth, len(df_race_eth), column_name, artifact, randomness, seed
         )
 
     return {column_name.removesuffix("_id"): last_names_map}
@@ -107,6 +126,7 @@ def random_first_names(
     additional_key: Any,
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
 ) -> np.ndarray:
     """
 
@@ -115,9 +135,10 @@ def random_first_names(
     yob: the year of birth of the sims for whom to sample a name
     sex: the sex of the sims for whom to sample a name
     size: the number of sample to return
-    additional_key: additional randomness key to pass vivarium.randomness
+    additional_key: additional randomness key to pass to RandomnessStream
     artifact: Artifact with synthetic data
     randomness: Randomness stream for results processing
+    seed: vivarium random seed this is being run for
 
     Returns
     -------
@@ -141,7 +162,7 @@ def random_first_names(
         n_to_choose=size,
         randomness_stream=randomness,
         weights=name_probabilities,
-        additional_key=additional_key,
+        additional_key=f"{additional_key}_{seed}",
     ).to_numpy()
 
 
@@ -151,15 +172,17 @@ def random_last_names(
     additional_key: Any,
     artifact: Artifact,
     randomness: RandomnessStream,
+    seed: str,
 ) -> np.ndarray:
     """
     Parameters
     ----------
     race_eth: the race_ethnicity category (string) of the sims for whom to sample a name
     size: the number of samples to return
-    additional_key: additional randomness key to pass vivarium.randomness
+    additional_key: additional randomness key to pass to RandomnessStream
     artifact: Artifact containing synthetic names data
     randomness: RandomnessStream for post-processing
+    seed: vivarium random seed this is being run for
     Returns
     -------
     nd.ndarray of [size] last names sampled from people of race and ethnicity [race_eth]
@@ -180,7 +203,7 @@ def random_last_names(
         n_to_choose=size,
         randomness_stream=randomness,
         weights=df_census_names[race_eth],
-        additional_key=additional_key,
+        additional_key=f"{additional_key}_{seed}",
     )
 
     # Last names sometimes also include spaces or hyphens, and abie has
@@ -194,7 +217,8 @@ def random_last_names(
     # for some names, add a hyphen between two randomly samples last names
     probability_of_hyphen = data_values.PROBABILITY_OF_HYPHEN_IN_NAME[race_eth]
     hyphen_rows = (
-        randomness.get_draw(last_names.index, "choose_hyphen_sims") < probability_of_hyphen
+        randomness.get_draw(last_names.index, f"choose_hyphen_sims_{seed}")
+        < probability_of_hyphen
     )
     if hyphen_rows.sum() > 0:
         last_names[hyphen_rows] += (
@@ -204,14 +228,14 @@ def random_last_names(
                 n_to_choose=hyphen_rows.sum(),
                 randomness_stream=randomness,
                 weights=df_census_names[race_eth],
-                additional_key="hyphen_last_names",
+                additional_key=f"hyphen_last_names{seed}",
             ).to_numpy()
         )
 
     # add spaces to some names
     probability_of_space = data_values.PROBABILITY_OF_SPACE_IN_NAME[race_eth]
     space_rows = randomness.get_draw(
-        last_names.index, "choose_space_sims"
+        last_names.index, f"choose_space_sims_{seed}"
     ) < probability_of_space * (
         1 - hyphen_rows
     )  # HACK: don't put spaces in names that are already hyphenated
@@ -223,7 +247,7 @@ def random_last_names(
                 n_to_choose=space_rows.sum(),
                 randomness_stream=randomness,
                 weights=df_census_names[race_eth],
-                additional_key="space_last_names",
+                additional_key=f"space_last_names_{seed}",
             ).to_numpy()
         )
 
@@ -233,8 +257,9 @@ def random_last_names(
 def get_employer_name_map(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
-    artifact: Artifact,
+    _: Artifact,
     randomness: RandomnessStream,
+    __: str,
 ) -> Dict[str, pd.Series]:
     """
     column_name: Name of column that is being mapped - employer_id
