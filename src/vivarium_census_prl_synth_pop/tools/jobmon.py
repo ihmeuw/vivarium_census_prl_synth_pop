@@ -84,7 +84,16 @@ def run_make_results_workflow(
     # Create tasks
     if seed_arg == "":  # Run all seeds in parallel
         # All raw results are in the format <raw_output_dir>/<observer>/<observer>_<seed>.csv.bz2
-        seeds = sorted(list(set([x.name.split(".")[0].split("_")[-1] for x in raw_output_dir.rglob("*.csv.bz2")])))
+        seeds = sorted(
+            list(
+                set(
+                    [
+                        x.name.split(".")[0].split("_")[-1]
+                        for x in raw_output_dir.rglob("*.csv.bz2")
+                    ]
+                )
+            )
+        )
         seed_args = [f"--seed {seed}" for seed in seeds]
         task_make_results = template_make_results.create_tasks(
             upstream_tasks=[],
@@ -115,6 +124,8 @@ def run_make_results_workflow(
     workflow.bind()
     logger.info(f"Running workflow with ID {workflow.workflow_id}")
     logger.info("For full information see the Jobmon GUI:")
-    logger.info(f"https://jobmon-gui.ihme.washington.edu/#/workflow/{workflow.workflow_id}/tasks")
+    logger.info(
+        f"https://jobmon-gui.ihme.washington.edu/#/workflow/{workflow.workflow_id}/tasks"
+    )
     status = workflow.run(configure_logging=True)
     logger.info(f"Workflow {workflow.workflow_id} completed with status {status}.")
