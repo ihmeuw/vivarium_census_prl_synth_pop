@@ -141,9 +141,7 @@ def get_itin_map(
         obs_results=obs_data,
         output_columns=[column_name, "has_ssn"],
     )
-    simulant_data = (
-        formatted_obs_data.reset_index().drop_duplicates().set_index(column_name)
-    )
+    simulant_data = formatted_obs_data.reset_index().drop_duplicates().set_index(column_name)
     # Load (already-shuffled) ITINs and choose the appropriate number off the top
     # NOTE: artifact.load does not currently have the option to select specific rows
     # to load and so that was much slower than using pandas.
