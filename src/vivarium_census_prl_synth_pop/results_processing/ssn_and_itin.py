@@ -14,7 +14,7 @@ def get_simulant_id_maps(
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
     *_: Any,
-):
+) -> Dict[str, pd.Series]:
     """
     Get all maps that are indexed by `simulant_id`.
 

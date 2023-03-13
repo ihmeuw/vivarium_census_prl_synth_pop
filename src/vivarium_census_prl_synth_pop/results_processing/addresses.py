@@ -24,7 +24,7 @@ def get_address_id_maps(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
-) -> Dict:
+) -> Dict[str, pd.Series]:
     """
     Get all maps that are indexed by `address_id`.
 
@@ -69,6 +69,7 @@ def get_address_id_maps(
         output_columns=output_cols_superset,
     )
 
+    # We need a single seed that doesn't vary for employer details
     seed = "0" if column_name == "employer_address_id" else seed
 
     maps.update(get_zipcode_map(column_name, formatted_obs_data, randomness, seed))
