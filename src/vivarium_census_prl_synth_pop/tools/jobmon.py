@@ -6,6 +6,8 @@ from typing import Union
 from jobmon.client.tool import Tool
 from loguru import logger
 
+from vivarium_census_prl_synth_pop.utilities import build_output_dir
+
 
 def run_make_results_workflow(
     raw_output_dir: Path,
@@ -42,6 +44,7 @@ def run_make_results_workflow(
     workflow = tool.create_workflow(name=f"make_results_workflow_{wf_uuid}")
 
     # Create task templates
+    log_dir = build_output_dir(final_output_dir, subdir="logs")
     template_make_results = tool.get_task_template(
         template_name="make_results_template",
         default_compute_resources={
@@ -50,8 +53,8 @@ def run_make_results_workflow(
             "memory": peak_memory,
             "runtime": max_runtime,
             "project": "proj_simscience_prod",
-            "stdout": str(final_output_dir),
-            "stderr": str(final_output_dir),
+            "stdout": str(log_dir),
+            "stderr": str(log_dir),
         },
         default_cluster_name="slurm",
         # Build the cli command to be run. The spaces after each part or required
@@ -65,13 +68,12 @@ def run_make_results_workflow(
             "{seed} "
             "--artifact-path {artifact_path} "
         ),
-        # node_args=["seed"],  # TODO: parameterize by seed
+        node_args=["seed"],
         task_args=[
             "raw_output_dir",
             "final_output_dir",
             "mark_best",
             "test_run",
-            "seed",  # TODO: move seed to a node arg
             "artifact_path",
         ],
         op_args=[
@@ -80,18 +82,39 @@ def run_make_results_workflow(
     )
 
     # Create tasks
-    task_make_results = template_make_results.create_task(
-        name="make_results_task",
-        upstream_tasks=[],
-        raw_output_dir=raw_output_dir,
-        final_output_dir=final_output_dir,
-        verbose=verbose_arg,
-        mark_best=mark_best_arg,
-        test_run=test_run_arg,
-        seed=seed_arg,
-        artifact_path=artifact_path,
-    )
-    workflow.add_task(task_make_results)
+    if seed_arg == "":  # Run all seeds in parallel
+        # All raw results are in the format <raw_output_dir>/<observer>/<observer>_<seed>.csv.bz2
+        seeds = sorted(list(set([x.name.split(".")[0].split("_")[-1] for x in raw_output_dir.rglob("*.csv.bz2")])))
+        seed_args = [f"--seed {seed}" for seed in seeds]
+        task_make_results = template_make_results.create_tasks(
+            upstream_tasks=[],
+            raw_output_dir=raw_output_dir,
+            final_output_dir=final_output_dir,
+            verbose=verbose_arg,
+            mark_best=mark_best_arg,
+            test_run=test_run_arg,
+            seed=seed_args,
+            artifact_path=artifact_path,
+        )
+        workflow.add_tasks(task_make_results)
+    else:  # run a single job
+        task_make_results = template_make_results.create_task(
+            name="make_results_task",
+            upstream_tasks=[],
+            raw_output_dir=raw_output_dir,
+            final_output_dir=final_output_dir,
+            verbose=verbose_arg,
+            mark_best=mark_best_arg,
+            test_run=test_run_arg,
+            seed=seed_arg,
+            artifact_path=artifact_path,
+        )
+        workflow.add_task(task_make_results)
 
     # Run the workflow
-    workflow.run(configure_logging=True)
+    workflow.bind()
+    logger.info(f"Running workflow with ID {workflow.workflow_id}")
+    logger.info("For full information see the Jobmon GUI:")
+    logger.info(f"https://jobmon-gui.ihme.washington.edu/#/workflow/{workflow.workflow_id}/tasks")
+    status = workflow.run(configure_logging=True)
+    logger.info(f"Workflow {workflow.workflow_id} completed with status {status}.")
