@@ -12,7 +12,7 @@ def run_make_results_workflow(
     final_output_dir: Path,
     mark_best: bool,
     test_run: bool,
-    seed: str,  # todo use this as a task arg
+    seed: str,
     artifact_path: Union[str, Path],
     queue: str,
     peak_memory: int,
@@ -28,11 +28,12 @@ def run_make_results_workflow(
     )
     wf_uuid = uuid.uuid4()
 
-    # Deal with boolean args - click either the flag or nothing, not True/False
+    # Format arguments to be cli-friendly
     # TODO: there's got to be a better way to do this?
     mark_best_arg = "--mark-best" if mark_best else ""
     test_run_arg = "--test-run" if test_run else ""
     verbose_arg = "-" + "v" * verbose if verbose else ""
+    seed_arg = f"--seed {seed}" if seed != "" else ""
 
     # Create tool
     tool = Tool(name="vivarium_census_prl_synth_pop.make_results")
@@ -53,6 +54,7 @@ def run_make_results_workflow(
             "stderr": str(final_output_dir),
         },
         default_cluster_name="slurm",
+        # Build the cli command to be run. The spaces after each part or required
         command_template=(
             f"{shutil.which('jobmon_make_results_runner')} "
             "{raw_output_dir} "
@@ -60,20 +62,23 @@ def run_make_results_workflow(
             "{verbose} "
             "{mark_best} "
             "{test_run} "
+            "{seed} "
             "--artifact-path {artifact_path} "
         ),
-        node_args=[],
+        # node_args=["seed"],  # TODO: parameterize by seed
         task_args=[
             "raw_output_dir",
             "final_output_dir",
             "mark_best",
             "test_run",
+            "seed",  # TODO: move seed to a node arg
             "artifact_path",
         ],
         op_args=[
             "verbose",
         ],
     )
+
     # Create tasks
     task_make_results = template_make_results.create_task(
         name="make_results_task",
@@ -83,6 +88,7 @@ def run_make_results_workflow(
         verbose=verbose_arg,
         mark_best=mark_best_arg,
         test_run=test_run_arg,
+        seed=seed_arg,
         artifact_path=artifact_path,
     )
     workflow.add_task(task_make_results)

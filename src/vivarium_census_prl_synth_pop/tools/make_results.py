@@ -250,7 +250,7 @@ def perform_post_processing(
 
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
-        logger.info(f"Processing data for {observer}...")
+        logger.info(f"Processing data for {observer}.")
         obs_data = processed_results[observer]
 
         for column in obs_data.columns:
@@ -268,8 +268,11 @@ def perform_post_processing(
 
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
         logger.info(f"Writing final results for {observer}.")
+        obs_dir = final_output_dir / observer
+        obs_dir.mkdir(parents=True, exist_ok=False)
+        seed_ext = f"_{seed}" if seed != "" else ""
         obs_data.to_csv(
-            final_output_dir / f"{observer}.csv.bz2",
+            obs_dir / f"{observer}{seed_ext}.csv.bz2",
             index=False,
             quoting=csv.QUOTE_NONNUMERIC,
         )
@@ -281,7 +284,7 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
     for observer in FINAL_OBSERVERS:
         obs_dir = raw_results_dir / observer
         if seed == "":
-            logger.info(f"Loading data for {obs_dir.name}...")
+            logger.info(f"Loading data for {obs_dir.name}")
             obs_files = obs_dir.glob("*.csv.bz2")
             obs_data = []
             for file in obs_files:
@@ -292,7 +295,7 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
             obs_data = pd.concat(obs_data)
         else:
             filename = f"{obs_dir.name}_{seed}.csv.bz2"
-            logger.info(f"Loading data for {filename}...")
+            logger.info(f"Loading data for {filename}")
             obs_data = pd.read_csv(obs_dir / filename)
             obs_data["random_seed"] = seed
             obs_data = formatter.format_columns(obs_data)
