@@ -17,7 +17,7 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
 )
-from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import generate_itins
+from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import generate_ssns
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -29,25 +29,6 @@ def get_draw(self, index, additional_key=None) -> pd.Series:
     # Mock get draw function
     s = np.random.uniform(size=len(index))
     return pd.Series(data=s, index=index)
-
-
-def test_itin_generation():
-    """Tests for uniqueness of ITINs and their ranges."""
-    itins = pd.Series(generate_itins(10_000, "test_itin_generation", randomness))
-
-    assert itins.nunique() == 10_000
-
-    areas = itins.apply(lambda x: int(x.split("-")[0]))
-    groups = itins.apply(lambda x: int(x.split("-")[1]))
-    serials = itins.apply(lambda x: int(x.split("-")[2]))
-    assert (areas >= 900).all() and (areas <= 999).all()
-    assert (
-        ((groups >= 50) & (groups <= 65))
-        | ((groups >= 70) & (groups <= 88))
-        | ((groups >= 90) & (groups <= 92))
-        | ((groups >= 94) & (groups <= 99))
-    ).all()
-    assert (serials >= 1).all() and (serials <= 9999).all()
 
 
 @pytest.fixture()
@@ -511,6 +492,37 @@ def test_employer_name_map(mocker):
     assert (
         employer_names["employer_name"] == other_seed_employer_names["employer_name"]
     ).all()
+
+
+def test_ssn_generation_mapping():
+    """Tests randomly-generated SSN uniqueness and ranges"""
+    num_unique_ids = 30_000
+    simulants = pd.DataFrame()
+    simulants["simulant_id"] = [f"123_{n}" for n in range(num_unique_ids)]
+    simulants["has_ssn"] = [True if n % 2 == 0 else False for n in range(num_unique_ids)]
+
+    ssn_map = pd.Series("", index=simulants["simulant_id"])
+    generated_ssns = generate_ssns(
+        simulants["has_ssn"].sum(), "test_ssn_generation", randomness
+    )
+    ssn_map[simulants.set_index("simulant_id")["has_ssn"]] = generated_ssns
+
+    # Check that all the SSNs are unique (Half of population size plus one for no SSN)
+    assert ssn_map.nunique() == len(simulants) / 2 + 1
+
+    # Check that all SSNs are populated if ssn is True, not if False
+    simulants_indexed = simulants.set_index(["simulant_id"])
+    assert ssn_map[simulants_indexed["has_ssn"]].nunique() == len(simulants) // 2
+    assert (ssn_map[~simulants_indexed["has_ssn"]] == "").all()
+
+    # Check that area, group, and serial segments are within bounds
+    areas = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[0]))
+    groups = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[1]))
+    serials = ssn_map[simulants_indexed["has_ssn"]].apply(lambda x: int(x.split("-")[2]))
+    assert (areas != 666).all()
+    assert (areas >= 1).all() and (areas <= 899).all()
+    assert (groups >= 1).all() and (groups <= 99).all()
+    assert (serials >= 1).all() and (serials <= 9999).all()
 
 
 def test_mailing_address(mocker):
