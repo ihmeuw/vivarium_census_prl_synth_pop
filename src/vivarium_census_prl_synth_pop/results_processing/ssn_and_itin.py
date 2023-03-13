@@ -6,6 +6,9 @@ from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
+from vivarium_census_prl_synth_pop.results_processing.formatter import (
+    format_data_for_mapping,
+)
 from vivarium_census_prl_synth_pop.utilities import random_integers
 
 
