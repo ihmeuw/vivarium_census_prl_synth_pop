@@ -85,6 +85,7 @@ def make_artifacts(
     "--seed",
     type=str,
     default="",
+    show_default=True,
     help="Provide seed in order to run only on the files corresponding to that "
     "seed. If no seed it provided, will run on all files.",
 )
@@ -191,6 +192,15 @@ def make_results(
     is_flag=True,
 )
 @click.option(
+    "-s",
+    "--seed",
+    type=str,
+    default="",
+    show_default=True,
+    help="Provide seed in order to run only on the files corresponding to that "
+    "seed. If no seed it provided, will run on all files.",
+)
+@click.option(
     "-i", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
 )
 def jobmon_make_results_runner(
@@ -199,8 +209,9 @@ def jobmon_make_results_runner(
     verbose: int,
     mark_best: bool,
     test_run: bool,
+    seed: str,
     artifact_path: Union[str, Path],
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(func=build_results, logger=logger, with_debugger=False)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, artifact_path)
+    main(raw_output_dir, final_output_dir, mark_best, test_run, seed, artifact_path)
