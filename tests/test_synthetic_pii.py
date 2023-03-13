@@ -17,10 +17,7 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
 )
-from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
-    generate_itins,
-    get_simulant_id_maps,
-)
+from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import generate_itins
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -144,6 +141,7 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     first_name_proportions = get_name_frequency_proportions(
         first_names["first_name"],
@@ -155,11 +153,22 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         first_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
 
+    other_seed_first_names = get_given_name_map(
+        "first_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        "2345",
+    )
+
+    assert (first_names["first_name"] != other_seed_first_names["first_name"]).any()
+
     middle_names = get_given_name_map(
         "middle_name_id",
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     middle_name_proportions = get_name_frequency_proportions(
         middle_names["middle_name"], fake_obs_data["fake_observer"], ["year_of_birth", "sex"]
@@ -197,6 +206,7 @@ def test_last_names_proportions(mocker, last_names, fake_obs_data):
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     last_name_proportions = get_name_frequency_proportions(
         last_names_map["last_name"],
@@ -208,6 +218,16 @@ def test_last_names_proportions(mocker, last_names, fake_obs_data):
         last_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
     assert not (last_names_map["last_name"].isnull().any())
+
+    other_seed_last_names_map = get_last_name_map(
+        "last_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        "2345",
+    )
+
+    assert (last_names_map["last_name"] != other_seed_last_names_map["last_name"]).any()
 
 
 def test_last_name_from_oldest_member(mocker):
@@ -271,6 +291,7 @@ def test_last_name_from_oldest_member(mocker):
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     expected = pd.Series(data=["Name A", "Name B", "Name C"], index=[1, 2, 3])
 
@@ -320,6 +341,7 @@ def test_address_mapping(
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     expected_keys = [street_number_col, street_name_col, unit_number_col]
 
@@ -330,6 +352,17 @@ def test_address_mapping(
             address_map[street_key].index
         )
         assert not (address_map[street_name_col].isnull().any())
+
+    other_seed_address_map = get_street_details_map(
+        input_address_col,
+        fake_obs_data,
+        artifact,
+        randomness,
+        "2345",
+    )
+
+    for column in address_map:
+        assert (address_map[column] != other_seed_address_map[column]).any()
 
 
 @pytest.mark.parametrize(
@@ -378,7 +411,8 @@ def test_zipcode_mapping(input_address_col, zipcode_col, state_id_col, puma_col)
     # The second level functions need to have NO duplicates which is handled in the top level of get_address_id map.
     fake_obs_data = fake_obs_data.drop_duplicates(subset=input_address_col)
     # Function under test
-    mapper = get_zipcode_map(input_address_col, fake_obs_data, randomness)
+    mapper = get_zipcode_map(input_address_col, fake_obs_data, randomness, "1234")
+    other_seed_mapper = get_zipcode_map(input_address_col, fake_obs_data, randomness, "2345")
 
     # Assert that each address_id is in the index once
     assert (
@@ -400,6 +434,7 @@ def test_zipcode_mapping(input_address_col, zipcode_col, state_id_col, puma_col)
         expected_proportion_90706,
         rtol=0.1,
     )
+    assert (mapper[zipcode_col] != other_seed_mapper[zipcode_col]).any()
 
 
 @pytest.mark.parametrize(
@@ -436,12 +471,7 @@ def test_city_address(mocker, input_address_col, city_col, state_col):
         {input_address_col: list(range(15)), state_col: ["CA", "OR", "WA"] * 5}
     )
 
-    city_map = get_city_map(
-        input_address_col,
-        fake_obs_data,
-        artifact,
-        randomness,
-    )
+    city_map = get_city_map(input_address_col, fake_obs_data, artifact, randomness, "1234")
 
     expected_keys = [city_col]
     assert all(address_key in expected_keys for address_key in city_map.keys())
@@ -455,6 +485,12 @@ def test_city_address(mocker, input_address_col, city_col, state_col):
     assert (city_map[city_col].loc[or_idx] == "Portland").all()
     assert (city_map[city_col].loc[wa_idx] == "Seattle").all()
 
+    other_seed_city_map = get_city_map(
+        input_address_col, fake_obs_data, artifact, randomness, "2345"
+    )
+
+    assert (city_map[city_col] != other_seed_city_map[city_col]).any()
+
 
 def test_employer_name_map(mocker):
     # This test just needs to test that we generate a list of  unique names that is the length of a index.
@@ -463,10 +499,18 @@ def test_employer_name_map(mocker):
     # Mock artifact - we do not use the artifact for employer names
     artifact = mocker.MagicMock()
 
-    employer_names = get_employer_name_map("employer_id", fake_obs_data, artifact, randomness)
+    employer_names = get_employer_name_map(
+        "employer_id", fake_obs_data, artifact, randomness, "1234"
+    )
+    other_seed_employer_names = get_employer_name_map(
+        "employer_id", fake_obs_data, artifact, randomness, "2345"
+    )
     assert len(fake_obs_data["fake_observer"]) == len(employer_names["employer_name"])
     assert employer_names["employer_name"].duplicated().sum() == 0
     assert not (employer_names["employer_name"].isnull().any())
+    assert (
+        employer_names["employer_name"] == other_seed_employer_names["employer_name"]
+    ).all()
 
 
 def test_mailing_address(mocker):
@@ -517,6 +561,16 @@ def test_mailing_address(mocker):
         artifact,
         randomness,
         fake_maps,
+        "1234",
+    )
+
+    other_seed_mailing_map = get_mailing_address_map(
+        "address_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        fake_maps,
+        "2345",
     )
     expected_keys = [
         "mailing_address_street_number",
@@ -531,17 +585,16 @@ def test_mailing_address(mocker):
     assert all(street_key in expected_keys for street_key in mailing_map.keys())
 
     for column in ["street_number", "street_name", "unit_number"]:
-        assert (mailing_map[f"mailing_address_{column}"][po_box_mask] == "").all()
+        column_name = f"mailing_address_{column}"
+        assert (mailing_map[column_name][po_box_mask] == "").all()
         assert (
-            mailing_map[f"mailing_address_{column}"][~po_box_mask]
-            == fake_maps[column][~po_box_mask]
+            mailing_map[column_name][~po_box_mask] == fake_maps[column][~po_box_mask]
         ).all()
 
     for column in ["po_box", "state"]:
         assert (mailing_map[f"mailing_address_{column}"] == fake_obs_data[column]).all()
 
     for column in ["city", "zipcode"]:
-        assert (
-            mailing_map[f"mailing_address_{column}"][po_box_mask]
-            != fake_maps[column][po_box_mask]
-        ).any()
+        column_name = f"mailing_address_{column}"
+        assert (mailing_map[column_name][po_box_mask] != fake_maps[column][po_box_mask]).any()
+        assert (mailing_map[column_name] != other_seed_mailing_map[column_name]).any()

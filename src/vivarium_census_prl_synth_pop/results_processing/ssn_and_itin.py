@@ -6,9 +6,6 @@ from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.results_processing.formatter import (
-    format_data_for_mapping,
-)
 from vivarium_census_prl_synth_pop.utilities import random_integers
 
 
@@ -16,7 +13,7 @@ def get_simulant_id_maps(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
-    randomness: RandomnessStream,
+    *_: Any,
 ) -> Dict[str, pd.Series]:
     """
     Get all maps that are indexed by `simulant_id`.
@@ -29,8 +26,6 @@ def get_simulant_id_maps(
         Observer DataFrame with key for the observer name
     artifact
         A vivarium Artifact object needed by mapper
-    randomness
-        RandomnessStream to use in choosing zipcodes proportionally
 
     Returns
     -------
@@ -188,7 +183,7 @@ def generate_ssns(
 
 
 def get_ssn_map(
-    obs_data: pd.DataFrame,
+    obs_data: Dict[str, pd.DataFrame],
     column_name: str,
     artifact: Artifact,
 ) -> Dict[str, pd.Series]:

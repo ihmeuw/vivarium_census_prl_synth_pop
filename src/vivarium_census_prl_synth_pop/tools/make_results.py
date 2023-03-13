@@ -245,7 +245,7 @@ def perform_post_processing(
     processed_results = load_data(raw_output_dir, seed)
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
-    maps = generate_maps(processed_results, artifact, randomness)
+    maps = generate_maps(processed_results, artifact, randomness, seed)
 
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
@@ -277,11 +277,8 @@ def perform_post_processing(
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
     # Loads in all observer outputs and stores them in a dict with observer name as keys.
     observers_results = {}
-
-    observer_directories = [
-        obs_dir for obs_dir in raw_results_dir.glob("*") if obs_dir.is_dir()
-    ]
-    for obs_dir in observer_directories:
+    for observer in FINAL_OBSERVERS:
+        obs_dir = raw_results_dir / observer
         if seed == "":
             logger.info(f"Loading data for {obs_dir.name}...")
             obs_files = obs_dir.glob("*.csv.bz2")
@@ -305,13 +302,17 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
 
 
 def generate_maps(
-    obs_data: Dict[str, pd.DataFrame], artifact: Artifact, randomness: RandomnessStream
+    obs_data: Dict[str, pd.DataFrame],
+    artifact: Artifact,
+    randomness: RandomnessStream,
+    seed: str,
 ) -> Dict[str, Dict[str, pd.Series]]:
     """
     Parameters:
         obs_data: Dictionary of raw observer outputs with key being the observer name and the value being a dataframe.
         artifact: Artifact that contains data needed to generate values.
         randomness: RandomnessStream to use in creating maps.
+        seed: vivarium random seed this is being run for
 
     Returns:
         maps: Dictionary with key being string of the name of the column to be mapped.  Example first_name_id or
@@ -331,7 +332,7 @@ def generate_maps(
         "employer_address_id": get_address_id_maps,
     }
     maps = {
-        column: mapper(column, obs_data, artifact, randomness)
+        column: mapper(column, obs_data, artifact, randomness, seed)
         for column, mapper in mappers.items()
     }
     # todo: Include with MIC-3846
