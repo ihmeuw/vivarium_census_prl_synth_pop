@@ -649,5 +649,8 @@ def test_mailing_address(mocker):
 def test_id_uniqueness(artifact, hdf_key, num_need_ids, random_seed):
     """Ensure that SSNs and ITINs are unique after assigning from artifact"""
     all_seeds = [str(seed) for seed in range(1, 301)]
-    ids = _load_ids(artifact, hdf_key, num_need_ids, random_seed, all_seeds)
+    try:
+        ids = _load_ids(artifact, hdf_key, num_need_ids, random_seed, all_seeds)
+    except FileNotFoundError:
+        @pytest.mark.skip(reason=f"Cannot find artifact at {artifact.path}")
     assert len(np.unique(ids)) == num_need_ids
