@@ -1,4 +1,5 @@
 import csv
+from itertools import chain
 from pathlib import Path
 from typing import Dict, Union
 
@@ -8,6 +9,7 @@ from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_census_prl_synth_pop.constants import paths
+from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_address_id_maps,
@@ -285,18 +287,38 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
         obs_dir = raw_results_dir / observer
         if seed == "":
             logger.info(f"Loading data for {obs_dir.name}")
-            obs_files = obs_dir.glob("*.csv.bz2")
+            obs_files = sorted(
+                list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
+            )
             obs_data = []
             for file in obs_files:
-                df = pd.read_csv(file)
+                if ".hdf" == file.suffix:
+                    df = pd.read_hdf(file).reset_index()
+                else:
+                    df = pd.read_csv(file)
                 df["random_seed"] = file.name.split(".")[0].split("_")[-1]
                 df = formatter.format_columns(df)
                 obs_data.append(df)
             obs_data = pd.concat(obs_data)
         else:
-            filename = f"{obs_dir.name}_{seed}.csv.bz2"
-            logger.info(f"Loading data for {filename}")
-            obs_data = pd.read_csv(obs_dir / filename)
+            obs_files = list(
+                chain(*[obs_dir.glob(f"*_{seed}.{ext}") for ext in SUPPORTED_EXTENSIONS])
+            )
+            if len(obs_files) > 1:
+                raise FileExistsError(
+                    f"Too many files found with the given seed {seed} for observer {observer}"
+                    f" - {obs_files}."
+                )
+            elif len(obs_files) == 0:
+                raise FileNotFoundError(
+                    f"No file found with the seed {seed} for observer {observer}."
+                )
+            obs_file = obs_files[0]
+            logger.info(f"Loading data for {obs_file.name}")
+            if ".hdf" == obs_file.suffix:
+                obs_data = pd.read_hdf(obs_file).reset_index()
+            else:
+                obs_data = pd.read_csv(obs_file)
             obs_data["random_seed"] = seed
             obs_data = formatter.format_columns(obs_data)
 
