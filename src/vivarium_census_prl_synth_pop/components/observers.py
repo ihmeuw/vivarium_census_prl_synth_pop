@@ -11,7 +11,7 @@ from vivarium.framework.population import PopulationView
 from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_values, paths
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 
 class BaseObserver(ABC):
@@ -51,6 +51,14 @@ class BaseObserver(ABC):
         # todo: add necessary guardian address columns
     ]
 
+    configuration_defaults = {"observer": {"file_extension": "csv.bz2"}}
+
+    def __init__(self):
+        self.configuration_defaults = self._get_configuration_defaults()
+
+    def _get_configuration_defaults(self) -> dict[str, dict]:
+        return {self.name: BaseObserver.configuration_defaults["observer"]}
+
     def __repr__(self):
         return "BaseObserver()"
 
@@ -83,6 +91,7 @@ class BaseObserver(ABC):
     def setup(self, builder: Builder):
         # FIXME: move filepaths to data container
         self.seed = builder.configuration.randomness.random_seed
+        self.file_extension = self.get_file_extension(builder)
         self.output_dir = Path(builder.configuration.output_data.results_directory)
         self.population_view = self.get_population_view(builder)
         self.responses = None
@@ -101,6 +110,16 @@ class BaseObserver(ABC):
             "simulation_end",
             self.on_simulation_end,
         )
+
+    def get_file_extension(self, builder: Builder) -> str:
+        extension = builder.configuration[self.name].file_extension
+        if extension not in metadata.SUPPORTED_EXTENSIONS:
+            raise ValueError(
+                f"Invalid file extension '{extension}' provided in configuration key "
+                f"'{self.name}.file-extension'. Supported extensions are: "
+                f"{metadata.SUPPORTED_EXTENSIONS}."
+            )
+        return extension
 
     def get_population_view(self, builder) -> PopulationView:
         """Returns the population view of interest to the observer"""
@@ -142,7 +161,7 @@ class BaseObserver(ABC):
         """Define the observations in the concrete class"""
         pass
 
-    def on_simulation_end(self, event: Event) -> None:
+    def on_simulation_end(self, _: Event) -> None:
         output_dir = utilities.build_output_dir(
             self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.name
         )
@@ -150,7 +169,11 @@ class BaseObserver(ABC):
             logger.info(f"No results to write ({self.name})")
         else:
             self.responses.index.names = ["simulant_id"]
-            self.responses.to_csv(output_dir / f"{self.name}_{self.seed}.csv.bz2")
+            filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
+            if "hdf" == self.file_extension:
+                self.responses.to_hdf(filepath, "data", format="table")
+            else:
+                self.responses.to_csv(filepath)
 
     ##################
     # Helper methods #
@@ -182,6 +205,7 @@ class HouseholdSurveyObserver(BaseObserver):
 
     def __init__(self, survey):
         self.survey = survey
+        super().__init__()
 
     def __repr__(self):
         return f"HouseholdSurveyObserver({self.survey})"

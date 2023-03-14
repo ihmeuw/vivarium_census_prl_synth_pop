@@ -273,3 +273,5 @@ PRIORITY_MAP = {
     "businesses.on_time_step": 6,
     "immigration.on_time_step": 7,
 }
+
+SUPPORTED_EXTENSIONS = ["hdf", "csv.bz2"]
