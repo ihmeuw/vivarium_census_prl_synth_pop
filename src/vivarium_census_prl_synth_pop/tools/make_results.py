@@ -29,7 +29,6 @@ from vivarium_census_prl_synth_pop.utilities import (
     get_all_simulation_seeds,
 )
 
-
 FINAL_OBSERVERS = {
     "decennial_census_observer": {
         "simulant_id",
