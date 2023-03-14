@@ -29,6 +29,7 @@ from vivarium_census_prl_synth_pop.utilities import (
     get_all_simulation_seeds,
 )
 
+
 FINAL_OBSERVERS = {
     "decennial_census_observer": {
         "simulant_id",
@@ -52,6 +53,7 @@ FINAL_OBSERVERS = {
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
         "housing_type",
+        "census_year",
     },
     "household_survey_observer_acs": {
         "simulant_id",
@@ -74,6 +76,7 @@ FINAL_OBSERVERS = {
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
         "housing_type",
+        "survey_date",
     },
     "household_survey_observer_cps": {
         "household_id",
@@ -96,6 +99,7 @@ FINAL_OBSERVERS = {
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
         "housing_type",
+        "survey_date",
     },
     "wic_observer": {
         "simulant_id",
@@ -120,6 +124,7 @@ FINAL_OBSERVERS = {
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
         "housing_type",
+        "wic_year",
     },
     "social_security_observer": {
         "simulant_id",
@@ -129,6 +134,7 @@ FINAL_OBSERVERS = {
         "date_of_birth",
         "ssn",
         "event_type",
+        "event_date",
         "event_date",
     },
     "tax_w2_observer": {
@@ -156,6 +162,7 @@ FINAL_OBSERVERS = {
         "employer_state",
         "ssn",
         "is_w2",
+        "tax_year",
     },
     "tax_1040_observer": {
         "simulant_id",
@@ -175,6 +182,7 @@ FINAL_OBSERVERS = {
         "joint_filer",
         "ssn",
         "itin",
+        "tax_year",
     },
     "tax_dependents_observer": {
         # Metadata is for a dependent.  This should capture each dependent/guardian pair.  Meaning that if a dependent
@@ -198,6 +206,7 @@ FINAL_OBSERVERS = {
         "tax_year",
         "guardian_id",
         "housing_type",
+        "tax_year",
     },
 }
 
