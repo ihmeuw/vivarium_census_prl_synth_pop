@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from itertools import chain
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
@@ -453,13 +454,8 @@ def get_state_puma_options(builder: Builder) -> pd.DataFrame:
 
 
 def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
-    return sorted(
-        list(
-            set(
-                [
-                    x.name.split(".")[0].split("_")[-1]
-                    for x in raw_output_dir.rglob("*.csv.bz2")
-                ]
-            )
-        )
+    raw_results_files = list(
+        chain(*[raw_output_dir.rglob(f"*.{ext}") for ext in metadata.SUPPORTED_EXTENSIONS])
     )
+
+    return sorted(list(set([x.name.split(".")[0].split("_")[-1] for x in raw_results_files])))
