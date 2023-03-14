@@ -652,5 +652,6 @@ def test_id_uniqueness(artifact, hdf_key, num_need_ids, random_seed):
     try:
         ids = _load_ids(artifact, hdf_key, num_need_ids, random_seed, all_seeds)
     except FileNotFoundError:
-        @pytest.mark.skip(reason=f"Cannot find artifact at {artifact.path}")
-    assert len(np.unique(ids)) == num_need_ids
+        pytest.mark.skip(reason=f"Cannot find artifact at {artifact.path}")
+    else:
+        assert len(np.unique(ids)) == num_need_ids
