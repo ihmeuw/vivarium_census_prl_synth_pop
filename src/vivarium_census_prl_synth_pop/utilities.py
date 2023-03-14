@@ -450,3 +450,16 @@ def get_state_puma_options(builder: Builder) -> pd.DataFrame:
     ]
 
     return state_puma_options
+
+
+def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
+    return sorted(
+        list(
+            set(
+                [
+                    x.name.split(".")[0].split("_")[-1]
+                    for x in raw_output_dir.rglob("*.csv.bz2")
+                ]
+            )
+        )
+    )

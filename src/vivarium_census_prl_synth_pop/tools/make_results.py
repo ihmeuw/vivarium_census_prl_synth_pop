@@ -1,7 +1,7 @@
 import csv
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import pandas as pd
 from loguru import logger
@@ -24,7 +24,10 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     do_collide_ssns,
     get_simulant_id_maps,
 )
-from vivarium_census_prl_synth_pop.utilities import build_output_dir
+from vivarium_census_prl_synth_pop.utilities import (
+    build_output_dir,
+    get_all_simulation_seeds,
+)
 
 FINAL_OBSERVERS = {
     "decennial_census_observer": {
@@ -249,7 +252,8 @@ def perform_post_processing(
     processed_results = load_data(raw_output_dir, seed)
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
-    maps = generate_maps(processed_results, artifact, randomness, seed)
+    all_seeds = get_all_simulation_seeds(raw_output_dir)
+    maps = generate_maps(processed_results, artifact, randomness, seed, all_seeds)
 
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
@@ -332,6 +336,7 @@ def generate_maps(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
+    all_seeds: List[str],
 ) -> Dict[str, Dict[str, pd.Series]]:
     """
     Parameters:
@@ -339,6 +344,7 @@ def generate_maps(
         artifact: Artifact that contains data needed to generate values.
         randomness: RandomnessStream to use in creating maps.
         seed: vivarium random seed this is being run for
+        all_seeds: list of all vivarium random seeds found in raw results folder
 
     Returns:
         maps: Dictionary with key being string of the name of the column to be mapped.  Example first_name_id or
@@ -358,7 +364,7 @@ def generate_maps(
         "employer_address_id": get_address_id_maps,
     }
     maps = {
-        column: mapper(column, obs_data, artifact, randomness, seed)
+        column: mapper(column, obs_data, artifact, randomness, seed, all_seeds)
         for column, mapper in mappers.items()
     }
     # todo: Include with MIC-3846

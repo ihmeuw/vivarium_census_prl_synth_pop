@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ def get_given_name_map(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
+    _: List[int],
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -57,6 +58,7 @@ def get_middle_initial_map(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
+    all_seeds: List[int],
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -72,7 +74,9 @@ def get_middle_initial_map(
     Dict with column name as key and pd.Series with middle initial as index and
     string names as values
     """
-    middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness, seed)
+    middle_name_map = get_given_name_map(
+        column_name, obs_data, artifact, randomness, seed, all_seeds
+    )
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
     return {"middle_initial": middle_initial_map}
@@ -84,6 +88,7 @@ def get_last_name_map(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
+    _: List[int],
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -259,7 +264,7 @@ def get_employer_name_map(
     obs_data: Dict[str, pd.DataFrame],
     _: Artifact,
     randomness: RandomnessStream,
-    __: str,
+    *__: Any,
 ) -> Dict[str, pd.Series]:
     """
     column_name: Name of column that is being mapped - employer_id

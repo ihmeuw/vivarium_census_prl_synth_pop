@@ -6,7 +6,10 @@ from typing import Union
 from jobmon.client.tool import Tool
 from loguru import logger
 
-from vivarium_census_prl_synth_pop.utilities import build_output_dir
+from vivarium_census_prl_synth_pop.utilities import (
+    build_output_dir,
+    get_all_simulation_seeds,
+)
 
 
 def run_make_results_workflow(
@@ -82,18 +85,9 @@ def run_make_results_workflow(
     )
 
     # Create tasks
-    if seed_arg == "":  # Run all seeds in parallel
+    if seed_arg == "":  # Process all seeds in parallel
         # All raw results are in the format <raw_output_dir>/<observer>/<observer>_<seed>.csv.bz2
-        seeds = sorted(
-            list(
-                set(
-                    [
-                        x.name.split(".")[0].split("_")[-1]
-                        for x in raw_output_dir.rglob("*.csv.bz2")
-                    ]
-                )
-            )
-        )
+        seeds = get_all_simulation_seeds(raw_output_dir)
         seed_args = [f"--seed {seed}" for seed in seeds]
         task_make_results = template_make_results.create_tasks(
             upstream_tasks=[],
@@ -106,7 +100,7 @@ def run_make_results_workflow(
             artifact_path=artifact_path,
         )
         workflow.add_tasks(task_make_results)
-    else:  # run a single job
+    else:  # Process the single provided seed
         task_make_results = template_make_results.create_task(
             name="make_results_task",
             upstream_tasks=[],
