@@ -22,6 +22,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     do_collide_ssns,
     get_simulant_id_maps,
 )
+from vivarium_census_prl_synth_pop.utilities import build_output_dir
 
 FINAL_OBSERVERS = {
     "decennial_census_observer": {
@@ -268,8 +269,7 @@ def perform_post_processing(
 
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
         logger.info(f"Writing final results for {observer}.")
-        obs_dir = final_output_dir / observer
-        obs_dir.mkdir(parents=True, exist_ok=True)
+        obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
         obs_data.to_csv(
             obs_dir / f"{observer}{seed_ext}.csv.bz2",
