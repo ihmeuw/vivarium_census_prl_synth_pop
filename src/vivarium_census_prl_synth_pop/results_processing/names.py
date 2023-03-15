@@ -74,9 +74,7 @@ def get_middle_initial_map(
     Dict with column name as key and pd.Series with middle initial as index and
     string names as values
     """
-    middle_name_map = get_given_name_map(
-        column_name, obs_data, artifact, randomness, seed
-    )
+    middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness, seed)
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
     return {"middle_initial": middle_initial_map}
