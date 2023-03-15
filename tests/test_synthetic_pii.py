@@ -126,7 +126,6 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         artifact,
         randomness,
         "1234",
-        ["dummy_list"],
     )
     first_name_proportions = get_name_frequency_proportions(
         first_names["first_name"],
@@ -144,7 +143,6 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         artifact,
         randomness,
         "2345",
-        ["dummy_list"],
     )
 
     assert (first_names["first_name"] != other_seed_first_names["first_name"]).any()
@@ -155,7 +153,6 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         artifact,
         randomness,
         "1234",
-        ["dummy_list"],
     )
     middle_name_proportions = get_name_frequency_proportions(
         middle_names["middle_name"], fake_obs_data["fake_observer"], ["year_of_birth", "sex"]
@@ -194,7 +191,6 @@ def test_last_names_proportions(mocker, last_names, fake_obs_data):
         artifact,
         randomness,
         "1234",
-        ["dummy_list"],
     )
     last_name_proportions = get_name_frequency_proportions(
         last_names_map["last_name"],
@@ -213,7 +209,6 @@ def test_last_names_proportions(mocker, last_names, fake_obs_data):
         artifact,
         randomness,
         "2345",
-        ["dummy_list"],
     )
 
     assert (last_names_map["last_name"] != other_seed_last_names_map["last_name"]).any()
@@ -281,7 +276,6 @@ def test_last_name_from_oldest_member(mocker):
         artifact,
         randomness,
         "1234",
-        ["dummy_list"],
     )
     expected = pd.Series(data=["Name A", "Name B", "Name C"], index=[1, 2, 3])
 

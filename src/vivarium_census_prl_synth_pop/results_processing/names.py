@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ def get_given_name_map(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
-    _: List[int],
+    *_: Any,
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -58,7 +58,7 @@ def get_middle_initial_map(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
-    all_seeds: List[int],
+    *_: Any,
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -75,7 +75,7 @@ def get_middle_initial_map(
     string names as values
     """
     middle_name_map = get_given_name_map(
-        column_name, obs_data, artifact, randomness, seed, all_seeds
+        column_name, obs_data, artifact, randomness, seed
     )
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
@@ -88,7 +88,7 @@ def get_last_name_map(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
-    _: List[int],
+    *_: Any,
 ) -> Dict[str, pd.Series]:
     """
     Parameters:
@@ -262,13 +262,14 @@ def random_last_names(
 def get_employer_name_map(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
-    _: Artifact,
+    _: Any,
     randomness: RandomnessStream,
     *__: Any,
 ) -> Dict[str, pd.Series]:
     """
     column_name: Name of column that is being mapped - employer_id
     obs_data: Raw results from observer outputs
+    randomness: randomness stream used to assign names
 
     Returns: Dict with key "employer_name" and value is series of names.
     Note:  For clarity on variable names, business names refers to the generated business_names.  Employer names will

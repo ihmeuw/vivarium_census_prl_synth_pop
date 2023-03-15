@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict
 
 import pandas as pd
 from vivarium import Artifact
@@ -24,7 +24,7 @@ def get_address_id_maps(
     artifact: Artifact,
     randomness: RandomnessStream,
     seed: str,
-    _: List[int],
+    *_: Any,
 ) -> Dict[str, pd.Series]:
     """
     Get all maps that are indexed by `address_id`.

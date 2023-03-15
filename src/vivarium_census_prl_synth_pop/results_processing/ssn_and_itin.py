@@ -15,7 +15,7 @@ def get_simulant_id_maps(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
-    _: RandomnessStream,
+    _: Any,
     seed: str,
     all_seeds: List[str],
 ) -> Dict[str, pd.Series]:
