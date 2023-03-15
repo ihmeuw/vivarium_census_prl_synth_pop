@@ -134,7 +134,6 @@ FINAL_OBSERVERS = {
         "ssn",
         "event_type",
         "event_date",
-        "event_date",
     },
     "tax_w2_observer": {
         "simulant_id",
