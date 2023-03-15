@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,9 @@ def get_simulant_id_maps(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
-    *_: Any,
+    _: Any,
+    seed: str,
+    all_seeds: List[str],
 ) -> Dict[str, pd.Series]:
     """
     Get all maps that are indexed by `simulant_id`.
@@ -28,6 +30,10 @@ def get_simulant_id_maps(
         Observer DataFrame with key for the observer name
     artifact
         A vivarium Artifact object needed by mapper
+    seed
+        The random seed of the simulation of interest
+    all_seeds
+        List of all seeds found in raw results
 
     Returns
     -------
@@ -37,8 +43,9 @@ def get_simulant_id_maps(
     if column_name != "simulant_id":
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
     maps = dict()
-    maps.update(get_ssn_map(obs_data, column_name, artifact))
-    maps.update(get_itin_map(obs_data, column_name, artifact))
+    maps.update(get_ssn_map(obs_data, column_name, artifact, seed, all_seeds))
+    maps.update(get_itin_map(obs_data, column_name, artifact, seed, all_seeds))
+
     return maps
 
 
@@ -103,6 +110,8 @@ def get_ssn_map(
     obs_data: Dict[str, pd.DataFrame],
     column_name: str,
     artifact: Artifact,
+    seed: str,
+    all_seeds: List[str],
 ) -> Dict[str, pd.Series]:
     # Anyone in the SSN observer has SSNs by definition
     need_ssns_ssn = obs_data["social_security_observer"][column_name]
@@ -118,17 +127,7 @@ def get_ssn_map(
     need_ssns = pd.concat(
         [need_ssns_ssn, need_ssns_has_ssn, need_ssns_ssn_id], axis=0
     ).drop_duplicates()
-
-    # Load (already-shuffled) SSNs and choose the appropriate number off the top
-    # NOTE: artifact.load does not currently have the option to select specific rows
-    # to load and so that was much slower than using pandas.
-    ssns = pd.read_hdf(
-        artifact.path,
-        key="/synthetic_data/ssns",
-        start=0,
-        stop=len(need_ssns),
-    )
-    ssns = _convert_to_hyphenated_strings(ssns)
+    ssns = _load_ids(artifact, "/synthetic_data/ssns", len(need_ssns), seed, all_seeds)
 
     return {"ssn": pd.Series(ssns, index=need_ssns, name="ssn")}
 
@@ -137,6 +136,8 @@ def get_itin_map(
     obs_data: Dict[str, pd.DataFrame],
     column_name: str,
     artifact: Artifact,
+    seed: str,
+    all_seeds: List[str],
 ):
     formatted_obs_data = format_data_for_mapping(
         index_name=column_name,
@@ -144,29 +145,50 @@ def get_itin_map(
         output_columns=[column_name, "has_ssn"],
     )
     simulant_data = formatted_obs_data.reset_index().drop_duplicates().set_index(column_name)
-    # Load (already-shuffled) ITINs and choose the appropriate number off the top
-    # NOTE: artifact.load does not currently have the option to select specific rows
-    # to load and so that was much slower than using pandas.
     itin_mask = ~simulant_data["has_ssn"]
-    itins = pd.read_hdf(
-        artifact.path,
-        key="/synthetic_data/itins",
-        start=0,
-        stop=itin_mask.sum(),
-    )
-    itins = _convert_to_hyphenated_strings(itins)
+    itins = _load_ids(artifact, "/synthetic_data/itins", itin_mask.sum(), seed, all_seeds)
 
     return {"itin": pd.Series(itins, index=simulant_data.index[itin_mask], name="itin")}
 
 
-def _convert_to_hyphenated_strings(ids: pd.DataFrame) -> np.array:
-    return (
+def _load_ids(
+    artifact: Artifact, hdf_key: str, num_need_ids: int, seed: str, all_seeds: List[str]
+) -> np.array:
+    """Load (already-shuffled) IDs from unique-by-seed chunks of the full
+    artifact data and convert to hyphenated strings
+    """
+    # NOTE: `artifact.load` does not currently have the option to select specific rows
+    # to load and so it's much quicker to use `pd.HDFStore.select`
+    with pd.HDFStore(artifact.path) as store:
+        num_available_ids = store.get_storer(hdf_key).nrows
+        if seed == "":  # all seeds are already concatenated together so just pick off the top
+            start_idx = 0
+            chunksize = num_available_ids
+        else:  # we are dealing with a single seed
+            chunksize = int(num_available_ids / len(all_seeds))
+            seed_position = all_seeds.index(seed)
+            start_idx = seed_position * chunksize
+        if num_need_ids > chunksize:
+            raise IndexError(
+                f"You are requesting {num_need_ids} IDs from seed {seed}'s unique "
+                f"chunk, but this chunk only has {chunksize} available (hdf_key "
+                f"{hdf_key} and {len(all_seeds)} simulation seeds)."
+            )
+        ids = store.select(
+            hdf_key,
+            start=start_idx,
+            stop=start_idx + num_need_ids,
+        )
+    # Convert id section columns to hyphenated string IDs
+    ids = (
         ids["area"].astype(str).str.zfill(3)
         + "-"
         + ids["group"].astype(str).str.zfill(2)
         + "-"
         + ids["serial"].astype(str).str.zfill(4)
     ).to_numpy()
+
+    return ids
 
 
 def do_collide_ssns(

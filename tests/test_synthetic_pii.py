@@ -17,7 +17,10 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_given_name_map,
     get_last_name_map,
 )
-from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import generate_ssns
+from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
+    _load_ids,
+    generate_ssns,
+)
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -478,13 +481,13 @@ def test_employer_name_map(mocker):
 
     fake_obs_data = {"fake_observer": pd.DataFrame({"employer_id": list(range(100))})}
     # Mock artifact - we do not use the artifact for employer names
-    artifact = mocker.MagicMock()
+    dummy_artifact = mocker.MagicMock()
 
     employer_names = get_employer_name_map(
-        "employer_id", fake_obs_data, artifact, randomness, "1234"
+        "employer_id", fake_obs_data, dummy_artifact, randomness
     )
     other_seed_employer_names = get_employer_name_map(
-        "employer_id", fake_obs_data, artifact, randomness, "2345"
+        "employer_id", fake_obs_data, dummy_artifact, randomness
     )
     assert len(fake_obs_data["fake_observer"]) == len(employer_names["employer_name"])
     assert employer_names["employer_name"].duplicated().sum() == 0
@@ -610,3 +613,39 @@ def test_mailing_address(mocker):
         column_name = f"mailing_address_{column}"
         assert (mailing_map[column_name][po_box_mask] != fake_maps[column][po_box_mask]).any()
         assert (mailing_map[column_name] != other_seed_mailing_map[column_name]).any()
+
+
+@pytest.mark.parametrize(
+    "hdf_key, num_need_ids, random_seed",
+    [
+        (
+            "/synthetic_data/ssns",
+            1_000_000,
+            "300",
+        ),
+        (
+            "/synthetic_data/ssns",
+            1_000_000,
+            "",  # All seeds
+        ),
+        (
+            "/synthetic_data/itins",
+            100_000,
+            "300",
+        ),
+        (
+            "/synthetic_data/itins",
+            100_000,
+            "",  # All seeds
+        ),
+    ],
+)
+def test_id_uniqueness(artifact, hdf_key, num_need_ids, random_seed):
+    """Ensure that SSNs and ITINs are unique after assigning from artifact"""
+    all_seeds = [str(seed) for seed in range(1, 301)]
+    try:
+        ids = _load_ids(artifact, hdf_key, num_need_ids, random_seed, all_seeds)
+    except FileNotFoundError:  # Allows it to be skipped for CI
+        pytest.mark.skip(reason=f"Cannot find artifact at {artifact.path}")
+    else:
+        assert len(np.unique(ids)) == num_need_ids
