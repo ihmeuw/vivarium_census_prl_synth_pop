@@ -52,7 +52,7 @@ FINAL_OBSERVERS = {
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
         "housing_type",
-        "census_year",
+        "year",
     },
     "household_survey_observer_acs": {
         "simulant_id",
@@ -123,7 +123,7 @@ FINAL_OBSERVERS = {
         # "guardian_1_addrress_id",
         # "guardian_2_address_id",
         "housing_type",
-        "wic_year",
+        "year",
     },
     "social_security_observer": {
         "simulant_id",
