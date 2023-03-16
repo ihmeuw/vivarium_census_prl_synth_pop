@@ -1,3 +1,4 @@
+import random
 import string
 from typing import List
 
@@ -6,6 +7,7 @@ import pandas as pd
 import pytest
 from vivarium.framework.randomness import RandomnessStream
 
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_city_map,
     get_mailing_address_map,
@@ -476,25 +478,66 @@ def test_city_address(mocker, input_address_col, city_col, state_col):
     assert (city_map[city_col] != other_seed_city_map[city_col]).any()
 
 
-def test_employer_name_map(mocker):
-    # This test just needs to test that we generate a list of  unique names that is the length of a index.
-
-    fake_obs_data = {"fake_observer": pd.DataFrame({"employer_id": list(range(100))})}
-    # Mock artifact - we do not use the artifact for employer names
-    dummy_artifact = mocker.MagicMock()
-
-    employer_names = get_employer_name_map(
-        "employer_id", fake_obs_data, dummy_artifact, randomness
+def test_employer_name_map(mocker, monkeypatch):
+    num_known_employers = len(data_values.KNOWN_EMPLOYERS)
+    known_employer_ids = list(range(num_known_employers))
+    unknown_employer_ids = list(
+        {random.randint(num_known_employers, 1000) for _ in range(200)}
     )
-    other_seed_employer_names = get_employer_name_map(
-        "employer_id", fake_obs_data, dummy_artifact, randomness
+    fake_obs_data = {
+        "fake_observer": pd.DataFrame(
+            {"employer_id": known_employer_ids + unknown_employer_ids}
+        )
+    }
+    other_unknown_employer_ids = list(
+        {random.randint(num_known_employers, 1000) for _ in range(200)}
     )
-    assert len(fake_obs_data["fake_observer"]) == len(employer_names["employer_name"])
-    assert employer_names["employer_name"].duplicated().sum() == 0
-    assert not (employer_names["employer_name"].isnull().any())
+    other_fake_obs_data = {
+        "fake_observer": pd.DataFrame(
+            {"employer_id": known_employer_ids + other_unknown_employer_ids}
+        )
+    }
+    artifact = mocker.MagicMock()
+    artifact_names = [
+        "".join(random.choice(string.ascii_letters) for _ in range(10)) for __ in range(1000)
+    ]
+    artifact_names = pd.Series(artifact_names)
+
+    def mock_load(data_key: str):
+        return {data_keys.SYNTHETIC_DATA.BUSINESS_NAMES: artifact_names.copy()}[data_key]
+
+    monkeypatch.setattr(artifact, "load", mock_load)
+
+    employer_names_map = get_employer_name_map(
+        "employer_id", fake_obs_data, artifact, randomness, "1234"
+    )
+    other_seed_employer_names_map = get_employer_name_map(
+        "employer_id", fake_obs_data, artifact, randomness, "2345"
+    )
+
+    other_observer_employer_names_map = get_employer_name_map(
+        "employer_id", other_fake_obs_data, artifact, randomness, "1234"
+    )
+
+    employer_names = employer_names_map["employer_name"]
+    assert len(fake_obs_data["fake_observer"]) == len(employer_names)
+    assert not (employer_names.isnull().any())
+    assert (employer_names == other_seed_employer_names_map["employer_name"]).all()
+
     assert (
-        employer_names["employer_name"] == other_seed_employer_names["employer_name"]
+        employer_names.loc[employer_names.index[list(range(num_known_employers))]]
+        == pd.Series([employer.employer_name for employer in data_values.KNOWN_EMPLOYERS])
     ).all()
+
+    other_observer_employer_names = other_observer_employer_names_map["employer_name"]
+    overlapping_idx = employer_names.index.intersection(other_observer_employer_names.index)
+    # For different input observers the names are the same when the same employer id is provided
+    assert (
+        employer_names.loc[overlapping_idx]
+        == other_observer_employer_names.loc[overlapping_idx]
+    ).all()
+    # But not all employer ids are the same, so different names are generated overall
+    assert employer_names.values != other_observer_employer_names.values
 
 
 def test_ssn_generation_mapping():

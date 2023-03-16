@@ -6,7 +6,7 @@ from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values, paths
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 from vivarium_census_prl_synth_pop.results_processing.formatter import (
     format_data_for_mapping,
 )
@@ -260,9 +260,8 @@ def random_last_names(
 def get_employer_name_map(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
-    _: Any,
-    randomness: RandomnessStream,
-    *__: Any,
+    artifact: Artifact,
+    *_: Any,
 ) -> Dict[str, pd.Series]:
     """
     column_name: Name of column that is being mapped - employer_id
@@ -270,52 +269,27 @@ def get_employer_name_map(
     randomness: randomness stream used to assign names
 
     Returns: Dict with key "employer_name" and value is series of names.
-    Note:  For clarity on variable names, business names refers to the generated business_names.  Employer names will
-    # be the chosen names that will be assigned to employer_ids for final results.
+    Note:  For clarity on variable names, business names refers to the generated
+    business_names.  Employer names will be the chosen names that will be
+    assigned to employer_ids for final results.
 
     """
 
-    business_names_data = pd.read_csv(
-        paths.GENERATED_BUSINESS_NAMES_DATA_PATH
-    ).drop_duplicates()
+    known_employer_names = pd.Series(
+        [employer.employer_name for employer in data_values.KNOWN_EMPLOYERS],
+        index=[employer.employer_id for employer in data_values.KNOWN_EMPLOYERS],
+    )
+
+    business_names_data = artifact.load(data_keys.SYNTHETIC_DATA.BUSINESS_NAMES)
+    business_names_data.index = business_names_data.index + len(known_employer_names)
+    business_names_data = pd.concat([known_employer_names, business_names_data])
+
     output_cols = [column_name]
-    employer_names = format_data_for_mapping(
+    employer_ids = format_data_for_mapping(
         index_name=column_name,
         obs_results=obs_data,
         output_columns=output_cols,
     )
-
-    counter = 0
-    names = vectorized_choice(
-        options=business_names_data["business_names"],
-        n_to_choose=len(employer_names.index),
-        randomness_stream=randomness,
-        additional_key=f"employer_names_{counter}",
-    ).to_numpy()
-    employer_names["employer_name"] = names
-
-    # Preserve known employers from simulation
-    employer_names.loc[
-        data_values.MilitaryEmployer.EMPLOYER_ID, "employer_name"
-    ] = data_values.MilitaryEmployer.EMPLOYER_NAME
-
-    # NOTE: This deduplication stuff will all be deleted in a following PR
-    duplicate_mask = employer_names.duplicated(subset=["employer_name"])
-    while sum(duplicate_mask) > 0:
-        if counter == 10:
-            logger.info(
-                f"Resampled employer names {counter} times and data still contains {duplicate_mask.sum()}"
-                f"duplicates.  Check data or usage of randomness stream."
-            )
-            break
-        counter += 1
-        employer_names.loc[duplicate_mask, "employer_name"] = vectorized_choice(
-            options=business_names_data["business_names"],
-            n_to_choose=duplicate_mask.sum(),
-            randomness_stream=randomness,
-            additional_key=f"employer_names_{counter}",
-        ).to_numpy()
-        duplicate_mask = employer_names.duplicated(subset=["employer_name"])
-
-    employer_name_map = {"employer_name": employer_names["employer_name"]}
+    employer_names = business_names_data.loc[employer_ids.index]
+    employer_name_map = {"employer_name": employer_names}
     return employer_name_map
