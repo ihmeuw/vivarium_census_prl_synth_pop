@@ -282,7 +282,7 @@ class DecennialCensusObserver(BaseObserver):
     ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "relation_to_household_head",
-        "census_year",
+        "year",
         "housing_type",
     ]
 
@@ -323,7 +323,7 @@ class DecennialCensusObserver(BaseObserver):
         )
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
-        pop["census_year"] = event.time.year
+        pop["year"] = event.time.year
 
         return pop[self.output_columns]
 
@@ -337,7 +337,7 @@ class WICObserver(BaseObserver):
         "relation_to_household_head",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
-        "wic_year",
+        "year",
         "household_id",
         "housing_type",
         "relation_to_household_head",
@@ -384,7 +384,7 @@ class WICObserver(BaseObserver):
         pop["income"] = self.pipelines["income"](pop.index)
 
         # add columns for output
-        pop["wic_year"] = event.time.year
+        pop["year"] = event.time.year
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
 
