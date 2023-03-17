@@ -159,7 +159,7 @@ def _load_ids(
     """
     # NOTE: `artifact.load` does not currently have the option to select specific rows
     # to load and so it's much quicker to use `pd.HDFStore.select`
-    with pd.HDFStore(artifact.path) as store:
+    with pd.HDFStore(artifact.path, mode="r") as store:
         num_available_ids = store.get_storer(hdf_key).nrows
         if seed == "":  # all seeds are already concatenated together so just pick off the top
             start_idx = 0
