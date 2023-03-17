@@ -1,4 +1,3 @@
-import random
 import string
 from typing import List
 
@@ -481,25 +480,29 @@ def test_city_address(mocker, input_address_col, city_col, state_col):
 def test_employer_name_map(mocker, monkeypatch):
     num_known_employers = len(data_values.KNOWN_EMPLOYERS)
     known_employer_ids = list(range(num_known_employers))
-    unknown_employer_ids = list(
-        {random.randint(num_known_employers, 1000) for _ in range(200)}
-    )
+    unknown_employer_ids = np.random.randint(num_known_employers, 1000, size=200)
+
     fake_obs_data = {
         "fake_observer": pd.DataFrame(
-            {"employer_id": known_employer_ids + unknown_employer_ids}
+            {"employer_id": known_employer_ids + unknown_employer_ids.tolist()}
         )
     }
-    other_unknown_employer_ids = list(
-        {random.randint(num_known_employers, 1000) for _ in range(200)}
-    )
+    # change odd ids so that some are the same and some are different while
+    # avoiding collisions
+    other_unknown_employer_ids = unknown_employer_ids.copy()
+    odd_mask = (other_unknown_employer_ids % 2) == 1
+    other_unknown_employer_ids[odd_mask] = (other_unknown_employer_ids[odd_mask] % (1000 - num_known_employers)) + num_known_employers
+
     other_fake_obs_data = {
         "fake_observer": pd.DataFrame(
-            {"employer_id": known_employer_ids + other_unknown_employer_ids}
+            {"employer_id": known_employer_ids + other_unknown_employer_ids.tolist()}
         )
     }
+    # change odd ids
+
     artifact = mocker.MagicMock()
     artifact_names = [
-        "".join(random.choice(string.ascii_letters) for _ in range(10)) for __ in range(1000)
+        "".join(np.random.choice(list(string.ascii_letters), size=10).tolist()) for _ in range(1000)
     ]
     artifact_names = pd.Series(artifact_names)
 
@@ -520,7 +523,7 @@ def test_employer_name_map(mocker, monkeypatch):
     )
 
     employer_names = employer_names_map["employer_name"]
-    assert len(fake_obs_data["fake_observer"]) == len(employer_names)
+    assert len(fake_obs_data["fake_observer"].drop_duplicates()) == len(employer_names)
     assert not (employer_names.isnull().any())
     assert (employer_names == other_seed_employer_names_map["employer_name"]).all()
 
@@ -537,7 +540,7 @@ def test_employer_name_map(mocker, monkeypatch):
         == other_observer_employer_names.loc[overlapping_idx]
     ).all()
     # But not all employer ids are the same, so different names are generated overall
-    assert employer_names.values != other_observer_employer_names.values
+    assert (employer_names.values != other_observer_employer_names.values).any()
 
 
 def test_ssn_generation_mapping():
