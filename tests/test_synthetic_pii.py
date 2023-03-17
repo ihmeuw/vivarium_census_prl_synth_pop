@@ -491,7 +491,9 @@ def test_employer_name_map(mocker, monkeypatch):
     # avoiding collisions
     other_unknown_employer_ids = unknown_employer_ids.copy()
     odd_mask = (other_unknown_employer_ids % 2) == 1
-    other_unknown_employer_ids[odd_mask] = (other_unknown_employer_ids[odd_mask] % (1000 - num_known_employers)) + num_known_employers
+    other_unknown_employer_ids[odd_mask] = (
+        other_unknown_employer_ids[odd_mask] % (1000 - num_known_employers)
+    ) + num_known_employers
 
     other_fake_obs_data = {
         "fake_observer": pd.DataFrame(
@@ -502,7 +504,8 @@ def test_employer_name_map(mocker, monkeypatch):
 
     artifact = mocker.MagicMock()
     artifact_names = [
-        "".join(np.random.choice(list(string.ascii_letters), size=10).tolist()) for _ in range(1000)
+        "".join(np.random.choice(list(string.ascii_letters), size=10).tolist())
+        for _ in range(1000)
     ]
     artifact_names = pd.Series(artifact_names)
 
