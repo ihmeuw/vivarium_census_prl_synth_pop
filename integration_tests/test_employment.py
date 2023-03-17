@@ -23,27 +23,27 @@ def test_military_gq_employment(sim, tracked_live_populations):
                 + sim._clock._step_size.days / utilities.DAYS_PER_YEAR
             )
         ]
-        assert (military_gq["employer_id"] == data_values.MilitaryEmployer.EMPLOYER_ID).all()
+        assert (military_gq["employer_id"] == data_values.MILITARY.employer_id).all()
 
 
 def test_underage_are_unemployed(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
         under_18 = pop[pop["age"] < 18]
-        assert (under_18["employer_id"] == data_values.Unemployed.EMPLOYER_ID).all()
+        assert (under_18["employer_id"] == data_values.UNEMPLOYED.employer_id).all()
 
 
 def test_unemployed_have_no_income(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
-        unemployed = pop[pop["employer_id"] == data_values.Unemployed.EMPLOYER_ID]
+        unemployed = pop[pop["employer_id"] == data_values.UNEMPLOYED.employer_id]
         assert (unemployed["income"] == 0).all()
 
 
 def test_employed_have_income(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
-        employed = pop[pop["employer_id"] != data_values.Unemployed.EMPLOYER_ID]
+        employed = pop[pop["employer_id"] != data_values.UNEMPLOYED.employer_id]
         assert (employed["income"] > 0).all()
 
 
@@ -134,7 +134,7 @@ def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):
         for age in ages:
             birthdays_idx = before.index[
                 (before["employer_id"] == after["employer_id"])
-                & (before["employer_id"] != data_values.Unemployed.EMPLOYER_ID)
+                & (before["employer_id"] != data_values.UNEMPLOYED.employer_id)
                 & (before["age"] < age)
                 & (after["age"] > age)
             ]

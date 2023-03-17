@@ -54,6 +54,7 @@ def get_data(lookup_key: str, location: str) -> pd.DataFrame:
         data_keys.SYNTHETIC_DATA.LAST_NAMES: load_last_name_data,
         data_keys.SYNTHETIC_DATA.FIRST_NAMES: load_first_name_data,
         data_keys.SYNTHETIC_DATA.ADDRESSES: load_address_data,
+        data_keys.SYNTHETIC_DATA.BUSINESS_NAMES: load_business_names,
         data_keys.SYNTHETIC_DATA.SSNS: load_ssn_data,
         data_keys.SYNTHETIC_DATA.ITINS: load_itin_data,
     }
@@ -306,6 +307,12 @@ def load_address_data(key: str, location: str) -> pd.DataFrame:
         ["StreetNumber", "StreetName", "Municipality", "Province", "PostalCode", "Unit"]
     )
     return df_deepparse_address_data
+
+
+def load_business_names(key: str, _: str) -> pd.Series:
+    if key != data_keys.SYNTHETIC_DATA.BUSINESS_NAMES:
+        raise ValueError(f"Unrecognized key {key}")
+    return pd.read_csv(paths.GENERATED_BUSINESS_NAMES_DATA_PATH).squeeze()
 
 
 def load_ssn_data(key: str, location: str) -> pd.DataFrame:
