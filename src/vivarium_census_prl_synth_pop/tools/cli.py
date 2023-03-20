@@ -184,7 +184,16 @@ def make_results(
         func = build_results
         kwargs = {}
     main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, public_sample, seed, artifact_path, **kwargs)
+    main(
+        raw_output_dir,
+        final_output_dir,
+        mark_best,
+        test_run,
+        public_sample,
+        seed,
+        artifact_path,
+        **kwargs,
+    )
 
 
 @click.command()
@@ -225,4 +234,12 @@ def jobmon_make_results_runner(
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(func=build_results, logger=logger, with_debugger=False)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, public_sample, seed, artifact_path)
+    main(
+        raw_output_dir,
+        final_output_dir,
+        mark_best,
+        test_run,
+        public_sample,
+        seed,
+        artifact_path,
+    )
