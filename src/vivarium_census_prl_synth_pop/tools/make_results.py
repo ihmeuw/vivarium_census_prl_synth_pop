@@ -269,7 +269,6 @@ def perform_post_processing(
     all_seeds = get_all_simulation_seeds(raw_output_dir)
     maps = generate_maps(processed_results, artifact, randomness, seed, all_seeds)
 
-    # HACK for pseudopeople public-access data
     if public_sample:
         pumas_to_keep = (
             artifact.load(data_keys.POPULATION.HOUSEHOLDS)
