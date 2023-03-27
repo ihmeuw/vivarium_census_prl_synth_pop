@@ -145,7 +145,7 @@ def test_state_complete_coverage(populations, sim, fuzzy_tester: FuzzyTest):
     )
     state_proportions = state_proportions / state_proportions.sum()
 
-    for pop in populations:
+    for time_steps, pop in enumerate(populations):
         # No states in sim that were not in artifact
         assert set(state_proportions.index) >= set(pop["household_details.state_id"])
 
@@ -157,10 +157,12 @@ def test_state_complete_coverage(populations, sim, fuzzy_tester: FuzzyTest):
 
         for state_id, proportion in state_proportions.items():
             fuzzy_tester.fuzzy_assert_proportion(
+                f"State proportion for {state_id}",
                 household_states == state_id,
                 # Relative size of states can change over time in the sim due to differential immigration, emigration
-                true_value_min=proportion * 0.8,
-                true_value_max=proportion * 1.2,
+                true_value_min=proportion * pow(0.95, time_steps),
+                true_value_max=proportion * pow(1.05, time_steps),
+                name_addl=f"Time step {time_steps}",
             )
 
 

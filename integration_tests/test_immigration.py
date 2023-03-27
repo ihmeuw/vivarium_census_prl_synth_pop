@@ -1,12 +1,41 @@
+import json
+import math
+import os
+from pathlib import Path
 from typing import List, Tuple
 
 import pandas as pd
 import pytest
+from vivarium.framework.utilities import from_yearly
+
+from vivarium_census_prl_synth_pop.constants import metadata
 
 from .conftest import FuzzyTest
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
+def target_immigration_events(sim):
+    assert (
+        metadata.UNITED_STATES_LOCATIONS == []
+    ), "Automated V&V does not support subsets by US state"
+
+    with open(Path(os.path.dirname(__file__)) / "v_and_v_inputs/immigration.json") as f:
+        targets = json.load(f)
+
+    # Rescale to configured sim size, and from yearly to per-timestep
+    targets_rescaled = {}
+    for k in targets.keys():
+        targets_rescaled[
+            k.replace("_immigration_events_per_10k_starting_pop", "")
+        ] = from_yearly(
+            targets[k] * (sim.configuration.population.population_size / 10_000),
+            pd.Timedelta(days=sim.configuration.time.step_size),
+        )
+
+    return targets_rescaled
+
+
+@pytest.fixture(scope="module")
 def immigrants_by_timestep(populations) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
     timestep_values = []
 
@@ -14,70 +43,62 @@ def immigrants_by_timestep(populations) -> List[Tuple[pd.DataFrame, pd.DataFrame
         new_simulants = after.index.difference(before.index)
         # NOTE: We assume that immigrants never have tracked parents.
         # If this changes in the future, we'll need to identify them differently.
-        immigrant_idx = new_simulants.intersection(after.index[after["parent_id"] == -1])
-        timestep_values.append(
-            (
-                before,
-                after,
-                pd.Series(after.index.isin(immigrant_idx), index=after.index),
-                after.loc[immigrant_idx],
-            )
-        )
+        immigrants = new_simulants.intersection(after.index[after["parent_id"] == -1])
+        timestep_values.append((before, after, after.loc[immigrants]))
 
     return timestep_values
 
 
-def test_there_is_immigration(immigrants_by_timestep, fuzzy_tester: FuzzyTest):
-    all_time_immigrant_status = pd.concat(
-        [immigrant_status for _, _, immigrant_status, _ in immigrants_by_timestep]
-    )
+def test_immigration_into_gq(
+    immigrants_by_timestep, target_immigration_events, fuzzy_tester: FuzzyTest
+):
+    target_per_timestep = target_immigration_events["gq_person"]
+    rounded_up = []
 
-    # How much immigration should occur, as a proportion of the population?
-    # There are roughly 1.85 million immigrants per year 2016-2020.
-    approx_immigration_rate = (1_850_000 / 330_000_000) / 12
+    for _, _, immigrants in immigrants_by_timestep:
+        gq_immigrants = immigrants[immigrants["household_details.housing_type"] != "Standard"]
+        assert (
+            math.floor(target_per_timestep)
+            <= len(gq_immigrants)
+            <= math.ceil(target_per_timestep)
+        )
+        rounded_up.append(len(gq_immigrants) == math.ceil(target_per_timestep))
+
     fuzzy_tester.fuzzy_assert_proportion(
-        all_time_immigrant_status,
-        # A bit of leeway: the above number should be pretty faithfully
-        # replicated, but the population of the sim could change a bit over time
-        # and immigration wouldn't scale with it
-        true_value_min=approx_immigration_rate * 0.9,
-        true_value_max=approx_immigration_rate * 1.1,
-    )
-
-
-def test_immigration_into_gq(immigrants_by_timestep, fuzzy_tester: FuzzyTest):
-    all_time_gq_immigrant_status = pd.concat(
-        [
-            immigrant_status & (after["household_details.housing_type"] != "Standard")
-            for _, after, immigrant_status, _ in immigrants_by_timestep
-        ]
-    )
-
-    # There are roughly 1.85 million immigrants per year 2016-2020.
-    # GQ is about a tenth.
-    approx_gq_immigration_rate = ((1_850_000 / 10) / 330_000_000) / 12
-    fuzzy_tester.fuzzy_assert_proportion(
-        all_time_gq_immigrant_status,
-        # Some leeway, due to inaccuracy of above numbers, and the fact
-        # that immigration does not actually scale with population size
-        true_value_min=approx_gq_immigration_rate * 0.8,
-        true_value_max=approx_gq_immigration_rate * 1.2,
+        "GQ immigration stochastic rounding",
+        pd.Series(rounded_up),
+        true_value=target_per_timestep % 1,
     )
 
 
 def test_immigration_into_existing_households(
-    immigrants_by_timestep, fuzzy_tester: FuzzyTest
+    immigrants_by_timestep, target_immigration_events, fuzzy_tester: FuzzyTest
 ):
-    all_time_existing_household_immigrant_status = []
+    target_per_timestep = target_immigration_events["non_reference_person"]
+    rounded_up = []
 
-    for before, after, immigrant_status, immigrants in immigrants_by_timestep:
-        existing_households = before[before["household_details.housing_type"] == "Standard"][
-            "household_id"
-        ].unique()
-        existing_household_immigrant_status = immigrant_status & after["household_id"].isin(
-            existing_households
-        )
-        existing_household_immigrants = after[existing_household_immigrant_status]
+    for before, after, immigrants in immigrants_by_timestep:
+        previous_timestep_households = before[
+            before["household_details.housing_type"] == "Standard"
+        ]["household_id"]
+
+        households_established_by_domestic_migration = after[
+            (after["relation_to_household_head"] == "Reference person")
+            & (~after.index.isin(immigrants.index))
+            & (~after["household_id"].isin(previous_timestep_households))
+        ]["household_id"]
+
+        # NOTE: Households can also be established by immigration itself, but because this
+        # happens after individual immigration, we don't have to worry about a non-reference-person
+        # immigrant joining a household that was created by immigration on the same timestep.
+        existing_households = pd.concat(
+            [previous_timestep_households, households_established_by_domestic_migration],
+            ignore_index=True,
+        ).unique()
+
+        existing_household_immigrants = immigrants[
+            immigrants["household_id"].isin(existing_households)
+        ]
 
         # These will all be non-reference-person immigrants, who cannot have certain relationships
         expected_relationship = ~existing_household_immigrants[
@@ -97,81 +118,63 @@ def test_immigration_into_existing_households(
 
         assert expected_relationship.all()
 
-        all_time_existing_household_immigrant_status.append(
-            existing_household_immigrant_status
+        assert (
+            math.floor(target_per_timestep)
+            <= len(existing_household_immigrants)
+            <= math.ceil(target_per_timestep)
+        )
+        rounded_up.append(
+            len(existing_household_immigrants) == math.ceil(target_per_timestep)
         )
 
-    all_time_existing_household_immigrant_status = pd.concat(
-        all_time_existing_household_immigrant_status
-    )
-
-    # There are roughly 1.85 million immigrants per year 2016-2020.
-    # Non-reference-person is about half.
-    approx_nrp_immigration_rate = ((1_850_000 / 2) / 330_000_000) / 12
     fuzzy_tester.fuzzy_assert_proportion(
-        all_time_existing_household_immigrant_status,
-        # Some leeway, due to inaccuracy of above numbers, and the fact
-        # that immigration does not actually scale with population size
-        true_value_min=approx_nrp_immigration_rate * 0.8,
-        true_value_max=approx_nrp_immigration_rate * 1.2,
+        "Non-reference-person immigration stochastic rounding",
+        pd.Series(rounded_up),
+        true_value=target_per_timestep % 1,
     )
 
 
-def test_immigration_into_new_households(immigrants_by_timestep, fuzzy_tester: FuzzyTest):
-    all_time_household_immigrant_status = []
+def test_immigration_into_new_households(
+    immigrants_by_timestep, target_immigration_events, fuzzy_tester: FuzzyTest
+):
+    target_per_timestep = target_immigration_events["household"]
+    rounded_up = []
 
-    for before, after, immigrant_status, immigrants in immigrants_by_timestep:
-        existing_households = before[before["household_details.housing_type"] == "Standard"][
-            "household_id"
-        ].unique()
-        new_household_immigrant_status = (
-            immigrant_status
-            & (after["household_details.housing_type"] == "Standard")
-            & ~after["household_id"].isin(existing_households)
-        )
+    for before, after, immigrants in immigrants_by_timestep:
+        previous_timestep_households = before[
+            before["household_details.housing_type"] == "Standard"
+        ]["household_id"]
 
         households_established_by_domestic_migration = after[
             (after["relation_to_household_head"] == "Reference person")
             & (~after.index.isin(immigrants.index))
-            & (~after["household_id"].isin(existing_households))
-        ]["household_id"].unique()
+            & (~after["household_id"].isin(previous_timestep_households))
+        ]["household_id"]
 
-        is_non_reference_person_immigrant = new_household_immigrant_status & after[
-            "household_id"
-        ].isin(households_established_by_domestic_migration)
-        non_reference_person_immigrants = after[is_non_reference_person_immigrant]
+        existing_households = pd.concat(
+            [previous_timestep_households, households_established_by_domestic_migration],
+            ignore_index=True,
+        ).unique()
 
-        expected_relationship = ~non_reference_person_immigrants[
-            "relation_to_household_head"
-        ].isin(
-            [
-                "Reference person",
-                "Institutionalized GQ pop",
-                "Noninstitutionalized GQ pop",
-                "Parent",
-                "Opp-sex spouse",
-                "Opp-sex partner",
-                "Same-sex spouse",
-                "Same-sex partner",
+        household_immigrants = immigrants[
+            (immigrants["household_details.housing_type"] == "Standard")
+            & ~immigrants["household_id"].isin(existing_households)
+        ]
+        household_immigration_events = len(
+            household_immigrants[
+                household_immigrants["relation_to_household_head"] == "Reference person"
             ]
         )
 
-        assert expected_relationship.all()
-
-        household_immigrant_status = (
-            new_household_immigrant_status & ~is_non_reference_person_immigrant
+        assert (
+            math.floor(target_per_timestep)
+            <= household_immigration_events
+            <= math.ceil(target_per_timestep)
         )
-        all_time_household_immigrant_status.append(household_immigrant_status)
+        rounded_up.append(household_immigration_events == math.ceil(target_per_timestep))
 
-    all_time_household_immigrant_status = pd.concat(all_time_household_immigrant_status)
-
-    # There are roughly 1.85 million immigrants per year 2016-2020.
-    # Household is about half.
-    approx_household_immigration_rate = ((1_850_000 / 2) / 330_000_000) / 12
     fuzzy_tester.fuzzy_assert_proportion(
-        all_time_household_immigrant_status,
-        # Some leeway, due to inaccuracy of above numbers, and the fact
-        # that immigration does not actually scale with population size
-        true_value_min=approx_household_immigration_rate * 0.8,
-        true_value_max=approx_household_immigration_rate * 1.2,
+        "Household immigration stochastic rounding",
+        pd.Series(rounded_up),
+        true_value=target_per_timestep % 1,
     )

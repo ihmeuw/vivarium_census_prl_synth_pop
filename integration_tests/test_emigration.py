@@ -32,12 +32,16 @@ def test_there_is_emigration(simulants_on_adjacent_timesteps, fuzzy_tester: Fuzz
         == emigrants["relation_to_household_head_after"]
     ).all()
 
-    # TODO: Uncomment once emigration rates are fixed
-    # fuzzy_tester.fuzzy_assert_proportion(
-    #     # Emigration is pretty rare! Around 1.25m people emigrate per year.
-    #     all_emigration_status[living_tracked],
-    #     true_value=(1_250_000 / 330_000_000) / 12,
-    # )
+    # TODO: Emigration rates are currently incorrect, so they are not tested;
+    # see https://github.com/ihmeuw/vivarium_research_prl/pull/20.
+    fuzzy_tester.fuzzy_assert_proportion(
+        "Emigration rate",
+        all_emigration_status[living_tracked],
+        # VERY conservative bounds -- it would happen (on average) at least
+        # once in a simulated population of 20k over 10 timesteps
+        true_value_min=(1 / (20_000 * 10)),
+        true_value_max=0.05,
+    )
 
 
 def test_individuals_emigrate(simulants_on_adjacent_timesteps, fuzzy_tester: FuzzyTest):
@@ -48,13 +52,16 @@ def test_individuals_emigrate(simulants_on_adjacent_timesteps, fuzzy_tester: Fuz
         ),
     )
 
-    # TODO: Uncomment once emigration rates are fixed
-    # fuzzy_tester.fuzzy_assert_proportion(
-    #     # Emigration is pretty rare! Around 1.25m people emigrate per year.
-    #     # About half is individuals.
-    #     all_individual_emigration_status,
-    #     true_value=((1_250_000 / 2) / 330_000_000) / 12,
-    # )
+    # TODO: Emigration rates are currently incorrect, so they are not tested;
+    # see https://github.com/ihmeuw/vivarium_research_prl/pull/20.
+    fuzzy_tester.fuzzy_assert_proportion(
+        "Individual emigration rate",
+        all_individual_emigration_status,
+        # VERY conservative bounds -- it would happen (on average) at least
+        # once in a simulated population of 20k over 10 timesteps
+        true_value_min=(1 / (20_000 * 10)),
+        true_value_max=0.05,
+    )
 
 
 def test_non_gq_individuals_emigrate(
@@ -71,12 +78,16 @@ def test_non_gq_individuals_emigrate(
     emigrants = all_simulant_links[all_non_gq_emigration_status]
     assert (emigrants["relation_to_household_head_before"] != "Reference person").all()
 
-    # TODO: Uncomment once emigration rates are fixed
-    # fuzzy_tester.fuzzy_assert_proportion(
-    #     # Non-GQ emigration is basically all of the individual emigration
-    #     all_non_gq_emigration_status,
-    #     true_value=((1_250_000 / 2) / 330_000_000) / 12,
-    # )
+    # TODO: Emigration rates are currently incorrect, so they are not tested;
+    # see https://github.com/ihmeuw/vivarium_research_prl/pull/20.
+    fuzzy_tester.fuzzy_assert_proportion(
+        "Individual non-GQ emigration rate",
+        all_non_gq_emigration_status,
+        # VERY conservative bounds -- it would happen (on average) at least
+        # once in a simulated population of 20k over 10 timesteps
+        true_value_min=(1 / (20_000 * 10)),
+        true_value_max=0.05,
+    )
 
 
 def test_gq_individuals_emigrate(simulants_on_adjacent_timesteps, fuzzy_tester: FuzzyTest):
@@ -85,13 +96,16 @@ def test_gq_individuals_emigrate(simulants_on_adjacent_timesteps, fuzzy_tester: 
         lambda before, after: before["household_details.housing_type"] != "Standard",
     )
 
-    # TODO: Uncomment once emigration rates are fixed
-    # fuzzy_tester.fuzzy_assert_proportion(
-    #     # GQ emigration is *very* rare! Around 100,000 per year (according to the data
-    #     # from which we derived our input rates).
-    #     all_gq_emigration_status,
-    #     true_value=(100_000 / 330_000_000) / 12,
-    # )
+    # TODO: Emigration rates are currently incorrect, so they are not tested;
+    # see https://github.com/ihmeuw/vivarium_research_prl/pull/20.
+    fuzzy_tester.fuzzy_assert_proportion(
+        "GQ emigration rate",
+        all_gq_emigration_status,
+        # VERY conservative bounds -- it would happen (on average) at least
+        # once in a simulated population of 50k over 10 timesteps
+        true_value_min=(1 / (50_000 * 10)),
+        true_value_max=0.05,
+    )
 
 
 def test_households_emigrate(simulants_on_adjacent_timesteps, fuzzy_tester: FuzzyTest):
@@ -107,12 +121,16 @@ def test_households_emigrate(simulants_on_adjacent_timesteps, fuzzy_tester: Fuzz
     # GQ households never emigrate
     assert (emigrants["household_details.housing_type_before"] == "Standard").all()
 
-    # TODO: Uncomment once emigration rates are fixed
-    # fuzzy_tester.fuzzy_assert_proportion(
-    #     # We assume household emigration is the other half besides individual.
-    #     all_household_emigration_status,
-    #     true_value=((1_250_000 / 2) / 330_000_000) / 12,
-    # )
+    # TODO: Emigration rates are currently incorrect, so they are not tested;
+    # see https://github.com/ihmeuw/vivarium_research_prl/pull/20.
+    fuzzy_tester.fuzzy_assert_proportion(
+        "Household emigration rate",
+        all_household_emigration_status,
+        # VERY conservative bounds -- it would happen (on average) at least
+        # once in a simulated population of 20k over 10 timesteps
+        true_value_min=(1 / (20_000 * 10)),
+        true_value_max=0.05,
+    )
 
 
 def test_emigrated_people_are_untracked(populations):
@@ -134,8 +152,12 @@ def test_nothing_happens_to_untracked_people(
         columns_that_should_not_change = [
             c for c in before.columns if c not in known_changing_cols
         ]
-        assert before.loc[untracked, columns_that_should_not_change].equals(
-            after.loc[untracked, columns_that_should_not_change]
+        pd.testing.assert_frame_equal(
+            before.loc[untracked, columns_that_should_not_change],
+            after.loc[untracked, columns_that_should_not_change],
+            # TODO: This seems to be necessary because of the ints turning to floats issue
+            # we have seen in other places in the sim.
+            check_dtype=False,
         )
 
 
