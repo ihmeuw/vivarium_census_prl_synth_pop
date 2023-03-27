@@ -1,8 +1,7 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
-from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
@@ -16,8 +15,10 @@ def get_simulant_id_maps(
     column_name: str,
     obs_data: Dict[str, pd.DataFrame],
     artifact: Artifact,
-    randomness: RandomnessStream,
-) -> Dict:
+    _: Any,
+    seed: str,
+    all_seeds: List[str],
+) -> Dict[str, pd.Series]:
     """
     Get all maps that are indexed by `simulant_id`.
 
@@ -29,8 +30,10 @@ def get_simulant_id_maps(
         Observer DataFrame with key for the observer name
     artifact
         A vivarium Artifact object needed by mapper
-    randomness
-        RandomnessStream to use in choosing zipcodes proportionally
+    seed
+        The random seed of the simulation of interest
+    all_seeds
+        List of all seeds found in raw results
 
     Returns
     -------
@@ -40,99 +43,10 @@ def get_simulant_id_maps(
     if column_name != "simulant_id":
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
     maps = dict()
-    output_cols_superset = [column_name, "has_ssn"]
-    formatted_obs_data = format_data_for_mapping(
-        index_name=column_name,
-        obs_results=obs_data,
-        output_columns=output_cols_superset,
-    )
-    maps.update(get_ssn_map(column_name, formatted_obs_data, randomness))
+    maps.update(get_ssn_map(obs_data, column_name, artifact, seed, all_seeds))
+    maps.update(get_itin_map(obs_data, column_name, artifact, seed, all_seeds))
+
     return maps
-
-
-def generate_itins(
-    size: int,
-    additional_key: Any,
-    randomness: RandomnessStream,
-) -> np.ndarray:
-    """
-    Generate a np.ndarray of length `size` of unique ITIN values.
-
-        first three digits 900-999, followed by dash
-        next two digits between 50-65, 70-88, 90-92, or 94-99, followed by a dash
-        last four digits between 1-9999
-
-    :param size: The number of itins to generate
-    :param additional_key: Additional key to be used by randomness
-    :param randomness: RandomnessStream stream to use
-
-    """
-
-    def generate_itin(
-        count: int,
-        extra_additional_key: Any,
-    ):
-        itin = pd.DataFrame(index=pd.Index(range(count)))
-
-        # Area numbers have range 900-999, inclusive
-        itin["area"] = random_integers(
-            min_val=900,
-            max_val=999,
-            index=itin.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_itin_area",
-        )
-
-        # Group numbers have range 50-65, 70-88, 90-92, or 94-99, inclusive
-        itin["group"] = random_integers(
-            min_val=1,
-            max_val=44,  # (65-50+1)+(88-70+1)+(92-90+1)+(99-94+1)
-            index=itin.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_itin_group",
-        )
-
-        # Rescale the group digits to match expected ranges
-        pre_shift_groups = itin["group"].copy()
-        itin.loc[pre_shift_groups <= 16, "group"] += 49
-        itin.loc[((pre_shift_groups <= 35) & (pre_shift_groups >= 17)), "group"] += 53
-        itin.loc[((pre_shift_groups <= 38) & (pre_shift_groups >= 36)), "group"] += 54
-        itin.loc[pre_shift_groups >= 39, "group"] += 55
-
-        # Serial numbers 1-9999 inclusive
-        itin["serial"] = random_integers(
-            min_val=1,
-            max_val=9999,
-            index=itin.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_itin_serial",
-        )
-
-        return (
-            itin["area"].astype(str)  # no zfill needed, values should be 900-999
-            + "-"
-            + itin["group"].astype(str)  # no zfill needed likewise
-            + "-"
-            + itin["serial"].astype(str).str.zfill(4)
-        ).to_numpy()
-
-    if additional_key is None:
-        additional_key = 1
-    itins = pd.Series(generate_itin(size, additional_key))
-    duplicate_mask = itins.duplicated()
-    counter = 0
-    while duplicate_mask.sum() > 0:
-        if counter >= 10:
-            logger.info(
-                f"Resampled ITIN {counter} times and data still contains {duplicate_mask.sum()}"
-                f"duplicates remaining.  Check data or usage of randomness stream."
-            )
-            break
-        new_additional_key = f"{additional_key}_{counter}"
-        itins.loc[duplicate_mask] = generate_itin(duplicate_mask.sum(), new_additional_key)
-        duplicate_mask = itins.duplicated()
-        counter += 1
-    return itins.to_numpy()
 
 
 def generate_ssns(
@@ -150,85 +64,154 @@ def generate_ssns(
     :param size: The number of itins to generate
     :param additional_key: Additional key to be used by randomness
     :param randomness: RandomnessStream stream to use
-
     """
+    ssn = pd.DataFrame(index=pd.Index(range(size)))
 
-    def generate_ssn(
-        count: int,
-        extra_additional_key: Any,
-    ) -> pd.DataFrame:
-        ssn = pd.DataFrame(index=pd.Index(range(count)))
+    area = random_integers(
+        min_val=1,
+        max_val=899,
+        index=ssn.index,
+        randomness=randomness,
+        additional_key=f"{additional_key}_ssn_area",
+    )
+    area = np.where(area == 666, 667, area)
+    ssn["ssn_area"] = area
 
-        area = random_integers(
-            min_val=1,
-            max_val=899,
-            index=ssn.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_ssn_area",
-        )
-        area = np.where(area == 666, 667, area)
-        ssn["ssn_area"] = area
+    group = random_integers(
+        min_val=1,
+        max_val=99,
+        index=ssn.index,
+        randomness=randomness,
+        additional_key=f"{additional_key}_ssn_group",
+    )
+    ssn["ssn_group"] = group
 
-        group = random_integers(
-            min_val=1,
-            max_val=99,
-            index=ssn.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_ssn_group",
-        )
-        ssn["ssn_group"] = group
+    serial = random_integers(
+        min_val=1,
+        max_val=9999,
+        index=ssn.index,
+        randomness=randomness,
+        additional_key=f"{additional_key}_ssn_serial",
+    )
+    ssn["ssn_serial"] = serial
 
-        serial = random_integers(
-            min_val=1,
-            max_val=9999,
-            index=ssn.index,
-            randomness=randomness,
-            additional_key=f"{extra_additional_key}_ssn_serial",
-        )
-        ssn["ssn_serial"] = serial
+    ssns = (
+        ssn["ssn_area"].astype(str).str.zfill(3)
+        + "-"
+        + ssn["ssn_group"].astype(str).str.zfill(2)
+        + "-"
+        + ssn["ssn_serial"].astype(str).str.zfill(4)
+    ).to_numpy()
 
-        return (
-            ssn["ssn_area"].astype(str).str.zfill(3)
-            + "-"
-            + ssn["ssn_group"].astype(str).str.zfill(2)
-            + "-"
-            + ssn["ssn_serial"].astype(str).str.zfill(4)
-        ).to_numpy()
-
-    if additional_key is None:
-        additional_key = 1
-    ssns = pd.Series(generate_ssn(size, additional_key))
-    duplicate_mask = ssns.duplicated()
-    counter = 0
-    while duplicate_mask.sum() > 0:
-        if counter >= 10:
-            logger.info(
-                f"Resampled SSN {counter} times and data still contains {duplicate_mask.sum()}"
-                f"duplicates remaining.  Check data or usage of randomness stream."
-            )
-            break
-        new_additional_key = f"{additional_key}_{counter}"
-        ssns.loc[duplicate_mask] = generate_ssn(duplicate_mask.sum(), new_additional_key)
-        duplicate_mask = ssns.duplicated()
-        counter += 1
-    return ssns.to_numpy()
+    return ssns
 
 
 def get_ssn_map(
+    obs_data: Dict[str, pd.DataFrame],
     column_name: str,
-    obs_data: pd.DataFrame,
-    randomness: RandomnessStream,
-):
-    ssn_map_dict = {}
-    output_cols = [column_name, "has_ssn"]  # columns in the output we use to map
-    simulant_data = (
-        obs_data.reset_index()[output_cols].drop_duplicates().set_index(column_name)
-    )
-    ssn_map = pd.Series("", index=simulant_data.index)
-    ssn_map[simulant_data["has_ssn"]] = generate_ssns(
-        simulant_data["has_ssn"].sum(), "get_ssn_map", randomness
-    )
+    artifact: Artifact,
+    seed: str,
+    all_seeds: List[str],
+) -> Dict[str, pd.Series]:
+    # Anyone in the SSN observer has SSNs by definition
+    need_ssns_ssn = obs_data["social_security_observer"][column_name]
 
-    # Map against obs_data
-    ssn_map_dict["ssn"] = ssn_map.fillna("").astype(str)
-    return ssn_map_dict
+    # Simulants in W2 observer who `has_ssn` need SSNs
+    w2_data = obs_data["tax_w2_observer"][[column_name, "has_ssn", "ssn_id"]]
+    need_ssns_has_ssn = w2_data.loc[w2_data["has_ssn"], column_name]
+
+    # Simulants in W2 observer who are assigned as an `ssn_id` need to have SSNs
+    # to be copied later
+    need_ssns_ssn_id = w2_data.loc[w2_data["ssn_id"] != "-1", "ssn_id"]
+
+    need_ssns = pd.concat(
+        [need_ssns_ssn, need_ssns_has_ssn, need_ssns_ssn_id], axis=0
+    ).drop_duplicates()
+    ssns = _load_ids(artifact, "/synthetic_data/ssns", len(need_ssns), seed, all_seeds)
+
+    return {"ssn": pd.Series(ssns, index=need_ssns, name="ssn")}
+
+
+def get_itin_map(
+    obs_data: Dict[str, pd.DataFrame],
+    column_name: str,
+    artifact: Artifact,
+    seed: str,
+    all_seeds: List[str],
+):
+    formatted_obs_data = format_data_for_mapping(
+        index_name=column_name,
+        obs_results=obs_data,
+        output_columns=[column_name, "has_ssn"],
+    )
+    simulant_data = formatted_obs_data.reset_index().drop_duplicates().set_index(column_name)
+    itin_mask = ~simulant_data["has_ssn"]
+    itins = _load_ids(artifact, "/synthetic_data/itins", itin_mask.sum(), seed, all_seeds)
+
+    return {"itin": pd.Series(itins, index=simulant_data.index[itin_mask], name="itin")}
+
+
+def _load_ids(
+    artifact: Artifact, hdf_key: str, num_need_ids: int, seed: str, all_seeds: List[str]
+) -> np.array:
+    """Load (already-shuffled) IDs from unique-by-seed chunks of the full
+    artifact data and convert to hyphenated strings
+    """
+    # NOTE: `artifact.load` does not currently have the option to select specific rows
+    # to load and so it's much quicker to use `pd.HDFStore.select`
+    with pd.HDFStore(artifact.path, mode="r") as store:
+        num_available_ids = store.get_storer(hdf_key).nrows
+        if seed == "":  # all seeds are already concatenated together so just pick off the top
+            start_idx = 0
+            chunksize = num_available_ids
+        else:  # we are dealing with a single seed
+            chunksize = int(num_available_ids / len(all_seeds))
+            seed_position = all_seeds.index(seed)
+            start_idx = seed_position * chunksize
+        if num_need_ids > chunksize:
+            raise IndexError(
+                f"You are requesting {num_need_ids} IDs from seed {seed}'s unique "
+                f"chunk, but this chunk only has {chunksize} available (hdf_key "
+                f"{hdf_key} and {len(all_seeds)} simulation seeds)."
+            )
+        ids = store.select(
+            hdf_key,
+            start=start_idx,
+            stop=start_idx + num_need_ids,
+        )
+    # Convert id section columns to hyphenated string IDs
+    ids = (
+        ids["area"].astype(str).str.zfill(3)
+        + "-"
+        + ids["group"].astype(str).str.zfill(2)
+        + "-"
+        + ids["serial"].astype(str).str.zfill(4)
+    ).to_numpy()
+
+    return ids
+
+
+def do_collide_ssns(
+    obs_data: pd.DataFrame, ssn_map: pd.Series, randomness: RandomnessStream
+) -> pd.DataFrame:
+    """Apply SSN collision to simulants with no SSN but provided an SSN to an employer."""
+    # If a household member's SSN will be used, use ssn_map to map
+    use_ssn_id_mask = (
+        (obs_data["ssn_id"] != "-1")
+        & (obs_data["employer_id"] != -1)
+        & (~obs_data["has_ssn"])
+    )
+    obs_data.loc[use_ssn_id_mask, "ssn"] = obs_data[use_ssn_id_mask]["ssn_id"].map(ssn_map)
+
+    # If a household member's SSN is unavailable, generate a new SSN, duplicates don't matter.
+    create_ssn_mask = (
+        (obs_data["ssn_id"] == "-1")
+        & (obs_data["employer_id"] != -1)
+        & (~obs_data["has_ssn"])
+    )
+    obs_data.loc[create_ssn_mask, "ssn"] = generate_ssns(
+        size=create_ssn_mask.sum(),
+        additional_key="collide",
+        randomness=randomness,
+    )
+    return obs_data

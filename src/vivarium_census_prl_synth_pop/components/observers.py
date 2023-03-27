@@ -1,7 +1,6 @@
 import datetime as dt
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -12,7 +11,7 @@ from vivarium.framework.population import PopulationView
 from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_values, paths
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 
 class BaseObserver(ABC):
@@ -43,12 +42,22 @@ class BaseObserver(ABC):
         "date_of_birth",
         "address_id",
         "state_id",
+        "po_box",
         "puma",
         "guardian_1",
         "guardian_2",
         "guardian_1_address_id",
         "guardian_2_address_id",
+        # todo: add necessary guardian address columns
     ]
+
+    configuration_defaults = {"observer": {"file_extension": "csv.bz2"}}
+
+    def __init__(self):
+        self.configuration_defaults = self._get_configuration_defaults()
+
+    def _get_configuration_defaults(self) -> dict[str, dict]:
+        return {self.name: BaseObserver.configuration_defaults["observer"]}
 
     def __repr__(self):
         return "BaseObserver()"
@@ -82,6 +91,7 @@ class BaseObserver(ABC):
     def setup(self, builder: Builder):
         # FIXME: move filepaths to data container
         self.seed = builder.configuration.randomness.random_seed
+        self.file_extension = self.get_file_extension(builder)
         self.output_dir = Path(builder.configuration.output_data.results_directory)
         self.population_view = self.get_population_view(builder)
         self.responses = None
@@ -100,6 +110,16 @@ class BaseObserver(ABC):
             "simulation_end",
             self.on_simulation_end,
         )
+
+    def get_file_extension(self, builder: Builder) -> str:
+        extension = builder.configuration[self.name].file_extension
+        if extension not in metadata.SUPPORTED_EXTENSIONS:
+            raise ValueError(
+                f"Invalid file extension '{extension}' provided in configuration key "
+                f"'{self.name}.file-extension'. Supported extensions are: "
+                f"{metadata.SUPPORTED_EXTENSIONS}."
+            )
+        return extension
 
     def get_population_view(self, builder) -> PopulationView:
         """Returns the population view of interest to the observer"""
@@ -141,7 +161,7 @@ class BaseObserver(ABC):
         """Define the observations in the concrete class"""
         pass
 
-    def on_simulation_end(self, event: Event) -> None:
+    def on_simulation_end(self, _: Event) -> None:
         output_dir = utilities.build_output_dir(
             self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.name
         )
@@ -149,7 +169,11 @@ class BaseObserver(ABC):
             logger.info(f"No results to write ({self.name})")
         else:
             self.responses.index.names = ["simulant_id"]
-            self.responses.to_csv(output_dir / f"{self.name}_{self.seed}.csv.bz2")
+            filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
+            if "hdf" == self.file_extension:
+                self.responses.to_hdf(filepath, "data", format="table")
+            else:
+                self.responses.to_csv(filepath)
 
     ##################
     # Helper methods #
@@ -181,6 +205,7 @@ class HouseholdSurveyObserver(BaseObserver):
 
     def __init__(self, survey):
         self.survey = survey
+        super().__init__()
 
     def __repr__(self):
         return f"HouseholdSurveyObserver({self.survey})"
@@ -257,7 +282,7 @@ class DecennialCensusObserver(BaseObserver):
     ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "relation_to_household_head",
-        "census_year",
+        "year",
         "housing_type",
     ]
 
@@ -298,7 +323,7 @@ class DecennialCensusObserver(BaseObserver):
         )
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
-        pop["census_year"] = event.time.year
+        pop["year"] = event.time.year
 
         return pop[self.output_columns]
 
@@ -307,7 +332,16 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
-    ADDITIONAL_OUTPUT_COLUMNS = ["wic_year"]
+    ADDITIONAL_INPUT_COLUMNS = [
+        "household_id",
+        "relation_to_household_head",
+    ]
+    ADDITIONAL_OUTPUT_COLUMNS = [
+        "year",
+        "household_id",
+        "housing_type",
+        "relation_to_household_head",
+    ]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
     WIC_RACE_ETHNICITIES = ["White", "Black", "Latino", "Other"]
@@ -321,7 +355,7 @@ class WICObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
 
     @property
     def input_values(self):
@@ -350,7 +384,7 @@ class WICObserver(BaseObserver):
         pop["income"] = self.pipelines["income"](pop.index)
 
         # add columns for output
-        pop["wic_year"] = event.time.year
+        pop["year"] = event.time.year
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
 
@@ -569,6 +603,7 @@ class TaxW2Observer(BaseObserver):
         "housing_type",
         "tax_year",
         "race_ethnicity",
+        "is_w2",
     ]
 
     def __repr__(self):
@@ -594,10 +629,8 @@ class TaxW2Observer(BaseObserver):
         super().setup(builder)
         self.clock = builder.time.clock()
 
-        vivarium_randomness = builder.randomness.get_stream(
-            self.name, for_initialization=True
-        )
-        np_random_seed = 12345 + int(vivarium_randomness.seed)
+        self.vivarium_randomness = builder.randomness.get_stream(self.name)
+        np_random_seed = 12345 + int(self.vivarium_randomness.seed)
         self.np_randomness = np.random.default_rng(np_random_seed)
 
         # increment income based on the job the simulant has during
@@ -694,9 +727,7 @@ class TaxW2Observer(BaseObserver):
 
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
-        simulants_wo_ssn = pd.Series(
-            df_w2[~df_w2["has_ssn"]].index, index=df_w2[~df_w2["has_ssn"]].index
-        )
+        simulants_wo_ssn = df_w2.loc[~df_w2["has_ssn"], "address_id"]
         household_members_w_ssn = (
             pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
@@ -719,6 +750,17 @@ class TaxW2Observer(BaseObserver):
         ]:
             df_w2[col] = df_w2["employer_id"].map(business_details[col])
 
+        df_w2 = df_w2.set_index(["simulant_id"])
+
+        df_w2["is_w2"] = self.vivarium_randomness.choice(
+            index=df_w2.index,
+            choices=[True, False],
+            p=[
+                data_values.Taxes.PERCENT_W2_RECEIVED,
+                data_values.Taxes.PERCENT_1099_RECEIVED,
+            ],
+            additional_key="type_of_form",
+        )
         return df_w2[self.output_columns]
 
 
@@ -747,8 +789,10 @@ class TaxDependentsObserver(BaseObserver):
         "age",
         "date_of_birth",
         "address_id",
+        "po_box",
         "state_id",
         "puma",
+        "housing_type",
         "sex",
         "has_ssn",
         "tax_year",
@@ -870,6 +914,7 @@ class Tax1040Observer(BaseObserver):
         "sex",
         "has_ssn",
         "address_id",  # we do not need to include household_id because we can find it from address_id
+        "po_box",
         "state_id",
         "puma",
         "race_ethnicity",
@@ -878,6 +923,7 @@ class Tax1040Observer(BaseObserver):
         "tax_year",
         "alive",
         "in_united_states",
+        "joint_filer",
     ]
 
     def __init__(self, w2_observer):
@@ -906,6 +952,7 @@ class Tax1040Observer(BaseObserver):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
+        self.randomness = builder.randomness.get_stream(self.name)
 
     def to_observe(self, event: Event) -> bool:
         """Observe if April 15 falls during this time step"""
@@ -918,6 +965,26 @@ class Tax1040Observer(BaseObserver):
 
         # add derived columns
         pop["tax_year"] = event.time.year - 1
+        # todo: Add joint filing random choice
+        partners = [
+            "Opp-sex spouse",
+            "Opp-sex partner",
+            "Same-sex spouse",
+            "Same-sex partner",
+        ]
+        partners_of_household_head_idx = pop.index[
+            pop["relation_to_household_head"].isin(partners)
+        ]
+        pop["joint_filer"] = False
+        pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
+            index=partners_of_household_head_idx,
+            choices=[True, False],
+            p=[
+                data_values.Taxes.PROBABILITY_OF_JOINT_FILER,
+                1 - data_values.Taxes.PROBABILITY_OF_JOINT_FILER,
+            ],
+            additional_key="joint_filing_1040",
+        )
 
         return pop[self.OUTPUT_COLUMNS]
 

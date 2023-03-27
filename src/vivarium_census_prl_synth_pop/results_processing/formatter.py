@@ -29,10 +29,50 @@ def format_address_id(data: pd.DataFrame) -> pd.Series:
     return data["random_seed"].astype(str) + "_" + data["address_id"].astype(str)
 
 
+def format_ssn_id(data: pd.DataFrame) -> pd.Series:
+    """Format ssn_id column to prepare random_seed to match simulant_id"""
+    ssn_ids = pd.Series(data["ssn_id"].astype(str))
+    # Only do the prepending where ssn_id points to another simulant
+    ssn_ids[ssn_ids != "-1"] = (
+        data["random_seed"].astype(str) + "_" + data["ssn_id"].astype(str)
+    )
+    return ssn_ids
+
+
 def get_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
     state_name_map = data["state_id"].map(state_id_map)
     return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+
+
+def get_employer_state_abbreviation(data: pd.DataFrame) -> pd.Series:
+    state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
+    state_name_map = data["employer_state_id"].map(state_id_map)
+    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+
+
+def get_household_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["household_id"].astype(str)
+
+
+def get_guardian_1_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_1"].astype(str)
+
+
+def get_guardian_2_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_2"].astype(str)
+
+
+def get_guardian_1_address_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_1_address_id"].astype(str)
+
+
+def get_guardian_2_address_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_2_address_id"].astype(str)
+
+
+def get_guardian_id(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["guardian_id"].astype(str)
 
 
 # Fixme: Add formatting functions as necessary
@@ -44,7 +84,32 @@ COLUMN_FORMATTERS = {
     "last_name_id": (get_last_name_id, ["last_name_id", "random_seed"]),
     "state": (get_state_abbreviation, ["state_id"]),
     "address_id": (format_address_id, ["address_id", "random_seed"]),
+    "employer_state": (get_employer_state_abbreviation, ["employer_state_id"]),
+    "household_id": (get_household_id, ["household_id", "random_seed"]),
+    "guardian_1": (get_guardian_1_id, ["guardian_1", "random_seed"]),
+    "guardian_2": (get_guardian_2_id, ["guardian_2", "random_seed"]),
+    "guardian_1_address_id": (
+        get_guardian_1_address_id,
+        ["guardian_1_address_id", "random_seed"],
+    ),
+    "guardian_2_address_id": (
+        get_guardian_2_address_id,
+        ["guardian_2_address_id", "random_seed"],
+    ),
+    "guardian_id": (get_guardian_id, ["guardian_id", "random_seed"]),
+    "ssn_id": (format_ssn_id, ["ssn_id", "random_seed"]),
 }
+
+
+def format_columns(data: pd.DataFrame) -> pd.DataFrame:
+    # Process columns to map for observers
+    for output_column, (
+        column_formatter,
+        required_columns,
+    ) in COLUMN_FORMATTERS.items():
+        if set(required_columns).issubset(set(data.columns)):
+            data[output_column] = column_formatter(data[required_columns])
+    return data
 
 
 def format_data_for_mapping(

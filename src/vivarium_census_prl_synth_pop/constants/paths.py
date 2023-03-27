@@ -56,4 +56,8 @@ REFERENCE_PERSON_UPDATE_RELATIONSHIP_DATA_PATH = (
 )
 
 PUMA_TO_ZIP_DATA_PATH = RAW_DATA_ROOT / "puma_to_zip.csv"
-GENERATED_BUSINESS_NAMES_DATA_PATH = RAW_DATA_ROOT / "generated_business_names.csv.bz2"
+GENERATED_BUSINESS_NAMES_DATA_PATH = (
+    PROJECT_ROOT
+    / "data/raw_data"
+    / "business_names_generation/v0.1/generated_business_names.csv.bz2"
+)

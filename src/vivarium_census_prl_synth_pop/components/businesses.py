@@ -138,7 +138,7 @@ class Businesses:
             pop_data.index, query="tracked"
         )
 
-        pop["employer_id"] = data_values.Unemployed.EMPLOYER_ID
+        pop["employer_id"] = data_values.UNEMPLOYED.employer_id
         working_age = pop.loc[pop["age"] >= data_values.WORKING_AGE].index
         pop.loc[working_age, "employer_id"] = self.assign_random_employer(working_age)
 
@@ -151,7 +151,7 @@ class Businesses:
             & (pop["age"] >= data_values.WORKING_AGE)
         ]
         if not military_index.empty:
-            pop.loc[military_index, "employer_id"] = data_values.MilitaryEmployer.EMPLOYER_ID
+            pop.loc[military_index, "employer_id"] = data_values.MILITARY.employer_id
 
         # Create income propensity columns
         pop["personal_income_propensity"] = self.randomness.get_draw(
@@ -176,7 +176,7 @@ class Businesses:
             query="alive == 'alive' and tracked",
         )
         all_businesses = self.businesses.index[
-            self.businesses.index != data_values.Unemployed.EMPLOYER_ID
+            self.businesses.index != data_values.UNEMPLOYED.employer_id
         ]
         businesses_that_move_idx = filter_by_rate(
             all_businesses,
@@ -230,12 +230,10 @@ class Businesses:
                 == data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS["Military"]
             )
             & (pop["age"] >= data_values.WORKING_AGE)
-            & (pop["employer_id"] != data_values.MilitaryEmployer.EMPLOYER_ID)
+            & (pop["employer_id"] != data_values.MILITARY.employer_id)
         ]
         if len(new_military_idx) > 0:
-            pop.loc[
-                new_military_idx, "employer_id"
-            ] = data_values.MilitaryEmployer.EMPLOYER_ID
+            pop.loc[new_military_idx, "employer_id"] = data_values.MILITARY.employer_id
 
         # Update income
         # Get new income propensity and update income for simulants who have new employers or joined the workforce
@@ -258,26 +256,16 @@ class Businesses:
     def generate_businesses(self) -> pd.DataFrame():
         """Create a data structure of businesses and their relevant data"""
         # Define known employers
-        # TODO: when have more known employers, maybe move to csv
         known_employers = pd.DataFrame(
-            {
-                "employer_id": [
-                    data_values.Unemployed.EMPLOYER_ID,
-                    data_values.MilitaryEmployer.EMPLOYER_ID,
-                ],
-                "employer_name": [
-                    data_values.Unemployed.EMPLOYER_NAME,
-                    data_values.MilitaryEmployer.EMPLOYER_NAME,
-                ],
-                "employer_address_id": [
-                    data_values.Unemployed.EMPLOYER_ADDRESS_ID,
-                    data_values.MilitaryEmployer.EMPLOYER_ADDRESS_ID,
-                ],
-                "prevalence": [
-                    1 - data_values.PROPORTION_WORKFORCE_EMPLOYED,
-                    data_values.MilitaryEmployer.PROPORTION_WORKFORCE_EMPLOYED,
-                ],
-            }
+            [
+                {
+                    "employer_id": known_employer.employer_id,
+                    "employer_name": known_employer.employer_name,
+                    "employer_address_id": known_employer.employer_address_id,
+                    "prevalence": known_employer.proportion,
+                }
+                for known_employer in data_values.KNOWN_EMPLOYERS
+            ]
         )
 
         # Generate random employers
@@ -336,9 +324,11 @@ class Businesses:
         )
 
     def assign_different_employer(self, changing_jobs: pd.Index) -> pd.Series:
-        current_employers = self.population_view.subview(["employer_id"]).get(
-            changing_jobs, query="tracked"
-        )["employer_id"]
+        current_employers = (
+            self.population_view.subview(["employer_id"])
+            .get(changing_jobs, query="tracked")
+            .squeeze(axis=1)
+        )
 
         new_employers = current_employers.copy()
 
@@ -364,7 +354,7 @@ class Businesses:
     def calculate_income(self, idx: pd.Index) -> pd.Series:
         income = pd.Series(0.0, index=idx)
         pop = self.population_view.get(idx, query="tracked")
-        employed_idx = pop.index[pop["employer_id"] != data_values.Unemployed.EMPLOYER_ID]
+        employed_idx = pop.index[pop["employer_id"] != data_values.UNEMPLOYED.employer_id]
 
         # Get propensities for two components to get income propensity
         personal_income_component = data_values.PERSONAL_INCOME_PROPENSITY_DISTRIBUTION.ppf(

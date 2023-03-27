@@ -87,7 +87,7 @@ PROBABILITY_OF_SPACE_IN_NAME = {
 #####################
 
 BUSINESS_NAMES_MAX_TOKENS_LENGTH = 15
-PROPORTION_WORKFORCE_EMPLOYED = 0.6114
+
 
 WORKING_AGE = 18
 EXPECTED_EMPLOYEES_PER_BUSINESS = 90.105203
@@ -100,17 +100,28 @@ PERSONAL_INCOME_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.812309**0.
 EMPLOYER_INCOME_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.187691**0.5)
 
 
-class MilitaryEmployer(NamedTuple):
-    EMPLOYER_ID = 1
-    EMPLOYER_ADDRESS_ID = 1
-    EMPLOYER_NAME = "Military"
-    PROPORTION_WORKFORCE_EMPLOYED = 0.0032
+class KnownEmployer(NamedTuple):
+    employer_id: int
+    employer_address_id: int
+    employer_name: str
+    proportion: float
 
 
-class Unemployed(NamedTuple):
-    EMPLOYER_ID = 0
-    EMPLOYER_ADDRESS_ID = 0
-    EMPLOYER_NAME = "unemployed"
+UNEMPLOYED = KnownEmployer(
+    employer_id=0,
+    employer_address_id=0,
+    employer_name="unemployed",
+    proportion=1 - 0.6114,
+)
+
+MILITARY = KnownEmployer(
+    employer_id=1,
+    employer_address_id=1,
+    employer_name="Military",
+    proportion=0.0032,
+)
+
+KNOWN_EMPLOYERS = [UNEMPLOYED, MILITARY]
 
 
 ###################
@@ -125,3 +136,9 @@ COVERAGE_PROBABILITY_WIC = {
     3: dict(Latino=0.512, Black=0.469, White=0.346, Other=0.455),
     4: dict(Latino=0.287, Black=0.263, White=0.194, Other=0.255),
 }
+
+
+class Taxes(NamedTuple):
+    PERCENT_W2_RECEIVED = 0.9465
+    PERCENT_1099_RECEIVED = 0.0535
+    PROBABILITY_OF_JOINT_FILER = 0.95

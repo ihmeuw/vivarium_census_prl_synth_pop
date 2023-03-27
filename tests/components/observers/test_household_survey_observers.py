@@ -8,12 +8,13 @@ from vivarium_census_prl_synth_pop.constants import paths
 # TODO: Broader test coverage
 
 
-@pytest.fixture
-def observer(mocker, tmp_path):
+@pytest.fixture(params=["hdf", "csv.bz2"])
+def observer(mocker, tmp_path, request):
     """Generate post-setup observer with mocked methods to patch as necessary"""
     observer = HouseholdSurveyObserver("acs")
     builder = mocker.MagicMock()
     builder.configuration.output_data.results_directory = tmp_path
+    builder.configuration["household_survey_observer_acs"].file_extension = request.param
     observer.setup(builder)
     return observer
 
@@ -30,6 +31,7 @@ def mocked_pop_view(observer):
     )
     # Ensure there are no guardians in this dataset
     df[["guardian_1", "guardian_2"]] = np.random.randint(len(df), 100, size=(len(df), 2))
+    df["po_box"] = [-1, -2]
 
     return df
 
@@ -61,7 +63,7 @@ def test_on_simulation_end(observer, mocker):
         observer.output_dir
         / paths.RAW_RESULTS_DIR_NAME
         / observer.name
-        / f"{observer.name}_{observer.seed}.csv.bz2"
+        / f"{observer.name}_{observer.seed}.{observer.file_extension}"
     ).is_file()
 
 

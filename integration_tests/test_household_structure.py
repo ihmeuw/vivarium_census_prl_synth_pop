@@ -100,6 +100,23 @@ def test_households_only_have_one_reference_person(tracked_live_populations):
         assert len(household_ids) == len(household_ids.unique())
 
 
+def test_households_only_have_one_parter_or_spouse(tracked_live_populations):
+    for pop in tracked_live_populations:
+        household_ids = pop.loc[
+            pop["relation_to_household_head"].isin(
+                [
+                    "Opp-sex spouse",
+                    "Opp-sex partner",
+                    "Same-sex spouse",
+                    "Same-sex partner",
+                ]
+            ),
+            "household_id",
+        ]
+
+        assert household_ids.is_unique
+
+
 def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
     """Household types should not change for a given household"""
     for before, after in simulants_on_adjacent_timesteps:

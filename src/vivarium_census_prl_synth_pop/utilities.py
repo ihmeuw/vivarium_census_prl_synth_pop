@@ -1,4 +1,6 @@
 import os
+from datetime import datetime
+from itertools import chain
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
@@ -280,6 +282,16 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
     return output_dir
 
 
+def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
+    final_output_dir = build_output_dir(
+        Path(results_dir),
+        subdir=paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+    )
+    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
+
+    return raw_output_dir, final_output_dir
+
+
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:
     """Map the address ids of guardians to each simulant's guardian address columns"""
     for i in [1, 2]:
@@ -439,3 +451,11 @@ def get_state_puma_options(builder: Builder) -> pd.DataFrame:
     ]
 
     return state_puma_options
+
+
+def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
+    raw_results_files = list(
+        chain(*[raw_output_dir.rglob(f"*.{ext}") for ext in metadata.SUPPORTED_EXTENSIONS])
+    )
+
+    return sorted(list(set([x.name.split(".")[0].split("_")[-1] for x in raw_results_files])))

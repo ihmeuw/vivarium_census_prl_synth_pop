@@ -6,9 +6,11 @@ import pandas as pd
 import pytest
 from vivarium.framework.randomness import RandomnessStream
 
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_city_map,
-    get_household_address_map,
+    get_mailing_address_map,
+    get_street_details_map,
     get_zipcode_map,
 )
 from vivarium_census_prl_synth_pop.results_processing.names import (
@@ -17,8 +19,8 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_last_name_map,
 )
 from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
-    generate_itins,
-    get_simulant_id_maps,
+    _load_ids,
+    generate_ssns,
 )
 
 key = "test_synthetic_data_generation"
@@ -31,25 +33,6 @@ def get_draw(self, index, additional_key=None) -> pd.Series:
     # Mock get draw function
     s = np.random.uniform(size=len(index))
     return pd.Series(data=s, index=index)
-
-
-def test_itin_generation():
-    """Tests for uniqueness of ITINs and their ranges."""
-    itins = pd.Series(generate_itins(10_000, "test_itin_generation", randomness))
-
-    assert itins.nunique() == 10_000
-
-    areas = itins.apply(lambda x: int(x.split("-")[0]))
-    groups = itins.apply(lambda x: int(x.split("-")[1]))
-    serials = itins.apply(lambda x: int(x.split("-")[2]))
-    assert (areas >= 900).all() and (areas <= 999).all()
-    assert (
-        ((groups >= 50) & (groups <= 65))
-        | ((groups >= 70) & (groups <= 88))
-        | ((groups >= 90) & (groups <= 92))
-        | ((groups >= 94) & (groups <= 99))
-    ).all()
-    assert (serials >= 1).all() and (serials <= 9999).all()
 
 
 @pytest.fixture()
@@ -143,6 +126,7 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     first_name_proportions = get_name_frequency_proportions(
         first_names["first_name"],
@@ -154,11 +138,22 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
         first_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
 
+    other_seed_first_names = get_given_name_map(
+        "first_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        "2345",
+    )
+
+    assert (first_names["first_name"] != other_seed_first_names["first_name"]).any()
+
     middle_names = get_given_name_map(
         "middle_name_id",
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     middle_name_proportions = get_name_frequency_proportions(
         middle_names["middle_name"], fake_obs_data["fake_observer"], ["year_of_birth", "sex"]
@@ -196,6 +191,7 @@ def test_last_names_proportions(mocker, last_names, fake_obs_data):
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     last_name_proportions = get_name_frequency_proportions(
         last_names_map["last_name"],
@@ -207,6 +203,16 @@ def test_last_names_proportions(mocker, last_names, fake_obs_data):
         last_name_proportions.sort_index(), proportions.sort_index(), atol=1e-02
     ).all()
     assert not (last_names_map["last_name"].isnull().any())
+
+    other_seed_last_names_map = get_last_name_map(
+        "last_name_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        "2345",
+    )
+
+    assert (last_names_map["last_name"] != other_seed_last_names_map["last_name"]).any()
 
 
 def test_last_name_from_oldest_member(mocker):
@@ -270,13 +276,33 @@ def test_last_name_from_oldest_member(mocker):
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
     expected = pd.Series(data=["Name A", "Name B", "Name C"], index=[1, 2, 3])
 
     assert (last_names_map["last_name"] == expected).all()
 
 
-def test_address(mocker):
+@pytest.mark.parametrize(
+    "input_address_col, street_number_col, street_name_col, unit_number_col",
+    [
+        (
+            "address_id",
+            "street_number",
+            "street_name",
+            "unit_number",
+        ),
+        (
+            "employer_address_id",
+            "employer_street_number",
+            "employer_street_name",
+            "employer_unit_number",
+        ),
+    ],
+)
+def test_address_mapping(
+    mocker, input_address_col, street_number_col, street_name_col, unit_number_col
+):
     # Fake synthetic pii address data
     synthetic_address_data = pd.DataFrame(
         {
@@ -292,27 +318,56 @@ def test_address(mocker):
 
     # Address_ids will just be an series of ids so we just need a unique series in a one column dataframe
     address_ids = pd.DataFrame()
-    address_ids["address_id"] = list(range(10))
+    address_ids[input_address_col] = list(range(10))
     fake_obs_data = address_ids
 
-    address_map = get_household_address_map(
-        "address_id",
+    address_map = get_street_details_map(
+        input_address_col,
         fake_obs_data,
         artifact,
         randomness,
+        "1234",
     )
-    expected_keys = ["street_number", "street_name", "unit_number"]
+    expected_keys = [street_number_col, street_name_col, unit_number_col]
 
     assert all(street_key in expected_keys for street_key in address_map.keys())
     for street_key, series in address_map.items():
-        assert (address_map[street_key].index == address_ids["address_id"]).all()
+        assert (address_map[street_key].index == address_ids[input_address_col]).all()
         assert len(address_map[street_key].index.unique()) == len(
             address_map[street_key].index
         )
-        assert not (address_map["street_name"].isnull().any())
+        assert not (address_map[street_name_col].isnull().any())
+
+    other_seed_address_map = get_street_details_map(
+        input_address_col,
+        fake_obs_data,
+        artifact,
+        randomness,
+        "2345",
+    )
+
+    for column in address_map:
+        assert (address_map[column] != other_seed_address_map[column]).any()
 
 
-def test_zipcode_mapping():
+@pytest.mark.parametrize(
+    "input_address_col, zipcode_col, state_id_col, puma_col",
+    [
+        (
+            "address_id",
+            "zipcode",
+            "state_id",
+            "puma",
+        ),
+        (
+            "employer_address_id",
+            "employer_zipcode",
+            "employer_state_id",
+            "employer_puma",
+        ),
+    ],
+)
+def test_zipcode_mapping(input_address_col, zipcode_col, state_id_col, puma_col):
     """Tests ZIP code mapping logic.
 
     Specifically:
@@ -333,37 +388,56 @@ def test_zipcode_mapping():
     expected_proportion_90723 = 0.4116  # from PUMA_TO_ZIP_DATA_PATH
 
     simulation_addresses = pd.DataFrame()
-    simulation_addresses["address_id"] = [f"123_{n}" for n in range(num_unique_ids)]
-    simulation_addresses["state_id"] = 6  # from PUMA_TO_ZIP_DATA_PATH
-    simulation_addresses["puma"] = 3756  # from PUMA_TO_ZIP_DATA_PATH
+    simulation_addresses[input_address_col] = [f"123_{n}" for n in range(num_unique_ids)]
+    simulation_addresses[state_id_col] = 6  # from PUMA_TO_ZIP_DATA_PATH
+    simulation_addresses[puma_col] = 3756  # from PUMA_TO_ZIP_DATA_PATH
     simulation_addresses["silly_column"] = "yada yada yada"
-    fake_obs_data = pd.concat(
-        [simulation_addresses, simulation_addresses]
-    )  # concatenation allows for dupe address_id
-
+    fake_obs_data = pd.concat([simulation_addresses, simulation_addresses])
+    # The second level functions need to have NO duplicates which is handled in the top level of get_address_id map.
+    fake_obs_data = fake_obs_data.drop_duplicates(subset=input_address_col)
     # Function under test
-    mapper = get_zipcode_map("address_id", fake_obs_data, randomness)
+    mapper = get_zipcode_map(input_address_col, fake_obs_data, randomness, "1234")
+    other_seed_mapper = get_zipcode_map(input_address_col, fake_obs_data, randomness, "2345")
 
     # Assert that each address_id is in the index once
     assert (
-        len(mapper["zipcode"].reset_index()["address_id"].drop_duplicates()) == num_unique_ids
+        len(mapper[zipcode_col].reset_index()[input_address_col].drop_duplicates())
+        == num_unique_ids
     )
 
     # Assert that the `num_ids` simulants get assigned the correct proportion of zip code
-    fake_obs_data["zipcode"] = simulation_addresses["address_id"].map(mapper["zipcode"])
+    fake_obs_data[zipcode_col] = simulation_addresses[input_address_col].map(
+        mapper[zipcode_col]
+    )
     assert np.isclose(
-        (fake_obs_data["zipcode"].value_counts()[90723] / len(fake_obs_data["zipcode"])),
+        (fake_obs_data[zipcode_col].value_counts()[90723] / len(fake_obs_data[zipcode_col])),
         expected_proportion_90723,
         rtol=0.1,
     )
     assert np.isclose(
-        (fake_obs_data["zipcode"].value_counts()[90706] / len(fake_obs_data["zipcode"])),
+        (fake_obs_data[zipcode_col].value_counts()[90706] / len(fake_obs_data[zipcode_col])),
         expected_proportion_90706,
         rtol=0.1,
     )
+    assert (mapper[zipcode_col] != other_seed_mapper[zipcode_col]).any()
 
 
-def test_city_address(mocker):
+@pytest.mark.parametrize(
+    "input_address_col, city_col, state_col",
+    [
+        (
+            "address_id",
+            "city",
+            "state",
+        ),
+        (
+            "employer_address_id",
+            "employer_city",
+            "employer_state",
+        ),
+    ],
+)
+def test_city_address(mocker, input_address_col, city_col, state_col):
     # This tests that we assign cities based on the correct state
 
     # Mock artifact data
@@ -379,61 +453,118 @@ def test_city_address(mocker):
 
     # Fake observer data
     fake_obs_data = pd.DataFrame(
-        {"address_id": list(range(15)), "state": ["CA", "OR", "WA"] * 5}
+        {input_address_col: list(range(15)), state_col: ["CA", "OR", "WA"] * 5}
     )
 
-    city_map = get_city_map(
-        "address_id",
-        fake_obs_data,
-        artifact,
-        randomness,
-    )
+    city_map = get_city_map(input_address_col, fake_obs_data, artifact, randomness, "1234")
 
-    expected_keys = ["city"]
+    expected_keys = [city_col]
     assert all(address_key in expected_keys for address_key in city_map.keys())
-    assert not (city_map["city"].isnull().any())
+    assert not (city_map[city_col].isnull().any())
 
     # Helper indexes for city_map
-    ca_idx = fake_obs_data.index[fake_obs_data["state"] == "CA"]
-    or_idx = fake_obs_data.index[fake_obs_data["state"] == "OR"]
-    wa_idx = fake_obs_data.index[fake_obs_data["state"] == "WA"]
-    assert (city_map["city"].loc[ca_idx].isin(["San Diego", "Irvine"])).all()
-    assert (city_map["city"].loc[or_idx] == "Portland").all()
-    assert (city_map["city"].loc[wa_idx] == "Seattle").all()
+    ca_idx = fake_obs_data.index[fake_obs_data[state_col] == "CA"]
+    or_idx = fake_obs_data.index[fake_obs_data[state_col] == "OR"]
+    wa_idx = fake_obs_data.index[fake_obs_data[state_col] == "WA"]
+    assert (city_map[city_col].loc[ca_idx].isin(["San Diego", "Irvine"])).all()
+    assert (city_map[city_col].loc[or_idx] == "Portland").all()
+    assert (city_map[city_col].loc[wa_idx] == "Seattle").all()
+
+    other_seed_city_map = get_city_map(
+        input_address_col, fake_obs_data, artifact, randomness, "2345"
+    )
+
+    assert (city_map[city_col] != other_seed_city_map[city_col]).any()
 
 
-def test_employer_name_map(mocker):
-    # This test just needs to test that we generate a list of  unique names that is the length of a index.
+def test_employer_name_map(mocker, monkeypatch):
+    num_known_employers = len(data_values.KNOWN_EMPLOYERS)
+    known_employer_ids = list(range(num_known_employers))
+    unknown_employer_ids = np.random.randint(num_known_employers, 1000, size=200)
 
-    fake_obs_data = {"fake_observer": pd.DataFrame({"employer_id": list(range(100))})}
-    # Mock artifact - we do not use the artifact for employer names
+    fake_obs_data = {
+        "fake_observer": pd.DataFrame(
+            {"employer_id": known_employer_ids + unknown_employer_ids.tolist()}
+        )
+    }
+    # change odd ids so that some are the same and some are different while
+    # avoiding collisions
+    other_unknown_employer_ids = unknown_employer_ids.copy()
+    odd_mask = (other_unknown_employer_ids % 2) == 1
+    other_unknown_employer_ids[odd_mask] = (
+        other_unknown_employer_ids[odd_mask] % (1000 - num_known_employers)
+    ) + num_known_employers
+
+    other_fake_obs_data = {
+        "fake_observer": pd.DataFrame(
+            {"employer_id": known_employer_ids + other_unknown_employer_ids.tolist()}
+        )
+    }
+    # change odd ids
+
     artifact = mocker.MagicMock()
+    artifact_names = [
+        "".join(np.random.choice(list(string.ascii_letters), size=10).tolist())
+        for _ in range(1000)
+    ]
+    artifact_names = pd.Series(artifact_names)
 
-    employer_names = get_employer_name_map("employer_id", fake_obs_data, artifact, randomness)
-    assert len(fake_obs_data["fake_observer"]) == len(employer_names["employer_name"])
-    assert employer_names["employer_name"].duplicated().sum() == 0
-    assert not (employer_names["employer_name"].isnull().any())
+    def mock_load(data_key: str):
+        return {data_keys.SYNTHETIC_DATA.BUSINESS_NAMES: artifact_names.copy()}[data_key]
+
+    monkeypatch.setattr(artifact, "load", mock_load)
+
+    employer_names_map = get_employer_name_map(
+        "employer_id", fake_obs_data, artifact, randomness, "1234"
+    )
+    other_seed_employer_names_map = get_employer_name_map(
+        "employer_id", fake_obs_data, artifact, randomness, "2345"
+    )
+
+    other_observer_employer_names_map = get_employer_name_map(
+        "employer_id", other_fake_obs_data, artifact, randomness, "1234"
+    )
+
+    employer_names = employer_names_map["employer_name"]
+    assert len(fake_obs_data["fake_observer"].drop_duplicates()) == len(employer_names)
+    assert not (employer_names.isnull().any())
+    assert (employer_names == other_seed_employer_names_map["employer_name"]).all()
+
+    assert (
+        employer_names.loc[employer_names.index[list(range(num_known_employers))]]
+        == pd.Series([employer.employer_name for employer in data_values.KNOWN_EMPLOYERS])
+    ).all()
+
+    other_observer_employer_names = other_observer_employer_names_map["employer_name"]
+    overlapping_idx = employer_names.index.intersection(other_observer_employer_names.index)
+    # For different input observers the names are the same when the same employer id is provided
+    assert (
+        employer_names.loc[overlapping_idx]
+        == other_observer_employer_names.loc[overlapping_idx]
+    ).all()
+    # But not all employer ids are the same, so different names are generated overall
+    assert (employer_names.values != other_observer_employer_names.values).any()
 
 
-def test_ssn_mapping():
-    """Tests SSN map creation, uniqueness, and range checking."""
-    # Create population observer data
+def test_ssn_generation_mapping():
+    """Tests randomly-generated SSN uniqueness and ranges"""
     num_unique_ids = 30_000
     simulants = pd.DataFrame()
     simulants["simulant_id"] = [f"123_{n}" for n in range(num_unique_ids)]
     simulants["has_ssn"] = [True if n % 2 == 0 else False for n in range(num_unique_ids)]
 
-    # Get the map
-    ssn_map = get_simulant_id_maps(
-        "simulant_id", {"silly_observer": simulants}, None, randomness
-    )["ssn"]
+    ssn_map = pd.Series("", index=simulants["simulant_id"])
+    generated_ssns = generate_ssns(
+        simulants["has_ssn"].sum(), "test_ssn_generation", randomness
+    )
+    ssn_map[simulants.set_index("simulant_id")["has_ssn"]] = generated_ssns
 
     # Check that all the SSNs are unique (Half of population size plus one for no SSN)
-    assert ssn_map.nunique() == num_unique_ids / 2 + 1
+    assert ssn_map.nunique() == len(simulants) / 2 + 1
 
     # Check that all SSNs are populated if ssn is True, not if False
     simulants_indexed = simulants.set_index(["simulant_id"])
-    assert ssn_map[simulants_indexed["has_ssn"]].nunique() == num_unique_ids // 2
+    assert ssn_map[simulants_indexed["has_ssn"]].nunique() == len(simulants) // 2
     assert (ssn_map[~simulants_indexed["has_ssn"]] == "").all()
 
     # Check that area, group, and serial segments are within bounds
@@ -444,3 +575,126 @@ def test_ssn_mapping():
     assert (areas >= 1).all() and (areas <= 899).all()
     assert (groups >= 1).all() and (groups <= 99).all()
     assert (serials >= 1).all() and (serials <= 9999).all()
+
+
+def test_mailing_address(mocker):
+    # Mock necessary artifact and observer data
+    addresses = pd.DataFrame(
+        {
+            "Municipality": [
+                "San Diego",
+                "Irvine",
+                "Seattle",
+                "Vancouver",
+                "Portland",
+                "Medford",
+            ],
+            "Province": ["ca", "ca", "wa", "wa", "or", "or"],
+        }
+    )
+    addresses = addresses.set_index(["Municipality", "Province"])
+    artifact = mocker.MagicMock()
+    artifact.load.return_value = addresses
+
+    # Fake observer data
+    fake_obs_data = pd.DataFrame(
+        {
+            "address_id": list(range(150)),
+            "state": ["CA", "OR", "WA"] * 50,
+            "state_id": [6, 41, 53] * 50,  # State ids for CA, OR, and WA
+            "puma": [3756, 1324, 11900] * 50,
+            "po_box": [0, 0, 0, 1, 11, 111, 0, 0, 0, 0, 0, 0, 0, 0, 1111] * 10,
+        }
+    )
+    fake_obs_data = fake_obs_data.set_index("address_id")
+    po_box_mask = fake_obs_data["po_box"] != 0
+
+    # Generate fake maps
+    fake_maps = {}
+    fake_maps["street_number"] = pd.Series(list(range(150)), index=fake_obs_data.index)
+    fake_maps["street_name"] = pd.Series(["A", "B", "C"] * 50, index=fake_obs_data.index)
+    fake_maps["unit_number"] = pd.Series(list(range(150)), index=fake_obs_data.index)
+    fake_maps["city"] = pd.Series(
+        ["San Diego", "Portland", "Seattle"] * 50, index=fake_obs_data.index
+    )
+    fake_maps["zipcode"] = pd.Series([92630, 97221, 98368] * 50, index=fake_obs_data.index)
+
+    mailing_map = get_mailing_address_map(
+        "address_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        fake_maps,
+        "1234",
+    )
+
+    other_seed_mailing_map = get_mailing_address_map(
+        "address_id",
+        fake_obs_data,
+        artifact,
+        randomness,
+        fake_maps,
+        "2345",
+    )
+    expected_keys = [
+        "mailing_address_street_number",
+        "mailing_address_street_name",
+        "mailing_address_unit_number",
+        "mailing_address_po_box",
+        "mailing_address_state",
+        "mailing_address_city",
+        "mailing_address_zipcode",
+    ]
+
+    assert all(street_key in expected_keys for street_key in mailing_map.keys())
+
+    for column in ["street_number", "street_name", "unit_number"]:
+        column_name = f"mailing_address_{column}"
+        assert (mailing_map[column_name][po_box_mask] == "").all()
+        assert (
+            mailing_map[column_name][~po_box_mask] == fake_maps[column][~po_box_mask]
+        ).all()
+
+    for column in ["po_box", "state"]:
+        assert (mailing_map[f"mailing_address_{column}"] == fake_obs_data[column]).all()
+
+    for column in ["city", "zipcode"]:
+        column_name = f"mailing_address_{column}"
+        assert (mailing_map[column_name][po_box_mask] != fake_maps[column][po_box_mask]).any()
+        assert (mailing_map[column_name] != other_seed_mailing_map[column_name]).any()
+
+
+@pytest.mark.parametrize(
+    "hdf_key, num_need_ids, random_seed",
+    [
+        (
+            "/synthetic_data/ssns",
+            1_000_000,
+            "300",
+        ),
+        (
+            "/synthetic_data/ssns",
+            1_000_000,
+            "",  # All seeds
+        ),
+        (
+            "/synthetic_data/itins",
+            100_000,
+            "300",
+        ),
+        (
+            "/synthetic_data/itins",
+            100_000,
+            "",  # All seeds
+        ),
+    ],
+)
+def test_id_uniqueness(artifact, hdf_key, num_need_ids, random_seed):
+    """Ensure that SSNs and ITINs are unique after assigning from artifact"""
+    all_seeds = [str(seed) for seed in range(1, 301)]
+    try:
+        ids = _load_ids(artifact, hdf_key, num_need_ids, random_seed, all_seeds)
+    except FileNotFoundError:  # Allows it to be skipped for CI
+        pytest.mark.skip(reason=f"Cannot find artifact at {artifact.path}")
+    else:
+        assert len(np.unique(ids)) == num_need_ids

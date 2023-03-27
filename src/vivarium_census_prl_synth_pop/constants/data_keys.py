@@ -31,6 +31,9 @@ class __SyntheticData(NamedTuple):
     FIRST_NAMES: str = "synthetic_data.first_names"
     LAST_NAMES: str = "synthetic_data.last_names"
     ADDRESSES: str = "synthetic_data.addresses"
+    BUSINESS_NAMES: str = "synthetic_data.business_names"
+    SSNS: str = "synthetic_data.ssns"
+    ITINS: str = "synthetic_data.itins"
 
     @property
     def name(self):
