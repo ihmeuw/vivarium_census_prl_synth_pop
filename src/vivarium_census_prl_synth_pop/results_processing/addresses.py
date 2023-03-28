@@ -127,7 +127,7 @@ def get_zipcode_map(
         )
 
     simulation_addresses = obs_data.reset_index()[output_cols].set_index(column_name)
-    zip_map = pd.Series(index=simulation_addresses.index, dtype=int)
+    zip_map = pd.Series(-1, index=simulation_addresses.index, dtype=int)
 
     # Read in CSV and normalize
     groupby_cols = ["state", "puma"]

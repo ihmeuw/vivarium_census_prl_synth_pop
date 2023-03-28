@@ -257,6 +257,7 @@ def perform_post_processing(
     )
 
     processed_results = load_data(raw_output_dir, seed)
+
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
     all_seeds = get_all_simulation_seeds(raw_output_dir)
@@ -308,6 +309,8 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
                 else:
                     df = pd.read_csv(file)
                 df["random_seed"] = file.name.split(".")[0].split("_")[-1]
+                if "age" in df.columns:
+                    df["age"] = df["age"].astype(int)
                 df = formatter.format_columns(df)
                 obs_data.append(df)
             obs_data = pd.concat(obs_data)
@@ -331,6 +334,8 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
             else:
                 obs_data = pd.read_csv(obs_file)
             obs_data["random_seed"] = seed
+            if "age" in obs_data.columns:
+                obs_data["age"] = obs_data["age"].astype(int)
             obs_data = formatter.format_columns(obs_data)
 
         observers_results[obs_dir.name] = obs_data
