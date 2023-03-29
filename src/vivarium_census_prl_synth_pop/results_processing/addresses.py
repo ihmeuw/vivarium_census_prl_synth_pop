@@ -154,7 +154,8 @@ def get_zipcode_map(
             weights=locale_group["proportion"],
             additional_key=f"{additional_key}{column_name}_zip_map_{state_id}_{puma}_{seed}",
         ).to_numpy()
-
+    # Convert to 0-padded strings
+    zip_map = zip_map.astype(str).str.zfill(5)
     # Map against obs_data
     if column_name == "address_id":
         zip_map_dict["zipcode"] = zip_map
