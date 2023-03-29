@@ -410,12 +410,12 @@ def test_zipcode_mapping(input_address_col, zipcode_col, state_id_col, puma_col)
         mapper[zipcode_col]
     )
     assert np.isclose(
-        (fake_obs_data[zipcode_col].value_counts()[90723] / len(fake_obs_data[zipcode_col])),
+        (fake_obs_data[zipcode_col].value_counts()["90723"] / len(fake_obs_data[zipcode_col])),
         expected_proportion_90723,
         rtol=0.1,
     )
     assert np.isclose(
-        (fake_obs_data[zipcode_col].value_counts()[90706] / len(fake_obs_data[zipcode_col])),
+        (fake_obs_data[zipcode_col].value_counts()["90706"] / len(fake_obs_data[zipcode_col])),
         expected_proportion_90706,
         rtol=0.1,
     )
