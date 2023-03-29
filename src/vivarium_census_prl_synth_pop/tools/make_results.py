@@ -159,7 +159,7 @@ FINAL_OBSERVERS = {
         "employer_zipcode",
         "employer_state",
         "ssn",
-        "is_w2",
+        "tax_form",
         "tax_year",
     },
     "tax_1040_observer": {
