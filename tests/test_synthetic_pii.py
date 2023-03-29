@@ -410,16 +410,46 @@ def test_zipcode_mapping(input_address_col, zipcode_col, state_id_col, puma_col)
         mapper[zipcode_col]
     )
     assert np.isclose(
-        (fake_obs_data[zipcode_col].value_counts()[90723] / len(fake_obs_data[zipcode_col])),
+        (
+            fake_obs_data[zipcode_col].value_counts()["90723"]
+            / len(fake_obs_data[zipcode_col])
+        ),
         expected_proportion_90723,
         rtol=0.1,
     )
     assert np.isclose(
-        (fake_obs_data[zipcode_col].value_counts()[90706] / len(fake_obs_data[zipcode_col])),
+        (
+            fake_obs_data[zipcode_col].value_counts()["90706"]
+            / len(fake_obs_data[zipcode_col])
+        ),
         expected_proportion_90706,
         rtol=0.1,
     )
     assert (mapper[zipcode_col] != other_seed_mapper[zipcode_col]).any()
+
+
+def test_zipcodes_are_strings():
+    """check that zipcodes are output as strings and allow for starting with 0.
+    state_id 25, puma 1901 contains only zipcodes starting with 0.
+    """
+    num_rows = 1_000
+    dummy_data = pd.DataFrame(
+        {
+            "address_id": [f"123_{n}" for n in range(num_rows)],
+            "state_id": 25,
+            "puma": 1901,
+            "silly_column": "foo",
+        },
+        index=range(num_rows),
+    )
+    mapped_zipcodes = get_zipcode_map(
+        "address_id",
+        dummy_data,
+        randomness,
+        "1",
+    )
+    assert mapped_zipcodes["zipcode"].dtype == "object"
+    assert (mapped_zipcodes["zipcode"].str[0] == "0").all()
 
 
 @pytest.mark.parametrize(
