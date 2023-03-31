@@ -1,4 +1,3 @@
-import csv
 from itertools import chain
 from pathlib import Path
 from typing import Dict, List, Union
@@ -284,10 +283,12 @@ def perform_post_processing(
         logger.info(f"Writing final results for {observer}.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
-        obs_data.to_csv(
-            obs_dir / f"{observer}{seed_ext}.csv.bz2",
-            index=False,
-            quoting=csv.QUOTE_NONNUMERIC,
+        obs_data.to_hdf(
+            obs_dir / f"{observer}{seed_ext}.hdf",
+            "data",
+            format="table",
+            complib="bzip2",
+            complevel=9,
         )
 
 

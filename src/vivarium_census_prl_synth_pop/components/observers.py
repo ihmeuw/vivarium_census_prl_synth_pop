@@ -171,7 +171,7 @@ class BaseObserver(ABC):
             self.responses.index.names = ["simulant_id"]
             filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
             if "hdf" == self.file_extension:
-                self.responses.to_hdf(filepath, "data", format="table")
+                self.responses.to_hdf(filepath, "data", format="table", complib=9)
             else:
                 self.responses.to_csv(filepath)
 
