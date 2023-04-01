@@ -158,7 +158,7 @@ FINAL_OBSERVERS = {
         "employer_zipcode",
         "employer_state",
         "ssn",
-        "is_w2",
+        "tax_form",
         "tax_year",
     },
     "tax_1040_observer": {
@@ -256,6 +256,7 @@ def perform_post_processing(
     )
 
     processed_results = load_data(raw_output_dir, seed)
+
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
     all_seeds = get_all_simulation_seeds(raw_output_dir)
