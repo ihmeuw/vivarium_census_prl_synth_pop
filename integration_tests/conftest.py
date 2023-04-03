@@ -366,7 +366,7 @@ def fuzzy_tester() -> FuzzyTester:
         # Do not update this if it is not the only thing that is failing!
         # Early exits from failing tests can make the number of asserts actually performed
         # different than what it would be with passing tests.
-        num_comparisons=601,
+        num_comparisons=684,
         # Probability of getting any failure by chance when all the values are truly in the
         # ranges asserted (false alarm).
         # The lower this number is, the less sensitive we will be to true issues.
