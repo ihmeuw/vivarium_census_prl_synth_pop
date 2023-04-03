@@ -4,6 +4,8 @@ import pytest
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
+from .conftest import FuzzyTester
+
 
 def test_individuals_move(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
@@ -289,17 +291,32 @@ def test_pumas_exist_in_states(populations, state_id_col, puma_col):
     ],
 )
 def test_addresses_during_moves(
-    simulants_on_adjacent_timesteps, unit_id_col, address_id_col, state_id_col, puma_col
+    simulants_on_adjacent_timesteps,
+    unit_id_col,
+    address_id_col,
+    state_id_col,
+    puma_col,
+    fuzzy_tester: FuzzyTester,
 ):
     """Check that unit (household and business) address details change after a move."""
     address_cols = [address_id_col, state_id_col, puma_col]
+    state_puma_options = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)[
+        ["state", "puma"]
+    ].drop_duplicates()
+
     us_locs = metadata.UNITED_STATES_LOCATIONS
-    states_pumas = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)
-    if us_locs:  # Only include states in us_locs
-        states_pumas = states_pumas[states_pumas["state"].isin(us_locs)]
+    if us_locs:
+        # Subset to only states that exist in the sim
+        state_puma_options = state_puma_options[state_puma_options["state"].isin(us_locs)]
+
+    # With equal likelihood of moving from and to any given PUMA, this is the probability
+    # that source and destination state are the same
+    true_proportion_moving_within_state = (
+        (state_puma_options.groupby("state").size() / len(state_puma_options)) ** 2
+    ).sum()
 
     total_num_moved = 0
-    for before, after in simulants_on_adjacent_timesteps:
+    for time_step, (before, after) in enumerate(simulants_on_adjacent_timesteps):
         # get the unique unit (household or employer) dataset for before and after
         before_units = before.groupby(unit_id_col)[address_cols].first()
         after_units = after.groupby(unit_id_col)[address_cols].first()
@@ -312,28 +329,33 @@ def test_addresses_during_moves(
             continue
 
         total_num_moved += mask_moved_units.sum()
-        # Check that the number of moved units that have the same details is very low
-        # NOTE: we cannot assert that all moved units have different details
-        # because they are free to move within the same state or even PUMA
-        assert (
-            (
-                before_units.loc[mask_moved_units, address_cols]
-                == after_units.loc[mask_moved_units, address_cols]
-            )
-            .all(axis=1)
-            .mean()
-        ) < 0.001  # TODO: pick a smarter number?
+
         # address details do not change if address_id does not change
         pd.testing.assert_frame_equal(
             before_units[~mask_moved_units], after_units[~mask_moved_units]
         )
 
-        # Check that most movers are in a new state-PUMA combination
-        if mask_moved_units.sum() > 1:
-            assert (
+        # Check that most movers are in a new state
+        fuzzy_tester.fuzzy_assert_proportion(
+            f"Domestic migration: proportion {unit_id_col} moving into a new state",
+            (
+                before_units.loc[mask_moved_units, state_id_col]
+                != after_units.loc[mask_moved_units, state_id_col]
+            ),
+            true_value=(1 - true_proportion_moving_within_state),
+            name_addl=f"Time step {time_step}",
+        )
+
+        # Check that the vast majority of movers are in a different PUMA
+        fuzzy_tester.fuzzy_assert_proportion(
+            f"Domestic migration: proportion {unit_id_col} moving into a new PUMA",
+            (
                 before_units.loc[mask_moved_units, [state_id_col, puma_col]]
                 == after_units.loc[mask_moved_units, [state_id_col, puma_col]]
-            ).all(axis=1).mean() < 100 * 1 / len(states_pumas)
+            ).all(axis=1),
+            true_value=(1 / len(state_puma_options)),
+            name_addl=f"Time step {time_step}",
+        )
 
     # Check that at least some units moved during the sim
     assert total_num_moved > 0
