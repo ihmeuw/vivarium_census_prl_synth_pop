@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -81,9 +82,12 @@ def pipeline_columns(sim, populations) -> List[str]:
 
 
 class FuzzyTester:
-    def __init__(self, num_comparisons: int, overall_significance_level: float) -> None:
+    def __init__(
+        self, num_comparisons: int, overall_significance_level: float, power_level: float
+    ) -> None:
         self.num_comparisons = num_comparisons
         self.overall_significance_level = overall_significance_level
+        self.power_level = power_level
         self.comparisons_made = []
 
     def fuzzy_assert_proportion(
@@ -120,6 +124,65 @@ class FuzzyTester:
                 numerator, denominator, true_value_min, true_value_max
             )
 
+            rejection_area_low_max = self._binary_search_integers(
+                lambda x: self._two_tailed_binomial_test(
+                    x, denominator, true_value_min, true_value_max
+                ),
+                test_significance_level,
+                0,
+                np.floor(true_value_min * denominator),
+            )
+            rejection_area_high_min = (
+                self._binary_search_integers(
+                    # Negative of function and target so the function is monotonically *increasing*
+                    # instead of decreasing over the range specified.
+                    lambda x: -self._two_tailed_binomial_test(
+                        x, denominator, true_value_min, true_value_max
+                    ),
+                    -test_significance_level,
+                    np.ceil(true_value_max * denominator),
+                    denominator,
+                )
+                + 1
+            )
+            assert rejection_area_low_max <= rejection_area_high_min
+
+            if rejection_area_low_max <= 0:
+                if true_value_min != 0:
+                    warnings.warn(
+                        f"Not enough statistical power to ever find that the simulation's '{name}' value is lower than {true_value_min}."
+                    )
+                powered_value_lb = 0
+            else:
+                powered_value_lb = self._binary_search_floats(
+                    # Negative of function and target so the function is monotonically *increasing*
+                    # instead of decreasing over the range specified.
+                    lambda p: -(
+                        scipy.stats.binom.cdf(rejection_area_low_max + 1, denominator, p)
+                        + scipy.stats.binom.sf(rejection_area_high_min - 1, denominator, p)
+                    ),
+                    -self.power_level,
+                    0,
+                    true_value_min,
+                )
+
+            if rejection_area_high_min >= denominator:
+                if true_value_max != 1:
+                    warnings.warn(
+                        f"Not enough statistical power to ever find that the simulation's '{name}' value is higher than {true_value_max}."
+                    )
+                powered_value_ub = 1
+            else:
+                powered_value_ub = self._binary_search_floats(
+                    lambda p: (
+                        scipy.stats.binom.cdf(rejection_area_low_max + 1, denominator, p)
+                        + scipy.stats.binom.sf(rejection_area_high_min - 1, denominator, p)
+                    ),
+                    self.power_level,
+                    true_value_max,
+                    1,
+                )
+
         self.comparisons_made.append(
             {
                 "name": name,
@@ -132,6 +195,10 @@ class FuzzyTester:
                 "p_value": p_value,
                 "test_significance_level": test_significance_level,
                 "reject_null": p_value < test_significance_level,
+                "rejection_area_low_max": rejection_area_low_max,
+                "rejection_area_high_min": rejection_area_high_min,
+                "powered_value_lb": powered_value_lb,
+                "powered_value_ub": powered_value_ub,
             }
         )
 
@@ -252,6 +319,44 @@ class FuzzyTester:
         else:
             return lo - 1
 
+    def _binary_search_floats(self, a, d, lo: float, hi: float, tol: float = 0.00001):
+        # Copied from scipy.stats._binomtest._binary_search_for_binom_tst
+        # and then modified to work with floats
+        """
+        Conducts an implicit binary search on a function specified by `a`.
+
+        Parameters
+        ----------
+        a : callable
+        The function over which to perform binary search. Its values
+        for inputs lo and hi should be in ascending order.
+        d : float
+        The value to search.
+        lo : float
+        The lower end of range to search.
+        hi : float
+        The higher end of the range to search.
+
+        Returns
+        -------
+        float
+        A value, i between lo and hi
+        such that a(i) is within tol of d
+        """
+        iterations = 0
+        while lo < hi:
+            if iterations > 1_000:
+                raise ValueError("tol is too small!")
+            mid = lo + (hi - lo) / 2
+            midval = a(mid)
+            if np.abs(midval - d) < tol:
+                return mid
+            if midval < d:
+                lo = mid
+            else:
+                hi = mid
+            iterations += 1
+
 
 @pytest.fixture(scope="session")
 def fuzzy_tester() -> FuzzyTester:
@@ -266,6 +371,10 @@ def fuzzy_tester() -> FuzzyTester:
         # ranges asserted (false alarm).
         # The lower this number is, the less sensitive we will be to true issues.
         overall_significance_level=0.05,
+        # Power level for the power tests that are performed along with each hypothesis test.
+        # Note that these power tests, unlike the significance tests themselves, have no effect
+        # on whether the tests pass or fail.
+        power_level=0.80,
     )
 
     yield tester
