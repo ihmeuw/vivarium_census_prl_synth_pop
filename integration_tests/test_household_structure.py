@@ -3,6 +3,8 @@ import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
+from .conftest import FuzzyChecker
+
 # TODO: Broader test coverage
 
 
@@ -144,13 +146,45 @@ def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
         assert not after.index.duplicated().any()
 
 
-def test_state_complete_coverage(populations, sim):
-    """States should include all locations from artifact"""
-    states_in_artifact = set(
-        sim._data.artifact.load("population.households").index.unique(level="state")
+def test_state_population_proportions(populations, sim, fuzzy_checker: FuzzyChecker):
+    # We want the proportion of the *households* in each state in ACS PUMS.
+    # That's because it's only the location of *households* that are independent
+    # of each other.
+    # The GQ population is a whole other issue (we know we are way off in the
+    # state distribution) which is ignored here.
+    state_proportions = (
+        sim._data.artifact.load("population.households")
+        .reset_index()
+        .pipe(lambda df: df[df["household_type"] == "Housing unit"])
+        .groupby("state")
+        .household_weight.sum()
     )
-    for pop in populations:
-        assert states_in_artifact == set(pop["household_details.state_id"])
+    state_proportions = state_proportions / state_proportions.sum()
+
+    for time_steps, pop in enumerate(populations):
+        # No states in sim that were not in artifact
+        assert set(state_proportions.index) >= set(pop["household_details.state_id"])
+
+        household_states = (
+            pop[pop["household_details.housing_type"] == "Household"]
+            .groupby("household_id")["household_details.state_id"]
+            .first()
+        )
+
+        for state_id, proportion in state_proportions.items():
+            # NOTE: Prior to fuzzy checking, we checked that all states were at least present in the population table.
+            # The exact analog to this would be some complicated hypothesis about a coupon collector's partition with
+            # uneven probabilities of different "coupons" (since states are different sizes).
+            # To make things easier, we do a fuzzy check of the *proportion* of each state.
+            # One downside to this approach is that it generates a lot of hypotheses.
+            fuzzy_checker.fuzzy_assert_proportion(
+                f"State proportion for {state_id}",
+                household_states == state_id,
+                # Relative size of states can change over time in the sim due to differential immigration, emigration
+                target_value_lb=proportion * pow(0.95, time_steps),
+                target_value_ub=proportion * pow(1.05, time_steps),
+                name_addl=f"Time step {time_steps}",
+            )
 
 
 def test_pumas_states(populations):
