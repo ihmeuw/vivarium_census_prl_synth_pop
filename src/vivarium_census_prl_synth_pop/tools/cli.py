@@ -81,6 +81,11 @@ def make_artifacts(
     help="Skips updating the 'latest' symlink with this version of results.",
 )
 @click.option(
+    "--public-sample",
+    is_flag=True,
+    help="Generates results for the small-scale public sample data.",
+)
+@click.option(
     "-s",
     "--seed",
     type=str,
@@ -142,6 +147,7 @@ def make_results(
     with_debugger: bool,
     mark_best: bool,
     test_run: bool,
+    public_sample: bool,
     seed: str,
     artifact_path: str,
     jobmon: bool,
@@ -178,7 +184,16 @@ def make_results(
         func = build_results
         kwargs = {}
     main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, seed, artifact_path, **kwargs)
+    main(
+        raw_output_dir,
+        final_output_dir,
+        mark_best,
+        test_run,
+        public_sample,
+        seed,
+        artifact_path,
+        **kwargs,
+    )
 
 
 @click.command()
@@ -189,6 +204,10 @@ def make_results(
 @click.option(
     "-t",
     "--test-run",
+    is_flag=True,
+)
+@click.option(
+    "--public-sample",
     is_flag=True,
 )
 @click.option(
@@ -209,9 +228,18 @@ def jobmon_make_results_runner(
     verbose: int,
     mark_best: bool,
     test_run: bool,
+    public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(func=build_results, logger=logger, with_debugger=False)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, seed, artifact_path)
+    main(
+        raw_output_dir,
+        final_output_dir,
+        mark_best,
+        test_run,
+        public_sample,
+        seed,
+        artifact_path,
+    )

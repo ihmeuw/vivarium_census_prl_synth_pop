@@ -7,7 +7,7 @@ from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.constants import paths
+from vivarium_census_prl_synth_pop.constants import data_keys, paths
 from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -207,12 +207,15 @@ FINAL_OBSERVERS = {
     },
 }
 
+PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
+
 
 def build_results(
     raw_output_dir: Union[str, Path],
     final_output_dir: Union[str, Path],
     mark_best: bool,
     test_run: bool,
+    public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
 ):
@@ -226,7 +229,9 @@ def build_results(
     final_output_dir = Path(final_output_dir)
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
-    perform_post_processing(raw_output_dir, final_output_dir, seed, artifact_path)
+    perform_post_processing(
+        raw_output_dir, final_output_dir, seed, artifact_path, public_sample
+    )
 
     if test_run:
         logger.info("Test run - not marking results as latest.")
@@ -246,7 +251,11 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
 
 
 def perform_post_processing(
-    raw_output_dir: Path, final_output_dir: Path, seed: str, artifact_path: Path
+    raw_output_dir: Path,
+    final_output_dir: Path,
+    seed: str,
+    artifact_path: Path,
+    public_sample: bool,
 ) -> None:
     # Create RandomnessStream for post-processing
     randomness = RandomnessStream(
@@ -262,10 +271,39 @@ def perform_post_processing(
     all_seeds = get_all_simulation_seeds(raw_output_dir)
     maps = generate_maps(processed_results, artifact, randomness, seed, all_seeds)
 
+    if public_sample:
+        pumas_to_keep = (
+            artifact.load(data_keys.POPULATION.HOUSEHOLDS)
+            .reset_index()[["state", "puma"]]
+            # Note: The value in the ACS data is the FIPS code, not the abbreviation
+            .rename(columns={"state": "state_id"})
+            .drop_duplicates()
+            .sample(frac=PUBLIC_SAMPLE_PUMA_PROPORTION, random_state=0)
+        )
+
+        # For SSA data, we keep the simulants ever observed in that geographic area.
+        simulants_to_keep = []
+        for observer in FINAL_OBSERVERS:
+            obs_data = processed_results[observer]
+            if {"state_id", "puma"} <= set(obs_data.columns):
+                obs_data = obs_data.merge(pumas_to_keep, on=["state_id", "puma"], how="inner")
+                simulants_to_keep.append(obs_data["simulant_id"])
+
+        simulants_to_keep = pd.concat(simulants_to_keep, ignore_index=True).unique()
+
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing data for {observer}.")
         obs_data = processed_results[observer]
+
+        if public_sample:
+            if {"state_id", "puma"} <= set(obs_data.columns):
+                obs_data = obs_data.merge(pumas_to_keep, on=["state_id", "puma"], how="inner")
+            else:
+                obs_data = obs_data[obs_data["simulant_id"].isin(simulants_to_keep)].copy()
+                logger.warning(
+                    f"Cannot geographic subset {observer}; using simulants ever in geographic subset."
+                )
 
         for column in obs_data.columns:
             if column not in maps:
@@ -281,6 +319,18 @@ def perform_post_processing(
             obs_data = do_collide_ssns(obs_data, maps["simulant_id"]["ssn"], randomness)
 
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
+
+        if public_sample:
+            address_part_values = {
+                "city": "Anytown",
+                "state": "US",
+                "zipcode": 90210,
+            }
+            for address_prefix in ["", "mailing_address_"]:
+                for address_part, address_part_value in address_part_values.items():
+                    if f"{address_prefix}{address_part}" in obs_data.columns:
+                        obs_data[f"{address_prefix}{address_part}"] = address_part_value
+
         logger.info(f"Writing final results for {observer}.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
