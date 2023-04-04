@@ -326,7 +326,7 @@ def perform_post_processing(
                 "state": "US",
                 "zipcode": 90210,
             }
-            for address_prefix in ["", "mailing_address_"]:
+            for address_prefix in ["", "mailing_address_", "employer_"]:
                 for address_part, address_part_value in address_part_values.items():
                     if f"{address_prefix}{address_part}" in obs_data.columns:
                         obs_data[f"{address_prefix}{address_part}"] = address_part_value
