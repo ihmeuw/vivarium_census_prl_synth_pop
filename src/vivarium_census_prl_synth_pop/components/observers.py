@@ -246,7 +246,7 @@ class HouseholdSurveyObserver(BaseObserver):
             * builder.configuration.time.step_size
             / DAYS_PER_YEAR
             * builder.configuration.population.population_size
-            / builder.configuration.us_population_size
+            / data_values.US_POPULATION
         )
 
     ########################
