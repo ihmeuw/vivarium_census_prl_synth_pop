@@ -1,4 +1,3 @@
-import csv
 from itertools import chain
 from pathlib import Path
 from typing import Dict, List, Union
@@ -159,7 +158,7 @@ FINAL_OBSERVERS = {
         "employer_zipcode",
         "employer_state",
         "ssn",
-        "is_w2",
+        "tax_form",
         "tax_year",
     },
     "tax_1040_observer": {
@@ -264,6 +263,7 @@ def perform_post_processing(
     )
 
     processed_results = load_data(raw_output_dir, seed)
+
     # Generate all post-processing maps to apply to raw results
     artifact = Artifact(artifact_path)
     all_seeds = get_all_simulation_seeds(raw_output_dir)
@@ -332,10 +332,12 @@ def perform_post_processing(
         logger.info(f"Writing final results for {observer}.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
-        obs_data.to_csv(
-            obs_dir / f"{observer}{seed_ext}.csv.bz2",
-            index=False,
-            quoting=csv.QUOTE_NONNUMERIC,
+        obs_data.to_hdf(
+            obs_dir / f"{observer}{seed_ext}.hdf",
+            "data",
+            format="table",
+            complib="bzip2",
+            complevel=9,
         )
 
 

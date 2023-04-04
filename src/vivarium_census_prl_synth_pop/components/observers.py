@@ -171,7 +171,9 @@ class BaseObserver(ABC):
             self.responses.index.names = ["simulant_id"]
             filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
             if "hdf" == self.file_extension:
-                self.responses.to_hdf(filepath, "data", format="table")
+                self.responses.to_hdf(
+                    filepath, "data", format="table", complib="bzip2", complevel=9
+                )
             else:
                 self.responses.to_csv(filepath)
 
@@ -603,7 +605,7 @@ class TaxW2Observer(BaseObserver):
         "housing_type",
         "tax_year",
         "race_ethnicity",
-        "is_w2",
+        "tax_form",
     ]
 
     def __repr__(self):
@@ -752,9 +754,9 @@ class TaxW2Observer(BaseObserver):
 
         df_w2 = df_w2.set_index(["simulant_id"])
 
-        df_w2["is_w2"] = self.vivarium_randomness.choice(
+        df_w2["tax_form"] = self.vivarium_randomness.choice(
             index=df_w2.index,
-            choices=[True, False],
+            choices=["W2", "1099"],
             p=[
                 data_values.Taxes.PERCENT_W2_RECEIVED,
                 data_values.Taxes.PERCENT_1099_RECEIVED,

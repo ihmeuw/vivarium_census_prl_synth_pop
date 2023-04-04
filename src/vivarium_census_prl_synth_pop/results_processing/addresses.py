@@ -127,7 +127,7 @@ def get_zipcode_map(
         )
 
     simulation_addresses = obs_data.reset_index()[output_cols].set_index(column_name)
-    zip_map = pd.Series(index=simulation_addresses.index, dtype=int)
+    zip_map = pd.Series(-1, index=simulation_addresses.index, dtype=int)
 
     # Read in CSV and normalize
     groupby_cols = ["state", "puma"]
@@ -154,7 +154,8 @@ def get_zipcode_map(
             weights=locale_group["proportion"],
             additional_key=f"{additional_key}{column_name}_zip_map_{state_id}_{puma}_{seed}",
         ).to_numpy()
-
+    # Convert to 0-padded strings
+    zip_map = zip_map.astype(str).str.zfill(5)
     # Map against obs_data
     if column_name == "address_id":
         zip_map_dict["zipcode"] = zip_map
