@@ -207,6 +207,8 @@ FINAL_OBSERVERS = {
     },
 }
 
+PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
+
 
 def build_results(
     raw_output_dir: Union[str, Path],
@@ -276,7 +278,7 @@ def perform_post_processing(
             # Note: The value in the ACS data is the FIPS code, not the abbreviation
             .rename(columns={"state": "state_id"})
             .drop_duplicates()
-            .sample(frac=0.5, random_state=0)
+            .sample(frac=PUBLIC_SAMPLE_PUMA_PROPORTION, random_state=0)
         )
 
         # For SSA data, we keep the simulants ever observed in that geographic area.
@@ -321,7 +323,7 @@ def perform_post_processing(
         if public_sample:
             address_part_values = {
                 "city": "Anytown",
-                "state": "USA",
+                "state": "US",
                 "zipcode": 90210,
             }
             for address_prefix in ["", "mailing_address_"]:
