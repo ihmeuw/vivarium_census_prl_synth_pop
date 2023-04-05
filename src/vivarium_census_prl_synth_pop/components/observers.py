@@ -183,7 +183,13 @@ class BaseObserver(ABC):
 
     def add_address(self, df: pd.DataFrame) -> pd.DataFrame:
         """Adds address columns to dataframe"""
-        cols_to_add = [COLUMNS.ADDRESS_ID, COLUMNS.HOUSING_TYPE, COLUMNS.STATE_ID, COLUMNS.PUMA, COLUMNS.PO_BOX]
+        cols_to_add = [
+            COLUMNS.ADDRESS_ID,
+            COLUMNS.HOUSING_TYPE,
+            COLUMNS.STATE_ID,
+            COLUMNS.PUMA,
+            COLUMNS.PO_BOX,
+        ]
         df[cols_to_add] = self.pipelines["household_details"](df.index)[cols_to_add]
         return df
 
@@ -408,11 +414,15 @@ class WICObserver(BaseObserver):
 
         # filter population to mothers and children under 5
         pop_u1 = pop[(pop[COLUMNS.AGE] < 1) & pop["wic_eligible"]]
-        pop_1_to_5 = pop[(pop[COLUMNS.AGE] >= 1) & (pop[COLUMNS.AGE] < 5) & pop["wic_eligible"]]
+        pop_1_to_5 = pop[
+            (pop[COLUMNS.AGE] >= 1) & (pop[COLUMNS.AGE] < 5) & pop["wic_eligible"]
+        ]
 
         guardian_ids = np.union1d(pop_u1[COLUMNS.GUARDIAN_1], pop_u1[COLUMNS.GUARDIAN_2])
         pop_mothers = pop[
-            (pop[COLUMNS.SEX] == "Female") & pop.index.isin(guardian_ids) & pop["wic_eligible"]
+            (pop[COLUMNS.SEX] == "Female")
+            & pop.index.isin(guardian_ids)
+            & pop["wic_eligible"]
         ]
 
         # determine who is covered using age/race-specific coverage probabilities
@@ -477,7 +487,13 @@ class WICObserver(BaseObserver):
 class SocialSecurityObserver(BaseObserver):
     """Class for observing columns relevant to Social Security registry."""
 
-    ADDITIONAL_INPUT_COLUMNS = [COLUMNS.TRACKED, COLUMNS.ALIVE, COLUMNS.ENTRANCE_TIME, COLUMNS.EXIT_TIME, COLUMNS.HAS_SSN]
+    ADDITIONAL_INPUT_COLUMNS = [
+        COLUMNS.TRACKED,
+        COLUMNS.ALIVE,
+        COLUMNS.ENTRANCE_TIME,
+        COLUMNS.EXIT_TIME,
+        COLUMNS.HAS_SSN,
+    ]
     OUTPUT_COLUMNS = [
         COLUMNS.FIRST_NAME_ID,
         COLUMNS.MIDDLE_NAME_ID,
@@ -541,7 +557,9 @@ class SocialSecurityObserver(BaseObserver):
         df_death[COLUMNS.EVENT_TYPE] = "death"
         df_death[COLUMNS.EVENT_DATE] = pop[COLUMNS.EXIT_TIME]
 
-        return pd.concat([df_creation, df_death]).sort_values([COLUMNS.EVENT_DATE, COLUMNS.DOB])
+        return pd.concat([df_creation, df_death]).sort_values(
+            [COLUMNS.EVENT_DATE, COLUMNS.DOB]
+        )
 
 
 class TaxObserver:
@@ -663,7 +681,8 @@ class TaxW2Observer(BaseObserver):
         income_this_time_step = pd.Series(
             pop[COLUMNS.INCOME].values * self.time_step / DAYS_PER_YEAR,
             index=pd.MultiIndex.from_arrays(
-                [pop.index, pop[COLUMNS.EMPLOYER_ID]], names=[COLUMNS.SIMULANT_ID, COLUMNS.EMPLOYER_ID]
+                [pop.index, pop[COLUMNS.EMPLOYER_ID]],
+                names=[COLUMNS.SIMULANT_ID, COLUMNS.EMPLOYER_ID],
             ),
         )
 
@@ -731,7 +750,9 @@ class TaxW2Observer(BaseObserver):
         # member with an ssn, if one exists
         simulants_wo_ssn = df_w2.loc[~df_w2[COLUMNS.HAS_SSN], COLUMNS.ADDRESS_ID]
         household_members_w_ssn = (
-            pop[pop[COLUMNS.HAS_SSN]].groupby(COLUMNS.ADDRESS_ID).apply(lambda df_g: list(df_g.index))
+            pop[pop[COLUMNS.HAS_SSN]]
+            .groupby(COLUMNS.ADDRESS_ID)
+            .apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
         ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
@@ -781,7 +802,12 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = [COLUMNS.ALIVE, COLUMNS.IN_UNITED_STATES, COLUMNS.TRACKED, COLUMNS.HAS_SSN]
+    ADDITIONAL_INPUT_COLUMNS = [
+        COLUMNS.ALIVE,
+        COLUMNS.IN_UNITED_STATES,
+        COLUMNS.TRACKED,
+        COLUMNS.HAS_SSN,
+    ]
     OUTPUT_COLUMNS = [
         COLUMNS.GUARDIAN_ID,
         COLUMNS.DEPENDENT_ID,
@@ -865,7 +891,9 @@ class TaxDependentsObserver(BaseObserver):
         # TaxDependentObserver.get_observation is called after
         # TaxW2Observer.get_observation, which is achieved by listing
         # them in this order in the TaxObserver
-        last_year_income = self.w2_observer.income_last_year.groupby(COLUMNS.SIMULANT_ID).sum()
+        last_year_income = self.w2_observer.income_last_year.groupby(
+            COLUMNS.SIMULANT_ID
+        ).sum()
         df_eligible_dependents["last_year_income"] = last_year_income
         df_eligible_dependents["last_year_income"] = df_eligible_dependents[
             "last_year_income"
