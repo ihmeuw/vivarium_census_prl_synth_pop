@@ -12,6 +12,7 @@ from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
+from vivarium_census_prl_synth_pop.schema_entities import COLUMNS
 
 
 class BaseObserver(ABC):
@@ -22,33 +23,32 @@ class BaseObserver(ABC):
     """
 
     DEFAULT_INPUT_COLUMNS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "age",
-        "date_of_birth",
-        "sex",
-        "race_ethnicity",
-        "guardian_1",
-        "guardian_2",
+        COLUMNS.FIRST_NAME_ID,
+        COLUMNS.MIDDLE_NAME_ID,
+        COLUMNS.LAST_NAME_ID,
+        COLUMNS.AGE,
+        COLUMNS.DOB,
+        COLUMNS.SEX,
+        COLUMNS.RACE_ETHNICITY,
+        COLUMNS.GUARDIAN_1,
+        COLUMNS.GUARDIAN_2,
     ]
     DEFAULT_OUTPUT_COLUMNS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "age",
-        "sex",
-        "race_ethnicity",
-        "date_of_birth",
-        "address_id",
-        "state_id",
-        "po_box",
-        "puma",
-        "guardian_1",
-        "guardian_2",
-        "guardian_1_address_id",
-        "guardian_2_address_id",
-        # todo: add necessary guardian address columns
+        COLUMNS.FIRST_NAME_ID,
+        COLUMNS.MIDDLE_NAME_ID,
+        COLUMNS.LAST_NAME_ID,
+        COLUMNS.AGE,
+        COLUMNS.SEX,
+        COLUMNS.RACE_ETHNICITY,
+        COLUMNS.DOB,
+        COLUMNS.ADDRESS_ID,
+        COLUMNS.STATE_ID,
+        COLUMNS.PO_BOX,
+        COLUMNS.PUMA,
+        COLUMNS.GUARDIAN_1,
+        COLUMNS.GUARDIAN_2,
+        COLUMNS.GUARDIAN_1_ADDRESS_ID,
+        COLUMNS.GUARDIAN_2_ADDRESS_ID,
     ]
 
     configuration_defaults = {"observer": {"file_extension": "csv.bz2"}}
@@ -168,7 +168,7 @@ class BaseObserver(ABC):
         if self.responses is None:
             logger.info(f"No results to write ({self.name})")
         else:
-            self.responses.index.names = ["simulant_id"]
+            self.responses.index.names = [COLUMNS.SIMULANT_ID]
             filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
             if "hdf" == self.file_extension:
                 self.responses.to_hdf(
@@ -183,7 +183,7 @@ class BaseObserver(ABC):
 
     def add_address(self, df: pd.DataFrame) -> pd.DataFrame:
         """Adds address columns to dataframe"""
-        cols_to_add = ["address_id", "housing_type", "state_id", "puma", "po_box"]
+        cols_to_add = [COLUMNS.ADDRESS_ID, COLUMNS.HOUSING_TYPE, COLUMNS.STATE_ID, COLUMNS.PUMA, COLUMNS.PO_BOX]
         df[cols_to_add] = self.pipelines["household_details"](df.index)[cols_to_add]
         return df
 
@@ -191,13 +191,13 @@ class BaseObserver(ABC):
 class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
-        "alive",
-        "household_id",
+        COLUMNS.ALIVE,
+        COLUMNS.HOUSEHOLD_ID,
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
-        "survey_date",
-        "household_id",
-        "housing_type",
+        COLUMNS.SURVEY_DATE,
+        COLUMNS.HOUSEHOLD_ID,
+        COLUMNS.HOUSING_TYPE,
     ]
     SAMPLING_RATE_PER_MONTH = {
         "acs": 12000,
@@ -255,18 +255,18 @@ class HouseholdSurveyObserver(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         """Records the survey responses on this time step."""
-        new_responses = self.population_view.get(event.index, query='alive == "alive"')
+        new_responses = self.population_view.get(event.index, query="alive == 'alive'")
         respondent_households = utilities.vectorized_choice(
-            options=list(new_responses["household_id"].unique()),
+            options=list(new_responses[COLUMNS.HOUSEHOLD_ID].unique()),
             n_to_choose=self.samples_per_timestep,
             randomness_stream=self.randomness,
             additional_key="sampling_households",
         )
         new_responses = new_responses[
-            new_responses["household_id"].isin(respondent_households)
+            new_responses[COLUMNS.HOUSEHOLD_ID].isin(respondent_households)
         ]
         # Must be a timestamp, not an actual `date` type, in order to save to HDF in table mode
-        new_responses["survey_date"] = pd.Timestamp(event.time.date())
+        new_responses[COLUMNS.SURVEY_DATE] = pd.Timestamp(event.time.date())
         new_responses = self.add_address(new_responses)
         new_responses = utilities.add_guardian_address_ids(new_responses)
         # Apply column schema and concatenate
@@ -281,11 +281,11 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
+    ADDITIONAL_INPUT_COLUMNS = [COLUMNS.RELATION_TO_HOUSEHOLD_HEAD]
     ADDITIONAL_OUTPUT_COLUMNS = [
-        "relation_to_household_head",
-        "year",
-        "housing_type",
+        COLUMNS.RELATION_TO_HOUSEHOLD_HEAD,
+        COLUMNS.YEAR,
+        COLUMNS.HOUSING_TYPE,
     ]
 
     def __repr__(self):
@@ -325,7 +325,7 @@ class DecennialCensusObserver(BaseObserver):
         )
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
-        pop["year"] = event.time.year
+        pop[COLUMNS.YEAR] = event.time.year
 
         return pop[self.output_columns]
 
@@ -333,16 +333,16 @@ class DecennialCensusObserver(BaseObserver):
 class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
-    INPUT_VALUES = ["income", "household_details"]
+    INPUT_VALUES = [COLUMNS.INCOME, "household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
-        "household_id",
-        "relation_to_household_head",
+        COLUMNS.HOUSEHOLD_ID,
+        COLUMNS.RELATION_TO_HOUSEHOLD_HEAD,
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
-        "year",
-        "household_id",
-        "housing_type",
-        "relation_to_household_head",
+        COLUMNS.YEAR,
+        COLUMNS.HOUSEHOLD_ID,
+        COLUMNS.HOUSING_TYPE,
+        COLUMNS.RELATION_TO_HOUSEHOLD_HEAD,
     ]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
@@ -383,22 +383,22 @@ class WICObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # WIC should include only living simulants
         )
-        pop["income"] = self.pipelines["income"](pop.index)
+        pop[COLUMNS.INCOME] = self.pipelines[COLUMNS.INCOME](pop.index)
 
         # add columns for output
-        pop["year"] = event.time.year
+        pop[COLUMNS.YEAR] = event.time.year
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
 
         # add additional columns for simulating coverage
-        pop["nominal_age"] = np.floor(pop["age"])
+        pop["nominal_age"] = np.floor(pop[COLUMNS.AGE])
 
         # calculate household size and income for measuring WIC eligibility
-        hh_size = pop["address_id"].value_counts()
-        pop["hh_size"] = pop["address_id"].map(hh_size)
+        hh_size = pop[COLUMNS.ADDRESS_ID].value_counts()
+        pop["hh_size"] = pop[COLUMNS.ADDRESS_ID].map(hh_size)
 
-        hh_income = pop.groupby("address_id")["income"].sum()
-        pop["hh_income"] = pop["address_id"].map(hh_income)
+        hh_income = pop.groupby(COLUMNS.ADDRESS_ID)[COLUMNS.INCOME].sum()
+        pop["hh_income"] = pop[COLUMNS.ADDRESS_ID].map(hh_income)
 
         # income eligibility for WIC is total household income less
         # than $16,410 + ($8,732 * number of people in the household)
@@ -407,12 +407,12 @@ class WICObserver(BaseObserver):
         )
 
         # filter population to mothers and children under 5
-        pop_u1 = pop[(pop["age"] < 1) & pop["wic_eligible"]]
-        pop_1_to_5 = pop[(pop["age"] >= 1) & (pop["age"] < 5) & pop["wic_eligible"]]
+        pop_u1 = pop[(pop[COLUMNS.AGE] < 1) & pop["wic_eligible"]]
+        pop_1_to_5 = pop[(pop[COLUMNS.AGE] >= 1) & (pop[COLUMNS.AGE] < 5) & pop["wic_eligible"]]
 
-        guardian_ids = np.union1d(pop_u1["guardian_1"], pop_u1["guardian_2"])
+        guardian_ids = np.union1d(pop_u1[COLUMNS.GUARDIAN_1], pop_u1[COLUMNS.GUARDIAN_2])
         pop_mothers = pop[
-            (pop["sex"] == "Female") & pop.index.isin(guardian_ids) & pop["wic_eligible"]
+            (pop[COLUMNS.SEX] == "Female") & pop.index.isin(guardian_ids) & pop["wic_eligible"]
         ]
 
         # determine who is covered using age/race-specific coverage probabilities
@@ -439,7 +439,7 @@ class WICObserver(BaseObserver):
         # selection of additional simulants to reach the covered
         # probabilities
 
-        simplified_race_ethnicity = pop_u1["race_ethnicity"].astype(
+        simplified_race_ethnicity = pop_u1[COLUMNS.RACE_ETHNICITY].astype(
             pd.CategoricalDtype(categories=self.WIC_RACE_ETHNICITIES)
         )
         simplified_race_ethnicity[simplified_race_ethnicity.isnull()] = "Other"
@@ -477,24 +477,24 @@ class WICObserver(BaseObserver):
 class SocialSecurityObserver(BaseObserver):
     """Class for observing columns relevant to Social Security registry."""
 
-    ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "has_ssn"]
+    ADDITIONAL_INPUT_COLUMNS = [COLUMNS.TRACKED, COLUMNS.ALIVE, COLUMNS.ENTRANCE_TIME, COLUMNS.EXIT_TIME, COLUMNS.HAS_SSN]
     OUTPUT_COLUMNS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "date_of_birth",
-        "event_type",
-        "event_date",
-        "sex",
-        "race_ethnicity",
+        COLUMNS.FIRST_NAME_ID,
+        COLUMNS.MIDDLE_NAME_ID,
+        COLUMNS.LAST_NAME_ID,
+        COLUMNS.DOB,
+        COLUMNS.EVENT_TYPE,
+        COLUMNS.EVENT_DATE,
+        COLUMNS.SEX,
+        COLUMNS.RACE_ETHNICITY,
     ]
     POST_PROCESSING_FIRST_NAME_METADATA_COLS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "date_of_birth",
-        "sex",
-        "race_ethnicity",
+        COLUMNS.FIRST_NAME_ID,
+        COLUMNS.MIDDLE_NAME_ID,
+        COLUMNS.LAST_NAME_ID,
+        COLUMNS.DOB,
+        COLUMNS.SEX,
+        COLUMNS.RACE_ETHNICITY,
     ]
 
     def __repr__(self):
@@ -528,20 +528,20 @@ class SocialSecurityObserver(BaseObserver):
             query="has_ssn == True",  # only include simulants with a SSN
         )
         df_creation = pop.filter(self.POST_PROCESSING_FIRST_NAME_METADATA_COLS)
-        df_creation["event_type"] = "creation"
-        df_creation["event_date"] = np.where(
-            pop["entrance_time"] <= self.start_time,
-            pop["date_of_birth"],
-            pop["entrance_time"],
+        df_creation[COLUMNS.EVENT_TYPE] = "creation"
+        df_creation[COLUMNS.EVENT_DATE] = np.where(
+            pop[COLUMNS.ENTRANCE_TIME] <= self.start_time,
+            pop[COLUMNS.DOB],
+            pop[COLUMNS.ENTRANCE_TIME],
         )
 
-        df_death = pop[pop["alive"] == "dead"].filter(
+        df_death = pop[pop[COLUMNS.ALIVE] == "dead"].filter(
             self.POST_PROCESSING_FIRST_NAME_METADATA_COLS
         )
-        df_death["event_type"] = "death"
-        df_death["event_date"] = pop["exit_time"]
+        df_death[COLUMNS.EVENT_TYPE] = "death"
+        df_death[COLUMNS.EVENT_DATE] = pop[COLUMNS.EXIT_TIME]
 
-        return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
+        return pd.concat([df_creation, df_death]).sort_values([COLUMNS.EVENT_DATE, COLUMNS.DOB])
 
 
 class TaxObserver:
@@ -575,37 +575,37 @@ class TaxW2Observer(BaseObserver):
     which the Tax1040Observer and TaxDependentObserver classes use
     """
 
-    INPUT_VALUES = ["income", "household_details", "business_details"]
+    INPUT_VALUES = [COLUMNS.INCOME, "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
-        "alive",
-        "in_united_states",
-        "tracked",
-        "has_ssn",
-        "employer_id",
+        COLUMNS.ALIVE,
+        COLUMNS.IN_UNITED_STATES,
+        COLUMNS.TRACKED,
+        COLUMNS.HAS_SSN,
+        COLUMNS.EMPLOYER_ID,
     ]
     OUTPUT_COLUMNS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "age",
-        "date_of_birth",
-        "sex",
-        "has_ssn",
-        "ssn_id",  # simulant id for ssn from another simulant
-        "address_id",
-        "state_id",
-        "puma",
-        "po_box",
-        "employer_id",
-        "employer_name",
-        "employer_address_id",
-        "employer_state_id",
-        "employer_puma",
-        "income",
-        "housing_type",
-        "tax_year",
-        "race_ethnicity",
-        "tax_form",
+        COLUMNS.FIRST_NAME_ID,
+        COLUMNS.MIDDLE_NAME_ID,
+        COLUMNS.LAST_NAME_ID,
+        COLUMNS.AGE,
+        COLUMNS.DOB,
+        COLUMNS.SEX,
+        COLUMNS.HAS_SSN,
+        COLUMNS.SSN_ID,  # simulant id for ssn from another simulant
+        COLUMNS.ADDRESS_ID,
+        COLUMNS.STATE_ID,
+        COLUMNS.PUMA,
+        COLUMNS.PO_BOX,
+        COLUMNS.EMPLOYER_ID,
+        COLUMNS.EMPLOYER_NAME,
+        COLUMNS.EMPLOYER_ADDRESS_ID,
+        COLUMNS.EMPLOYER_STATE_ID,
+        COLUMNS.EMPLOYER_PUMA,
+        COLUMNS.INCOME,
+        COLUMNS.HOUSING_TYPE,
+        COLUMNS.TAX_YEAR,
+        COLUMNS.RACE_ETHNICITY,
+        COLUMNS.TAX_FORM,
     ]
 
     def __repr__(self):
@@ -657,13 +657,13 @@ class TaxW2Observer(BaseObserver):
             event.index,
             query="alive == 'alive' and in_united_states and tracked",
         )
-        pop["income"] = self.pipelines["income"](pop.index)
+        pop[COLUMNS.INCOME] = self.pipelines[COLUMNS.INCOME](pop.index)
 
         # increment income for all person/employment pairs with income > 0
         income_this_time_step = pd.Series(
-            pop["income"].values * self.time_step / DAYS_PER_YEAR,
+            pop[COLUMNS.INCOME].values * self.time_step / DAYS_PER_YEAR,
             index=pd.MultiIndex.from_arrays(
-                [pop.index, pop["employer_id"]], names=["simulant_id", "employer_id"]
+                [pop.index, pop[COLUMNS.EMPLOYER_ID]], names=[COLUMNS.SIMULANT_ID, COLUMNS.EMPLOYER_ID]
             ),
         )
 
@@ -681,7 +681,7 @@ class TaxW2Observer(BaseObserver):
         if self.to_observe(event):
             self.income_last_year = self.income_this_year
             self.income_last_year.name = (
-                "income"  # HACK: it would be nice if this name stayed
+                COLUMNS.INCOME  # HACK: it would be nice if this name stayed
             )
             self.income_this_year = empty_income_series()
 
@@ -700,61 +700,61 @@ class TaxW2Observer(BaseObserver):
         # with the pd.Series, but it is getting lost at some point in the computation
 
         df_w2 = self.income_last_year.reset_index()
-        df_w2["tax_year"] = event.time.year - 1
+        df_w2[COLUMNS.TAX_YEAR] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
         for col in [
-            "first_name_id",
-            "middle_name_id",
-            "last_name_id",
-            "age",
-            "date_of_birth",
-            "sex",
-            "has_ssn",
-            "address_id",
-            "state_id",
-            "puma",
-            "housing_type",
-            "race_ethnicity",
-            "po_box",
+            COLUMNS.FIRST_NAME_ID,
+            COLUMNS.MIDDLE_NAME_ID,
+            COLUMNS.LAST_NAME_ID,
+            COLUMNS.AGE,
+            COLUMNS.DOB,
+            COLUMNS.SEX,
+            COLUMNS.HAS_SSN,
+            COLUMNS.ADDRESS_ID,
+            COLUMNS.STATE_ID,
+            COLUMNS.PUMA,
+            COLUMNS.HOUSING_TYPE,
+            COLUMNS.RACE_ETHNICITY,
+            COLUMNS.PO_BOX,
         ]:
-            df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
+            df_w2[col] = df_w2[COLUMNS.SIMULANT_ID].map(pop_full[col])
 
         # Tracked, US population to be dependents or get their SSNs borrowed
         pop = pop_full[
-            (pop_full["alive"] == "alive")
-            & pop_full["tracked"]
-            & pop_full["in_united_states"]
+            (pop_full[COLUMNS.ALIVE] == COLUMNS.ALIVE)
+            & pop_full[COLUMNS.TRACKED]
+            & pop_full[COLUMNS.IN_UNITED_STATES]
         ]
 
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
-        simulants_wo_ssn = df_w2.loc[~df_w2["has_ssn"], "address_id"]
+        simulants_wo_ssn = df_w2.loc[~df_w2[COLUMNS.HAS_SSN], COLUMNS.ADDRESS_ID]
         household_members_w_ssn = (
-            pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
+            pop[pop[COLUMNS.HAS_SSN]].groupby(COLUMNS.ADDRESS_ID).apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
         ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
-        df_w2["ssn_id"] = ssn_for_simulants_wo
-        df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
+        df_w2[COLUMNS.SSN_ID] = ssn_for_simulants_wo
+        df_w2[COLUMNS.SSN_ID] = df_w2[COLUMNS.SSN_ID].fillna(-1).astype(int)
 
         # merge in *current* employer details based on employer_id
         business_details = (
-            self.pipelines["business_details"](df_w2["employer_id"])
-            .groupby("employer_id")
+            self.pipelines["business_details"](df_w2[COLUMNS.EMPLOYER_ID])
+            .groupby(COLUMNS.EMPLOYER_ID)
             .first()
         )
         for col in [
-            "employer_address_id",
-            "employer_state_id",
-            "employer_puma",
-            "employer_name",
+            COLUMNS.EMPLOYER_ADDRESS_ID,
+            COLUMNS.EMPLOYER_STATE_ID,
+            COLUMNS.EMPLOYER_PUMA,
+            COLUMNS.EMPLOYER_NAME,
         ]:
-            df_w2[col] = df_w2["employer_id"].map(business_details[col])
+            df_w2[col] = df_w2[COLUMNS.EMPLOYER_ID].map(business_details[col])
 
-        df_w2 = df_w2.set_index(["simulant_id"])
+        df_w2 = df_w2.set_index([COLUMNS.SIMULANT_ID])
 
-        df_w2["tax_form"] = self.vivarium_randomness.choice(
+        df_w2[COLUMNS.TAX_FORM] = self.vivarium_randomness.choice(
             index=df_w2.index,
             choices=["W2", "1099"],
             p=[
@@ -781,24 +781,24 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "has_ssn"]
+    ADDITIONAL_INPUT_COLUMNS = [COLUMNS.ALIVE, COLUMNS.IN_UNITED_STATES, COLUMNS.TRACKED, COLUMNS.HAS_SSN]
     OUTPUT_COLUMNS = [
-        "guardian_id",
-        "dependent_id",
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "age",
-        "date_of_birth",
-        "address_id",
-        "po_box",
-        "state_id",
-        "puma",
-        "housing_type",
-        "sex",
-        "has_ssn",
-        "tax_year",
-        "race_ethnicity",
+        COLUMNS.GUARDIAN_ID,
+        COLUMNS.DEPENDENT_ID,
+        COLUMNS.FIRST_NAME_ID,
+        COLUMNS.MIDDLE_NAME_ID,
+        COLUMNS.LAST_NAME_ID,
+        COLUMNS.AGE,
+        COLUMNS.DOB,
+        COLUMNS.ADDRESS_ID,
+        COLUMNS.PO_BOX,
+        COLUMNS.STATE_ID,
+        COLUMNS.PUMA,
+        COLUMNS.HOUSING_TYPE,
+        COLUMNS.SEX,
+        COLUMNS.HAS_SSN,
+        COLUMNS.TAX_YEAR,
+        COLUMNS.RACE_ETHNICITY,
     ]
 
     def __init__(self, w2_observer):
@@ -840,11 +840,11 @@ class TaxDependentsObserver(BaseObserver):
         # Tracked, US population to be dependents
         pop = pop_full[
             (
-                pop_full["alive"] == "alive"
+                pop_full[COLUMNS.ALIVE] == COLUMNS.ALIVE
             )  # really should include people who died in last year
-            & pop_full["tracked"]  # ??? should we include untracked, too?
+            & pop_full[COLUMNS.TRACKED]  # ??? should we include untracked, too?
             & pop_full[
-                "in_united_states"
+                COLUMNS.IN_UNITED_STATES
             ]  # and if they were in usa in last year, maybe they still count
         ]
 
@@ -853,8 +853,8 @@ class TaxDependentsObserver(BaseObserver):
         # create lists of dependent ids and dependent address ids
         df_eligible_dependents = pd.concat(
             [
-                pop[pop["guardian_1"] != -1].eval("guardian_id=guardian_1"),
-                pop[pop["guardian_2"] != -1].eval("guardian_id=guardian_2"),
+                pop[pop[COLUMNS.GUARDIAN_1] != -1].eval("guardian_id=guardian_1"),
+                pop[pop[COLUMNS.GUARDIAN_2] != -1].eval("guardian_id=guardian_2"),
             ]
         )
 
@@ -865,7 +865,7 @@ class TaxDependentsObserver(BaseObserver):
         # TaxDependentObserver.get_observation is called after
         # TaxW2Observer.get_observation, which is achieved by listing
         # them in this order in the TaxObserver
-        last_year_income = self.w2_observer.income_last_year.groupby("simulant_id").sum()
+        last_year_income = self.w2_observer.income_last_year.groupby(COLUMNS.SIMULANT_ID).sum()
         df_eligible_dependents["last_year_income"] = last_year_income
         df_eligible_dependents["last_year_income"] = df_eligible_dependents[
             "last_year_income"
@@ -874,11 +874,11 @@ class TaxDependentsObserver(BaseObserver):
         df_eligible_dependents = df_eligible_dependents[
             # Dependents must qualify as one of the following:
             # Be under the age of 19 (less than or equal to 18)
-            (df_eligible_dependents["age"] < 19)
+            (df_eligible_dependents[COLUMNS.AGE] < 19)
             # OR be less than 24, in GQ in college, and earn less than $10,000
             | (
-                (df_eligible_dependents["age"] < 24)
-                & (df_eligible_dependents["housing_type"] == "College")
+                (df_eligible_dependents[COLUMNS.AGE] < 24)
+                & (df_eligible_dependents[COLUMNS.HOUSING_TYPE] == "College")
                 & (df_eligible_dependents["last_year_income"] < 10_000)
             )
             # OR be any age, but earn less than $4300
@@ -886,8 +886,8 @@ class TaxDependentsObserver(BaseObserver):
         ]
 
         df = df_eligible_dependents
-        df["dependent_id"] = df.index
-        df["tax_year"] = event.time.year - 1
+        df[COLUMNS.DEPENDENT_ID] = df.index
+        df[COLUMNS.TAX_YEAR] = event.time.year - 1
 
         return df[self.OUTPUT_COLUMNS]
 
@@ -899,33 +899,33 @@ class Tax1040Observer(BaseObserver):
 
     """
 
-    INPUT_VALUES = ["income", "household_details", "business_details"]
+    INPUT_VALUES = [COLUMNS.INCOME, "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
-        "alive",
-        "in_united_states",
-        "tracked",
-        "has_ssn",
-        "relation_to_household_head",
+        COLUMNS.ALIVE,
+        COLUMNS.IN_UNITED_STATES,
+        COLUMNS.TRACKED,
+        COLUMNS.HAS_SSN,
+        COLUMNS.RELATION_TO_HOUSEHOLD_HEAD,
     ]
     OUTPUT_COLUMNS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "age",
-        "date_of_birth",
-        "sex",
-        "has_ssn",
-        "address_id",  # we do not need to include household_id because we can find it from address_id
-        "po_box",
-        "state_id",
-        "puma",
-        "race_ethnicity",
-        "relation_to_household_head",  # needed to identify couples filing jointly
-        "housing_type",
-        "tax_year",
-        "alive",
-        "in_united_states",
-        "joint_filer",
+        COLUMNS.FIRST_NAME_ID,
+        COLUMNS.MIDDLE_NAME_ID,
+        COLUMNS.LAST_NAME_ID,
+        COLUMNS.AGE,
+        COLUMNS.DOB,
+        COLUMNS.SEX,
+        COLUMNS.HAS_SSN,
+        COLUMNS.ADDRESS_ID,  # we do not need to include household_id because we can find it from address_id
+        COLUMNS.PO_BOX,
+        COLUMNS.STATE_ID,
+        COLUMNS.PUMA,
+        COLUMNS.RACE_ETHNICITY,
+        COLUMNS.RELATION_TO_HOUSEHOLD_HEAD,  # needed to identify couples filing jointly
+        COLUMNS.HOUSING_TYPE,
+        COLUMNS.TAX_YEAR,
+        COLUMNS.ALIVE,
+        COLUMNS.IN_UNITED_STATES,
+        COLUMNS.JOINT_FILER,
     ]
 
     def __init__(self, w2_observer):
@@ -966,7 +966,7 @@ class Tax1040Observer(BaseObserver):
         pop = self.add_address(pop)
 
         # add derived columns
-        pop["tax_year"] = event.time.year - 1
+        pop[COLUMNS.TAX_YEAR] = event.time.year - 1
         # todo: Add joint filing random choice
         partners = [
             "Opp-sex spouse",
@@ -975,10 +975,10 @@ class Tax1040Observer(BaseObserver):
             "Same-sex partner",
         ]
         partners_of_household_head_idx = pop.index[
-            pop["relation_to_household_head"].isin(partners)
+            pop[COLUMNS.RELATION_TO_HOUSEHOLD_HEAD].isin(partners)
         ]
-        pop["joint_filer"] = False
-        pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
+        pop[COLUMNS.JOINT_FILER] = False
+        pop.loc[partners_of_household_head_idx, COLUMNS.JOINT_FILER] = self.randomness.choice(
             index=partners_of_household_head_idx,
             choices=[True, False],
             p=[
@@ -996,8 +996,8 @@ def empty_income_series():
         index=pd.MultiIndex.from_arrays(
             [[], []],
             names=[
-                "simulant_id",
-                "employer_id",
+                COLUMNS.SIMULANT_ID,
+                COLUMNS.EMPLOYER_ID,
             ],
         ),
         dtype="float64",
