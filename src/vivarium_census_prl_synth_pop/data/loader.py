@@ -209,14 +209,14 @@ def _capitalize_names(name):
 
 def load_last_name_data(key: str, location: str) -> pd.DataFrame:
     df_census_names = pd.read_csv(paths.LAST_NAME_DATA_PATH, na_values=["(S)"])
-
+    df_census_names = df_census_names[df_census_names["name"].notna()]
     df_census_names["name"] = df_census_names["name"].apply(_capitalize_names)
 
     ## fill missing values with equal amounts of what is left ##
     # per row, count N pct cols that are null
     n_missing = df_census_names.filter(like="pct").isnull().sum(axis=1)
 
-    # per now, sum total pcts that are non-null
+    # per row, sum total pcts that are non-null
     pct_total = df_census_names.filter(like="pct").sum(axis=1)
 
     # calculate how much each pct to give to each null col
@@ -312,7 +312,7 @@ def load_address_data(key: str, location: str) -> pd.DataFrame:
 def load_business_names(key: str, _: str) -> pd.Series:
     if key != data_keys.SYNTHETIC_DATA.BUSINESS_NAMES:
         raise ValueError(f"Unrecognized key {key}")
-    return pd.read_csv(paths.GENERATED_BUSINESS_NAMES_DATA_PATH).squeeze()
+    return pd.read_csv(paths.GENERATED_BUSINESS_NAMES_DATA_PATH).squeeze().dropna().reset_index(drop=True)
 
 
 def load_ssn_data(key: str, location: str) -> pd.DataFrame:
