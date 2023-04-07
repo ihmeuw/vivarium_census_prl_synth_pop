@@ -7,7 +7,7 @@ from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.constants import data_keys, paths
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
 from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -352,10 +352,7 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
             )
             obs_data = []
             for file in obs_files:
-                if ".hdf" == file.suffix:
-                    df = pd.read_hdf(file).reset_index()
-                else:
-                    df = pd.read_csv(file)
+                df = read_datafile(file)
                 df["random_seed"] = file.name.split(".")[0].split("_")[-1]
                 df = formatter.format_columns(df)
                 obs_data.append(df)
@@ -375,16 +372,26 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
                 )
             obs_file = obs_files[0]
             logger.info(f"Loading data for {obs_file.name}")
-            if ".hdf" == obs_file.suffix:
-                obs_data = pd.read_hdf(obs_file).reset_index()
-            else:
-                obs_data = pd.read_csv(obs_file)
+            obs_data = read_datafile(obs_file)
             obs_data["random_seed"] = seed
             obs_data = formatter.format_columns(obs_data)
 
         observers_results[obs_dir.name] = obs_data
 
     return observers_results
+
+
+def read_datafile(file: Path) -> pd.DataFrame:
+    if ".hdf" == file.suffix:
+        df = pd.read_hdf(file).reset_index()
+    elif ".parquet" == file.suffix:
+        df = pd.read_parquet(file).reset_index()
+    else:
+        raise ValueError(
+            f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
+            f"{file.suffix[1:]} was provided."
+        )
+    return df
 
 
 def generate_maps(

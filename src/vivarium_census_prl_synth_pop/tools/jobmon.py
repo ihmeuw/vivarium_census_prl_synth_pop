@@ -31,7 +31,7 @@ def run_make_results_workflow(
     """
     logger.info(
         "Starting jobmon 'make_results' workflow. Results will be written to "
-        f"{final_output_dir}"
+        f"{final_output_dir} with output format {extension}."
     )
     wf_uuid = uuid.uuid4()
 
