@@ -1,3 +1,4 @@
+import shutil
 from itertools import chain
 from pathlib import Path
 from typing import Dict, List, Union
@@ -445,52 +446,42 @@ def generate_maps(
     return maps
 
 
-def subset_results_by_state(final_results_dir: str, state: str, seed: str) -> None:
+def subset_results_by_state(final_results_dir: str, state: str) -> None:
     # Loads final results and subsets those files to a provide state excluding the Social Security Observer
-    # todo: add in creating new directory here or CLI
-    # todo: add cli command in cli
-    for observer in FINAL_OBSERVERS:
-        obs_dir = final_results_dir / observer
-        if seed == "":
-            logger.info(f"Loading data for {obs_dir.name}")
-            obs_files = sorted(
-                list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
-            )
-            for file in obs_files:
-                if ".hdf" == file.suffix:
-                    df = pd.read_hdf(file).reset_index()
-                else:
-                    df = pd.read_csv(file)
-                df["random_seed"] = file.name.split(".")[0].split("_")[-1]
-                df = formatter.format_columns(df)
-                obs_data = df.loc[df["state"] == state]
-                obs_data.to_hdf(
-                    obs_dir / file,
-                    "data",
-                    format="table",
-                    complib="bzip2",
-                    complevel=9,
-                )
-        else:
-            obs_files = list(
-                chain(*[obs_dir.glob(f"*_{seed}.{ext}") for ext in SUPPORTED_EXTENSIONS])
-            )
-            obs_file = obs_files[0]
-            logger.info(f"Loading data for {obs_file.name}")
-            if ".hdf" == obs_file.suffix:
-                obs_data = pd.read_hdf(obs_file).reset_index()
-            else:
-                obs_data = pd.read_csv(obs_file)
-            obs_data["random_seed"] = seed
-            obs_data = formatter.format_columns(obs_data)
-            obs_data = obs_data.loc[df["state"] == state]
 
+    from vivarium_census_prl_synth_pop.constants.metadata import US_STATE_ABBRV_MAP
+
+    abbrev_name_dict = dict((v, k) for k, v in US_STATE_ABBRV_MAP.iteritems())
+    state_name = abbrev_name_dict[state.upper()]
+    final_results_dir = Path(final_results_dir)
+    state_directory = final_results_dir.parent / "states" / state_name
+    state_directory.mkdir(exist_ok=True, parents=True)
+    # copy files from final results to state directory for further processing
+    shutil.copytree(final_results_dir, state_directory, dirs_exist_ok=True)
+
+    for observer in FINAL_OBSERVERS:
+        if observer == "social_security_observer":
+            continue
+        logger.info(f"Processing data for {observer}...")
+        obs_dir = state_directory / observer
+        obs_files = sorted(
+            list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
+        )
+        for file in obs_files:
+            if ".hdf" == file.suffix:
+                df = pd.read_hdf(file).reset_index()
+            else:
+                df = pd.read_csv(file)
+            df["random_seed"] = file.name.split(".")[0].split("_")[-1]
+            df = formatter.format_columns(df)
+            obs_data = df.loc[df["state"] == state]
             obs_data.to_hdf(
-                obs_dir / f"{observer}_ {seed}.hdf",
+                obs_dir / file,
                 "data",
                 format="table",
                 complib="bzip2",
                 complevel=9,
             )
+        logger.info(f"Finished writing data for {state_name} subset of {observer} files.")
 
     return None

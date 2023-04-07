@@ -263,3 +263,25 @@ def jobmon_make_results_runner(
         seed,
         artifact_path,
     )
+
+
+@click.command()
+@click.argument("final_output_dir", type=click.Path(exists=True))
+@click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
+@click.argument(
+    "-l",
+    "--state",
+    type=str,
+    default="RI",
+    show_default=True,
+    help="State to subset processed results to in order to make a smaller one state"
+         "dataset to feed into Pseudopeople",
+)
+def subset_by_state_runner(
+    final_output_dir: Path,
+    verbose: int,
+    state: str,
+) -> None:
+    configure_logging_to_terminal(verbose)
+    main = handle_exceptions(func=subset_by_state_runner, logger=logger, with_debugger=False)
+    main(final_output_dir, state)
