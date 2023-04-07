@@ -273,8 +273,6 @@ def jobmon_make_results_runner(
     "--state",
     type=str,
     default="RI",
-    help="State to subset processed results to in order to make a smaller one state"
-    "dataset to feed into Pseudopeople",
 )
 def subset_by_state_runner(
     final_output_dir: Path,
