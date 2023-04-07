@@ -312,7 +312,12 @@ def load_address_data(key: str, location: str) -> pd.DataFrame:
 def load_business_names(key: str, _: str) -> pd.Series:
     if key != data_keys.SYNTHETIC_DATA.BUSINESS_NAMES:
         raise ValueError(f"Unrecognized key {key}")
-    return pd.read_csv(paths.GENERATED_BUSINESS_NAMES_DATA_PATH).squeeze().dropna().reset_index(drop=True)
+    return (
+        pd.read_csv(paths.GENERATED_BUSINESS_NAMES_DATA_PATH)
+        .squeeze()
+        .dropna()
+        .reset_index(drop=True)
+    )
 
 
 def load_ssn_data(key: str, location: str) -> pd.DataFrame:
