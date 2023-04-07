@@ -26,7 +26,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
     get_all_simulation_seeds,
-    write_hdf,
+    write_to_disk,
 )
 
 FINAL_OBSERVERS = {
@@ -335,7 +335,7 @@ def perform_post_processing(
         logger.info(f"Writing final results for {observer}.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
-        write_hdf(obs_data, obs_dir / f"{observer}{seed_ext}.hdf")
+        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.hdf")
 
 
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:

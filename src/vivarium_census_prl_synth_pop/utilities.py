@@ -461,7 +461,7 @@ def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
     return sorted(list(set([x.name.split(".")[0].split("_")[-1] for x in raw_results_files])))
 
 
-def write_hdf(data: pd.DataFrame, path: Path):
+def write_to_disk(data: pd.DataFrame, path: Path):
     """
     Converts all object dtypes to categorical and then writes to an hdf file
     with bzip2 compression.
@@ -477,4 +477,10 @@ def write_hdf(data: pd.DataFrame, path: Path):
     for column in data.columns:
         if data[column].dtype.name == "object":
             data[column] = data[column].astype("category")
-    data.to_hdf(path, "data", format="table", complib="bzip2", complevel=9)
+    if ".hdf" == path.suffix:
+        data.to_hdf(path, "data", format="table", complib="bzip2", complevel=9)
+    else:
+        raise ValueError(
+            f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
+            f"{path.suffix[1:]} was provided."
+        )

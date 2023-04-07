@@ -51,7 +51,7 @@ class BaseObserver(ABC):
         # todo: add necessary guardian address columns
     ]
 
-    configuration_defaults = {"observer": {"file_extension": "csv.bz2"}}
+    configuration_defaults = {"observer": {"file_extension": "hdf"}}
 
     def __init__(self):
         self.configuration_defaults = self._get_configuration_defaults()
@@ -169,11 +169,9 @@ class BaseObserver(ABC):
             logger.info(f"No results to write ({self.name})")
         else:
             self.responses.index.names = ["simulant_id"]
-            filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
-            if "hdf" == self.file_extension:
-                utilities.write_hdf(self.responses, filepath)
-            else:
-                self.responses.to_csv(filepath)
+            utilities.write_to_disk(
+                self.responses, output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
+            )
 
     ##################
     # Helper methods #
