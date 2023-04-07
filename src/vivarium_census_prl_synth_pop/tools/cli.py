@@ -266,7 +266,7 @@ def jobmon_make_results_runner(
 
 
 @click.command()
-@click.argument("final_output_dir", type=click.Path(exists=True))
+@click.argument("full_process_results_dir", type=click.Path(exists=True))
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
     "-l",
@@ -277,10 +277,10 @@ def jobmon_make_results_runner(
     help="State to subset process results to obtain a smaller dataset for one specific geographic location."
 )
 def subset_by_state_runner(
-    final_output_dir: Path,
+    full_process_results_dir: Path,
     verbose: int,
     state: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(func=subset_results_by_state, logger=logger, with_debugger=False)
-    main(final_output_dir, state)
+    main(full_process_results_dir, state)

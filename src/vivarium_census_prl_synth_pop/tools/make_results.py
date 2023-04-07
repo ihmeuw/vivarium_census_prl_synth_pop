@@ -446,18 +446,18 @@ def generate_maps(
     return maps
 
 
-def subset_results_by_state(final_results_dir: str, state: str) -> None:
+def subset_results_by_state(full_process_results_dir: str, state: str) -> None:
     # Loads final results and subsets those files to a provide state excluding the Social Security Observer
 
     from vivarium_census_prl_synth_pop.constants.metadata import US_STATE_ABBRV_MAP
 
     abbrev_name_dict = dict((v, k) for k, v in US_STATE_ABBRV_MAP.iteritems())
     state_name = abbrev_name_dict[state.upper()]
-    final_results_dir = Path(final_results_dir)
-    state_dir = final_results_dir.parent / "states" / state_name
+    full_process_results_dir = Path(full_process_results_dir)
+    state_dir = full_process_results_dir.parent / "states" / state_name
     state_dir.mkdir(exist_ok=True, parents=True)
     # copy files from final results to state directory for further processing
-    shutil.copytree(final_results_dir, state_dir, dirs_exist_ok=True)
+    shutil.copytree(full_process_results_dir, state_dir, dirs_exist_ok=True)
 
     for observer in FINAL_OBSERVERS:
         if observer == "social_security_observer":
