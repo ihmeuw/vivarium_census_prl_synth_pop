@@ -466,14 +466,6 @@ def write_to_disk(data: pd.DataFrame, path: Path):
     Converts all object dtypes to categorical and then writes to file to output
     path. If writing to an hdf file, bzip2 compression is used. Alternately can
     write to a parquet file.
-    Parameters
-    ----------
-    data
-    path
-
-    Returns
-    -------
-
     """
     for column in data.columns:
         if data[column].dtype.name == "object":
