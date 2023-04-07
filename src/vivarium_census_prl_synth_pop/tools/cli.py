@@ -280,5 +280,5 @@ def subset_by_state_runner(
     state: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(func=subset_by_state_runner, logger=logger, with_debugger=False)
+    main = handle_exceptions(func=subset_results_by_state, logger=logger, with_debugger=False)
     main(final_output_dir, state)
