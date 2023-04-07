@@ -268,11 +268,13 @@ def jobmon_make_results_runner(
 @click.command()
 @click.argument("final_output_dir", type=click.Path(exists=True))
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
-@click.argument(
+@click.option(
     "-l",
     "--state",
     type=str,
     default="RI",
+    show_default=True,
+    help="State to subset process results to obtain a smaller dataset for one specific geographic location."
 )
 def subset_by_state_runner(
     final_output_dir: Path,
