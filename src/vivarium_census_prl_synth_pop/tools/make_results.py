@@ -212,7 +212,7 @@ PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
 PUBLIC_SAMPLE_ADDRESS_PARTS = {
     "city": "Anytown",
     "state": "US",
-    "zipcode": "99999",
+    "zipcode": "00000",
 }
 
 
