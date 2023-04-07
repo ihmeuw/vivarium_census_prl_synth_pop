@@ -454,34 +454,25 @@ def subset_results_by_state(final_results_dir: str, state: str) -> None:
     abbrev_name_dict = dict((v, k) for k, v in US_STATE_ABBRV_MAP.iteritems())
     state_name = abbrev_name_dict[state.upper()]
     final_results_dir = Path(final_results_dir)
-    state_directory = final_results_dir.parent / "states" / state_name
-    state_directory.mkdir(exist_ok=True, parents=True)
+    state_dir = final_results_dir.parent / "states" / state_name
+    state_dir.mkdir(exist_ok=True, parents=True)
     # copy files from final results to state directory for further processing
-    shutil.copytree(final_results_dir, state_directory, dirs_exist_ok=True)
+    shutil.copytree(final_results_dir, state_dir, dirs_exist_ok=True)
 
     for observer in FINAL_OBSERVERS:
         if observer == "social_security_observer":
             continue
         logger.info(f"Processing data for {observer}...")
-        obs_dir = state_directory / observer
+        obs_dir = state_dir / observer
         obs_files = sorted(
             list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
         )
         for file in obs_files:
-            if ".hdf" == file.suffix:
-                df = pd.read_hdf(file).reset_index()
-            else:
-                df = pd.read_csv(file)
+            df = read_datafile(file)
             df["random_seed"] = file.name.split(".")[0].split("_")[-1]
             df = formatter.format_columns(df)
             obs_data = df.loc[df["state"] == state]
-            obs_data.to_hdf(
-                obs_dir / file,
-                "data",
-                format="table",
-                complib="bzip2",
-                complevel=9,
-            )
+            write_to_disk(obs_data.copy(), state_dir / file)
         logger.info(f"Finished writing data for {state_name} subset of {observer} files.")
 
     return None
