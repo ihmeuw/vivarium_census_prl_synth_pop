@@ -274,4 +274,4 @@ PRIORITY_MAP = {
     "immigration.on_time_step": 7,
 }
 
-SUPPORTED_EXTENSIONS = ["hdf"]
+SUPPORTED_EXTENSIONS = ["hdf", "parquet"]

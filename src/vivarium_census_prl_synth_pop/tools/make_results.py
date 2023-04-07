@@ -7,7 +7,7 @@ from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.constants import data_keys, paths
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
 from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -222,6 +222,7 @@ def build_results(
     final_output_dir: Union[str, Path],
     mark_best: bool,
     test_run: bool,
+    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
@@ -237,7 +238,7 @@ def build_results(
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
     perform_post_processing(
-        raw_output_dir, final_output_dir, seed, artifact_path, public_sample
+        raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
     )
 
     if test_run:
@@ -260,6 +261,7 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
 def perform_post_processing(
     raw_output_dir: Path,
     final_output_dir: Path,
+    extension: str,
     seed: str,
     artifact_path: Path,
     public_sample: bool,
@@ -336,7 +338,7 @@ def perform_post_processing(
         logger.info(f"Writing final results for {observer}.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
-        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.hdf")
+        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
@@ -351,10 +353,7 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
             )
             obs_data = []
             for file in obs_files:
-                if ".hdf" == file.suffix:
-                    df = pd.read_hdf(file).reset_index()
-                else:
-                    df = pd.read_csv(file)
+                df = read_datafile(file)
                 df["random_seed"] = file.name.split(".")[0].split("_")[-1]
                 df = formatter.format_columns(df)
                 obs_data.append(df)
@@ -374,16 +373,26 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
                 )
             obs_file = obs_files[0]
             logger.info(f"Loading data for {obs_file.name}")
-            if ".hdf" == obs_file.suffix:
-                obs_data = pd.read_hdf(obs_file).reset_index()
-            else:
-                obs_data = pd.read_csv(obs_file)
+            obs_data = read_datafile(obs_file)
             obs_data["random_seed"] = seed
             obs_data = formatter.format_columns(obs_data)
 
         observers_results[obs_dir.name] = obs_data
 
     return observers_results
+
+
+def read_datafile(file: Path) -> pd.DataFrame:
+    if ".hdf" == file.suffix:
+        df = pd.read_hdf(file).reset_index()
+    elif ".parquet" == file.suffix:
+        df = pd.read_parquet(file).reset_index()
+    else:
+        raise ValueError(
+            f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
+            f"{file.suffix[1:]} was provided."
+        )
+    return df
 
 
 def generate_maps(
