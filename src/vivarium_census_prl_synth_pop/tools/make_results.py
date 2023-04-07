@@ -210,6 +210,12 @@ FINAL_OBSERVERS = {
 
 PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
 
+PUBLIC_SAMPLE_ADDRESS_PARTS = {
+    "city": "Anytown",
+    "state": "US",
+    "zipcode": "00000",
+}
+
 
 def build_results(
     raw_output_dir: Union[str, Path],
@@ -322,13 +328,8 @@ def perform_post_processing(
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
 
         if public_sample:
-            address_part_values = {
-                "city": "Anytown",
-                "state": "US",
-                "zipcode": 90210,
-            }
-            for address_prefix in ["", "mailing_address_"]:
-                for address_part, address_part_value in address_part_values.items():
+            for address_prefix in ["", "mailing_address_", "employer_"]:
+                for address_part, address_part_value in PUBLIC_SAMPLE_ADDRESS_PARTS.items():
                     if f"{address_prefix}{address_part}" in obs_data.columns:
                         obs_data[f"{address_prefix}{address_part}"] = address_part_value
 
