@@ -81,6 +81,14 @@ def make_artifacts(
     help="Skips updating the 'latest' symlink with this version of results.",
 )
 @click.option(
+    "-x",
+    "--extension",
+    type=click.Choice(["hdf", "parquet"]),
+    default="hdf",
+    show_default=True,
+    help="File type to write results out as. Supported file types are hdf and " "parquet.",
+)
+@click.option(
     "--public-sample",
     is_flag=True,
     help="Generates results for the small-scale public sample data.",
@@ -147,6 +155,7 @@ def make_results(
     with_debugger: bool,
     mark_best: bool,
     test_run: bool,
+    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: str,
@@ -189,6 +198,7 @@ def make_results(
         final_output_dir,
         mark_best,
         test_run,
+        extension,
         public_sample,
         seed,
         artifact_path,
@@ -205,6 +215,14 @@ def make_results(
     "-t",
     "--test-run",
     is_flag=True,
+)
+@click.option(
+    "-x",
+    "--extension",
+    type=click.Choice(["hdf", "parquet"]),
+    default="hdf",
+    show_default=True,
+    help="File type to write results out as. Supported file types are hdf and parquet.",
 )
 @click.option(
     "--public-sample",
@@ -228,6 +246,7 @@ def jobmon_make_results_runner(
     verbose: int,
     mark_best: bool,
     test_run: bool,
+    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
@@ -239,6 +258,7 @@ def jobmon_make_results_runner(
         final_output_dir,
         mark_best,
         test_run,
+        extension,
         public_sample,
         seed,
         artifact_path,

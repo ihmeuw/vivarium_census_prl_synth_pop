@@ -27,6 +27,7 @@ if __name__ == "__main__":
         "tables",
         "pyyaml",
         "faker==13.6.0",
+        "pyarrow",
     ]
 
     # use "pip install -e .[dev]" to install required components + extra components

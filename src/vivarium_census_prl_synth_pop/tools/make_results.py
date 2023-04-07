@@ -216,6 +216,7 @@ def build_results(
     final_output_dir: Union[str, Path],
     mark_best: bool,
     test_run: bool,
+    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
@@ -231,7 +232,7 @@ def build_results(
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
     perform_post_processing(
-        raw_output_dir, final_output_dir, seed, artifact_path, public_sample
+        raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
     )
 
     if test_run:
@@ -254,6 +255,7 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
 def perform_post_processing(
     raw_output_dir: Path,
     final_output_dir: Path,
+    extension: str,
     seed: str,
     artifact_path: Path,
     public_sample: bool,
@@ -335,7 +337,7 @@ def perform_post_processing(
         logger.info(f"Writing final results for {observer}.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
-        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.hdf")
+        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
