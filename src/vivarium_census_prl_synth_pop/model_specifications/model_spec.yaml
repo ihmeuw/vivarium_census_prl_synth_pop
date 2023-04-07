@@ -46,19 +46,19 @@ configuration:
         population_size: 1_000_000
     # us_population_size: 250_000  # Override the default US population size
 
-    household_survey_observer_acs:
-        file_extension: "hdf"
-    household_survey_observer_cps:
-        file_extension: "hdf"
-    decennial_census_observer:
-        file_extension: "hdf"
-    wic_observer:
-        file_extension: "hdf"
-    social_security_observer:
-        file_extension: "hdf"
-    tax_w2_observer:
-        file_extension: "hdf"
-    tax_dependents_observer:
-        file_extension: "hdf"
-    tax_1040_observer:
-        file_extension: "hdf"
+#    household_survey_observer_acs:
+#        file_extension: "hdf"
+#    household_survey_observer_cps:
+#        file_extension: "hdf"
+#    decennial_census_observer:
+#        file_extension: "hdf"
+#    wic_observer:
+#        file_extension: "hdf"
+#    social_security_observer:
+#        file_extension: "hdf"
+#    tax_w2_observer:
+#        file_extension: "hdf"
+#    tax_dependents_observer:
+#        file_extension: "hdf"
+#    tax_1040_observer:
+#        file_extension: "hdf"
