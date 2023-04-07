@@ -443,3 +443,54 @@ def generate_maps(
     #   }
 
     return maps
+
+
+def subset_results_by_state(final_results_dir: str, state: str, seed: str) -> None:
+    # Loads final results and subsets those files to a provide state excluding the Social Security Observer
+    # todo: add in creating new directory here or CLI
+    # todo: add cli command in cli
+    for observer in FINAL_OBSERVERS:
+        obs_dir = final_results_dir / observer
+        if seed == "":
+            logger.info(f"Loading data for {obs_dir.name}")
+            obs_files = sorted(
+                list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
+            )
+            for file in obs_files:
+                if ".hdf" == file.suffix:
+                    df = pd.read_hdf(file).reset_index()
+                else:
+                    df = pd.read_csv(file)
+                df["random_seed"] = file.name.split(".")[0].split("_")[-1]
+                df = formatter.format_columns(df)
+                obs_data = df.loc[df["state"] == state]
+                obs_data.to_hdf(
+                    obs_dir / file,
+                    "data",
+                    format="table",
+                    complib="bzip2",
+                    complevel=9,
+                )
+        else:
+            obs_files = list(
+                chain(*[obs_dir.glob(f"*_{seed}.{ext}") for ext in SUPPORTED_EXTENSIONS])
+            )
+            obs_file = obs_files[0]
+            logger.info(f"Loading data for {obs_file.name}")
+            if ".hdf" == obs_file.suffix:
+                obs_data = pd.read_hdf(obs_file).reset_index()
+            else:
+                obs_data = pd.read_csv(obs_file)
+            obs_data["random_seed"] = seed
+            obs_data = formatter.format_columns(obs_data)
+            obs_data = obs_data.loc[df["state"] == state]
+
+            obs_data.to_hdf(
+                obs_dir / f"{observer}_ {seed}.hdf",
+                "data",
+                format="table",
+                complib="bzip2",
+                complevel=9,
+            )
+
+    return None
