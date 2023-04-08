@@ -451,7 +451,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
 
     from vivarium_census_prl_synth_pop.constants.metadata import US_STATE_ABBRV_MAP
 
-    abbrev_name_dict = dict((v, k) for k, v in US_STATE_ABBRV_MAP.iteritems())
+    abbrev_name_dict = {v: k for k, v in US_STATE_ABBRV_MAP.items()}
     state_name = abbrev_name_dict[state.upper()]
     processed_results_dir = Path(processed_results_dir)
     all_results = processed_results_dir / "usa"
