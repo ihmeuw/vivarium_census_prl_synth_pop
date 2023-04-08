@@ -27,7 +27,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
     get_all_simulation_seeds,
-    write_to_disk,
+    write_to_disk, sanitize_location,
 )
 
 FINAL_OBSERVERS = {
@@ -452,7 +452,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
     from vivarium_census_prl_synth_pop.constants.metadata import US_STATE_ABBRV_MAP
 
     abbrev_name_dict = {v: k for k, v in US_STATE_ABBRV_MAP.items()}
-    state_name = abbrev_name_dict[state.upper()]
+    state_name = sanitize_location(abbrev_name_dict[state.upper()])
     processed_results_dir = Path(processed_results_dir)
     all_results = processed_results_dir / "usa"
     state_dir = processed_results_dir / "states" / state_name
@@ -473,7 +473,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             df["random_seed"] = file.name.split(".")[0].split("_")[-1]
             df = formatter.format_columns(df)
             obs_data = df.loc[df["state"] == state]
-            write_to_disk(obs_data.copy(), state_dir / file)
+            write_to_disk(obs_data.copy(), file)
         logger.info(f"Finished writing data for {state_name} subset of {observer} files.")
 
     return None
