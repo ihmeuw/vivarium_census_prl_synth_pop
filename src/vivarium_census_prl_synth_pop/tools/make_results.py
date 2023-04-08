@@ -462,7 +462,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
 
     for observer in FINAL_OBSERVERS:
         if observer == "social_security_observer":
-            continue
+            shutil.rmtree(state_dir / observer)
         logger.info(f"Processing data for {observer}...")
         obs_dir = state_dir / observer
         obs_files = sorted(
@@ -472,7 +472,12 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             df = read_datafile(file)
             df["random_seed"] = file.name.split(".")[0].split("_")[-1]
             df = formatter.format_columns(df)
-            obs_data = df.loc[df["state"] == state]
+            if "state" in df.columns:
+                obs_data = df.loc[df["state"] == state]
+            elif "mailing_address_state" in df.columns:
+                obs_data = df.loc[df["mailing_address_state"] == state]
+            else:
+                file.unlink()
             write_to_disk(obs_data.copy(), file)
         logger.info(f"Finished writing data for {state_name} subset of {observer} files.")
 
