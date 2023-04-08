@@ -454,10 +454,11 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
     abbrev_name_dict = dict((v, k) for k, v in US_STATE_ABBRV_MAP.iteritems())
     state_name = abbrev_name_dict[state.upper()]
     processed_results_dir = Path(processed_results_dir)
-    state_dir = processed_results_dir.parent / "states" / state_name
+    all_results = processed_results_dir / "usa"
+    state_dir = processed_results_dir / "states" / state_name
     state_dir.mkdir(exist_ok=True, parents=True)
     # copy files from final results to state directory for further processing
-    shutil.copytree(processed_results_dir, state_dir, dirs_exist_ok=True)
+    shutil.copytree(all_results, state_dir, dirs_exist_ok=True)
 
     for observer in FINAL_OBSERVERS:
         if observer == "social_security_observer":
