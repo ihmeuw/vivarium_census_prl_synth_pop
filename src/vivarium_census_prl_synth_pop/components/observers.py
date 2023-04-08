@@ -696,6 +696,7 @@ class TaxW2Observer(BaseObserver):
         # with the pd.Series, but it is getting lost at some point in the computation
 
         df_w2 = self.income_last_year.reset_index()
+        df_w2["income"] = df_w2["income"].round().astype(int)
         df_w2["tax_year"] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
