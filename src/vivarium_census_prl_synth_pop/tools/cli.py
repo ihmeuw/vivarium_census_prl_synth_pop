@@ -282,7 +282,7 @@ def jobmon_make_results_runner(
     show_default=True,
     help="State to subset process results to obtain a smaller dataset for one specific geographic location."
 )
-def subset_by_state_runner(
+def make_state_results(
     processed_results_dir: Path,
     verbose: int,
     with_debugger: bool,
