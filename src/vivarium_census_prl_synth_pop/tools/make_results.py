@@ -27,7 +27,8 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
     get_all_simulation_seeds,
-    write_to_disk, sanitize_location,
+    sanitize_location,
+    write_to_disk,
 )
 
 FINAL_OBSERVERS = {
