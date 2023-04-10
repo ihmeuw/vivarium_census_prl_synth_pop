@@ -8,10 +8,11 @@ from vivarium.framework.utilities import handle_exceptions
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
     build_artifacts,
+    build_results,
     configure_logging_to_terminal,
+    subset_results_by_state,
 )
 from vivarium_census_prl_synth_pop.tools.jobmon import run_make_results_workflow
-from vivarium_census_prl_synth_pop.tools import build_results, subset_results_by_state
 from vivarium_census_prl_synth_pop.utilities import build_final_results_directory
 
 
