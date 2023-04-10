@@ -285,7 +285,9 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
 def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
     final_output_dir = build_output_dir(
         Path(results_dir),
-        subdir=paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+        subdir=paths.FINAL_RESULTS_DIR_NAME
+        / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        / "usa",
     )
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
 

@@ -26,6 +26,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
     get_all_simulation_seeds,
+    sanitize_location,
     write_to_disk,
 )
 
@@ -382,16 +383,18 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
     return observers_results
 
 
-def read_datafile(file: Path) -> pd.DataFrame:
+def read_datafile(file: Path, reset_index: bool = True) -> pd.DataFrame:
     if ".hdf" == file.suffix:
-        df = pd.read_hdf(file).reset_index()
+        df = pd.read_hdf(file)
     elif ".parquet" == file.suffix:
-        df = pd.read_parquet(file).reset_index()
+        df = pd.read_parquet(file)
     else:
         raise ValueError(
             f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
             f"{file.suffix[1:]} was provided."
         )
+    if reset_index:
+        df = df.reset_index()
     return df
 
 
@@ -443,3 +446,38 @@ def generate_maps(
     #   }
 
     return maps
+
+
+def subset_results_by_state(processed_results_dir: str, state: str) -> None:
+    # Loads final results and subsets those files to a provide state excluding the Social Security Observer
+
+    abbrev_name_dict = {v: k for k, v in metadata.US_STATE_ABBRV_MAP.items()}
+    state_name = sanitize_location(abbrev_name_dict[state.upper()])
+    processed_results_dir = Path(processed_results_dir)
+    usa_results_dir = processed_results_dir / "usa"
+    state_dir = processed_results_dir / "states" / state_name
+
+    for observer in FINAL_OBSERVERS:
+        logger.info(f"Processing data for {observer}...")
+        if observer == "social_security_observer":
+            logger.info(f"Ignoring {observer} as it does not have a state column.")
+            continue
+        usa_obs_dir = usa_results_dir / observer
+        usa_obs_files = sorted(
+            list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
+        )
+        state_observer_dir = state_dir / observer
+        build_output_dir(state_observer_dir)
+        for usa_obs_file in usa_obs_files:
+            output_file_path = state_observer_dir / usa_obs_file.name
+            if output_file_path.exists():
+                continue
+            usa_obs_data = read_datafile(usa_obs_file, reset_index=False)
+            if "state" in usa_obs_data.columns:
+                state_data = usa_obs_data.loc[usa_obs_data["state"] == state]
+            elif "mailing_address_state" in usa_obs_data.columns:
+                state_data = usa_obs_data.loc[usa_obs_data["mailing_address_state"] == state]
+            else:
+                raise ValueError(f"Data in {usa_obs_file} does not have a state column.")
+            write_to_disk(state_data.copy(), output_file_path)
+        logger.info(f"Finished writing {observer} files for {state_name}.")
