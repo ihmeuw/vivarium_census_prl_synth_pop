@@ -11,10 +11,7 @@ from vivarium_census_prl_synth_pop.tools import (
     configure_logging_to_terminal,
 )
 from vivarium_census_prl_synth_pop.tools.jobmon import run_make_results_workflow
-from vivarium_census_prl_synth_pop.tools.make_results import (
-    build_results,
-    subset_results_by_state,
-)
+from vivarium_census_prl_synth_pop.tools import build_results, subset_results_by_state
 from vivarium_census_prl_synth_pop.utilities import build_final_results_directory
 
 
@@ -283,7 +280,9 @@ def jobmon_make_results_runner(
     type=str,
     default="RI",
     show_default=True,
-    help="State to subset process results to obtain a smaller dataset for one specific geographic location.",
+    help="State to subset process results to obtain a smaller dataset for one "
+    "specific geographic location. This should be the two letter postal "
+    "abbreviation.",
 )
 def make_state_results(
     processed_results_dir: Path,

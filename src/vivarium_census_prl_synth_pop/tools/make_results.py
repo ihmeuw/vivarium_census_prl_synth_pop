@@ -1,4 +1,3 @@
-import shutil
 from itertools import chain
 from pathlib import Path
 from typing import Dict, List, Union
@@ -450,36 +449,31 @@ def generate_maps(
 def subset_results_by_state(processed_results_dir: str, state: str) -> None:
     # Loads final results and subsets those files to a provide state excluding the Social Security Observer
 
-    from vivarium_census_prl_synth_pop.constants.metadata import US_STATE_ABBRV_MAP
-
-    abbrev_name_dict = {v: k for k, v in US_STATE_ABBRV_MAP.items()}
+    abbrev_name_dict = {v: k for k, v in metadata.US_STATE_ABBRV_MAP.items()}
     state_name = sanitize_location(abbrev_name_dict[state.upper()])
     processed_results_dir = Path(processed_results_dir)
     all_results = processed_results_dir / "usa"
     state_dir = processed_results_dir / "states" / state_name
-    state_dir.mkdir(exist_ok=True, parents=True)
-    # copy files from final results to state directory for further processing
-    shutil.copytree(all_results, state_dir, dirs_exist_ok=True)
 
     for observer in FINAL_OBSERVERS:
-        if observer == "social_security_observer":
-            shutil.rmtree(state_dir / observer)
         logger.info(f"Processing data for {observer}...")
-        obs_dir = state_dir / observer
+        if observer == "social_security_observer":
+            logger.info(f"Ignoring {observer} as it does not have a state column.")
+            continue
+        obs_dir = all_results / observer
         obs_files = sorted(
             list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
         )
+        build_output_dir(state_dir / observer)
         for file in obs_files:
-            df = read_datafile(file)
-            df["random_seed"] = file.name.split(".")[0].split("_")[-1]
-            df = formatter.format_columns(df)
-            if "state" in df.columns:
-                obs_data = df.loc[df["state"] == state]
-            elif "mailing_address_state" in df.columns:
-                obs_data = df.loc[df["mailing_address_state"] == state]
+            obs_data= read_datafile(file)
+            if "state" in obs_data.columns:
+                state_data = obs_data.loc[obs_data["state"] == state]
+            elif "mailing_address_state" in obs_data.columns:
+                state_data = obs_data.loc[obs_data["mailing_address_state"] == state]
             else:
-                file.unlink()
-            write_to_disk(obs_data.copy(), file)
+                raise ValueError(f"Data in {file} does not have a state column.")
+            write_to_disk(state_data.copy(), file)
         logger.info(f"Finished writing data for {state_name} subset of {observer} files.")
 
     return None
