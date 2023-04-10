@@ -467,7 +467,6 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
         )
         state_observer_dir = state_dir / observer
-        logger.debug(f"Building state observer directory: {state_observer_dir}")
         build_output_dir(state_observer_dir)
         for usa_obs_file in usa_obs_files:
             usa_obs_data = read_datafile(usa_obs_file, reset_index=False)
