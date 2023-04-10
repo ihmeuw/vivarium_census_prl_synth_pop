@@ -469,6 +469,9 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
         state_observer_dir = state_dir / observer
         build_output_dir(state_observer_dir)
         for usa_obs_file in usa_obs_files:
+            output_file_path = state_observer_dir / usa_obs_file.name
+            if output_file_path.exists():
+                continue
             usa_obs_data = read_datafile(usa_obs_file, reset_index=False)
             if "state" in usa_obs_data.columns:
                 state_data = usa_obs_data.loc[usa_obs_data["state"] == state]
@@ -476,5 +479,5 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
                 state_data = usa_obs_data.loc[usa_obs_data["mailing_address_state"] == state]
             else:
                 raise ValueError(f"Data in {usa_obs_file} does not have a state column.")
-            write_to_disk(state_data.copy(), state_observer_dir / usa_obs_file.name)
+            write_to_disk(state_data.copy(), output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
