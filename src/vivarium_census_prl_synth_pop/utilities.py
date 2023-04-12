@@ -14,7 +14,7 @@ from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.constants import metadata, paths
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
@@ -473,7 +473,14 @@ def write_to_disk(data: pd.DataFrame, path: Path):
         if data[column].dtype.name == "object":
             data[column] = data[column].astype("category")
     if ".hdf" == path.suffix:
-        data.to_hdf(path, "data", format="table", complib="bzip2", complevel=9)
+        data.to_hdf(
+            path,
+            "data",
+            format="table",
+            complib="bzip2",
+            complevel=9,
+            data_columns=data_values.DATA_COLUMNS,
+        )
     elif ".parquet" == path.suffix:
         data.to_parquet(path)
     else:
