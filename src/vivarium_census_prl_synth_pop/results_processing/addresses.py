@@ -191,7 +191,9 @@ def get_street_details_map(
             additional_key=f"{column_name}_{obs_column}_{seed}",
         ).to_numpy()
         address_data[obs_column] = address_details
-        address_data.fillna("", inplace=True)
+        address_data = address_data.astype({obs_column: "object"})
+        address_data.fillna(pd.NA, inplace=True)
+
         # Update map
         if column_name == "address_id":
             address_map[obs_column] = address_data[obs_column]
@@ -278,6 +280,16 @@ def get_mailing_address_map(
     #  with a PO box.
     for column in ["po_box", "state"]:
         mailing_address_map[f"mailing_address_{column}"] = formatted_obs_data[column].copy()
+        mailing_address_map[f"mailing_address_{column}"] = mailing_address_map[
+            f"mailing_address_{column}"
+        ].astype("object")
+        if column == "po_box":
+            # Convert addresses with no PO box to NAs
+            # Note: We do not record PO box for physical address in any outputs so that will remain 0.
+            mailing_address_map[f"mailing_address_{column}"].loc[
+                mailing_address_map[f"mailing_address_{column}"] == 0
+            ] = pd.NA
+
     for column in ["city", "zipcode"]:
         mailing_address_map[f"mailing_address_{column}"] = maps[column].copy()
 
