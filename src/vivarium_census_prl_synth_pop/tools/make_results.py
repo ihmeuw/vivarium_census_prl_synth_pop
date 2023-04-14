@@ -293,6 +293,17 @@ def perform_post_processing(
             .sample(frac=PUBLIC_SAMPLE_PUMA_PROPORTION, random_state=0)
         )
 
+        # In order to have all housing types in the sample data, we additionally include
+        # the (up to 6) PUMAs with group quarters in them.
+        gq_pumas = (
+            processed_results["decennial_census_observer"]
+            .pipe(lambda df: df[df["housing_type"] != "Standard"])[["state_id", "puma"]]
+            .drop_duplicates()
+        )
+        pumas_to_keep = pd.concat(
+            [pumas_to_keep, gq_pumas], ignore_index=True
+        ).drop_duplicates()
+
         # For SSA data, we keep the simulants ever observed in that geographic area.
         simulants_to_keep = []
         for observer in FINAL_OBSERVERS:
