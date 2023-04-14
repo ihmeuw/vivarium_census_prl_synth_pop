@@ -45,8 +45,7 @@ def get_simulant_id_maps(
     maps = dict()
     maps.update(get_ssn_map(obs_data, column_name, artifact, seed, all_seeds))
     maps.update(get_itin_map(obs_data, column_name, artifact, seed, all_seeds))
-    for key in maps:
-        maps[key].fillna(pd.NA, inplace=True)
+
     return maps
 
 
