@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -56,11 +57,19 @@ def get_household_id(data: pd.DataFrame) -> pd.Series:
 
 
 def get_guardian_1_id(data: pd.DataFrame) -> pd.Series:
-    return data["random_seed"].astype(str) + "_" + data["guardian_1"].astype(str)
+    no_guardian_idx = data.index[data["guardian_1"] == -1]
+    column = data["random_seed"].astype(str) + "_" + data["guardian_1"].astype(str)
+    column.loc[no_guardian_idx] = np.nan
+
+    return column
 
 
 def get_guardian_2_id(data: pd.DataFrame) -> pd.Series:
-    return data["random_seed"].astype(str) + "_" + data["guardian_2"].astype(str)
+    no_guardian_idx = data.index[data["guardian_2"] == -1]
+    column = data["random_seed"].astype(str) + "_" + data["guardian_2"].astype(str)
+    column.loc[no_guardian_idx] = np.nan
+
+    return column
 
 
 def get_guardian_1_address_id(data: pd.DataFrame) -> pd.Series:
