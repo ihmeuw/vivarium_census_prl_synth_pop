@@ -1,4 +1,3 @@
-import csv
 from itertools import chain
 from pathlib import Path
 from typing import Dict, List, Union
@@ -8,7 +7,7 @@ from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_census_prl_synth_pop.constants import paths
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
 from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -27,6 +26,8 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
     get_all_simulation_seeds,
+    sanitize_location,
+    write_to_disk,
 )
 
 FINAL_OBSERVERS = {
@@ -63,6 +64,7 @@ FINAL_OBSERVERS = {
         "age",
         "date_of_birth",
         "sex",
+        "race_ethnicity",
         "street_number",
         "street_name",
         "unit_number",
@@ -86,6 +88,7 @@ FINAL_OBSERVERS = {
         "age",
         "date_of_birth",
         "sex",
+        "race_ethnicity",
         "street_number",
         "street_name",
         "unit_number",
@@ -208,12 +211,22 @@ FINAL_OBSERVERS = {
     },
 }
 
+PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
+
+PUBLIC_SAMPLE_ADDRESS_PARTS = {
+    "city": "Anytown",
+    "state": "US",
+    "zipcode": "00000",
+}
+
 
 def build_results(
     raw_output_dir: Union[str, Path],
     final_output_dir: Union[str, Path],
     mark_best: bool,
     test_run: bool,
+    extension: str,
+    public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
 ):
@@ -227,7 +240,9 @@ def build_results(
     final_output_dir = Path(final_output_dir)
     artifact_path = Path(artifact_path)
     logger.info("Performing post-processing")
-    perform_post_processing(raw_output_dir, final_output_dir, seed, artifact_path)
+    perform_post_processing(
+        raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
+    )
 
     if test_run:
         logger.info("Test run - not marking results as latest.")
@@ -247,7 +262,12 @@ def create_results_link(output_dir: Path, link_name: Path) -> None:
 
 
 def perform_post_processing(
-    raw_output_dir: Path, final_output_dir: Path, seed: str, artifact_path: Path
+    raw_output_dir: Path,
+    final_output_dir: Path,
+    extension: str,
+    seed: str,
+    artifact_path: Path,
+    public_sample: bool,
 ) -> None:
     # Create RandomnessStream for post-processing
     randomness = RandomnessStream(
@@ -263,10 +283,50 @@ def perform_post_processing(
     all_seeds = get_all_simulation_seeds(raw_output_dir)
     maps = generate_maps(processed_results, artifact, randomness, seed, all_seeds)
 
+    if public_sample:
+        pumas_to_keep = (
+            artifact.load(data_keys.POPULATION.HOUSEHOLDS)
+            .reset_index()[["state", "puma"]]
+            # Note: The value in the ACS data is the FIPS code, not the abbreviation
+            .rename(columns={"state": "state_id"})
+            .drop_duplicates()
+            .sample(frac=PUBLIC_SAMPLE_PUMA_PROPORTION, random_state=0)
+        )
+
+        # In order to have all housing types in the sample data, we additionally include
+        # the (up to 6) PUMAs with group quarters in them.
+        gq_pumas = (
+            processed_results["decennial_census_observer"]
+            .pipe(lambda df: df[df["housing_type"] != "Standard"])[["state_id", "puma"]]
+            .drop_duplicates()
+        )
+        pumas_to_keep = pd.concat(
+            [pumas_to_keep, gq_pumas], ignore_index=True
+        ).drop_duplicates()
+
+        # For SSA data, we keep the simulants ever observed in that geographic area.
+        simulants_to_keep = []
+        for observer in FINAL_OBSERVERS:
+            obs_data = processed_results[observer]
+            if {"state_id", "puma"} <= set(obs_data.columns):
+                obs_data = obs_data.merge(pumas_to_keep, on=["state_id", "puma"], how="inner")
+                simulants_to_keep.append(obs_data["simulant_id"])
+
+        simulants_to_keep = pd.concat(simulants_to_keep, ignore_index=True).unique()
+
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing data for {observer}.")
         obs_data = processed_results[observer]
+
+        if public_sample:
+            if {"state_id", "puma"} <= set(obs_data.columns):
+                obs_data = obs_data.merge(pumas_to_keep, on=["state_id", "puma"], how="inner")
+            else:
+                obs_data = obs_data[obs_data["simulant_id"].isin(simulants_to_keep)].copy()
+                logger.warning(
+                    f"Cannot geographic subset {observer}; using simulants ever in geographic subset."
+                )
 
         for column in obs_data.columns:
             if column not in maps:
@@ -282,14 +342,17 @@ def perform_post_processing(
             obs_data = do_collide_ssns(obs_data, maps["simulant_id"]["ssn"], randomness)
 
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
+
+        if public_sample:
+            for address_prefix in ["", "mailing_address_", "employer_"]:
+                for address_part, address_part_value in PUBLIC_SAMPLE_ADDRESS_PARTS.items():
+                    if f"{address_prefix}{address_part}" in obs_data.columns:
+                        obs_data[f"{address_prefix}{address_part}"] = address_part_value
+
         logger.info(f"Writing final results for {observer}.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
-        obs_data.to_csv(
-            obs_dir / f"{observer}{seed_ext}.csv.bz2",
-            index=False,
-            quoting=csv.QUOTE_NONNUMERIC,
-        )
+        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
@@ -304,10 +367,7 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
             )
             obs_data = []
             for file in obs_files:
-                if ".hdf" == file.suffix:
-                    df = pd.read_hdf(file).reset_index()
-                else:
-                    df = pd.read_csv(file)
+                df = read_datafile(file)
                 df["random_seed"] = file.name.split(".")[0].split("_")[-1]
                 df = formatter.format_columns(df)
                 obs_data.append(df)
@@ -327,16 +387,28 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
                 )
             obs_file = obs_files[0]
             logger.info(f"Loading data for {obs_file.name}")
-            if ".hdf" == obs_file.suffix:
-                obs_data = pd.read_hdf(obs_file).reset_index()
-            else:
-                obs_data = pd.read_csv(obs_file)
+            obs_data = read_datafile(obs_file)
             obs_data["random_seed"] = seed
             obs_data = formatter.format_columns(obs_data)
 
         observers_results[obs_dir.name] = obs_data
 
     return observers_results
+
+
+def read_datafile(file: Path, reset_index: bool = True) -> pd.DataFrame:
+    if ".hdf" == file.suffix:
+        df = pd.read_hdf(file)
+    elif ".parquet" == file.suffix:
+        df = pd.read_parquet(file)
+    else:
+        raise ValueError(
+            f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
+            f"{file.suffix[1:]} was provided."
+        )
+    if reset_index:
+        df = df.reset_index()
+    return df
 
 
 def generate_maps(
@@ -387,3 +459,38 @@ def generate_maps(
     #   }
 
     return maps
+
+
+def subset_results_by_state(processed_results_dir: str, state: str) -> None:
+    # Loads final results and subsets those files to a provide state excluding the Social Security Observer
+
+    abbrev_name_dict = {v: k for k, v in metadata.US_STATE_ABBRV_MAP.items()}
+    state_name = sanitize_location(abbrev_name_dict[state.upper()])
+    processed_results_dir = Path(processed_results_dir)
+    usa_results_dir = processed_results_dir / "usa"
+    state_dir = processed_results_dir / "states" / state_name
+
+    for observer in FINAL_OBSERVERS:
+        logger.info(f"Processing data for {observer}...")
+        if observer == "social_security_observer":
+            logger.info(f"Ignoring {observer} as it does not have a state column.")
+            continue
+        usa_obs_dir = usa_results_dir / observer
+        usa_obs_files = sorted(
+            list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
+        )
+        state_observer_dir = state_dir / observer
+        build_output_dir(state_observer_dir)
+        for usa_obs_file in usa_obs_files:
+            output_file_path = state_observer_dir / usa_obs_file.name
+            if output_file_path.exists():
+                continue
+            usa_obs_data = read_datafile(usa_obs_file, reset_index=False)
+            if "state" in usa_obs_data.columns:
+                state_data = usa_obs_data.loc[usa_obs_data["state"] == state]
+            elif "mailing_address_state" in usa_obs_data.columns:
+                state_data = usa_obs_data.loc[usa_obs_data["mailing_address_state"] == state]
+            else:
+                raise ValueError(f"Data in {usa_obs_file} does not have a state column.")
+            write_to_disk(state_data.copy(), output_file_path)
+        logger.info(f"Finished writing {observer} files for {state_name}.")

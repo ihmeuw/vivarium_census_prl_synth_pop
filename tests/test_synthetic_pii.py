@@ -685,8 +685,10 @@ def test_mailing_address(mocker):
             mailing_map[column_name][~po_box_mask] == fake_maps[column][~po_box_mask]
         ).all()
 
-    for column in ["po_box", "state"]:
-        assert (mailing_map[f"mailing_address_{column}"] == fake_obs_data[column]).all()
+    assert (mailing_map["mailing_address_state"] == fake_obs_data["state"]).all()
+    # Check PO box null value 0 gets converted to pd.NA
+    no_po_box = mailing_map["mailing_address_po_box"].isna()
+    assert (fake_obs_data["po_box"][no_po_box] == 0).all()
 
     for column in ["city", "zipcode"]:
         column_name = f"mailing_address_{column}"

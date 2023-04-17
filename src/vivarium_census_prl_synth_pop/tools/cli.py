@@ -8,10 +8,11 @@ from vivarium.framework.utilities import handle_exceptions
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
     build_artifacts,
+    build_results,
     configure_logging_to_terminal,
+    subset_results_by_state,
 )
 from vivarium_census_prl_synth_pop.tools.jobmon import run_make_results_workflow
-from vivarium_census_prl_synth_pop.tools.make_results import build_results
 from vivarium_census_prl_synth_pop.utilities import build_final_results_directory
 
 
@@ -81,6 +82,19 @@ def make_artifacts(
     help="Skips updating the 'latest' symlink with this version of results.",
 )
 @click.option(
+    "-x",
+    "--extension",
+    type=click.Choice(["hdf", "parquet"]),
+    default="hdf",
+    show_default=True,
+    help="File type to write results out as. Supported file types are hdf and " "parquet.",
+)
+@click.option(
+    "--public-sample",
+    is_flag=True,
+    help="Generates results for the small-scale public sample data.",
+)
+@click.option(
     "-s",
     "--seed",
     type=str,
@@ -142,6 +156,8 @@ def make_results(
     with_debugger: bool,
     mark_best: bool,
     test_run: bool,
+    extension: str,
+    public_sample: bool,
     seed: str,
     artifact_path: str,
     jobmon: bool,
@@ -178,7 +194,17 @@ def make_results(
         func = build_results
         kwargs = {}
     main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, seed, artifact_path, **kwargs)
+    main(
+        raw_output_dir,
+        final_output_dir,
+        mark_best,
+        test_run,
+        extension,
+        public_sample,
+        seed,
+        artifact_path,
+        **kwargs,
+    )
 
 
 @click.command()
@@ -189,6 +215,18 @@ def make_results(
 @click.option(
     "-t",
     "--test-run",
+    is_flag=True,
+)
+@click.option(
+    "-x",
+    "--extension",
+    type=click.Choice(["hdf", "parquet"]),
+    default="hdf",
+    show_default=True,
+    help="File type to write results out as. Supported file types are hdf and parquet.",
+)
+@click.option(
+    "--public-sample",
     is_flag=True,
 )
 @click.option(
@@ -209,9 +247,52 @@ def jobmon_make_results_runner(
     verbose: int,
     mark_best: bool,
     test_run: bool,
+    extension: str,
+    public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(func=build_results, logger=logger, with_debugger=False)
-    main(raw_output_dir, final_output_dir, mark_best, test_run, seed, artifact_path)
+    main(
+        raw_output_dir,
+        final_output_dir,
+        mark_best,
+        test_run,
+        extension,
+        public_sample,
+        seed,
+        artifact_path,
+    )
+
+
+@click.command()
+@click.argument("processed_results_dir", type=click.Path(exists=True))
+@click.option(
+    "--pdb",
+    "with_debugger",
+    is_flag=True,
+    help="Drop into python debugger if an error occurs.",
+)
+@click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
+@click.option(
+    "-l",
+    "--state",
+    type=str,
+    default="RI",
+    show_default=True,
+    help="State to subset process results to obtain a smaller dataset for one "
+    "specific geographic location. This should be the two letter postal "
+    "abbreviation.",
+)
+def make_state_results(
+    processed_results_dir: Path,
+    verbose: int,
+    with_debugger: bool,
+    state: str,
+) -> None:
+    configure_logging_to_terminal(verbose)
+    main = handle_exceptions(
+        func=subset_results_by_state, logger=logger, with_debugger=with_debugger
+    )
+    main(processed_results_dir, state)

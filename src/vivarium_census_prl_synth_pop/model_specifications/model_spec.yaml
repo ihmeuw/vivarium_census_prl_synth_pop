@@ -34,31 +34,31 @@ configuration:
         random_seed: 0
     time:
         start:
-            year: 2020
-            month: 4
+            year: 2019
+            month: 1
             day: 1
         end:
-            year: 2030
+            year: 2041
             month: 5
             day: 1
         step_size: 28 # Days
     population:
-        population_size: 250_000
+        population_size: 1_000_000
     # us_population_size: 250_000  # Override the default US population size
 
-    household_survey_observer_acs:
-        file_extension: "hdf"
-    household_survey_observer_cps:
-        file_extension: "hdf"
-    decennial_census_observer:
-        file_extension: "hdf"
-    wic_observer:
-        file_extension: "hdf"
-    social_security_observer:
-        file_extension: "hdf"
-    tax_w2_observer:
-        file_extension: "hdf"
-    tax_dependents_observer:
-        file_extension: "hdf"
-    tax_1040_observer:
-        file_extension: "hdf"
+#    household_survey_observer_acs:
+#        file_extension: "hdf"
+#    household_survey_observer_cps:
+#        file_extension: "hdf"
+#    decennial_census_observer:
+#        file_extension: "hdf"
+#    wic_observer:
+#        file_extension: "hdf"
+#    social_security_observer:
+#        file_extension: "hdf"
+#    tax_w2_observer:
+#        file_extension: "hdf"
+#    tax_dependents_observer:
+#        file_extension: "hdf"
+#    tax_1040_observer:
+#        file_extension: "hdf"

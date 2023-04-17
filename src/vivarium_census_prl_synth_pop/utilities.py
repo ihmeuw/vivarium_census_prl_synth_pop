@@ -14,7 +14,7 @@ from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.constants import metadata, paths
+from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
@@ -285,7 +285,9 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
 def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
     final_output_dir = build_output_dir(
         Path(results_dir),
-        subdir=paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S"),
+        subdir=paths.FINAL_RESULTS_DIR_NAME
+        / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        / "usa",
     )
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
 
@@ -459,3 +461,30 @@ def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
     )
 
     return sorted(list(set([x.name.split(".")[0].split("_")[-1] for x in raw_results_files])))
+
+
+def write_to_disk(data: pd.DataFrame, path: Path):
+    """
+    Converts all object dtypes to categorical and then writes to file to output
+    path. If writing to an hdf file, bzip2 compression is used. Alternately can
+    write to a parquet file.
+    """
+    for column in data.columns:
+        if data[column].dtype.name == "object":
+            data[column] = data[column].astype("category")
+    if ".hdf" == path.suffix:
+        data.to_hdf(
+            path,
+            "data",
+            format="table",
+            complib="bzip2",
+            complevel=9,
+            data_columns=data_values.DATA_COLUMNS,
+        )
+    elif ".parquet" == path.suffix:
+        data.to_parquet(path)
+    else:
+        raise ValueError(
+            f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
+            f"{path.suffix[1:]} was provided."
+        )

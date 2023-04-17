@@ -8,7 +8,7 @@ from vivarium_census_prl_synth_pop.constants import paths
 # TODO: Broader test coverage
 
 
-@pytest.fixture(params=["hdf", "csv.bz2"])
+@pytest.fixture(params=["hdf", "parquet"])
 def observer(mocker, tmp_path, request):
     """Generate post-setup observer with mocked methods to patch as necessary"""
     observer = HouseholdSurveyObserver("acs")

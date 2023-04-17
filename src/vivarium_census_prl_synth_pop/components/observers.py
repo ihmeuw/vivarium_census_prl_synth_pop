@@ -51,7 +51,7 @@ class BaseObserver(ABC):
         # todo: add necessary guardian address columns
     ]
 
-    configuration_defaults = {"observer": {"file_extension": "csv.bz2"}}
+    configuration_defaults = {"observer": {"file_extension": "hdf"}}
 
     def __init__(self):
         self.configuration_defaults = self._get_configuration_defaults()
@@ -169,11 +169,9 @@ class BaseObserver(ABC):
             logger.info(f"No results to write ({self.name})")
         else:
             self.responses.index.names = ["simulant_id"]
-            filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
-            if "hdf" == self.file_extension:
-                self.responses.to_hdf(filepath, "data", format="table")
-            else:
-                self.responses.to_csv(filepath)
+            utilities.write_to_disk(
+                self.responses, output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
+            )
 
     ##################
     # Helper methods #
@@ -244,7 +242,7 @@ class HouseholdSurveyObserver(BaseObserver):
             * builder.configuration.time.step_size
             / DAYS_PER_YEAR
             * builder.configuration.population.population_size
-            / builder.configuration.us_population_size
+            / data_values.US_POPULATION
         )
 
     ########################
@@ -698,6 +696,7 @@ class TaxW2Observer(BaseObserver):
         # with the pd.Series, but it is getting lost at some point in the computation
 
         df_w2 = self.income_last_year.reset_index()
+        df_w2["income"] = df_w2["income"].round().astype(int)
         df_w2["tax_year"] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
