@@ -296,7 +296,7 @@ def test_addresses_during_moves(
     address_id_col,
     state_id_col,
     puma_col,
-    fuzzy_tester: FuzzyChecker,
+    fuzzy_checker: FuzzyChecker,
 ):
     """Check that unit (household and business) address details change after a move."""
     address_cols = [address_id_col, state_id_col, puma_col]
@@ -336,7 +336,7 @@ def test_addresses_during_moves(
         )
 
         # Check that most movers are in a new state
-        fuzzy_tester.fuzzy_assert_proportion(
+        fuzzy_checker.fuzzy_assert_proportion(
             f"Domestic migration: proportion {unit_id_col} moving into a new state",
             (
                 before_units.loc[mask_moved_units, state_id_col]
@@ -347,7 +347,7 @@ def test_addresses_during_moves(
         )
 
         # Check that the vast majority of movers are in a different PUMA
-        fuzzy_tester.fuzzy_assert_proportion(
+        fuzzy_checker.fuzzy_assert_proportion(
             f"Domestic migration: proportion {unit_id_col} moving into a new PUMA",
             (
                 before_units.loc[mask_moved_units, [state_id_col, puma_col]]
