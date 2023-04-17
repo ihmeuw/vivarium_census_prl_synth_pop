@@ -80,7 +80,7 @@ def pipeline_columns(sim, populations) -> List[str]:
     return pipeline_columns
 
 
-class FuzzyTester:
+class FuzzyChecker:
     def __init__(self, num_comparisons: int, overall_significance_level: float) -> None:
         self.num_comparisons = num_comparisons
         self.overall_significance_level = overall_significance_level
@@ -254,8 +254,8 @@ class FuzzyTester:
 
 
 @pytest.fixture(scope="session")
-def fuzzy_tester() -> FuzzyTester:
-    tester = FuzzyTester(
+def fuzzy_checker() -> FuzzyChecker:
+    tester = FuzzyChecker(
         # NOTE: This will need to be updated when any new tests with fuzzy asserts
         # are added.
         # Do not update this if it is not the only thing that is failing!

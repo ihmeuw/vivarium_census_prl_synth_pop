@@ -3,7 +3,7 @@ import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
-from .conftest import FuzzyTester
+from .conftest import FuzzyChecker
 
 # TODO: Broader test coverage
 
@@ -146,7 +146,7 @@ def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
         assert not after.index.duplicated().any()
 
 
-def test_state_population_proportions(populations, sim, fuzzy_tester: FuzzyTester):
+def test_state_population_proportions(populations, sim, fuzzy_checker: FuzzyChecker):
     # We want the proportion of the *households* in each state in ACS PUMS.
     # That's because it's only the location of *households* that are independent
     # of each other.
@@ -172,12 +172,12 @@ def test_state_population_proportions(populations, sim, fuzzy_tester: FuzzyTeste
         )
 
         for state_id, proportion in state_proportions.items():
-            # NOTE: Prior to fuzzy testing, we checked that all states were at least present in the population table.
+            # NOTE: Prior to fuzzy checking, we checked that all states were at least present in the population table.
             # The exact analog to this would be some complicated hypothesis about a coupon collector's partition with
             # uneven probabilities of different "coupons" (since states are different sizes).
-            # To make things easier, we do a fuzzy test of the *proportion* of each state.
+            # To make things easier, we do a fuzzy check of the *proportion* of each state.
             # One downside to this approach is that it generates a lot of hypotheses.
-            fuzzy_tester.fuzzy_assert_proportion(
+            fuzzy_checker.fuzzy_assert_proportion(
                 f"State proportion for {state_id}",
                 household_states == state_id,
                 # Relative size of states can change over time in the sim due to differential immigration, emigration

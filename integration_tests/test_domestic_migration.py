@@ -4,7 +4,7 @@ import pytest
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
-from .conftest import FuzzyTester
+from .conftest import FuzzyChecker
 
 
 def test_individuals_move(simulants_on_adjacent_timesteps):
@@ -296,7 +296,7 @@ def test_addresses_during_moves(
     address_id_col,
     state_id_col,
     puma_col,
-    fuzzy_tester: FuzzyTester,
+    fuzzy_tester: FuzzyChecker,
 ):
     """Check that unit (household and business) address details change after a move."""
     address_cols = [address_id_col, state_id_col, puma_col]
