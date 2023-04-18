@@ -145,4 +145,14 @@ class Taxes(NamedTuple):
 
 
 # Needed to allow HDFs to be filtered on these columns
-DATA_COLUMNS = ["year", "event_date", "survey_date", "tax_year"]
+DATA_COLUMNS = [
+    # Date columns
+    "year",
+    "event_date",
+    "survey_date",
+    "tax_year",
+
+    # State columns
+    "state",
+    "mailing_address_state",
+]

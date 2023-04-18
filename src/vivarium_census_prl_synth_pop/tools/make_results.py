@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Dict, List, Union
 
 import pandas as pd
+import pyarrow.parquet as pq
 from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
@@ -395,11 +396,15 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
     return observers_results
 
 
-def read_datafile(file: Path, reset_index: bool = True) -> pd.DataFrame:
+def read_datafile(file: Path, reset_index: bool = True, state: str = None) -> pd.DataFrame:
+    state_column = "mailing_address_state" if "tax" in file.parent.name else "state"
     if ".hdf" == file.suffix:
-        df = pd.read_hdf(file)
+        state_filter = [f"{state_column} == {state}."] if state else []
+        with pd.HDFStore(str(file), mode="r") as hdf_store:
+            df = hdf_store.select("data", where=state_filter)
     elif ".parquet" == file.suffix:
-        df = pd.read_parquet(file)
+        state_filter = [(state_column, "==", state)] if state else []
+        df = pq.read_table(file, filters=state_filter).to_pandas()
     else:
         raise ValueError(
             f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
@@ -484,12 +489,6 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             output_file_path = state_observer_dir / usa_obs_file.name
             if output_file_path.exists():
                 continue
-            usa_obs_data = read_datafile(usa_obs_file, reset_index=False)
-            if "state" in usa_obs_data.columns:
-                state_data = usa_obs_data.loc[usa_obs_data["state"] == state]
-            elif "mailing_address_state" in usa_obs_data.columns:
-                state_data = usa_obs_data.loc[usa_obs_data["mailing_address_state"] == state]
-            else:
-                raise ValueError(f"Data in {usa_obs_file} does not have a state column.")
-            write_to_disk(state_data.copy(), output_file_path)
+            state_data = read_datafile(usa_obs_file, reset_index=False, state=state)
+            write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
