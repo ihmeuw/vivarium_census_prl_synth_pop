@@ -361,7 +361,9 @@ class WICObserver(BaseObserver):
 
     @property
     def output_columns(self):
-        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
+        columns = self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
+        columns.remove("age")
+        return columns
 
     def setup(self, builder: Builder):
         super().setup(builder)

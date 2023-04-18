@@ -109,7 +109,6 @@ FINAL_OBSERVERS = {
         "first_name",
         "middle_initial",
         "last_name",
-        "age",
         "date_of_birth",
         "street_number",
         "street_name",
