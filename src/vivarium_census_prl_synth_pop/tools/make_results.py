@@ -399,11 +399,11 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
 def read_datafile(file: Path, reset_index: bool = True, state: str = None) -> pd.DataFrame:
     state_column = "mailing_address_state" if "tax" in file.parent.name else "state"
     if ".hdf" == file.suffix:
-        state_filter = [f"{state_column} == {state}."] if state else []
+        state_filter = [f"{state_column} == {state}."] if state else None
         with pd.HDFStore(str(file), mode="r") as hdf_store:
             df = hdf_store.select("data", where=state_filter)
     elif ".parquet" == file.suffix:
-        state_filter = [(state_column, "==", state)] if state else []
+        state_filter = [(state_column, "==", state)] if state else None
         df = pq.read_table(file, filters=state_filter).to_pandas()
     else:
         raise ValueError(
