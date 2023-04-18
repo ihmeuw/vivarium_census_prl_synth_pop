@@ -151,7 +151,6 @@ DATA_COLUMNS = [
     "event_date",
     "survey_date",
     "tax_year",
-
     # State columns
     "state",
     "mailing_address_state",
