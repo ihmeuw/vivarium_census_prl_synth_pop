@@ -84,6 +84,11 @@ class BaseObserver(ABC):
     def output_columns(self):
         pass
 
+    @property
+    @abstractmethod
+    def output_name(self) -> str:
+        pass
+
     #################
     # Setup methods #
     #################
@@ -163,14 +168,15 @@ class BaseObserver(ABC):
 
     def on_simulation_end(self, _: Event) -> None:
         output_dir = utilities.build_output_dir(
-            self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.name
+            self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.output_name
         )
         if self.responses is None:
-            logger.info(f"No results to write ({self.name})")
+            logger.info(f"No results to write ({self.output_name})")
         else:
             self.responses.index.names = ["simulant_id"]
             utilities.write_to_disk(
-                self.responses, output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
+                self.responses,
+                output_dir / f"{self.output_name}_{self.seed}.{self.file_extension}",
             )
 
     ##################
@@ -227,6 +233,12 @@ class HouseholdSurveyObserver(BaseObserver):
     @property
     def output_columns(self):
         return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
+
+    @property
+    def output_name(self) -> str:
+        return {"acs": metadata.DatasetNames.ACS, "cps": metadata.DatasetNames.CPS}[
+            self.survey
+        ]
 
     #################
     # Setup methods #
@@ -303,6 +315,10 @@ class DecennialCensusObserver(BaseObserver):
     def output_columns(self):
         return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.CENSUS
+
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
@@ -364,6 +380,10 @@ class WICObserver(BaseObserver):
         columns = self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
         columns.remove("age")
         return columns
+
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.WIC
 
     def setup(self, builder: Builder):
         super().setup(builder)
@@ -510,6 +530,10 @@ class SocialSecurityObserver(BaseObserver):
     def output_columns(self):
         return self.OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.SSA
+
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
@@ -624,6 +648,10 @@ class TaxW2Observer(BaseObserver):
     @property
     def output_columns(self):
         return self.OUTPUT_COLUMNS
+
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.TAXES_W2_1099
 
     def setup(self, builder: Builder):
         super().setup(builder)
@@ -823,6 +851,11 @@ class TaxDependentsObserver(BaseObserver):
     def output_columns(self):
         return self.OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        # TODO figure out where to store this once 1040 is implemented
+        return metadata.DatasetNames.TAXES_DEPENDENTS
+
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
@@ -949,6 +982,10 @@ class Tax1040Observer(BaseObserver):
     @property
     def output_columns(self):
         return self.OUTPUT_COLUMNS
+
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.TAXES_1040
 
     def setup(self, builder: Builder):
         super().setup(builder)

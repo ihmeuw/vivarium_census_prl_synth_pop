@@ -32,7 +32,7 @@ from vivarium_census_prl_synth_pop.utilities import (
 )
 
 FINAL_OBSERVERS = {
-    "decennial_census_observer": {
+    metadata.DatasetNames.CENSUS: {
         "simulant_id",
         "first_name",
         "middle_initial",
@@ -56,7 +56,7 @@ FINAL_OBSERVERS = {
         "housing_type",
         "year",
     },
-    "household_survey_observer_acs": {
+    metadata.DatasetNames.ACS: {
         "simulant_id",
         "household_id",
         "first_name",
@@ -80,7 +80,7 @@ FINAL_OBSERVERS = {
         "housing_type",
         "survey_date",
     },
-    "household_survey_observer_cps": {
+    metadata.DatasetNames.CPS: {
         "household_id",
         "simulant_id",
         "first_name",
@@ -104,7 +104,7 @@ FINAL_OBSERVERS = {
         "housing_type",
         "survey_date",
     },
-    "wic_observer": {
+    metadata.DatasetNames.WIC: {
         "simulant_id",
         "household_id",
         "first_name",
@@ -128,7 +128,7 @@ FINAL_OBSERVERS = {
         "housing_type",
         "year",
     },
-    "social_security_observer": {
+    metadata.DatasetNames.SSA: {
         "simulant_id",
         "first_name",
         "middle_initial",
@@ -138,7 +138,7 @@ FINAL_OBSERVERS = {
         "event_type",
         "event_date",
     },
-    "tax_w2_observer": {
+    metadata.DatasetNames.TAXES_W2_1099: {
         "simulant_id",
         "first_name",
         "middle_initial",
@@ -165,7 +165,7 @@ FINAL_OBSERVERS = {
         "tax_form",
         "tax_year",
     },
-    "tax_1040_observer": {
+    metadata.DatasetNames.TAXES_1040: {
         "simulant_id",
         "first_name",
         "middle_initial",
@@ -185,7 +185,7 @@ FINAL_OBSERVERS = {
         "itin",
         "tax_year",
     },
-    "tax_dependents_observer": {
+    metadata.DatasetNames.TAXES_DEPENDENTS: {
         # Metadata is for a dependent.  This should capture each dependent/guardian pair.  Meaning that if a dependent
         # has 2 guardians, there should be a duplicate row but the guardian_id column would contain the 2 simulant_ids
         # for that dependent's guardians.
@@ -296,7 +296,7 @@ def perform_post_processing(
         # In order to have all housing types in the sample data, we additionally include
         # the (up to 6) PUMAs with group quarters in them.
         gq_pumas = (
-            processed_results["decennial_census_observer"]
+            processed_results[metadata.DatasetNames.CENSUS]
             .pipe(lambda df: df[df["housing_type"] != "Standard"])[["state_id", "puma"]]
             .drop_duplicates()
         )
@@ -316,7 +316,7 @@ def perform_post_processing(
 
     # Iterate through expected forms and generate them. Generate columns each of these forms need to have.
     for observer in FINAL_OBSERVERS:
-        logger.info(f"Processing data for {observer}.")
+        logger.info(f"Processing {observer} data.")
         obs_data = processed_results[observer]
 
         if public_sample:
@@ -336,7 +336,7 @@ def perform_post_processing(
                     continue
                 obs_data[target_column_name] = obs_data[column].map(column_map)
 
-        if observer == "tax_w2_observer":
+        if observer == metadata.DatasetNames.TAXES_W2_1099:
             # For w2, we need to post-process to allow for SSN collisions in the data in cases where
             #  the simulant has no SSN but is employed (they'd need to have supplied an SSN to their employer)
             obs_data = do_collide_ssns(obs_data, maps["simulant_id"]["ssn"], randomness)
@@ -349,7 +349,7 @@ def perform_post_processing(
                     if f"{address_prefix}{address_part}" in obs_data.columns:
                         obs_data[f"{address_prefix}{address_part}"] = address_part_value
 
-        logger.info(f"Writing final results for {observer}.")
+        logger.info(f"Writing final {observer} results.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
         write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
@@ -361,7 +361,7 @@ def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
     for observer in FINAL_OBSERVERS:
         obs_dir = raw_results_dir / observer
         if seed == "":
-            logger.info(f"Loading data for {obs_dir.name}")
+            logger.info(f"Loading {obs_dir.name} data ")
             obs_files = sorted(
                 list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
             )
@@ -475,8 +475,8 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
     state_dir = processed_results_dir / "states" / state_name
 
     for observer in FINAL_OBSERVERS:
-        logger.info(f"Processing data for {observer}...")
-        if observer == "social_security_observer":
+        logger.info(f"Processing {observer} data")
+        if observer == metadata.DatasetNames.SSA:
             logger.info(f"Ignoring {observer} as it does not have a state column.")
             continue
         usa_obs_dir = usa_results_dir / observer

@@ -14,7 +14,12 @@ from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
+from vivarium_census_prl_synth_pop.constants import (
+    data_keys,
+    data_values,
+    metadata,
+    paths,
+)
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
@@ -442,7 +447,7 @@ def randomly_sample_states_pumas(
 
 def get_state_puma_options(builder: Builder) -> pd.DataFrame:
     states_in_artifact = list(
-        builder.data.load("population.households")["state"].drop_duplicates()
+        builder.data.load(data_keys.POPULATION.HOUSEHOLDS)["state"].drop_duplicates()
     )
     state_puma_options = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)[
         ["state", "puma"]
