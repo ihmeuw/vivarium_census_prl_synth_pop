@@ -62,8 +62,8 @@ def test_on_simulation_end(observer, mocker):
     assert (
         observer.output_dir
         / paths.RAW_RESULTS_DIR_NAME
-        / observer.name
-        / f"{observer.name}_{observer.seed}.{observer.file_extension}"
+        / observer.output_name
+        / f"{observer.output_name}_{observer.seed}.{observer.file_extension}"
     ).is_file()
 
 

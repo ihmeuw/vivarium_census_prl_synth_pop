@@ -5,6 +5,7 @@ import pandas as pd
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
+from vivarium_census_prl_synth_pop.constants import metadata
 from vivarium_census_prl_synth_pop.results_processing.formatter import (
     format_data_for_mapping,
 )
@@ -114,10 +115,10 @@ def get_ssn_map(
     all_seeds: List[str],
 ) -> Dict[str, pd.Series]:
     # Anyone in the SSN observer has SSNs by definition
-    need_ssns_ssn = obs_data["social_security_observer"][column_name]
+    need_ssns_ssn = obs_data[metadata.DatasetNames.SSA][column_name]
 
     # Simulants in W2 observer who `has_ssn` need SSNs
-    w2_data = obs_data["tax_w2_observer"][[column_name, "has_ssn", "ssn_id"]]
+    w2_data = obs_data[metadata.DatasetNames.TAXES_W2_1099][[column_name, "has_ssn", "ssn_id"]]
     need_ssns_has_ssn = w2_data.loc[w2_data["has_ssn"], column_name]
 
     # Simulants in W2 observer who are assigned as an `ssn_id` need to have SSNs
