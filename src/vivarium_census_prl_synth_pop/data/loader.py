@@ -112,9 +112,9 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     )
 
     # map relationship to household head
-    data["relation_to_household_head"] = (
-        data["relation_to_household_head"]
-        .map(metadata.RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP)
+    data["relation_to_reference_person"] = (
+        data["relation_to_reference_person"]
+        .map(metadata.RELATIONSHIP_TO_REFERENCE_PERSON_MAP)
         .astype(pd.CategoricalDtype(categories=metadata.RELATIONSHIPS))
     )
     # Map native born persons and if person has migrated in last year

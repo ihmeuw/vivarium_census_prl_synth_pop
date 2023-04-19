@@ -26,8 +26,8 @@ def test_there_is_emigration(simulants_on_adjacent_timesteps):
         == emigrants["household_details.housing_type_after"]
     ).all()
     assert (
-        emigrants["relation_to_household_head_before"]
-        == emigrants["relation_to_household_head_after"]
+        emigrants["relation_to_reference_person_before"]
+        == emigrants["relation_to_reference_person_after"]
     ).all()
 
     # VERY conservative upper bound on how often this should be occurring, as a proportion
@@ -56,7 +56,7 @@ def test_non_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
     )
 
     emigrants = all_simulant_links[all_non_gq_emigration_status]
-    assert (emigrants["relation_to_household_head_before"] != "Reference person").all()
+    assert (emigrants["relation_to_reference_person_before"] != "Reference person").all()
 
     assert 0 < all_non_gq_emigration_status.mean() < 0.1
 

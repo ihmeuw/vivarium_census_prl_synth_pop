@@ -50,7 +50,7 @@ class HouseholdMigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.columns_used = [
             "household_id",
-            "relation_to_household_head",
+            "relation_to_reference_person",
         ]
 
         self.population_view = builder.population.get_view(self.columns_used)
@@ -71,7 +71,7 @@ class HouseholdMigration:
         move those households to a new address
         """
         pop = self.population_view.get(event.index, query="alive == 'alive'")
-        reference_people = pop[pop["relation_to_household_head"] == "Reference person"]
+        reference_people = pop[pop["relation_to_reference_person"] == "Reference person"]
 
         household_sizes = pop.groupby("household_id").size()
 
