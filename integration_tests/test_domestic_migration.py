@@ -113,7 +113,9 @@ def test_individual_movers_have_correct_relationship(simulants_on_adjacent_times
             non_reference_person_movers & in_household_with_reference_person
         )
         assert (
-            after.loc[mover_to_household_with_reference_person, "relation_to_reference_person"]
+            after.loc[
+                mover_to_household_with_reference_person, "relation_to_reference_person"
+            ]
             == "Other nonrelative"
         ).all()
 
