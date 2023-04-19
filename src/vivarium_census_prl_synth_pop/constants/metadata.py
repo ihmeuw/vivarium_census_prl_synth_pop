@@ -276,6 +276,7 @@ PRIORITY_MAP = {
 
 SUPPORTED_EXTENSIONS = ["hdf", "parquet"]
 
+
 class DatasetNames:
     """Container for Form names"""
 

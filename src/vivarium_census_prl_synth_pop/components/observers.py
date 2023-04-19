@@ -176,7 +176,7 @@ class BaseObserver(ABC):
             self.responses.index.names = ["simulant_id"]
             utilities.write_to_disk(
                 self.responses,
-                output_dir / f"{self.output_name}_{self.seed}.{self.file_extension}"
+                output_dir / f"{self.output_name}_{self.seed}.{self.file_extension}",
             )
 
     ##################
@@ -236,10 +236,9 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def output_name(self) -> str:
-        return {
-            "acs": metadata.DatasetNames.ACS,
-            "cps": metadata.DatasetNames.CPS
-        }[self.survey]
+        return {"acs": metadata.DatasetNames.ACS, "cps": metadata.DatasetNames.CPS}[
+            self.survey
+        ]
 
     #################
     # Setup methods #

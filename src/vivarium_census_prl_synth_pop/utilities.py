@@ -14,7 +14,12 @@ from vivarium.framework.lookup import LookupTable
 from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata, paths
+from vivarium_census_prl_synth_pop.constants import (
+    data_keys,
+    data_values,
+    metadata,
+    paths,
+)
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
