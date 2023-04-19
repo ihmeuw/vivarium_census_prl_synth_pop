@@ -20,7 +20,7 @@ class Mortality(_Mortality):
                 "exit_time",
                 "age",
                 "sex",
-                "relation_to_household_head",
+                "relation_to_reference_person",
             ]
         )
 

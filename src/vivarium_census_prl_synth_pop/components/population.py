@@ -55,7 +55,7 @@ class Population:
 
         self.columns_created = [
             "household_id",
-            "relation_to_household_head",
+            "relation_to_reference_person",
             "sex",
             "age",
             "date_of_birth",
@@ -85,7 +85,7 @@ class Population:
             "updated_relation_to_reference_person",
             source=self.get_updated_relation_to_reference_person,
             requires_columns=[
-                "relation_to_household_head",
+                "relation_to_reference_person",
                 "household_id",
                 "date_of_birth",
                 "guardian_1",
@@ -212,10 +212,10 @@ class Population:
         new_simulants["age"] = self.perturb_individual_age(new_simulants)
 
         noninstitutionalized = new_simulants.loc[
-            new_simulants["relation_to_household_head"] == "Noninstitutionalized GQ pop"
+            new_simulants["relation_to_reference_person"] == "Noninstitutionalized GQ pop"
         ].copy()
         institutionalized = new_simulants.loc[
-            new_simulants["relation_to_household_head"] == "Institutionalized GQ pop"
+            new_simulants["relation_to_reference_person"] == "Institutionalized GQ pop"
         ].copy()
 
         noninstitutionalized_gq_types = vectorized_choice(
@@ -242,7 +242,7 @@ class Population:
         pop_index = pop_data.user_data["current_population_index"]
         mothers = self.population_view.get(parent_ids_idx.unique())
         households = self.population_view.subview(
-            ["household_id", "relation_to_household_head"]
+            ["household_id", "relation_to_reference_person"]
         ).get(pop_index)
         new_births = pd.DataFrame(data={"parent_id": parent_ids_idx}, index=pop_data.index)
         new_births = self.initialize_new_simulants(new_births, pop_data)
@@ -250,7 +250,7 @@ class Population:
         inherited_traits = [
             "household_id",
             "race_ethnicity",
-            "relation_to_household_head",
+            "relation_to_reference_person",
             "last_name_id",
         ]
 
@@ -258,10 +258,10 @@ class Population:
         new_births = new_births.merge(
             mothers[inherited_traits], left_on="parent_id", right_index=True
         )
-        new_births["relation_to_household_head"] = (
-            new_births["relation_to_household_head"]
-            .map(metadata.NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP)
-            .astype(new_births["relation_to_household_head"].dtype)
+        new_births["relation_to_reference_person"] = (
+            new_births["relation_to_reference_person"]
+            .map(metadata.NEWBORNS_RELATION_TO_REFERENCE_PERSON_MAP)
+            .astype(new_births["relation_to_reference_person"].dtype)
         )
 
         # birthday map between parent_ids and DOB (so twins get same bday)
@@ -377,7 +377,7 @@ class Population:
                 num_households=len(new_simulants),
             )
             new_simulants["household_id"] = household_ids
-            new_simulants["relation_to_household_head"] = "Reference person"
+            new_simulants["relation_to_reference_person"] = "Reference person"
         else:
             # TODO: For now, we do a simple random sample of households.
             # As part of future PUMA perturbation work, we plan to actually use
@@ -392,8 +392,8 @@ class Population:
         # We avoid non-reference-person immigrants having these relationships, because
         # otherwise they may cause there to be an impossible number of said relationships
         # within a household, i.e. >2 parents or >1 spouse/partner
-        new_simulants["relation_to_household_head"] = (
-            new_simulants["relation_to_household_head"]
+        new_simulants["relation_to_reference_person"] = (
+            new_simulants["relation_to_reference_person"]
             .replace(
                 {
                     "Parent": "Other relative",
@@ -404,7 +404,7 @@ class Population:
                     "Same-sex partner": "Other nonrelative",
                 }
             )
-            .astype(existing_simulants["relation_to_household_head"].dtype)
+            .astype(existing_simulants["relation_to_reference_person"].dtype)
         )
 
         new_simulants = self.initialize_simulant_link_columns(
@@ -581,7 +581,7 @@ class Population:
 
         columns_needed_for_linking = [
             "household_id",
-            "relation_to_household_head",
+            "relation_to_reference_person",
             "sex",
             "age",
             "race_ethnicity",
@@ -634,11 +634,11 @@ class Population:
         ]
         new_column_names = {
             "age_x": "child_age",
-            "relation_to_household_head_x": "child_relation_to_household_head",
+            "relation_to_reference_person_x": "child_relation_to_reference_person",
             "age_y": "member_age",
-            "relation_to_household_head_y": "member_relation_to_household_head",
+            "relation_to_reference_person_y": "member_relation_to_reference_person",
         }
-        key_cols = ["household_id", "relation_to_household_head", "age"]
+        key_cols = ["household_id", "relation_to_reference_person", "age"]
 
         child_households = self.get_household_structure(
             gen_population,
@@ -655,40 +655,40 @@ class Population:
         # Children helper index groups
         # Ref_person = "Reference person"
         child_of_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"].isin(CHILDREN)
+            child_households["child_relation_to_reference_person"].isin(CHILDREN)
         ].index
         child_relative_of_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"].isin(CHILDREN_RELATIVES)
+            child_households["child_relation_to_reference_person"].isin(CHILDREN_RELATIVES)
         ].index
         child_non_relative_of_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"].isin(NON_RELATIVES)
+            child_households["child_relation_to_reference_person"].isin(NON_RELATIVES)
         ].index
         child_ref_person_idx = child_households.loc[
-            child_households["child_relation_to_household_head"] == "Reference person"
+            child_households["child_relation_to_reference_person"] == "Reference person"
         ].index
 
         # Potential guardian/household member index groups
         relatives_of_ref_person_idx = child_households.loc[
-            ~child_households["member_relation_to_household_head"].isin(
+            ~child_households["member_relation_to_reference_person"].isin(
                 NON_RELATIVES + PARTNERS + ["Reference person"]
             )
         ].index
         non_relatives_of_ref_person_idx = child_households.loc[
-            child_households["member_relation_to_household_head"].isin(NON_RELATIVES)
+            child_households["member_relation_to_reference_person"].isin(NON_RELATIVES)
         ].index
         age_bound_idx = child_households.loc[
             (child_households["age_difference"] >= 18)
             & (child_households["age_difference"] < 46)
         ].index
         parents_of_ref_person_idx = child_households.loc[
-            child_households["member_relation_to_household_head"].isin(PARENTS)
+            child_households["member_relation_to_reference_person"].isin(PARENTS)
         ].index
         over_18_idx = child_households.loc[child_households["member_age"] >= 18].index
         ref_person_idx = child_households.loc[
-            child_households["member_relation_to_household_head"] == "Reference person"
+            child_households["member_relation_to_reference_person"] == "Reference person"
         ].index
         partners_of_ref_person_idx = child_households.loc[
-            child_households["member_relation_to_household_head"].isin(PARTNERS)
+            child_households["member_relation_to_reference_person"].isin(PARTNERS)
         ].index
 
         # Assign guardians across groups
@@ -839,7 +839,7 @@ class Population:
         ----------
         new_births: pd.DataFrame of new births on this time step
         households: pd.DataFrame of the entire state table for the two columns of household_id
-          and relation_to_household_head.
+          and relation_to_reference_person.
 
         Returns
         -------
@@ -847,10 +847,10 @@ class Population:
         """
         # Setup
         new_births["guardian_2"] = data_values.UNKNOWN_GUARDIAN_IDX
-        key_cols = ["household_id", "relation_to_household_head"]
+        key_cols = ["household_id", "relation_to_reference_person"]
         new_column_names = {
-            "relation_to_household_head_x": "mother_relation_to_household_head",
-            "relation_to_household_head_y": "member_relation_to_household_head",
+            "relation_to_reference_person_x": "mother_relation_to_reference_person",
+            "relation_to_reference_person_y": "member_relation_to_reference_person",
         }
         mothers_households = self.get_household_structure(
             households,
@@ -863,17 +863,17 @@ class Population:
         # Index helpers
         # Mother index groups
         mother_ref_person_idx = mothers_households.loc[
-            mothers_households["mother_relation_to_household_head"] == "Reference person"
+            mothers_households["mother_relation_to_reference_person"] == "Reference person"
         ].index
         mother_partner_idx = mothers_households.loc[
-            mothers_households["mother_relation_to_household_head"].isin(PARTNERS)
+            mothers_households["mother_relation_to_reference_person"].isin(PARTNERS)
         ].index
         # Potential partner index groups
         partners_idx = mothers_households.loc[
-            mothers_households["member_relation_to_household_head"].isin(PARTNERS)
+            mothers_households["member_relation_to_reference_person"].isin(PARTNERS)
         ].index
         ref_person_idx = mothers_households.loc[
-            mothers_households["member_relation_to_household_head"] == "Reference person"
+            mothers_households["member_relation_to_reference_person"] == "Reference person"
         ].index
 
         # Assign second guardian to random partner of mothers
@@ -929,7 +929,7 @@ class Population:
         #  for easier lookups
         reference_persons = (
             pop.loc[
-                (pop["relation_to_household_head"] == "Reference person")
+                (pop["relation_to_reference_person"] == "Reference person")
                 & (pop["age"] >= 35)
                 & (pop["age"] < 66),
                 ["household_id", "sex", "race_ethnicity"],
@@ -939,7 +939,7 @@ class Population:
             .rename(columns={"index": "reference_person_id"})
         )
         partners_of_reference_persons = (
-            pop.loc[pop["relation_to_household_head"].isin(PARTNERS), ["household_id"]]
+            pop.loc[pop["relation_to_reference_person"].isin(PARTNERS), ["household_id"]]
             .reset_index()
             .rename(columns={"index": "partner_id"})
             .groupby("household_id")["partner_id"]
@@ -1094,7 +1094,7 @@ class Population:
         The following example is how we will construct a dataframe for children under 18.
         # Columns will contain data for child alongside each household member
         # This will allow us to do lookups related to both a child and other household members.
-        pd.Dataframe = child_age | child_relation_to_household_head | member_age | member_relation_to_household_head
+        pd.Dataframe = child_age | child_relation_to_reference_person | member_age | member_relation_to_reference_person
         child_id person_id|
             0        0    |  11              "Biological child               11            "Biological child
             0        1    |  11              "Biological child               35            "Reference person"
@@ -1138,7 +1138,7 @@ class Population:
     def perturb_household_age(self, simulants: pd.DataFrame) -> pd.Series:
         # Takes dataframe of households and returns a series with an applied age shift for each household.
         household_ids = simulants.loc[
-            simulants["relation_to_household_head"] == "Reference person", "household_id"
+            simulants["relation_to_reference_person"] == "Reference person", "household_id"
         ]  # Series with index for each reference person and value is household id
         # Flip index and values to map age shift later
         reference_person_ids = pd.Series(data=household_ids.index, index=household_ids)
@@ -1229,7 +1229,7 @@ class Population:
         simulants_to_assign
             Dataframe of simulants who may be assigned a linked last name ID.
             This dataframe should already include a last_name_id column, which will not be changed if no link is made.
-            It should also include household_id and relation_to_household_head columns.
+            It should also include household_id and relation_to_reference_person columns.
         pop
             Dataframe of full population, which includes all reference people the last_name_id may be linked to.
 
@@ -1241,7 +1241,7 @@ class Population:
         # Match last names for relatives of reference person
         relatives_idx = simulants_to_assign.index[
             (
-                ~simulants_to_assign["relation_to_household_head"].isin(
+                ~simulants_to_assign["relation_to_reference_person"].isin(
                     NON_RELATIVES + ["Reference person"]
                 )
             )
@@ -1250,13 +1250,13 @@ class Population:
 
         # Get mapping from household_id to current reference person last_name_id
         reference_person_last_name_ids = pop.loc[
-            pop["relation_to_household_head"] == "Reference person",
+            pop["relation_to_reference_person"] == "Reference person",
             ["household_id", "last_name_id"],
         ].set_index("household_id")["last_name_id"]
 
         # NOTE: Because we are mutating the very value we are linking to, it would break if
         # a simulants_to_assign row were both linked *to* and linked *from* here!
-        # That only one or the other occurs is guaranteed by our relation_to_household_head
+        # That only one or the other occurs is guaranteed by our relation_to_reference_person
         # criteria above.
         # We have to set the type because it will have become a float with the addition of
         # NaNs.
@@ -1280,7 +1280,7 @@ class Population:
 
         # Find standard households that do not have a reference person
         household_ids_with_reference_person = population.loc[
-            population["relation_to_household_head"] == "Reference person", "household_id"
+            population["relation_to_reference_person"] == "Reference person", "household_id"
         ]
         standard_household_ids = population.loc[
             ~population["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP), "household_id"
@@ -1300,10 +1300,10 @@ class Population:
         # Preserve old relationship of new reference person before assigning
         # them as new reference persons
         new_reference_person_prev_relationship = population.loc[
-            new_reference_persons, ["household_id", "relation_to_household_head"]
+            new_reference_persons, ["household_id", "relation_to_reference_person"]
         ]
         population.loc[
-            new_reference_persons, "relation_to_household_head"
+            new_reference_persons, "relation_to_reference_person"
         ] = "Reference person"
 
         # Update simulants born in simulation as biological children to their
@@ -1320,12 +1320,12 @@ class Population:
             )
         ].intersection(households_to_update_idx)
         population.loc[
-            biological_children_idx, "relation_to_household_head"
+            biological_children_idx, "relation_to_reference_person"
         ] = "Biological child"
 
         # Update other household members relationship to new reference person
         for relationship in new_reference_person_prev_relationship[
-            "relation_to_household_head"
+            "relation_to_reference_person"
         ].unique():
             relationship_map = data_values.REFERENCE_PERSON_UPDATE_RELATIONSHIPS_MAP.loc[
                 data_values.REFERENCE_PERSON_UPDATE_RELATIONSHIPS_MAP[
@@ -1335,7 +1335,7 @@ class Population:
             ].set_index("relationship_to_old_reference_person")
 
             household_ids_to_update = new_reference_person_prev_relationship.loc[
-                new_reference_person_prev_relationship["relation_to_household_head"]
+                new_reference_person_prev_relationship["relation_to_reference_person"]
                 == relationship,
                 "household_id",
             ]
@@ -1346,14 +1346,14 @@ class Population:
             )
             # Update relationships
             population.loc[
-                simulants_to_update_idx, "relation_to_household_head"
-            ] = population["relation_to_household_head"].map(
+                simulants_to_update_idx, "relation_to_reference_person"
+            ] = population["relation_to_reference_person"].map(
                 relationship_map["relationship_to_new_reference_person"]
             )
 
         # Handle extreme edge cases where there would not be a value to map to.
-        population.loc[households_to_update_idx, "relation_to_household_head"].fillna(
+        population.loc[households_to_update_idx, "relation_to_reference_person"].fillna(
             "Other nonrelative"
         )
 
-        return population["relation_to_household_head"]
+        return population["relation_to_reference_person"]

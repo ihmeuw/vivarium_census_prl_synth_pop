@@ -45,7 +45,7 @@ class PersonMigration:
         self.household_details = builder.value.get_value("household_details")
         self.columns_needed = [
             "household_id",
-            "relation_to_household_head",
+            "relation_to_reference_person",
             "previous_timestep_address_id",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
@@ -160,7 +160,7 @@ class PersonMigration:
 
         # update pop table
         pop.loc[movers, "household_id"] = new_household_ids
-        pop.loc[movers, "relation_to_household_head"] = "Reference person"
+        pop.loc[movers, "relation_to_reference_person"] = "Reference person"
 
         return pop
 
@@ -172,7 +172,7 @@ class PersonMigration:
             return pop
 
         # The two GQ housing type categories (institutional, non-institutional) are
-        # tracked in the "relation_to_household_head" column, even though
+        # tracked in the "relation_to_reference_person" column, even though
         # that column name doesn't really make sense in a GQ setting.
         categories = list(data_values.GROUP_QUARTER_IDS.keys())
         housing_type_category_values = self.randomness.choice(
@@ -180,11 +180,11 @@ class PersonMigration:
             choices=categories,
             additional_key="gq_person_move_housing_type_categories",
         )
-        pop.loc[movers, "relation_to_household_head"] = housing_type_category_values
+        pop.loc[movers, "relation_to_reference_person"] = housing_type_category_values
 
         for category, housing_types in data_values.GROUP_QUARTER_IDS.items():
             movers_in_category = movers.intersection(
-                pop.index[pop["relation_to_household_head"] == category]
+                pop.index[pop["relation_to_reference_person"] == category]
             )
             if len(movers_in_category) == 0:
                 continue
@@ -248,6 +248,6 @@ class PersonMigration:
             )
 
         pop.loc[movers, "household_id"] = household_id_values
-        pop.loc[movers, "relation_to_household_head"] = "Other nonrelative"
+        pop.loc[movers, "relation_to_reference_person"] = "Other nonrelative"
 
         return pop

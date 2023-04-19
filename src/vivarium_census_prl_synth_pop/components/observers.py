@@ -277,9 +277,9 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
+    ADDITIONAL_INPUT_COLUMNS = ["relation_to_reference_person"]
     ADDITIONAL_OUTPUT_COLUMNS = [
-        "relation_to_household_head",
+        "relation_to_reference_person",
         "year",
         "housing_type",
     ]
@@ -332,13 +332,13 @@ class WICObserver(BaseObserver):
     INPUT_VALUES = ["income", "household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "household_id",
-        "relation_to_household_head",
+        "relation_to_reference_person",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "year",
         "household_id",
         "housing_type",
-        "relation_to_household_head",
+        "relation_to_reference_person",
     ]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
@@ -904,7 +904,7 @@ class Tax1040Observer(BaseObserver):
         "in_united_states",
         "tracked",
         "has_ssn",
-        "relation_to_household_head",
+        "relation_to_reference_person",
     ]
     OUTPUT_COLUMNS = [
         "first_name_id",
@@ -919,7 +919,7 @@ class Tax1040Observer(BaseObserver):
         "state_id",
         "puma",
         "race_ethnicity",
-        "relation_to_household_head",  # needed to identify couples filing jointly
+        "relation_to_reference_person",  # needed to identify couples filing jointly
         "housing_type",
         "tax_year",
         "alive",
@@ -974,7 +974,7 @@ class Tax1040Observer(BaseObserver):
             "Same-sex partner",
         ]
         partners_of_household_head_idx = pop.index[
-            pop["relation_to_household_head"].isin(partners)
+            pop["relation_to_reference_person"].isin(partners)
         ]
         pop["joint_filer"] = False
         pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
