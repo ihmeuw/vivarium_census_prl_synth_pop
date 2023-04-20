@@ -1,0 +1,64 @@
+components:
+    vivarium_census_prl_synth_pop:
+        components:
+            - Population()
+            - Households()
+            - Immigration()
+            - HouseholdMigration()
+            - PersonMigration()
+            - HouseholdEmigration()
+            - PersonEmigration()
+            - Mortality()
+            - Fertility()
+            - Businesses()
+
+            - DecennialCensusObserver()
+            - HouseholdSurveyObserver("acs")
+            - HouseholdSurveyObserver("cps")
+            - WICObserver()
+            - SocialSecurityObserver()
+            - TaxObserver()
+
+configuration:
+    input_data:
+        artifact_path: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/united_states_of_america.hdf'
+        input_draw_number: 0
+    output_data:
+        results_directory: '/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/results/'
+    interpolation:
+        order: 0
+        extrapolate: True
+    randomness:
+        map_size: 1_000_000
+        key_columns: ['entrance_time', 'age']
+        random_seed: 0
+    time:
+        start:
+            year: 2019
+            month: 1
+            day: 1
+        end:
+            year: 2041
+            month: 5
+            day: 1
+        step_size: 28 # Days
+    population:
+        population_size: 20_000
+    us_population_size: 20_000  # Override the default US population size
+
+#    household_survey_observer_acs:
+#        file_extension: "hdf"
+#    household_survey_observer_cps:
+#        file_extension: "hdf"
+#    decennial_census_observer:
+#        file_extension: "hdf"
+#    wic_observer:
+#        file_extension: "hdf"
+#    social_security_observer:
+#        file_extension: "hdf"
+#    tax_w2_observer:
+#        file_extension: "hdf"
+#    tax_dependents_observer:
+#        file_extension: "hdf"
+#    tax_1040_observer:
+#        file_extension: "hdf"
