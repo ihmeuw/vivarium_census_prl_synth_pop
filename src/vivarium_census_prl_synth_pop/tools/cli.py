@@ -85,7 +85,7 @@ def make_artifacts(
     "-x",
     "--extension",
     type=click.Choice(["hdf", "parquet"]),
-    default="hdf",
+    default="parquet",
     show_default=True,
     help="File type to write results out as. Supported file types are hdf and " "parquet.",
 )
