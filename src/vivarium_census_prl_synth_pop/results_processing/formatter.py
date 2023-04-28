@@ -43,13 +43,17 @@ def format_ssn_id(data: pd.DataFrame) -> pd.Series:
 def get_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
     state_name_map = data["state_id"].map(state_id_map)
-    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    state_name_map = state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values()))
+    return state_name_map.astype(pd.CategoricalDtype(categories=categories))
 
 
 def get_employer_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
     state_name_map = data["employer_state_id"].map(state_id_map)
-    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    state_name_map = state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values()))
+    return state_name_map.astype(pd.CategoricalDtype(categories=categories))
 
 
 def get_household_id(data: pd.DataFrame) -> pd.Series:
