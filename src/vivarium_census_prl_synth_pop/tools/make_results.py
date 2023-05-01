@@ -348,6 +348,15 @@ def perform_post_processing(
                 for address_part, address_part_value in PUBLIC_SAMPLE_ADDRESS_PARTS.items():
                     if f"{address_prefix}{address_part}" in obs_data.columns:
                         obs_data[f"{address_prefix}{address_part}"] = address_part_value
+            # Fix the state column dtypes
+            state_categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values())) + [
+                PUBLIC_SAMPLE_ADDRESS_PARTS["state"]
+            ]
+            state_cols = [c for c in obs_data.columns if "state" in c]
+            for col in state_cols:
+                obs_data[col] = obs_data[col].astype(
+                    pd.CategoricalDtype(categories=state_categories)
+                )
 
         logger.info(f"Writing final {observer} results.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
