@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 from vivarium import Artifact
 
@@ -13,7 +12,7 @@ def get_nicknames_proportion():
     names = art.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES).reset_index()["name"]
     # Load and format nicknames dataset
     names_with_nicknames = pd.read_csv(paths.NICKNAMES_DATA_PATH)
-    names_with_nicknames = names_with_nicknames["name"].apply(lambda x: x.astype(str).str.title())
+    names_with_nicknames = names_with_nicknames["name"].apply(lambda x: x.title())
 
     # Proportion
     nickname_eligible = names.isin(names_with_nicknames)
