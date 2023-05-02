@@ -21,5 +21,5 @@ def get_nicknames_proportion():
     names = art.load(data_keys.SYNTHETIC_DATA.FIRST_NAMES).reset_index()["name"]
     nicknames = _load_nicknames_data()
 
-    proportion_of_nicknames = len(nicknames.index) / len(names.unique())
+    proportion_of_nicknames = len(nicknames.index) / len(names)
     return proportion_of_nicknames
