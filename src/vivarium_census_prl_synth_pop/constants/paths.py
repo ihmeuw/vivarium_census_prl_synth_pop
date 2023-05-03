@@ -61,3 +61,5 @@ GENERATED_BUSINESS_NAMES_DATA_PATH = (
     / "data/raw_data"
     / "business_names_generation/v0.1/generated_business_names.csv.bz2"
 )
+
+NICKNAMES_DATA_PATH = RAW_DATA_ROOT / "nicknames.csv"
