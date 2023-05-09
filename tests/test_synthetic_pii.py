@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.randomness.index_map import IndexMap
 
 from vivarium_census_prl_synth_pop.constants import data_keys, data_values
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -26,7 +27,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
 seed = 0
-randomness = RandomnessStream(key=key, clock=clock, seed=seed)
+randomness = RandomnessStream(key=key, clock=clock, seed=seed, index_map=IndexMap())
 
 
 def get_draw(self, index, additional_key=None) -> pd.Series:

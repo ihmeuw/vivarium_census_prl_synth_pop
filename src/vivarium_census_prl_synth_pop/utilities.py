@@ -11,7 +11,7 @@ from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
+from vivarium.framework.randomness import RandomnessStream, get_hash
 from vivarium.framework.values import Pipeline
 
 from vivarium_census_prl_synth_pop.constants import (
@@ -175,10 +175,10 @@ def get_norm_from_quantiles(
 
 
 def vectorized_choice(
-    options: Array,
+    options: Union[pd.Series, List],
     n_to_choose: int,
     randomness_stream: RandomnessStream = None,
-    weights: Array = None,
+    weights: Optional[Union[pd.Series, List]] = None,
     additional_key: Any = None,
     random_seed: int = None,
 ):
@@ -194,8 +194,12 @@ def vectorized_choice(
     index = pd.Index(np.arange(n_to_choose))
     if randomness_stream is None:
         # Generate an additional_key on-the-fly and use that in randomness.random
-        additional_key = f"{additional_key}_{random_seed}"
-        probs = random(str(additional_key), index)
+        # additional_key = f"{additional_key}_{random_seed}"
+        # probs = random(str(additional_key), index)
+        random_state = np.random.RandomState(seed=get_hash(f"{additional_key}_{random_seed}"))
+        sample_size = index.max() + 1
+        raw_draws = random_state.random_sample(sample_size)
+        probs = pd.Series(raw_draws[index], index=index)
     else:
         probs = randomness_stream.get_draw(index, additional_key=additional_key)
 
