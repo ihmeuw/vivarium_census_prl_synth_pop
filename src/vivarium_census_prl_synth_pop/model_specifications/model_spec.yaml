@@ -30,7 +30,7 @@ configuration:
         extrapolate: True
     randomness:
         map_size: 1_000_000
-        key_columns: ['entrance_time', 'age']
+        key_columns: []  # We do not utilize crn
         random_seed: 0
     time:
         start:

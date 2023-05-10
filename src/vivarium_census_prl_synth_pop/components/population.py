@@ -71,7 +71,6 @@ class Population:
             "guardian_2",
             "born_in_us",
         ]
-        self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(
             self.columns_created + ["state_id_for_lookup"]
         )
