@@ -194,8 +194,6 @@ def vectorized_choice(
     index = pd.Index(np.arange(n_to_choose))
     if randomness_stream is None:
         # Generate an additional_key on-the-fly and use that in randomness.random
-        # additional_key = f"{additional_key}_{random_seed}"
-        # probs = random(str(additional_key), index)
         random_state = np.random.RandomState(seed=get_hash(f"{additional_key}_{random_seed}"))
         raw_draws = random_state.random_sample(len(index))
         probs = pd.Series(raw_draws, index=index)
