@@ -197,9 +197,8 @@ def vectorized_choice(
         # additional_key = f"{additional_key}_{random_seed}"
         # probs = random(str(additional_key), index)
         random_state = np.random.RandomState(seed=get_hash(f"{additional_key}_{random_seed}"))
-        sample_size = index.max() + 1
-        raw_draws = random_state.random_sample(sample_size)
-        probs = pd.Series(raw_draws[index], index=index)
+        raw_draws = random_state.random_sample(len(index))
+        probs = pd.Series(raw_draws, index=index)
     else:
         probs = randomness_stream.get_draw(index, additional_key=additional_key)
 

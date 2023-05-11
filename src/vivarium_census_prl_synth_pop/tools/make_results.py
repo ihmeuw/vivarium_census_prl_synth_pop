@@ -271,11 +271,14 @@ def perform_post_processing(
     public_sample: bool,
 ) -> None:
     # Create RandomnessStream for post-processing
+    # NOTE: We use an IndexMap size of 15 million because that is a bit more than
+    # the length of all business_ids in the simulation which is expected to be
+    # the largest set of things to be mapped.
     randomness = RandomnessStream(
         key="post_processing_maps",
         clock=lambda: pd.Timestamp("2020-04-01"),
         seed=0,
-        index_map=IndexMap(),
+        index_map=IndexMap(size=15_000_000),
     )
 
     processed_results = load_data(raw_output_dir, seed)
