@@ -40,9 +40,7 @@ class Population:
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
         self.seed = builder.configuration.randomness.random_seed
-        self.randomness = builder.randomness.get_stream(
-            "household_sampling", for_initialization=True
-        )
+        self.randomness = builder.randomness.get_stream("household_sampling")
         self.proportion_with_ssn = builder.lookup.build_table(
             data=data_values.PROPORTION_INITIALIZATION_WITH_SSN
         )
@@ -71,7 +69,6 @@ class Population:
             "guardian_2",
             "born_in_us",
         ]
-        self.register_simulants = builder.randomness.register_simulants
         self.population_view = builder.population.get_view(
             self.columns_created + ["state_id_for_lookup"]
         )

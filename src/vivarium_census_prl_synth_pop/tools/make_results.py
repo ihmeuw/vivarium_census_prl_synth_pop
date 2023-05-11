@@ -7,6 +7,7 @@ import pyarrow.parquet as pq
 from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.randomness.index_map import IndexMap
 
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
 from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
@@ -270,10 +271,14 @@ def perform_post_processing(
     public_sample: bool,
 ) -> None:
     # Create RandomnessStream for post-processing
+    # NOTE: We use an IndexMap size of 15 million because that is a bit more than
+    # the length of all business_ids in the simulation which is expected to be
+    # the largest set of things to be mapped.
     randomness = RandomnessStream(
         key="post_processing_maps",
         clock=lambda: pd.Timestamp("2020-04-01"),
         seed=0,
+        index_map=IndexMap(size=15_000_000),
     )
 
     processed_results = load_data(raw_output_dir, seed)

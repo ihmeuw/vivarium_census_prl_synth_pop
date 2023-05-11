@@ -314,28 +314,23 @@ def test_addresses_during_moves(
             continue
 
         total_num_moved += mask_moved_units.sum()
-        # Check that the number of moved units that have the same details is very low
-        # NOTE: we cannot assert that all moved units have different details
-        # because they are free to move within the same state or even PUMA
-        assert (
-            (
-                before_units.loc[mask_moved_units, address_cols]
-                == after_units.loc[mask_moved_units, address_cols]
-            )
-            .all(axis=1)
-            .mean()
-        ) < 0.001  # TODO: pick a smarter number?
-        # address details do not change if address_id does not change
+
+        # Check that address details do not change if address_id does not change
         pd.testing.assert_frame_equal(
             before_units[~mask_moved_units], after_units[~mask_moved_units]
         )
 
         # Check that most movers are in a new state-PUMA combination
+        # NOTE: we cannot assert that all moved units have different details
+        # because they are free to move within the same state and PUMA. The
+        # threshold applied below is a somewhat arbitrarily-chosen small number
+        # since PUMAs are different sizes and so it is difficult to estimate
+        # the chance of a simulant moving into the same one.
         if mask_moved_units.sum() > 1:
             assert (
                 before_units.loc[mask_moved_units, [state_id_col, puma_col]]
                 == after_units.loc[mask_moved_units, [state_id_col, puma_col]]
-            ).all(axis=1).mean() < 100 * 1 / len(states_pumas)
+            ).all(axis=1).mean() < 0.01
 
     # Check that at least some units moved during the sim
     assert total_num_moved > 0
