@@ -504,15 +504,6 @@ class SocialSecurityObserver(BaseObserver):
         "event_type",
         "event_date",
     ]
-    POST_PROCESSING_FIRST_NAME_METADATA_COLS = [
-        "household_id",
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "date_of_birth",
-        "sex",
-        "race_ethnicity",
-    ]
 
     def __repr__(self):
         return f"SocialSecurityObserver()"
@@ -548,8 +539,7 @@ class SocialSecurityObserver(BaseObserver):
             event.index,
             query="has_ssn == True",  # only include simulants with a SSN
         )
-
-        df_creation = pop
+        df_creation = pop.copy()
         df_creation["event_type"] = "creation"
         df_creation["event_date"] = np.where(
             pop["entrance_time"] <= self.start_time,
