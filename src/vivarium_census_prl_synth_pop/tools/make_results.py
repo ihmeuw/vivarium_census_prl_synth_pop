@@ -210,7 +210,6 @@ FINAL_OBSERVERS = {
         "mailing_address_po_box",
         "sex",
         "ssn",
-        "tax_year",
         "guardian_id",
         "housing_type",
         "tax_year",
