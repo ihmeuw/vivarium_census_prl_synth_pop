@@ -35,6 +35,7 @@ from vivarium_census_prl_synth_pop.utilities import (
 FINAL_OBSERVERS = {
     metadata.DatasetNames.CENSUS: {
         "simulant_id",
+        "household_id",
         "first_name",
         "middle_initial",
         "last_name",
@@ -82,8 +83,8 @@ FINAL_OBSERVERS = {
         "survey_date",
     },
     metadata.DatasetNames.CPS: {
-        "household_id",
         "simulant_id",
+        "household_id",
         "first_name",
         "middle_initial",
         "last_name",
@@ -131,6 +132,7 @@ FINAL_OBSERVERS = {
     },
     metadata.DatasetNames.SSA: {
         "simulant_id",
+        "household_id",
         "first_name",
         "middle_initial",
         "last_name",
@@ -141,6 +143,7 @@ FINAL_OBSERVERS = {
     },
     metadata.DatasetNames.TAXES_W2_1099: {
         "simulant_id",
+        "household_id",
         "first_name",
         "middle_initial",
         "last_name",
@@ -168,6 +171,7 @@ FINAL_OBSERVERS = {
     },
     metadata.DatasetNames.TAXES_1040: {
         "simulant_id",
+        "household_id",
         "first_name",
         "middle_initial",
         "last_name",
@@ -191,6 +195,7 @@ FINAL_OBSERVERS = {
         # has 2 guardians, there should be a duplicate row but the guardian_id column would contain the 2 simulant_ids
         # for that dependent's guardians.
         "simulant_id",
+        "household_id",
         "first_name",
         "middle_initial",
         "last_name",
