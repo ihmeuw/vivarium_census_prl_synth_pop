@@ -31,8 +31,10 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
+        "household_id",
     ]
     DEFAULT_OUTPUT_COLUMNS = [
+        "household_id",  # Included in every dataset as a source of truth
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -48,7 +50,6 @@ class BaseObserver(ABC):
         "guardian_2",
         "guardian_1_address_id",
         "guardian_2_address_id",
-        # todo: add necessary guardian address columns
     ]
 
     configuration_defaults = {"observer": {"file_extension": "hdf"}}
@@ -194,11 +195,9 @@ class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
-        "household_id",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "survey_date",
-        "household_id",
         "housing_type",
     ]
     SAMPLING_RATE_PER_MONTH = {
@@ -347,12 +346,10 @@ class WICObserver(BaseObserver):
 
     INPUT_VALUES = ["income", "household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
-        "household_id",
         "relation_to_reference_person",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "year",
-        "household_id",
         "housing_type",
         "relation_to_reference_person",
     ]
@@ -497,22 +494,15 @@ class SocialSecurityObserver(BaseObserver):
 
     ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "has_ssn"]
     OUTPUT_COLUMNS = [
+        "household_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
         "date_of_birth",
+        "sex",
+        "race_ethnicity",
         "event_type",
         "event_date",
-        "sex",
-        "race_ethnicity",
-    ]
-    POST_PROCESSING_FIRST_NAME_METADATA_COLS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "date_of_birth",
-        "sex",
-        "race_ethnicity",
     ]
 
     def __repr__(self):
@@ -549,7 +539,7 @@ class SocialSecurityObserver(BaseObserver):
             event.index,
             query="has_ssn == True",  # only include simulants with a SSN
         )
-        df_creation = pop.filter(self.POST_PROCESSING_FIRST_NAME_METADATA_COLS)
+        df_creation = pop.copy()
         df_creation["event_type"] = "creation"
         df_creation["event_date"] = np.where(
             pop["entrance_time"] <= self.start_time,
@@ -557,13 +547,13 @@ class SocialSecurityObserver(BaseObserver):
             pop["entrance_time"],
         )
 
-        df_death = pop[pop["alive"] == "dead"].filter(
-            self.POST_PROCESSING_FIRST_NAME_METADATA_COLS
-        )
+        df_death = pop[pop["alive"] == "dead"]
         df_death["event_type"] = "death"
         df_death["event_date"] = pop["exit_time"]
 
-        return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
+        return pd.concat([df_creation, df_death])[self.output_columns].sort_values(
+            ["event_date", "date_of_birth"]
+        )
 
 
 class TaxObserver:
@@ -606,6 +596,7 @@ class TaxW2Observer(BaseObserver):
         "employer_id",
     ]
     OUTPUT_COLUMNS = [
+        "household_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -731,6 +722,7 @@ class TaxW2Observer(BaseObserver):
 
         # merge in simulant columns based on simulant id
         for col in [
+            "household_id",
             "first_name_id",
             "middle_name_id",
             "last_name_id",
@@ -810,6 +802,7 @@ class TaxDependentsObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
     ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "has_ssn"]
     OUTPUT_COLUMNS = [
+        "household_id",
         "guardian_id",
         "dependent_id",
         "first_name_id",
@@ -940,6 +933,7 @@ class Tax1040Observer(BaseObserver):
         "relation_to_reference_person",
     ]
     OUTPUT_COLUMNS = [
+        "household_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -947,7 +941,7 @@ class Tax1040Observer(BaseObserver):
         "date_of_birth",
         "sex",
         "has_ssn",
-        "address_id",  # we do not need to include household_id because we can find it from address_id
+        "address_id",
         "po_box",
         "state_id",
         "puma",
