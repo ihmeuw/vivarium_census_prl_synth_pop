@@ -494,7 +494,6 @@ class SocialSecurityObserver(BaseObserver):
 
     ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "has_ssn"]
     OUTPUT_COLUMNS = [
-        "household_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
