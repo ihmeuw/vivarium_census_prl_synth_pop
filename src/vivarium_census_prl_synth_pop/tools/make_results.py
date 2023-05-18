@@ -488,8 +488,9 @@ def subset_results_by_state(processed_results_dir: str, state: str, version: Opt
     abbrev_name_dict = {v: k for k, v in metadata.US_STATE_ABBRV_MAP.items()}
     state_name = sanitize_location(abbrev_name_dict[state.upper()])
     processed_results_dir = Path(processed_results_dir)
-    usa_results_dir = processed_results_dir / "usa"
-    state_dir = processed_results_dir / "states" / state_name
+    # todo: this path will change and will have timestamps. We can easily match version here and make it a required arg?
+    usa_results_dir = processed_results_dir / "pseudopeople_input_data_usa"
+    state_dir = processed_results_dir / "states"
  
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing {observer} data")
@@ -501,7 +502,7 @@ def subset_results_by_state(processed_results_dir: str, state: str, version: Opt
             list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
         )
         state_observer_dir = state_dir / observer
-        build_output_dir(state_observer_dir, version=version)
+        build_output_dir(state_observer_dir, subdir=state_name, version=version)
         for usa_obs_file in usa_obs_files:
             output_file_path = state_observer_dir / usa_obs_file.name
             if output_file_path.exists():

@@ -281,7 +281,7 @@ def build_output_dir(output_dir: Path,
     ) -> Path:
 
     if subdir:
-        output_dir = output_dir / subdir
+        subdir = output_dir / subdir
     if version:
         output_dir = output_dir / version
     else:
@@ -298,7 +298,7 @@ def build_output_dir(output_dir: Path,
 def build_final_results_directory(results_dir: str, version: Optional[str] = None,) -> Tuple[Path, Path]:
     final_output_dir = build_output_dir(
         Path(results_dir),
-        subdir=paths.FINAL_RESULTS_DIR_NAME / "usa",
+        subdir=paths.FINAL_RESULTS_DIR_NAME / "pseudopeople_input_data_usa",
     )
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
 
