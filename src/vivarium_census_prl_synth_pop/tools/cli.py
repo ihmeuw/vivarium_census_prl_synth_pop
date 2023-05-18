@@ -62,6 +62,14 @@ def make_artifacts(
 
 @click.command()
 @click.argument("output_dir", type=click.Path(exists=True))
+@click.option(
+    "--version",
+    type=str,
+    default=None,
+    show_default=True,
+    help="Provide a version number for final results. If None is provided, a datetime "
+    "will be used.",
+)
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
     "--pdb",
@@ -150,15 +158,9 @@ def make_artifacts(
     "queue. The maximum supported runtime is 3 days. Keep in mind that "
     "runtimes by node vary wildly. ",
 )
-@click.option(
-    "--version",
-    type=str,
-    default=None,
-    help="Provide a version number for final results. If None is provided, a datetime "
-    "will be used.",
-)
 def make_results(
     output_dir: str,
+    version: str,
     verbose: int,
     with_debugger: bool,
     mark_best: bool,
@@ -171,7 +173,6 @@ def make_results(
     queue: str,
     peak_memory: int,
     max_runtime: str,
-    version: str,
 ) -> None:
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
