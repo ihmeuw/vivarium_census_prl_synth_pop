@@ -150,6 +150,13 @@ def make_artifacts(
     "queue. The maximum supported runtime is 3 days. Keep in mind that "
     "runtimes by node vary wildly. ",
 )
+@click.option(
+    "--version",
+    type=str,
+    default=None,
+    help="Provide a version number for final results. If None is provided, a datetime "
+    "will be used."
+)
 def make_results(
     output_dir: str,
     verbose: int,
@@ -164,11 +171,12 @@ def make_results(
     queue: str,
     peak_memory: int,
     max_runtime: str,
+    version: str,
 ) -> None:
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
     logger.info("Creating final results directory.")
-    raw_output_dir, final_output_dir = build_final_results_directory(output_dir)
+    raw_output_dir, final_output_dir = build_final_results_directory(output_dir, version)
     cluster_requests = {
         "queue": queue,
         "peak_memory": peak_memory,
@@ -285,14 +293,22 @@ def jobmon_make_results_runner(
     "specific geographic location. This should be the two letter postal "
     "abbreviation.",
 )
+@click.option(
+    "--version",
+    type=str,
+    default=None,
+    help="Provide a version number for final results. If None is provided, a datetime "
+    "will be used."
+)
 def make_state_results(
     processed_results_dir: Path,
     verbose: int,
     with_debugger: bool,
     state: str,
+    version: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(
         func=subset_results_by_state, logger=logger, with_debugger=with_debugger
     )
-    main(processed_results_dir, state)
+    main(processed_results_dir, state, version)

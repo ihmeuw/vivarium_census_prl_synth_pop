@@ -1,6 +1,6 @@
 from itertools import chain
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -482,7 +482,7 @@ def generate_maps(
     return maps
 
 
-def subset_results_by_state(processed_results_dir: str, state: str) -> None:
+def subset_results_by_state(processed_results_dir: str, state: str, version: Optional[str] = None) -> None:
     # Loads final results and subsets those files to a provide state excluding the Social Security Observer
 
     abbrev_name_dict = {v: k for k, v in metadata.US_STATE_ABBRV_MAP.items()}
@@ -490,7 +490,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
     processed_results_dir = Path(processed_results_dir)
     usa_results_dir = processed_results_dir / "usa"
     state_dir = processed_results_dir / "states" / state_name
-
+ 
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing {observer} data")
         if observer == metadata.DatasetNames.SSA:
@@ -501,7 +501,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
         )
         state_observer_dir = state_dir / observer
-        build_output_dir(state_observer_dir)
+        build_output_dir(state_observer_dir, version=version)
         for usa_obs_file in usa_obs_files:
             output_file_path = state_observer_dir / usa_obs_file.name
             if output_file_path.exists():

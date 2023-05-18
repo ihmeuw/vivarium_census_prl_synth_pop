@@ -275,10 +275,17 @@ def filter_by_rate(
     return filtered_sims
 
 
-def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None) -> Path:
+def build_output_dir(output_dir: Path, 
+        subdir: Optional[Union[str, Path]] = None,
+        version: Optional[str] = None,
+    ) -> Path:
+
     if subdir:
         output_dir = output_dir / subdir
-
+    if version:
+        output_dir = output_dir / version
+    else:
+        output_dir = output_dir / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     old_umask = os.umask(0o002)
     try:
         output_dir.mkdir(exist_ok=True, parents=True)
@@ -288,12 +295,10 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
     return output_dir
 
 
-def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
+def build_final_results_directory(results_dir: str, version: Optional[str] = None,) -> Tuple[Path, Path]:
     final_output_dir = build_output_dir(
         Path(results_dir),
-        subdir=paths.FINAL_RESULTS_DIR_NAME
-        / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        / "usa",
+        subdir=paths.FINAL_RESULTS_DIR_NAME / "usa",
     )
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
 
