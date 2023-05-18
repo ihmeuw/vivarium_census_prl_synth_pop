@@ -155,7 +155,7 @@ def make_artifacts(
     type=str,
     default=None,
     help="Provide a version number for final results. If None is provided, a datetime "
-    "will be used."
+    "will be used.",
 )
 def make_results(
     output_dir: str,
@@ -293,22 +293,14 @@ def jobmon_make_results_runner(
     "specific geographic location. This should be the two letter postal "
     "abbreviation.",
 )
-@click.option(
-    "--version",
-    type=str,
-    default=None,
-    help="Provide a version number for final results. If None is provided, a datetime "
-    "will be used."
-)
 def make_state_results(
     processed_results_dir: Path,
     verbose: int,
     with_debugger: bool,
     state: str,
-    version: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(
         func=subset_results_by_state, logger=logger, with_debugger=with_debugger
     )
-    main(processed_results_dir, state, version)
+    main(processed_results_dir, state)
