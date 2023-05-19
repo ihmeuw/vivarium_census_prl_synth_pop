@@ -183,7 +183,10 @@ def make_results(
         if expected_version_format.match(version):
             pass
         else:
-            raise ValueError(f"{version} is not of correct format.")
+            raise ValueError(
+                f"'{version}' is not of correct format. "
+                "Format for version should be 'v#.#.#'"
+            )
     raw_output_dir, final_output_dir = build_final_results_directory(output_dir, version)
     cluster_requests = {
         "queue": queue,
