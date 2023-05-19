@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Tuple, Union
 
@@ -67,8 +68,8 @@ def make_artifacts(
     type=str,
     default=None,
     show_default=True,
-    help="Provide a version number for final results. If None is provided, a datetime "
-    "will be used.",
+    help="Provide a version number for final results. "
+    "Version should follow format of v#.#.#.",
 )
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
@@ -177,6 +178,12 @@ def make_results(
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
     logger.info("Creating final results directory.")
+    if version is not None:
+        expected_version_format = re.compile("v\d*.\d*.\d*")
+        if expected_version_format.match(version):
+            pass
+        else:
+            raise ValueError(f"{version} is not of correct format.")
     raw_output_dir, final_output_dir = build_final_results_directory(output_dir, version)
     cluster_requests = {
         "queue": queue,
