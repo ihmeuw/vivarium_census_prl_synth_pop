@@ -500,3 +500,33 @@ def write_to_disk(data: pd.DataFrame, path: Path):
             f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
             f"{path.suffix[1:]} was provided."
         )
+
+
+def copy_age_dob_from_household_member(pop: pd.DataFrame, randomness_stream: RandomnessStream) -> pd.DataFrame:
+    # Copies age and date of birth from a household member
+    # Note that we do not copy the same value so date of birth for twins or households with only 2 members
+    # who have the same date of birth would cause a RuntimeError.
+    
+    copy_cols = {"age": "copy_age",
+                 "date_of_birth": "copy_data_of_birth"}
+    for col in copy_cols.keys():
+        pop[copy_cols[col]] = np.nan
+    for household, household_df in pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)].groupby("household_id"):
+        if len(household_df) <= 1:
+            continue
+        else:
+            for col in copy_cols.keys():
+                # Set current mask for simulants to get a copy from household member
+                need_copy = household_df[copy_cols[col]].isna()
+                copy_iterations = 0
+                while need_copy.sum() > 0:
+                    pop.loc[need_copy.index, copy_cols[col]] = randomness_stream.choice(
+                        need_copy.index, pop.loc[household_df.index, col], additional_key=f"{col}_hh_id_choice_{copy_iterations}"
+                    )
+                    # Note we are not copying same values here with how this mask gets defined
+                    need_copy = household_df[copy_cols[col]] == household_df[col]
+                    copy_iterations += 1
+                    if (copy_iterations == 10) and (need_copy.sum() > 0):
+                        raise RuntimeError("Maximum tries reached for copy from household member. "
+                                           f"{need_copy.sum()} rows still have not copied a new value for {col}.")
+    return pop
