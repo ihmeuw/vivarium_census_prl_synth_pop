@@ -508,7 +508,7 @@ def copy_age_dob_from_household_member(pop: pd.DataFrame, randomness_stream: Ran
     # who have the same date of birth would cause a RuntimeError.
     
     copy_cols = {"age": "copy_age",
-                 "date_of_birth": "copy_data_of_birth"}
+                 "date_of_birth": "copy_date_of_birth"}
     for col in copy_cols.keys():
         pop[copy_cols[col]] = np.nan
     for household, household_df in pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)].groupby("household_id"):
