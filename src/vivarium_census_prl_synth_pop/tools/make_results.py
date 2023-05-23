@@ -488,8 +488,21 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
     abbrev_name_dict = {v: k for k, v in metadata.US_STATE_ABBRV_MAP.items()}
     state_name = sanitize_location(abbrev_name_dict[state.upper()])
     processed_results_dir = Path(processed_results_dir)
-    usa_results_dir = processed_results_dir / "usa"
-    state_dir = processed_results_dir / "states" / state_name
+    directories = [x for x in processed_results_dir.iterdir() if x.is_dir()]
+    # Get USA results directory
+    for directory in directories:
+        if "pseudopeople_input_data_usa" in directory.name:
+            usa_results_dir = directory
+    # Parse version number if necessary
+    version = usa_results_dir.name.split("_")[-1]
+    if version != "usa":
+        state_dir = (
+            processed_results_dir
+            / "states"
+            / f"pseudopeople_input_data_{state_name}_{version}"
+        )
+    else:
+        state_dir = processed_results_dir / "states" / f"pseudopeople_input_data_{state_name}"
 
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing {observer} data")
