@@ -508,7 +508,7 @@ class SocialSecurityObserver(BaseObserver):
         "middle_name_id",
         "last_name_id",
         "date_of_birth",
-        "copy_date_of_birth"
+        "copy_date_of_birth",
         "sex",
         "race_ethnicity",
         "event_type",
