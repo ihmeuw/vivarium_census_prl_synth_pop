@@ -529,6 +529,7 @@ def copy_from_household_member(
             ],
             axis=1,
         )
+        simulant_ids_to_copy.index = simulants_and_household_members.index   
         seed = get_hash(randomness_stream._key(additional_key=col))
         copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
         if col == "has_ssn":
