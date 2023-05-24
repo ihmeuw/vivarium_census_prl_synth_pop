@@ -517,6 +517,9 @@ def copy_from_household_member(
         pop[copy_cols[col]] = np.nan
         # todo: subset down to rows that are not null
         households = pop.groupby("household_id").apply(lambda df_g: list(df_g.index))
+        # Drop GQ and households with single member
+        households = households[households.apply(len) > 1]
+        households = households.loc[households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())]
         simulants_and_household_members = pop["household_id"].map(households).dropna()
         simulant_ids_to_copy = simulants_and_household_members.reset_index().apply(
             lambda row: [
