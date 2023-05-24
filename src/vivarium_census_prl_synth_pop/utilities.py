@@ -502,31 +502,37 @@ def write_to_disk(data: pd.DataFrame, path: Path):
         )
 
 
-def copy_age_dob_from_household_member(pop: pd.DataFrame, randomness_stream: RandomnessStream) -> pd.DataFrame:
-    # Copies age and date of birth from a household member
-    # Note that we do not copy the same value so date of birth for twins or households with only 2 members
-    # who have the same date of birth would cause a RuntimeError.
-    
-    copy_cols = {"age": "copy_age",
-                 "date_of_birth": "copy_date_of_birth"}
-    for col in copy_cols.keys():
+def copy_from_household_member(
+    pop: pd.DataFrame, randomness_stream: RandomnessStream
+) -> pd.DataFrame:
+    # Creates copy_age, copy_date_of_birth, and copy_ssn from household members
+    # Note: copy value can be original value but copies from another household member
+
+    copy_cols = {
+        "age": "copy_age",
+        "date_of_birth": "copy_date_of_birth",
+        "has_ssn": "copy_ssn",
+    }
+    for col in [column for column in copy_cols.keys() if column in pop.columns]:
         pop[copy_cols[col]] = np.nan
-    for household, household_df in pop.loc[~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)].groupby("household_id"):
-        if len(household_df) <= 1:
-            continue
+        # todo: subset down to rows that are not null
+        households = pop.groupby("household_id").apply(lambda df_g: list(df_g.index))
+        simulants_and_household_members = pop["household_id"].map(households).dropna()
+        simulant_ids_to_copy = simulants_and_household_members.reset_index().apply(
+            lambda row: [
+                household
+                for household in row.loc["household_id"]
+                if household != row.loc["index"]
+            ],
+            axis=1,
+        )
+        seed = get_hash(randomness_stream._key(additional_key=col))
+        copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
+        if col == "has_ssn":
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids
         else:
-            for col in copy_cols.keys():
-                # Set current mask for simulants to get a copy from household member
-                need_copy = household_df[copy_cols[col]].isna()
-                copy_iterations = 0
-                while need_copy.sum() > 0:
-                    pop.loc[need_copy.index, copy_cols[col]] = randomness_stream.choice(
-                        need_copy.index, pop.loc[household_df.index, col], additional_key=f"{col}_hh_id_choice_{copy_iterations}"
-                    )
-                    # Note we are not copying same values here with how this mask gets defined
-                    need_copy = household_df[copy_cols[col]] == household_df[col]
-                    copy_iterations += 1
-                    if (copy_iterations == 10) and (need_copy.sum() > 0):
-                        raise RuntimeError("Maximum tries reached for copy from household member. "
-                                           f"{need_copy.sum()} rows still have not copied a new value for {col}.")
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.map(
+                pop.loc[copy_ids.index, col]
+            )
+
     return pop
