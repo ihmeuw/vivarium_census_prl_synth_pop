@@ -162,7 +162,7 @@ def make_artifacts(
 )
 def make_results(
     output_dir: str,
-    version: str,
+    label_version: str,
     verbose: int,
     with_debugger: bool,
     mark_best: bool,
@@ -179,16 +179,18 @@ def make_results(
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
     logger.info("Creating final results directory.")
-    if version is not None:
+    if label_version is not None:
         expected_version_format = re.compile("\d*.\d*.\d*")
-        if expected_version_format.match(version):
+        if expected_version_format.match(label_version):
             pass
         else:
             raise ValueError(
-                f"'{version}' is not of correct format. "
+                f"'{label_version}' is not of correct format. "
                 "Format for version should be '#.#.#'"
             )
-    raw_output_dir, final_output_dir = build_final_results_directory(output_dir, version)
+    raw_output_dir, final_output_dir = build_final_results_directory(
+        output_dir, label_version
+    )
     cluster_requests = {
         "queue": queue,
         "peak_memory": peak_memory,
