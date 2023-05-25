@@ -135,6 +135,7 @@ def get_ssn_map(
 
     # Copy ssns for copy from household member
     copy_ssns = w2_data.loc[w2_data[column_name].isin(ssns.index), "copy_ssn"].map(ssns)
+    copy_ssns = pd.Series(copy_ssns, index=ssns.index, name="copy_ssn")
 
     return {
         "ssn": ssns,
