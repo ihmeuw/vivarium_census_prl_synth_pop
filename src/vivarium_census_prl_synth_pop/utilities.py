@@ -515,11 +515,19 @@ def copy_from_household_member(
     }
     for col in [column for column in copy_cols.keys() if column in pop.columns]:
         pop[copy_cols[col]] = np.nan
-        # todo: subset down to rows that are not null
-        households = pop.groupby("household_id").apply(lambda df_g: list(df_g.index))
+        if col == "has_ssn":
+            # Subset to rows that have SSN so we do not try and map nans.
+            households = (
+                pop[pop[col]].groupby("household_id").apply(lambda df_g: list(df_g.index))
+            )
+        else:
+            # This makes the assumption age and date of birth will not have nans at this poitn
+            households = pop.groupby("household_id").apply(lambda df_g: list(df_g.index))
         # Drop GQ and households with single member
         households = households[households.apply(len) > 1]
-        households = households.loc[households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())]
+        households = households.loc[
+            households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())
+        ]
         simulants_and_household_members = pop["household_id"].map(households).dropna()
         simulant_ids_to_copy = simulants_and_household_members.reset_index().apply(
             lambda row: [
@@ -529,7 +537,7 @@ def copy_from_household_member(
             ],
             axis=1,
         )
-        simulant_ids_to_copy.index = simulants_and_household_members.index   
+        simulant_ids_to_copy.index = simulants_and_household_members.index
         seed = get_hash(randomness_stream._key(additional_key=col))
         copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
         if col == "has_ssn":

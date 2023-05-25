@@ -92,6 +92,10 @@ def format_age(data: pd.DataFrame) -> pd.Series:
     return data["age"].astype(int)
 
 
+def format_copy_ssn(data: pd.DataFrame) -> pd.Series:
+    return data["random_seed"].astype(str) + "_" + data["copy_ssn"].astype(str)
+
+
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
     "simulant_id": (format_simulant_id, ["simulant_id", "random_seed"]),
@@ -116,6 +120,7 @@ COLUMN_FORMATTERS = {
     "guardian_id": (get_guardian_id, ["guardian_id", "random_seed"]),
     "ssn_id": (format_ssn_id, ["ssn_id", "random_seed"]),
     "age": (format_age, ["age"]),
+    "ssn_copy": (format_copy_ssn, ["copy_ssn", "random_seed"]),
 }
 
 
