@@ -621,7 +621,6 @@ class TaxW2Observer(BaseObserver):
         "sex",
         "has_ssn",
         "ssn_id",  # simulant id for ssn from another simulant
-        "copy_ssn",
         "address_id",
         "state_id",
         "puma",
@@ -840,7 +839,6 @@ class TaxDependentsObserver(BaseObserver):
         "housing_type",
         "sex",
         "has_ssn",
-        "copy_ssn",
         "tax_year",
         "race_ethnicity",
     ]
@@ -970,7 +968,6 @@ class Tax1040Observer(BaseObserver):
         "copy_date_of_birth",
         "sex",
         "has_ssn",
-        "copy_ssn",
         "address_id",
         "po_box",
         "state_id",
