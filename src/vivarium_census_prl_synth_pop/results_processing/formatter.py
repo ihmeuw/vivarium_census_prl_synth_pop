@@ -123,7 +123,7 @@ COLUMN_FORMATTERS = {
     "guardian_id": (get_guardian_id, ["guardian_id", "random_seed"]),
     "ssn_id": (format_ssn_id, ["ssn_id", "random_seed"]),
     "age": (format_age, ["age"]),
-    "ssn_copy": (format_copy_ssn, ["copy_ssn", "random_seed"]),
+    "copy_ssn": (format_copy_ssn, ["copy_ssn", "random_seed"]),
 }
 
 
