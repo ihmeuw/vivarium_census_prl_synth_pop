@@ -375,8 +375,8 @@ def perform_post_processing(
             metadata.DatasetNames.TAXES_1040,
         ]:
             # Copy SSN from household members
-            obs_data["ssn_copy"] = copy_ssn_from_household_member(
-                obs_data["ssn_copy"], maps["simulant_id"]["ssn"]
+            obs_data["copy_ssn"] = copy_ssn_from_household_member(
+                obs_data["copy_ssn"], maps["simulant_id"]["ssn"]
             )
 
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
