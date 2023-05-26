@@ -220,7 +220,7 @@ def do_collide_ssns(
     return obs_data
 
 
-def copy_ssn_from_household_member(obs_data: pd.Series, ssn_map: pd.Series) -> pd.DataFrame:
+def copy_ssn_from_household_member(ssn_ids_to_copy: pd.Series, ssn_map: pd.Series) -> pd.Series:
     # Copy ssns for copy from household member
-    copied_ssns = obs_data.map(ssn_map)
+    copied_ssns = ssn_ids_to_copy.map(ssn_map)
     return copied_ssns

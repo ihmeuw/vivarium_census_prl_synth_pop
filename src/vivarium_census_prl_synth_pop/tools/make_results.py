@@ -376,7 +376,7 @@ def perform_post_processing(
         ]:
             # Copy SSN from household members
             obs_data["ssn_copy"] = copy_ssn_from_household_member(
-                obs_data, maps["simulant_id"]["ssn"]
+                obs_data["ssn_copy"], maps["simulant_id"]["ssn"]
             )
 
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
