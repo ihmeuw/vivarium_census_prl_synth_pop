@@ -22,6 +22,7 @@ from vivarium_census_prl_synth_pop.results_processing.names import (
     get_middle_initial_map,
 )
 from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
+    copy_ssn_from_household_member,
     do_collide_ssns,
     get_simulant_id_maps,
 )
@@ -367,6 +368,14 @@ def perform_post_processing(
             # For w2, we need to post-process to allow for SSN collisions in the data in cases where
             #  the simulant has no SSN but is employed (they'd need to have supplied an SSN to their employer)
             obs_data = do_collide_ssns(obs_data, maps["simulant_id"]["ssn"], randomness)
+        if observer in [
+            metadata.DatasetNames.TAXES_W2_1099,
+            metadata.DatasetNames.TAXES_DEPENDENTS,
+            metadata.DatasetNames.TAXES_1040,
+        ]:
+            obs_data["ssn_copy"] = copy_ssn_from_household_member(
+                obs_data, maps["simulant_id"]["ssn"]
+            )
 
         obs_data = obs_data[list(FINAL_OBSERVERS[observer])]
 

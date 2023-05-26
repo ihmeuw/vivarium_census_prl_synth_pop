@@ -729,7 +729,7 @@ class TaxW2Observer(BaseObserver):
         pop_full = self.add_address(pop_full)
         # copy from household member for relevant columns
         pop_full = utilities.copy_from_household_member(pop_full, self.vivarium_randomness)
-
+        pop_full["ssn_copy"] = pop_full["ssn_copy"].astype(int)
         ### create dataframe of all person/employment pairs
         # start with income to date, which has simulant_id and employer_id as multi-index
         # with the pd.Series, but it is getting lost at some point in the computation

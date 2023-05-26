@@ -131,16 +131,8 @@ def get_ssn_map(
         [need_ssns_ssn, need_ssns_has_ssn, need_ssns_ssn_id], axis=0
     ).drop_duplicates()
     ssns = _load_ids(artifact, "/synthetic_data/ssns", len(need_ssns), seed, all_seeds)
-    ssns = pd.Series(ssns, index=need_ssns, name="ssn")
 
-    # Copy ssns for copy from household member
-    copy_ssns = w2_data.loc[w2_data[column_name].isin(ssns.index), "copy_ssn"].map(ssns)
-    copy_ssns = pd.Series(copy_ssns, index=ssns.index, name="copy_ssn")
-
-    return {
-        "ssn": ssns,
-        "copy_ssn": copy_ssns,
-    }
+    return {"ssn": pd.Series(ssns, index=need_ssns, name="ssn")}
 
 
 def get_itin_map(
@@ -226,3 +218,9 @@ def do_collide_ssns(
         randomness=randomness,
     )
     return obs_data
+
+
+def copy_ssn_from_household_member(obs_data: pd.Series, ssn_map: pd.Series) -> pd.DataFrame:
+    # Copy ssns for copy from household member
+    copied_ssns = obs_data.map(ssn_map)
+    return copied_ssns
