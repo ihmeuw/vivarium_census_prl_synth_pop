@@ -508,7 +508,6 @@ class SocialSecurityObserver(BaseObserver):
         "entrance_time",
         "exit_time",
         "has_ssn",
-        "copy_ssn",
     ]
     OUTPUT_COLUMNS = [
         "first_name_id",
