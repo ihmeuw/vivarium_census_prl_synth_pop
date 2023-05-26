@@ -93,7 +93,10 @@ def format_age(data: pd.DataFrame) -> pd.Series:
 
 
 def format_copy_ssn(data: pd.DataFrame) -> pd.Series:
-    return data["random_seed"].astype(str) + "_" + data["copy_ssn"].astype(str)
+    no_copy_idx = data.index[data["copy_ssn"].isna()]
+    column = data["random_seed"].astype(str) + "_" + data["copy_ssn"].astype(str)
+    column.loc[no_copy_idx] = np.nan
+    return column
 
 
 # Fixme: Add formatting functions as necessary
