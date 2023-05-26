@@ -369,10 +369,12 @@ def perform_post_processing(
             #  the simulant has no SSN but is employed (they'd need to have supplied an SSN to their employer)
             obs_data = do_collide_ssns(obs_data, maps["simulant_id"]["ssn"], randomness)
         if observer in [
+            metadata.DatasetNames.SSA,
             metadata.DatasetNames.TAXES_W2_1099,
             metadata.DatasetNames.TAXES_DEPENDENTS,
             metadata.DatasetNames.TAXES_1040,
         ]:
+            # Copy SSN from household members
             obs_data["ssn_copy"] = copy_ssn_from_household_member(
                 obs_data, maps["simulant_id"]["ssn"]
             )

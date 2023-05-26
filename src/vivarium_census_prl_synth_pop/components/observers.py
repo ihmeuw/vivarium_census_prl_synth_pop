@@ -502,7 +502,14 @@ class WICObserver(BaseObserver):
 class SocialSecurityObserver(BaseObserver):
     """Class for observing columns relevant to Social Security registry."""
 
-    ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "has_ssn"]
+    ADDITIONAL_INPUT_COLUMNS = [
+        "tracked",
+        "alive",
+        "entrance_time",
+        "exit_time",
+        "has_ssn",
+        "copy_ssn",
+    ]
     OUTPUT_COLUMNS = [
         "first_name_id",
         "middle_name_id",
@@ -513,6 +520,7 @@ class SocialSecurityObserver(BaseObserver):
         "race_ethnicity",
         "event_type",
         "event_date",
+        "copy_ssn",
     ]
 
     def __repr__(self):
