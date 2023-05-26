@@ -541,7 +541,7 @@ def copy_from_household_member(
         seed = get_hash(randomness_stream._key(additional_key=col))
         copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
         if col == "has_ssn":
-            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.astype(int)
         else:
             pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.map(
                 pop.loc[copy_ids.index, col]
