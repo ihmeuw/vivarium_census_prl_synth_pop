@@ -23,6 +23,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     _load_ids,
     generate_ssns,
 )
+from vivarium_census_prl_synth_pop.utilities import copy_from_household_member
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
@@ -731,3 +732,55 @@ def test_id_uniqueness(artifact, hdf_key, num_need_ids, random_seed):
         pytest.mark.skip(reason=f"Cannot find artifact at {artifact.path}")
     else:
         assert len(np.unique(ids)) == num_need_ids
+
+
+def test_copy_household_member():
+    # Dummy dataset
+    # Note this function requires columns "household_id" and will copy from "age", "date_of_birth", and
+    # "ssn" if that column is present
+    hh_ids = [0, 0, 21, 21, 21, 21, 12, 12, 13, 13, 14, 14, 14, 14, 14, 25, 25, 25, 26, 27]
+    ages = [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+    ]
+    dob = ["1976-07-22", "1992-04-07", "1996-05-08", "2001-04-08", "1999-05-23"] * 4
+    ids = list(range(1000, 1020))
+    has_ssn = np.random.choice([True, False], size=20)
+
+    pop = pd.DataFrame(
+        {
+            "household_id": hh_ids,
+            "age": ages,
+            "ssn": ids,
+            "date_of_birth": dob,
+            "has_ssn": has_ssn,
+        },
+        index=list(range(2000, 2022)),
+    )
+
+    copy = copy_from_household_member(pop, randomness)
+
+    # Households with single occupant or household ids for GQ are not eligible for this noise
+    no_copy_idx = copy.index[copy["copy_age"].isna()]
+    expected_no_copy_idx = pop.index[
+        pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())
+    ]
+    assert no_copy_idx.equals(expected_no_copy_idx)
