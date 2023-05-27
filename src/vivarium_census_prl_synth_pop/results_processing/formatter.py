@@ -97,6 +97,7 @@ def format_copy_age(data: pd.DataFrame) -> pd.Series:
     column = data["copy_age"].astype(str)
     column = column.apply(lambda row: row.split(".")[0])
     column.loc[no_copy_idx] = np.nan
+    return column
 
 
 def format_copy_ssn(data: pd.DataFrame) -> pd.Series:
