@@ -340,11 +340,11 @@ class DecennialCensusObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # census should include only living simulants
         )
+        # copy from household member for relevant columns
+        pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
         pop["year"] = event.time.year
-        # copy from household member for relevant columns
-        pop = utilities.copy_from_household_member(pop, self.randomness)
 
         return pop[self.output_columns]
 
@@ -411,10 +411,10 @@ class WICObserver(BaseObserver):
 
         # add columns for output
         pop["year"] = event.time.year
-        pop = self.add_address(pop)
-        pop = utilities.add_guardian_address_ids(pop)
         # copy from household member for relevant columns
         pop = utilities.copy_from_household_member(pop, self.randomness)
+        pop = self.add_address(pop)
+        pop = utilities.add_guardian_address_ids(pop)
 
         # add additional columns for simulating coverage
         pop["nominal_age"] = np.floor(pop["age"])
@@ -734,9 +734,9 @@ class TaxW2Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop_full = self.population_view.get(event.index)
-        pop_full = self.add_address(pop_full)
         # copy from household member for relevant columns
         pop_full = utilities.copy_from_household_member(pop_full, self.vivarium_randomness)
+        pop_full = self.add_address(pop_full)
 
         ### create dataframe of all person/employment pairs
         # start with income to date, which has simulant_id and employer_id as multi-index
@@ -894,9 +894,9 @@ class TaxDependentsObserver(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop_full = self.population_view.get(event.index)
-        pop_full = self.add_address(pop_full)
         # copy from household member for relevant columns
         pop_full = utilities.copy_from_household_member(pop_full, self.randomness)
+        pop_full = self.add_address(pop_full)
 
         # Tracked, US population to be dependents
         pop = pop_full[
@@ -1032,12 +1032,12 @@ class Tax1040Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(event.index)
+        # copy from household member for relevant columns
+        pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
 
         # add derived columns
         pop["tax_year"] = event.time.year - 1
-        # copy from household member for relevant columns
-        pop = utilities.copy_from_household_member(pop, self.randomness)
         partners = [
             "Opp-sex spouse",
             "Opp-sex partner",
