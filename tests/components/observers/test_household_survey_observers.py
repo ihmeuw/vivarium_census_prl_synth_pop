@@ -32,6 +32,9 @@ def mocked_pop_view(observer):
     # Ensure there are no guardians in this dataset
     df[["guardian_1", "guardian_2"]] = np.random.randint(len(df), 100, size=(len(df), 2))
     df["po_box"] = [-1, -2]
+    # Add copy from household member columns with dummy values instead of nans
+    df["copy_age"] = [-1, -2]
+    df["copy_date_of_birth"] = [-1, -2]
 
     return df
 
@@ -82,6 +85,10 @@ def test_get_observation(
         "vivarium_census_prl_synth_pop.components.observers.utilities.vectorized_choice",
         return_value=list(mocked_pop_view["household_id"]),
     )
+    mocker.patch(
+        "vivarium_census_prl_synth_pop.components.observers.utilities.copy_from_household_member",
+        return_value=mocked_pop_view,
+    )
     observer.pipelines["household_details"] = mocked_household_details_pipeline
     observation = observer.get_observation(event)
 
@@ -94,6 +101,8 @@ def test_get_observation(
     ] = mocked_household_details_pipeline("dummy")[
         ["housing_type", "address_id", "state_id", "puma"]
     ]
+    expected["copy_age"] = [-1, -2]
+    expected["copy_date_of_birth"] = [-1, -2]
     pd.testing.assert_frame_equal(expected[observer.output_columns], observation)
 
 
@@ -111,6 +120,10 @@ def test_multiple_observation(
     mocker.patch(
         "vivarium_census_prl_synth_pop.components.observers.utilities.vectorized_choice",
         return_value=list(mocked_pop_view["household_id"]),
+    )
+    mocker.patch(
+        "vivarium_census_prl_synth_pop.components.observers.utilities.copy_from_household_member",
+        return_value=mocked_pop_view,
     )
     observer.pipelines["household_details"] = mocked_household_details_pipeline
     observer.on_collect_metrics(event)
@@ -131,4 +144,6 @@ def test_multiple_observation(
         * 2,
         axis=0,
     )
+    expected["copy_age"] = [-1, -2] * 2
+    expected["copy_date_of_birth"] = [-1, -2] * 2
     pd.testing.assert_frame_equal(expected[observer.output_columns], observer.responses)

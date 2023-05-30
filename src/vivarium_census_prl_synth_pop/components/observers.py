@@ -274,12 +274,13 @@ class HouseholdSurveyObserver(BaseObserver):
         new_responses = new_responses[
             new_responses["household_id"].isin(respondent_households)
         ]
+        # copy from household member for relevant columns
+        new_responses = utilities.copy_from_household_member(new_responses, self.randomness)
         # Must be a timestamp, not an actual `date` type, in order to save to HDF in table mode
         new_responses["survey_date"] = pd.Timestamp(event.time.date())
         new_responses = self.add_address(new_responses)
         new_responses = utilities.add_guardian_address_ids(new_responses)
-        # copy from household member for relevant columns
-        new_responses = utilities.copy_from_household_member(new_responses, self.randomness)
+
         # Apply column schema and concatenate
         return new_responses[self.output_columns]
 

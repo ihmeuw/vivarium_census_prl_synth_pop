@@ -508,11 +508,7 @@ def copy_from_household_member(
     # Creates copy_age, copy_date_of_birth, and copy_ssn from household members
     # Note: copy value can be original value but copies from another household member
 
-    copy_cols = {
-        "age": "copy_age",
-        "date_of_birth": "copy_date_of_birth",
-        "has_ssn": "copy_ssn",
-    }
+    copy_cols = metadata.COPY_HOUSEHOLD_MEMBER_COLS
     for col in [column for column in copy_cols.keys() if column in pop.columns]:
         pop[copy_cols[col]] = np.nan
         if col == "has_ssn":

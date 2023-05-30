@@ -7,7 +7,7 @@ import pytest
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_city_map,
     get_mailing_address_map,
@@ -763,7 +763,7 @@ def test_copy_household_member():
     ]
     dob = ["1976-07-22", "1992-04-07", "1996-05-08", "2001-04-08", "1999-05-23"] * 4
     ids = list(range(1000, 1020))
-    has_ssn = np.random.choice([True, False], size=20)
+    has_ssn = [True, False] * 10
 
     pop = pd.DataFrame(
         {
@@ -773,14 +773,31 @@ def test_copy_household_member():
             "date_of_birth": dob,
             "has_ssn": has_ssn,
         },
-        index=list(range(2000, 2022)),
+        index=list(range(2000, 2020)),
     )
 
     copy = copy_from_household_member(pop, randomness)
 
-    # Households with single occupant or household ids for GQ are not eligible for this noise
-    no_copy_idx = copy.index[copy["copy_age"].isna()]
+    copy_cols = metadata.COPY_HOUSEHOLD_MEMBER_COLS
+    for col in [column for column in copy_cols.keys() if column != "has_ssn"]:
+        # Check expected missing rows based on household for age and date of birth
+        no_copy_idx = copy.index[copy[copy_cols[col]].isna()]
+        # Get household ids that are in GQ or only have a single occupant
+        expected_no_copy_idx = pop.index[
+            pop["household_id"].isin(list(data_values.GQ_HOUSING_TYPE_MAP.keys()) + [26, 27])
+        ]
+        assert no_copy_idx.equals(expected_no_copy_idx)
+
+    # Check expected missing rows for ssns. Note: These will be the same household ids along
+    # with household ids 12, 13 and 25 because those households only have 1 member with a SSN
+    no_copy_idx = copy.index[copy["copy_ssn"].isna()]
     expected_no_copy_idx = pop.index[
-        pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP.keys())
+        pop["household_id"].isin(
+            list(data_values.GQ_HOUSING_TYPE_MAP.keys()) + [12, 13, 25, 26, 27]
+        )
     ]
     assert no_copy_idx.equals(expected_no_copy_idx)
+    # SSNs are unique so we cannot copy the original value like we can with age and date of birth so
+    # we can check that there are no matches
+    have_ssn_copy = copy.index.difference(no_copy_idx)
+    assert (copy.loc[have_ssn_copy, "ssn"] != copy.loc[have_ssn_copy, "copy_ssn"]).all()

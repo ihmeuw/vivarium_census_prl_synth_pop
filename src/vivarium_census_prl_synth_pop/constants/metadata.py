@@ -288,3 +288,10 @@ class DatasetNames:
     TAXES_W2_1099 = "taxes_w2_and_1099"
     TAXES_DEPENDENTS = "taxes_dependents"
     WIC = "women_infants_and_children"
+
+
+COPY_HOUSEHOLD_MEMBER_COLS = {
+    "age": "copy_age",
+    "date_of_birth": "copy_date_of_birth",
+    "has_ssn": "copy_ssn",
+}
