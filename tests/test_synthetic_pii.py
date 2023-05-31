@@ -739,28 +739,7 @@ def test_copy_household_member():
     # Note this function requires columns "household_id" and will copy from "age", "date_of_birth", and
     # "ssn" if that column is present
     hh_ids = [0, 0, 21, 21, 21, 21, 12, 12, 13, 13, 14, 14, 14, 14, 14, 25, 25, 25, 26, 27]
-    ages = [
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        26,
-        27,
-        28,
-        29,
-    ]
+    ages = list(range(10, 30))
     dob = ["1976-07-22", "1992-04-07", "1996-05-08", "2001-04-08", "1999-05-23"] * 4
     ids = list(range(1000, 1020))
     has_ssn = [True, False] * 10
@@ -788,8 +767,8 @@ def test_copy_household_member():
         ]
         assert no_copy_idx.equals(expected_no_copy_idx)
 
-    # Check expected missing rows for ssns. Note: These will be the same household ids along
-    # with household ids 12, 13 and 25 because those households only have 1 member with a SSN
+    # Check expected missing rows for ssns. This will be GQ-households and households with only one eligible
+    # member - [0, 12, 13, 25, 26, 27]
     no_copy_idx = copy.index[copy["copy_ssn"].isna()]
     expected_no_copy_idx = pop.index[
         pop["household_id"].isin(

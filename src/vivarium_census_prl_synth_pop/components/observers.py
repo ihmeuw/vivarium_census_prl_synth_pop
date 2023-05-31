@@ -782,7 +782,6 @@ class TaxW2Observer(BaseObserver):
             pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
-        # todo: Fix me MIC-4092
         ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
         df_w2["ssn_id"] = ssn_for_simulants_wo
         df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
@@ -1057,7 +1056,6 @@ class Tax1040Observer(BaseObserver):
             ],
             additional_key="joint_filing_1040",
         )
-        # todo: add function here to copy each of the necessary columns
 
         return pop[self.OUTPUT_COLUMNS]
 
