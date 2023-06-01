@@ -782,6 +782,8 @@ class TaxW2Observer(BaseObserver):
             pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
+        # Note the np_randomness is generated once during setup. TODO for RT to determine which
+        # approach is more in line with how vivarium handles CRN.
         ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
         df_w2["ssn_id"] = ssn_for_simulants_wo
         df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
