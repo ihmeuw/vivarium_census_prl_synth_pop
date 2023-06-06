@@ -500,3 +500,47 @@ def write_to_disk(data: pd.DataFrame, path: Path):
             f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
             f"{path.suffix[1:]} was provided."
         )
+
+
+def copy_from_household_member(
+    pop: pd.DataFrame, randomness_stream: RandomnessStream
+) -> pd.DataFrame:
+    # Creates copy_age, copy_date_of_birth, and copy_ssn from household members
+    # Note: copy value can be original value but copies from another household member
+
+    copy_cols = metadata.COPY_HOUSEHOLD_MEMBER_COLS
+    for col in [column for column in copy_cols.keys() if column in pop.columns]:
+        pop[copy_cols[col]] = np.nan
+        if col == "has_ssn":
+            # Subset to rows that have SSN so we do not try and map nans.
+            households = (
+                pop[pop[col]].groupby("household_id").apply(lambda df_g: list(df_g.index))
+            )
+        else:
+            # This makes the assumption age and date of birth will not have nans at this poitn
+            households = pop.groupby("household_id").apply(lambda df_g: list(df_g.index))
+        # Drop GQ and households with single member
+        households = households[households.apply(len) > 1]
+        households = households.loc[
+            households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())
+        ]
+        simulants_and_household_members = pop["household_id"].map(households).dropna()
+        simulant_ids_to_copy = simulants_and_household_members.reset_index().apply(
+            lambda row: [
+                household
+                for household in row.loc["household_id"]
+                if household != row.loc["index"]
+            ],
+            axis=1,
+        )
+        simulant_ids_to_copy.index = simulants_and_household_members.index
+        seed = get_hash(randomness_stream._key(additional_key=col))
+        copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
+        if col == "has_ssn":
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids
+        else:
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.map(
+                pop.loc[copy_ids.index, col]
+            )
+
+    return pop

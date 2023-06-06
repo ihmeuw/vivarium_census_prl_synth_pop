@@ -92,6 +92,22 @@ def format_age(data: pd.DataFrame) -> pd.Series:
     return data["age"].astype(int)
 
 
+def format_copy_age(data: pd.DataFrame) -> pd.Series:
+    no_copy_idx = data.index[data["copy_age"].isna()]
+    column = data["copy_age"].astype(str)
+    column = column.apply(lambda row: row.split(".")[0])
+    column.loc[no_copy_idx] = np.nan
+    return column
+
+
+def format_copy_ssn(data: pd.DataFrame) -> pd.Series:
+    no_copy_idx = data.index[data["copy_ssn"].isna()]
+    column = data["random_seed"].astype(str) + "_" + data["copy_ssn"].astype(str)
+    column = column.apply(lambda row: row.split(".")[0])
+    column.loc[no_copy_idx] = np.nan
+    return column
+
+
 # Fixme: Add formatting functions as necessary
 COLUMN_FORMATTERS = {
     "simulant_id": (format_simulant_id, ["simulant_id", "random_seed"]),
@@ -116,6 +132,8 @@ COLUMN_FORMATTERS = {
     "guardian_id": (get_guardian_id, ["guardian_id", "random_seed"]),
     "ssn_id": (format_ssn_id, ["ssn_id", "random_seed"]),
     "age": (format_age, ["age"]),
+    "copy_age": (format_copy_age, ["copy_age"]),
+    "copy_ssn": (format_copy_ssn, ["copy_ssn", "random_seed"]),
 }
 
 

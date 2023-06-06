@@ -45,6 +45,7 @@ def get_simulant_id_maps(
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
     maps = dict()
     maps.update(get_ssn_map(obs_data, column_name, artifact, seed, all_seeds))
+    # todo: add copy itin to get_itin_map
     maps.update(get_itin_map(obs_data, column_name, artifact, seed, all_seeds))
 
     return maps
@@ -119,14 +120,13 @@ def get_ssn_map(
 
     # Simulants in W2 observer who `has_ssn` need SSNs
     w2_data = obs_data[metadata.DatasetNames.TAXES_W2_1099][
-        [column_name, "has_ssn", "ssn_id"]
+        [column_name, "has_ssn", "ssn_id", "copy_ssn"]
     ]
     need_ssns_has_ssn = w2_data.loc[w2_data["has_ssn"], column_name]
 
     # Simulants in W2 observer who are assigned as an `ssn_id` need to have SSNs
     # to be copied later
     need_ssns_ssn_id = w2_data.loc[w2_data["ssn_id"] != "-1", "ssn_id"]
-
     need_ssns = pd.concat(
         [need_ssns_ssn, need_ssns_has_ssn, need_ssns_ssn_id], axis=0
     ).drop_duplicates()
@@ -218,3 +218,11 @@ def do_collide_ssns(
         randomness=randomness,
     )
     return obs_data
+
+
+def copy_ssn_from_household_member(
+    ssn_ids_to_copy: pd.Series, ssn_map: pd.Series
+) -> pd.Series:
+    # Copy ssns for copy from household member
+    copied_ssns = ssn_ids_to_copy.map(ssn_map)
+    return copied_ssns
