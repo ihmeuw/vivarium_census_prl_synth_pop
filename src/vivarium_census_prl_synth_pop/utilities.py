@@ -524,7 +524,7 @@ def copy_from_household_member(
         if households.empty:
             # Save as object type - current pandas defaults to dtype float with future warning
             pop[copy_cols[col]] = pd.Series(np.nan, index=pop.index, dtype=object)
-            return pop
+            continue
         households = households.loc[
             households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())
         ]
