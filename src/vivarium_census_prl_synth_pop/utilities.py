@@ -521,10 +521,10 @@ def copy_from_household_member(
             households = pop.groupby("household_id").apply(lambda df_g: list(df_g.index))
         # Drop GQ and households with single member
         households = households[households.apply(len) > 1]
+        households = households.loc[
+            households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())
+        ]
         if not households.empty:
-            households = households.loc[
-                households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())
-            ]
             simulants_and_household_members = pop["household_id"].map(households).dropna()
             # Note the following call results in a dataframe if 'simulants_and_household_members' is empty
             # and is handled above
