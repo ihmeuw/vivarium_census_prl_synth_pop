@@ -524,29 +524,30 @@ def copy_from_household_member(
         households = households.loc[
             households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())
         ]
-        if not households.empty:
-            simulants_and_household_members = pop["household_id"].map(households).dropna()
-            # Note the following call results in a dataframe if 'simulants_and_household_members' is empty
-            # and is handled above
-            simulant_ids_to_copy = simulants_and_household_members.reset_index().apply(
-                lambda row: [
-                    household
-                    for household in row.loc["household_id"]
-                    if household != row.loc["index"]
-                ],
-                axis=1,
-            )
-            simulant_ids_to_copy.index = simulants_and_household_members.index
-            seed = get_hash(randomness_stream._key(additional_key=col))
-            copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
-            if col == "has_ssn":
-                pop.loc[copy_ids.index, copy_cols[col]] = copy_ids
-            else:
-                pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.map(
-                    pop.loc[copy_ids.index, col]
-                )
-        else:
+        if households.empty:
             # Save as object type - current pandas defaults to dtype float with future warning
             pop[copy_cols[col]] = pd.Series(np.nan, index=pop.index, dtype=object)
+            continue
+
+        simulants_and_household_members = pop["household_id"].map(households).dropna()
+        # Note the following call results in a dataframe if 'simulants_and_household_members' is empty
+        # and is handled above
+        simulant_ids_to_copy = simulants_and_household_members.reset_index().apply(
+            lambda row: [
+                household
+                for household in row.loc["household_id"]
+                if household != row.loc["index"]
+            ],
+            axis=1,
+        )
+        simulant_ids_to_copy.index = simulants_and_household_members.index
+        seed = get_hash(randomness_stream._key(additional_key=col))
+        copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
+        if col == "has_ssn":
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids
+        else:
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.map(
+                pop.loc[copy_ids.index, col]
+            )
 
     return pop
