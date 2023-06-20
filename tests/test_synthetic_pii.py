@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.randomness.index_map import IndexMap
 
-from vivarium_census_prl_synth_pop.constants import data_keys, data_values
+from vivarium_census_prl_synth_pop.constants import data_keys, data_values, metadata
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_city_map,
     get_mailing_address_map,
@@ -22,11 +23,12 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     _load_ids,
     generate_ssns,
 )
+from vivarium_census_prl_synth_pop.utilities import copy_from_household_member
 
 key = "test_synthetic_data_generation"
 clock = lambda: pd.Timestamp("2020-09-01")
 seed = 0
-randomness = RandomnessStream(key=key, clock=clock, seed=seed)
+randomness = RandomnessStream(key=key, clock=clock, seed=seed, index_map=IndexMap())
 
 
 def get_draw(self, index, additional_key=None) -> pd.Series:
@@ -730,3 +732,51 @@ def test_id_uniqueness(artifact, hdf_key, num_need_ids, random_seed):
         pytest.mark.skip(reason=f"Cannot find artifact at {artifact.path}")
     else:
         assert len(np.unique(ids)) == num_need_ids
+
+
+def test_copy_household_member():
+    # Dummy dataset
+    # Note this function requires columns "household_id" and will copy from "age", "date_of_birth", and
+    # "ssn" if that column is present
+    hh_ids = [0, 0, 21, 21, 21, 21, 12, 12, 13, 13, 14, 14, 14, 14, 14, 25, 25, 25, 26, 27]
+    ages = list(range(10, 30))
+    dob = ["1976-07-22", "1992-04-07", "1996-05-08", "2001-04-08", "1999-05-23"] * 4
+    ids = list(range(1000, 1020))
+    has_ssn = [True, False] * 10
+
+    pop = pd.DataFrame(
+        {
+            "household_id": hh_ids,
+            "age": ages,
+            "ssn": ids,
+            "date_of_birth": dob,
+            "has_ssn": has_ssn,
+        },
+        index=list(range(2000, 2020)),
+    )
+
+    copy = copy_from_household_member(pop, randomness)
+
+    copy_cols = metadata.COPY_HOUSEHOLD_MEMBER_COLS
+    for col in [column for column in copy_cols.keys() if column != "has_ssn"]:
+        # Check expected missing rows based on household for age and date of birth
+        no_copy_idx = copy.index[copy[copy_cols[col]].isna()]
+        # Get household ids that are in GQ or only have a single occupant
+        expected_no_copy_idx = pop.index[
+            pop["household_id"].isin(list(data_values.GQ_HOUSING_TYPE_MAP.keys()) + [26, 27])
+        ]
+        assert no_copy_idx.equals(expected_no_copy_idx)
+
+    # Check expected missing rows for ssns. This will be GQ-households and households with only one eligible
+    # member - [0, 12, 13, 25, 26, 27]
+    no_copy_idx = copy.index[copy["copy_ssn"].isna()]
+    expected_no_copy_idx = pop.index[
+        pop["household_id"].isin(
+            list(data_values.GQ_HOUSING_TYPE_MAP.keys()) + [12, 13, 25, 26, 27]
+        )
+    ]
+    assert no_copy_idx.equals(expected_no_copy_idx)
+    # SSNs are unique so we cannot copy the original value like we can with age and date of birth so
+    # we can check that there are no matches
+    have_ssn_copy = copy.index.difference(no_copy_idx)
+    assert (copy.loc[have_ssn_copy, "ssn"] != copy.loc[have_ssn_copy, "copy_ssn"]).all()

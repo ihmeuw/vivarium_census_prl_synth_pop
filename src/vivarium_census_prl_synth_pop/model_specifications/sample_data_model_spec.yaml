@@ -43,8 +43,8 @@ configuration:
             day: 1
         step_size: 28 # Days
     population:
-        population_size: 1_000_000
-    # us_population_size: 250_000  # Override the default US population size
+        population_size: 20_000
+    us_population_size: 20_000  # Override the default US population size
 
 #    household_survey_observer_acs:
 #        file_extension: "hdf"

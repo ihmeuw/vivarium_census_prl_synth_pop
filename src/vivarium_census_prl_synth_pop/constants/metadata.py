@@ -44,7 +44,7 @@ HOUSEHOLD_TYPES = list(HOUSEHOLD_TYPE_MAP.values())
 PERSONS_COLUMNS_TO_INITIALIZE = [
     "census_household_id",
     "age",
-    "relation_to_household_head",
+    "relation_to_reference_person",
     "sex",
     "race_ethnicity",
     "born_in_us",
@@ -110,7 +110,7 @@ PERSONS_COLUMNS_MAP = {
     "ST": "state",
     "SERIALNO": "census_household_id",
     "AGEP": "age",
-    "RELSHIPP": "relation_to_household_head",
+    "RELSHIPP": "relation_to_reference_person",
     "SEX": "sex",
     "HISP": "latino",
     "RAC1P": "race",
@@ -146,7 +146,7 @@ RACE_ETHNICITIES = list({race: None for race in RACE_ETHNICITY_VAR_MAP.values()}
 SEX_VAR_MAP = {1: "Male", 2: "Female"}
 SEXES = list(SEX_VAR_MAP.values())
 
-RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
+RELATIONSHIP_TO_REFERENCE_PERSON_MAP = {
     20: "Reference person",
     21: "Opp-sex spouse",
     22: "Opp-sex partner",
@@ -167,9 +167,9 @@ RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP = {
     37: "Institutionalized GQ pop",
     38: "Noninstitutionalized GQ pop",
 }
-RELATIONSHIPS = list(RELATIONSHIP_TO_HOUSEHOLD_HEAD_MAP.values())
+RELATIONSHIPS = list(RELATIONSHIP_TO_REFERENCE_PERSON_MAP.values())
 
-NEWBORNS_RELATION_TO_HOUSEHOLD_HEAD_MAP = {
+NEWBORNS_RELATION_TO_REFERENCE_PERSON_MAP = {
     "Reference person": "Biological child",
     "Opp-sex spouse": "Biological child",
     "Opp-sex partner": "Biological child",
@@ -275,3 +275,23 @@ PRIORITY_MAP = {
 }
 
 SUPPORTED_EXTENSIONS = ["hdf", "parquet"]
+
+
+class DatasetNames:
+    """Container for Dataset names"""
+
+    ACS = "american_community_survey"
+    CENSUS = "decennial_census"
+    CPS = "current_population_survey"
+    SSA = "social_security"
+    TAXES_1040 = "taxes_1040"
+    TAXES_W2_1099 = "taxes_w2_and_1099"
+    TAXES_DEPENDENTS = "taxes_dependents"
+    WIC = "women_infants_and_children"
+
+
+COPY_HOUSEHOLD_MEMBER_COLS = {
+    "age": "copy_age",
+    "date_of_birth": "copy_date_of_birth",
+    "has_ssn": "copy_ssn",
+}

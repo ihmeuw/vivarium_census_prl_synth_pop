@@ -11,10 +11,15 @@ from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.randomness import Array, RandomnessStream, get_hash, random
+from vivarium.framework.randomness import RandomnessStream, get_hash
 from vivarium.framework.values import Pipeline
 
-from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
+from vivarium_census_prl_synth_pop.constants import (
+    data_keys,
+    data_values,
+    metadata,
+    paths,
+)
 
 SeededDistribution = Tuple[str, stats.rv_continuous]
 
@@ -170,10 +175,10 @@ def get_norm_from_quantiles(
 
 
 def vectorized_choice(
-    options: Array,
+    options: Union[pd.Series, List],
     n_to_choose: int,
     randomness_stream: RandomnessStream = None,
-    weights: Array = None,
+    weights: Optional[Union[pd.Series, List]] = None,
     additional_key: Any = None,
     random_seed: int = None,
 ):
@@ -189,8 +194,9 @@ def vectorized_choice(
     index = pd.Index(np.arange(n_to_choose))
     if randomness_stream is None:
         # Generate an additional_key on-the-fly and use that in randomness.random
-        additional_key = f"{additional_key}_{random_seed}"
-        probs = random(str(additional_key), index)
+        random_state = np.random.RandomState(seed=get_hash(f"{additional_key}_{random_seed}"))
+        raw_draws = random_state.random_sample(len(index))
+        probs = pd.Series(raw_draws, index=index)
     else:
         probs = randomness_stream.get_draw(index, additional_key=additional_key)
 
@@ -282,12 +288,18 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
     return output_dir
 
 
-def build_final_results_directory(results_dir: str) -> Tuple[Path, Path]:
+def build_final_results_directory(
+    results_dir: str,
+    version: Optional[str] = None,
+) -> Tuple[Path, Path]:
+    tmp = paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    if version is None:
+        subdir = tmp / "pseudopeople_input_data_usa"
+    else:
+        subdir = tmp / f"pseudopeople_input_data_usa_{version}"
     final_output_dir = build_output_dir(
         Path(results_dir),
-        subdir=paths.FINAL_RESULTS_DIR_NAME
-        / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        / "usa",
+        subdir=subdir,
     )
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
 
@@ -442,7 +454,7 @@ def randomly_sample_states_pumas(
 
 def get_state_puma_options(builder: Builder) -> pd.DataFrame:
     states_in_artifact = list(
-        builder.data.load("population.households")["state"].drop_duplicates()
+        builder.data.load(data_keys.POPULATION.HOUSEHOLDS)["state"].drop_duplicates()
     )
     state_puma_options = pd.read_csv(paths.PUMA_TO_ZIP_DATA_PATH)[
         ["state", "puma"]
@@ -488,3 +500,54 @@ def write_to_disk(data: pd.DataFrame, path: Path):
             f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
             f"{path.suffix[1:]} was provided."
         )
+
+
+def copy_from_household_member(
+    pop: pd.DataFrame, randomness_stream: RandomnessStream
+) -> pd.DataFrame:
+    # Creates copy_age, copy_date_of_birth, and copy_ssn from household members
+    # Note: copy value can be original value but copies from another household member
+
+    copy_cols = metadata.COPY_HOUSEHOLD_MEMBER_COLS
+    for col in [column for column in copy_cols.keys() if column in pop.columns]:
+        pop[copy_cols[col]] = np.nan
+        if col == "has_ssn":
+            # Subset to rows that have SSN so we do not try and map nans.
+            households = (
+                pop[pop[col]].groupby("household_id").apply(lambda df_g: list(df_g.index))
+            )
+        else:
+            # This makes the assumption age and date of birth will not have nans at this poitn
+            households = pop.groupby("household_id").apply(lambda df_g: list(df_g.index))
+        # Drop GQ and households with single member
+        households = households[households.apply(len) > 1]
+        households = households.loc[
+            households.index.difference(data_values.GQ_HOUSING_TYPE_MAP.keys())
+        ]
+        if households.empty:
+            # Save as object type - current pandas defaults to dtype float with future warning
+            pop[copy_cols[col]] = pd.Series(np.nan, index=pop.index, dtype=object)
+            continue
+
+        simulants_and_household_members = pop["household_id"].map(households).dropna()
+        # Note the following call results in a dataframe if 'simulants_and_household_members' is empty
+        # and is handled above
+        simulant_ids_to_copy = simulants_and_household_members.reset_index().apply(
+            lambda row: [
+                household
+                for household in row.loc["household_id"]
+                if household != row.loc["index"]
+            ],
+            axis=1,
+        )
+        simulant_ids_to_copy.index = simulants_and_household_members.index
+        seed = get_hash(randomness_stream._key(additional_key=col))
+        copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
+        if col == "has_ssn":
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids
+        else:
+            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.map(
+                pop.loc[copy_ids.index, col]
+            )
+
+    return pop

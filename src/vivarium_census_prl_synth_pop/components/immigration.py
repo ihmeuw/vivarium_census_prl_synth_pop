@@ -53,7 +53,7 @@ class Immigration:
 
         non_gq_immigrants = immigrants[~is_gq]
         immigrant_reference_people = non_gq_immigrants[
-            non_gq_immigrants["relation_to_household_head"] == "Reference person"
+            non_gq_immigrants["relation_to_reference_person"] == "Reference person"
         ]
 
         is_household_immigrant = non_gq_immigrants["census_household_id"].isin(

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Tuple, Union
 
@@ -62,6 +63,15 @@ def make_artifacts(
 
 @click.command()
 @click.argument("output_dir", type=click.Path(exists=True))
+@click.option(
+    "-V",
+    "--label-version",
+    type=str,
+    default=None,
+    show_default=True,
+    help="Provide a version number for final results. "
+    "Version should follow format of '#.#.#'.",
+)
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
     "--pdb",
@@ -85,7 +95,7 @@ def make_artifacts(
     "-x",
     "--extension",
     type=click.Choice(["hdf", "parquet"]),
-    default="hdf",
+    default="parquet",
     show_default=True,
     help="File type to write results out as. Supported file types are hdf and " "parquet.",
 )
@@ -152,6 +162,7 @@ def make_artifacts(
 )
 def make_results(
     output_dir: str,
+    label_version: str,
     verbose: int,
     with_debugger: bool,
     mark_best: bool,
@@ -168,7 +179,18 @@ def make_results(
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
     logger.info("Creating final results directory.")
-    raw_output_dir, final_output_dir = build_final_results_directory(output_dir)
+    if label_version is not None:
+        expected_version_format = re.compile("\d*.\d*.\d*")
+        if expected_version_format.match(label_version):
+            pass
+        else:
+            raise ValueError(
+                f"'{label_version}' is not of correct format. "
+                "Format for version should be '#.#.#'"
+            )
+    raw_output_dir, final_output_dir = build_final_results_directory(
+        output_dir, label_version
+    )
     cluster_requests = {
         "queue": queue,
         "peak_memory": peak_memory,
