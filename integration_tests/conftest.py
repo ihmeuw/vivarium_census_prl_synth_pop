@@ -81,6 +81,23 @@ def pipeline_columns(sim, populations) -> List[str]:
 
 
 class FuzzyChecker:
+    """
+    This class manages "fuzzy" checks -- that is, checks of values that are
+    subject to stochastic variation.
+    It uses statistical hypothesis testing to determine whether the observed
+    value in the simulation is extreme enough to reject the null hypothesis that
+    the simulation is behaving correctly (according to a supplied verification
+    or validation target).
+
+    More detail about the statistics used here can be found at:
+    https://vivarium-research.readthedocs.io/en/latest/model_design/vivarium_features/automated_v_and_v/index.html#fuzzy-checking
+
+    This is implemented as a class, where a single instance of the class is used
+    throughout an entire run of the integration tests.
+    This is because we want to apply a Bonferroni correction for testing multiple
+    hypotheses across the entire "family" of hypotheses tested.
+    """
+
     def __init__(self, num_comparisons: int, overall_significance_level: float) -> None:
         self.num_comparisons = num_comparisons
         self.overall_significance_level = overall_significance_level
@@ -94,7 +111,7 @@ class FuzzyChecker:
         true_value_min: Optional[float] = None,
         true_value_max: Optional[float] = None,
         name_addl: Optional[str] = "",
-    ):
+    ) -> None:
         if true_value is not None:
             true_value_min = true_value
             true_value_max = true_value
@@ -120,6 +137,7 @@ class FuzzyChecker:
                 numerator, denominator, true_value_min, true_value_max
             )
 
+        reject_null = p_value < test_significance_level
         self.comparisons_made.append(
             {
                 "name": name,
@@ -131,11 +149,11 @@ class FuzzyChecker:
                 "true_value_max": true_value_max,
                 "p_value": p_value,
                 "test_significance_level": test_significance_level,
-                "reject_null": p_value < test_significance_level,
+                "reject_null": reject_null,
             }
         )
 
-        if p_value < test_significance_level:
+        if reject_null:
             if boolean_values.mean() < true_value_min:
                 raise AssertionError(
                     f"{name} value {proportion:g} is significantly less than {true_value_min:g}, p = {p_value:g} <= {test_significance_level:g}"
@@ -145,7 +163,7 @@ class FuzzyChecker:
                     f"{name} value {proportion:g} is significantly greater than {true_value_max:g}, p = {p_value:g} <= {test_significance_level:g}"
                 )
 
-    def write_output(self):
+    def write_output(self) -> None:
         output = pd.DataFrame(self.comparisons_made)
         output.to_csv(
             Path(os.path.dirname(__file__)) / "v_and_v_output/proportion_tests.csv",
@@ -155,9 +173,15 @@ class FuzzyChecker:
     def _two_tailed_binomial_test(
         self, numerator, denominator, null_hypothesis_min, null_hypothesis_max
     ):
-        # Adapted from https://github.com/scipy/scipy/blob/c1ed5ece8ffbf05356a22a8106affcd11bd3aee0/scipy/stats/_binomtest.py#L202-L333
-        # This is a totally home-grown way to make the null hypothesis a range.
-        # Is this reasonable?
+        # Zeb note: This method is adapted from scipy.stats.binomtest, which can be found at:
+        # https://github.com/scipy/scipy/blob/c1ed5ece8ffbf05356a22a8106affcd11bd3aee0/scipy/stats/_binomtest.py#L202-L333
+        # All comments in this method that are not prefixed with "Zeb note" are copied from the original.
+        # The key change I've made is that we allow the null hypothesis to be a range.
+        # For the purposes of p-values, we treat the probability of a given result as being
+        # the *maximum* probability of that result for *any possible* proportion value in the range.
+        # This seems to be sort of like a minimax hypothesis test, though I am not sure what it is called.
+        # More about the reasoning behind this change can be found here:
+        # https://vivarium-research.readthedocs.io/en/latest/model_design/vivarium_features/automated_v_and_v/index.html#proportions-and-rates
         binom = scipy.stats.binom
 
         # Zeb note: I don't understand rerr, but have left it from the original SciPy implementation
@@ -211,7 +235,9 @@ class FuzzyChecker:
         return pval
 
     def _binary_search_integers(self, a, d, lo, hi):
-        # Copied from scipy.stats._binomtest._binary_search_for_binom_tst
+        # Zeb note: This method is copied exactly from scipy.stats._binomtest._binary_search_for_binom_tst, which can be found at:
+        # https://github.com/scipy/scipy/blob/c1ed5ece8ffbf05356a22a8106affcd11bd3aee0/scipy/stats/_binomtest.py#L336-L375
+        # All comments in this method that are not prefixed with "Zeb note" are copied from the original.
         """
         Conducts an implicit binary search on a function specified by `a`.
 
@@ -254,22 +280,38 @@ class FuzzyChecker:
 
 
 @pytest.fixture(scope="session")
-def fuzzy_checker() -> FuzzyChecker:
-    tester = FuzzyChecker(
-        # NOTE: This will need to be updated when any new tests with fuzzy asserts
+def fuzzy_checker(request) -> FuzzyChecker:
+    checker = FuzzyChecker(
+        # We need to supply the total number of comparisons we intend to make (and therefore
+        # the total number of hypotheses we intend to test) so the appropriate Bonferroni
+        # correction can be made.
+        # NOTE: This will need to be updated when any new tests with fuzzy checks in them
         # are added.
-        # Do not update this if it is not the only thing that is failing!
-        # Early exits from failing tests can make the number of asserts actually performed
-        # different than what it would be with passing tests.
+        # The logic below will print out the correct updated value if the tests are run
+        # with an outdated value.
         num_comparisons=601,
-        # Probability of getting any failure by chance when all the values are truly in the
+        # Maximum probability of getting any failure by chance when all the values are truly in the
         # ranges asserted (false alarm).
         # The lower this number is, the less sensitive we will be to true issues.
+        # A number of simplifying assumptions are made, which make this value an upper bound:
+        # the true probability of a random failure will be lower, with corresponding loss of
+        # sensitivity.
         overall_significance_level=0.05,
     )
 
-    yield tester
+    yield checker
 
-    tester.write_output()
+    checker.write_output()
 
-    assert tester.num_comparisons == len(tester.comparisons_made)
+    comparisons_intended = checker.num_comparisons
+    comparisons_made = len(checker.comparisons_made)
+    if request.node.testsfailed > 0:
+        # If any tests failed, there was likely an early-exit and not all of the comparisons
+        # intended were actually made.
+        # Running the exact equality assert in this case would just add noise and make someone think num_comparisons
+        # needed to be updated when it didn't.
+        assert_message = f"num_comparisons should be at least {comparisons_made} in the fuzzy checker, resolve other failures and then update the value in conftest.py"
+        assert comparisons_made <= comparisons_intended, assert_message
+    else:
+        assert_message = f"num_comparisons should be {comparisons_made} in the fuzzy checker, update the value in conftest.py"
+        assert comparisons_intended == comparisons_made, assert_message
