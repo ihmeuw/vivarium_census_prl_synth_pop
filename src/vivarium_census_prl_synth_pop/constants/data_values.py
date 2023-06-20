@@ -142,3 +142,16 @@ class Taxes(NamedTuple):
     PERCENT_W2_RECEIVED = 0.9465
     PERCENT_1099_RECEIVED = 0.0535
     PROBABILITY_OF_JOINT_FILER = 0.95
+
+
+# Needed to allow HDFs to be filtered on these columns
+DATA_COLUMNS = [
+    # Date columns
+    "year",
+    "event_date",
+    "survey_date",
+    "tax_year",
+    # State columns
+    "state",
+    "mailing_address_state",
+]

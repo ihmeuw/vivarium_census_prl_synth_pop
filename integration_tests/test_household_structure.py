@@ -3,7 +3,7 @@ import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
-from .conftest import FuzzyTester
+from .conftest import FuzzyChecker
 
 # TODO: Broader test coverage
 
@@ -19,7 +19,7 @@ def test_housing_type_is_categorical(tracked_live_populations):
 
 def test_relationship_is_categorical(tracked_live_populations):
     for pop in tracked_live_populations:
-        relationship = pop["relation_to_household_head"]
+        relationship = pop["relation_to_reference_person"]
 
         # Assert the dtype is correct and that there are no NaNs
         assert relationship.dtype == pd.CategoricalDtype(categories=metadata.RELATIONSHIPS)
@@ -32,7 +32,7 @@ def test_all_households_have_reference_person(tracked_live_populations):
             ~pop["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP)
         ]["household_id"].unique()
         reference_person_household_ids = pop.loc[
-            pop["relation_to_household_head"] == "Reference person", "household_id"
+            pop["relation_to_reference_person"] == "Reference person", "household_id"
         ].values
 
         # Assert these two sets are identical
@@ -64,10 +64,10 @@ def test_household_id_and_address_id_correspond(tracked_live_populations):
 def test_new_reference_person_is_oldest_household_member(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         before_reference_person_idx = before.index[
-            before["relation_to_household_head"] == "Reference person"
+            before["relation_to_reference_person"] == "Reference person"
         ]
         after_reference_person_idx = after.index[
-            (after["relation_to_household_head"] == "Reference person")
+            (after["relation_to_reference_person"] == "Reference person")
             & (after["household_id"].isin(before["household_id"]))
         ]
         new_reference_person_idx = np.setdiff1d(
@@ -94,7 +94,7 @@ def test_new_reference_person_is_oldest_household_member(simulants_on_adjacent_t
 def test_households_only_have_one_reference_person(tracked_live_populations):
     for pop in tracked_live_populations:
         household_ids = pop.loc[
-            pop["relation_to_household_head"] == "Reference person", "household_id"
+            pop["relation_to_reference_person"] == "Reference person", "household_id"
         ]
 
         assert len(household_ids) == len(household_ids.unique())
@@ -103,7 +103,7 @@ def test_households_only_have_one_reference_person(tracked_live_populations):
 def test_households_only_have_one_parter_or_spouse(tracked_live_populations):
     for pop in tracked_live_populations:
         household_ids = pop.loc[
-            pop["relation_to_household_head"].isin(
+            pop["relation_to_reference_person"].isin(
                 [
                     "Opp-sex spouse",
                     "Opp-sex partner",
@@ -146,7 +146,7 @@ def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
         assert not after.index.duplicated().any()
 
 
-def test_state_population_proportions(populations, sim, fuzzy_tester: FuzzyTester):
+def test_state_population_proportions(populations, sim, fuzzy_checker: FuzzyChecker):
     # We want the proportion of the *households* in each state in ACS PUMS.
     # That's because it's only the location of *households* that are independent
     # of each other.
@@ -172,12 +172,12 @@ def test_state_population_proportions(populations, sim, fuzzy_tester: FuzzyTeste
         )
 
         for state_id, proportion in state_proportions.items():
-            # NOTE: Prior to fuzzy testing, we checked that all states were at least present in the population table.
+            # NOTE: Prior to fuzzy checking, we checked that all states were at least present in the population table.
             # The exact analog to this would be some complicated hypothesis about a coupon collector's partition with
             # uneven probabilities of different "coupons" (since states are different sizes).
-            # To make things easier, we do a fuzzy test of the *proportion* of each state.
+            # To make things easier, we do a fuzzy check of the *proportion* of each state.
             # One downside to this approach is that it generates a lot of hypotheses.
-            fuzzy_tester.fuzzy_assert_proportion(
+            fuzzy_checker.fuzzy_assert_proportion(
                 f"State proportion for {state_id}",
                 household_states == state_id,
                 # Relative size of states can change over time in the sim due to differential immigration, emigration

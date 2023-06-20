@@ -17,6 +17,8 @@ def run_make_results_workflow(
     final_output_dir: Path,
     mark_best: bool,
     test_run: bool,
+    extension: str,
+    public_sample: bool,
     seed: str,
     artifact_path: Union[str, Path],
     queue: str,
@@ -29,7 +31,7 @@ def run_make_results_workflow(
     """
     logger.info(
         "Starting jobmon 'make_results' workflow. Results will be written to "
-        f"{final_output_dir}"
+        f"{final_output_dir} with output format {extension}."
     )
     wf_uuid = uuid.uuid4()
 
@@ -37,6 +39,8 @@ def run_make_results_workflow(
     # TODO: there's got to be a better way to do this?
     mark_best_arg = "--mark-best" if mark_best else ""
     test_run_arg = "--test-run" if test_run else ""
+    extension_arg = f"--extension {extension}" if extension != "" else ""
+    public_sample_arg = "--public-sample" if public_sample else ""
     verbose_arg = "-" + "v" * verbose if verbose else ""
     seed_arg = f"--seed {seed}" if seed != "" else ""
 
@@ -68,6 +72,8 @@ def run_make_results_workflow(
             "{verbose} "
             "{mark_best} "
             "{test_run} "
+            "{extension} "
+            "{public_sample} "
             "{seed} "
             "--artifact-path {artifact_path} "
         ),
@@ -77,6 +83,8 @@ def run_make_results_workflow(
             "final_output_dir",
             "mark_best",
             "test_run",
+            "extension",
+            "public_sample",
             "artifact_path",
         ],
         op_args=[
@@ -96,6 +104,8 @@ def run_make_results_workflow(
             verbose=verbose_arg,
             mark_best=mark_best_arg,
             test_run=test_run_arg,
+            extension=extension_arg,
+            public_sample=public_sample_arg,
             seed=seed_args,
             artifact_path=artifact_path,
         )
@@ -109,6 +119,8 @@ def run_make_results_workflow(
             verbose=verbose_arg,
             mark_best=mark_best_arg,
             test_run=test_run_arg,
+            extension=extension_arg,
+            public_sample=public_sample_arg,
             seed=seed_arg,
             artifact_path=artifact_path,
         )

@@ -266,7 +266,7 @@ def get_employer_name_map(
     """
     column_name: Name of column that is being mapped - employer_id
     obs_data: Raw results from observer outputs
-    randomness: randomness stream used to assign names
+    artifact: Artifact used to load the business names
 
     Returns: Dict with key "employer_name" and value is series of names.
     Note:  For clarity on variable names, business names refers to the generated

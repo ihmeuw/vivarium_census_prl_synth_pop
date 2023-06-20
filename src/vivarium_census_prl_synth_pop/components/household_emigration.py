@@ -48,7 +48,7 @@ class HouseholdEmigration:
         self.population_view = builder.population.get_view(
             [
                 "household_id",
-                "relation_to_household_head",
+                "relation_to_reference_person",
                 "in_united_states",
                 "exit_time",
                 "tracked",
@@ -85,7 +85,7 @@ class HouseholdEmigration:
             event.index,
             query="alive == 'alive' and in_united_states == True and tracked == True",
         )
-        reference_people = pop[pop["relation_to_household_head"] == "Reference person"]
+        reference_people = pop[pop["relation_to_reference_person"] == "Reference person"]
 
         emigrating_reference_people = self.randomness.filter_for_rate(
             reference_people,

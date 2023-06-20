@@ -4,7 +4,7 @@ import pytest
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
-from .conftest import FuzzyTester
+from .conftest import FuzzyChecker
 
 
 def test_individuals_move(simulants_on_adjacent_timesteps):
@@ -32,7 +32,7 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         assert movers_into_new_households.any()
 
         assert (
-            after[movers_into_new_households]["relation_to_household_head"]
+            after[movers_into_new_households]["relation_to_reference_person"]
             # Handling the non-reference-person movers described above.
             .isin(["Reference person", "Other nonrelative"]).all()
         )
@@ -40,7 +40,7 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         # These are the true new-household movers, as that term is used in the
         # migration component: the movers who establish a new household.
         new_household_movers = movers_into_new_households & (
-            after["relation_to_household_head"] == "Reference person"
+            after["relation_to_reference_person"] == "Reference person"
         )
         assert new_household_movers.any()
         # There is exactly one new-household mover for each new household.
@@ -75,14 +75,14 @@ def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
         assert (before[gq_movers]["household_details.housing_type"] == "Standard").any()
         assert after[gq_movers]["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).all()
         assert (
-            after[gq_movers]["relation_to_household_head"]
+            after[gq_movers]["relation_to_reference_person"]
             .isin(["Institutionalized GQ pop", "Noninstitutionalized GQ pop"])
             .all()
         )
 
 
 def get_households_with_stable_reference_person(after, before):
-    reference_persons = before["relation_to_household_head"] == "Reference person"
+    reference_persons = before["relation_to_reference_person"] == "Reference person"
     movers = before["household_id"] != after["household_id"]
     deaths = before["alive"] != after["alive"]
     emigrants = before["in_united_states"] & ~after["in_united_states"]
@@ -115,7 +115,9 @@ def test_individual_movers_have_correct_relationship(simulants_on_adjacent_times
             non_reference_person_movers & in_household_with_reference_person
         )
         assert (
-            after.loc[mover_to_household_with_reference_person, "relation_to_household_head"]
+            after.loc[
+                mover_to_household_with_reference_person, "relation_to_reference_person"
+            ]
             == "Other nonrelative"
         ).all()
 
@@ -124,7 +126,7 @@ def test_individual_movers_have_correct_relationship(simulants_on_adjacent_times
         )
         assert (
             after.loc[
-                mover_to_household_without_reference_person, "relation_to_household_head"
+                mover_to_household_without_reference_person, "relation_to_reference_person"
             ].isin(["Other nonrelative", "Reference person", "Roommate"])
         ).all()
 
@@ -142,8 +144,8 @@ def test_households_move(simulants_on_adjacent_timesteps):
         )
         movers_with_reference_person = household_movers & in_household_with_reference_person
         assert (
-            before[movers_with_reference_person]["relation_to_household_head"]
-            == after[movers_with_reference_person]["relation_to_household_head"]
+            before[movers_with_reference_person]["relation_to_reference_person"]
+            == after[movers_with_reference_person]["relation_to_reference_person"]
         ).all()
         assert (
             before[movers_with_reference_person]["household_details.housing_type"]
@@ -296,7 +298,7 @@ def test_addresses_during_moves(
     address_id_col,
     state_id_col,
     puma_col,
-    fuzzy_tester: FuzzyTester,
+    fuzzy_checker: FuzzyChecker,
 ):
     """Check that unit (household and business) address details change after a move."""
     address_cols = [address_id_col, state_id_col, puma_col]
@@ -330,13 +332,13 @@ def test_addresses_during_moves(
 
         total_num_moved += mask_moved_units.sum()
 
-        # address details do not change if address_id does not change
+        # Check that address details do not change if address_id does not change
         pd.testing.assert_frame_equal(
             before_units[~mask_moved_units], after_units[~mask_moved_units]
         )
 
         # Check that most movers are in a new state
-        fuzzy_tester.fuzzy_assert_proportion(
+        fuzzy_checker.fuzzy_assert_proportion(
             f"Domestic migration: proportion {unit_id_col} moving into a new state",
             (
                 before_units.loc[mask_moved_units, state_id_col]
@@ -347,7 +349,7 @@ def test_addresses_during_moves(
         )
 
         # Check that the vast majority of movers are in a different PUMA
-        fuzzy_tester.fuzzy_assert_proportion(
+        fuzzy_checker.fuzzy_assert_proportion(
             f"Domestic migration: proportion {unit_id_col} moving into a new PUMA",
             (
                 before_units.loc[mask_moved_units, [state_id_col, puma_col]]

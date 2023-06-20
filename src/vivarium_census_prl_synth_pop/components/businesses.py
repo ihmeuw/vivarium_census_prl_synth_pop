@@ -7,7 +7,6 @@ from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.time import get_time_stamp
 from vivarium_public_health import utilities
 
@@ -63,9 +62,8 @@ class Businesses:
         self.randomness = builder.randomness.get_stream(self.name)
         # create a randomness stream for business moves; use a common random number
         # for identical business move behavior across parallel sims
-        self.business_moves_randomness = RandomnessStream(
-            key="business_moves", clock=builder.time.clock(), seed=12345
-        )
+        self.business_moves_randomness = builder.randomness.get_stream("business_moves")
+        self.business_moves_randomness.seed = 12345  # overwrite seed with crn
         self.state_puma_options = get_state_puma_options(builder)
         self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
@@ -278,7 +276,7 @@ class Businesses:
         n_businesses = int(n_need_employers / data_values.EXPECTED_EMPLOYEES_PER_BUSINESS)
         random_employers_ids = np.arange(2, n_businesses + 2)
         employee_count_propensity = self.business_moves_randomness.get_draw(
-            random_employers_ids
+            pd.Index(random_employers_ids)
         )
         employee_counts = stats.lognorm.ppf(
             q=employee_count_propensity, s=1, scale=np.exp(4)

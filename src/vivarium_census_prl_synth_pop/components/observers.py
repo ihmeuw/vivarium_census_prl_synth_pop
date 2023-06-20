@@ -31,15 +31,19 @@ class BaseObserver(ABC):
         "race_ethnicity",
         "guardian_1",
         "guardian_2",
+        "household_id",
     ]
     DEFAULT_OUTPUT_COLUMNS = [
+        "household_id",  # Included in every dataset as a source of truth
         "first_name_id",
         "middle_name_id",
         "last_name_id",
         "age",
+        "copy_age",
         "sex",
         "race_ethnicity",
         "date_of_birth",
+        "copy_date_of_birth",
         "address_id",
         "state_id",
         "po_box",
@@ -48,10 +52,9 @@ class BaseObserver(ABC):
         "guardian_2",
         "guardian_1_address_id",
         "guardian_2_address_id",
-        # todo: add necessary guardian address columns
     ]
 
-    configuration_defaults = {"observer": {"file_extension": "csv.bz2"}}
+    configuration_defaults = {"observer": {"file_extension": "hdf"}}
 
     def __init__(self):
         self.configuration_defaults = self._get_configuration_defaults()
@@ -82,6 +85,11 @@ class BaseObserver(ABC):
     @property
     @abstractmethod
     def output_columns(self):
+        pass
+
+    @property
+    @abstractmethod
+    def output_name(self) -> str:
         pass
 
     #################
@@ -163,17 +171,16 @@ class BaseObserver(ABC):
 
     def on_simulation_end(self, _: Event) -> None:
         output_dir = utilities.build_output_dir(
-            self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.name
+            self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.output_name
         )
         if self.responses is None:
-            logger.info(f"No results to write ({self.name})")
+            logger.info(f"No results to write ({self.output_name})")
         else:
             self.responses.index.names = ["simulant_id"]
-            filepath = output_dir / f"{self.name}_{self.seed}.{self.file_extension}"
-            if "hdf" == self.file_extension:
-                self.responses.to_hdf(filepath, "data", format="table")
-            else:
-                self.responses.to_csv(filepath)
+            utilities.write_to_disk(
+                self.responses,
+                output_dir / f"{self.output_name}_{self.seed}.{self.file_extension}",
+            )
 
     ##################
     # Helper methods #
@@ -190,11 +197,9 @@ class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
-        "household_id",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "survey_date",
-        "household_id",
         "housing_type",
     ]
     SAMPLING_RATE_PER_MONTH = {
@@ -230,6 +235,12 @@ class HouseholdSurveyObserver(BaseObserver):
     def output_columns(self):
         return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        return {"acs": metadata.DatasetNames.ACS, "cps": metadata.DatasetNames.CPS}[
+            self.survey
+        ]
+
     #################
     # Setup methods #
     #################
@@ -244,7 +255,7 @@ class HouseholdSurveyObserver(BaseObserver):
             * builder.configuration.time.step_size
             / DAYS_PER_YEAR
             * builder.configuration.population.population_size
-            / builder.configuration.us_population_size
+            / data_values.US_POPULATION
         )
 
     ########################
@@ -263,10 +274,13 @@ class HouseholdSurveyObserver(BaseObserver):
         new_responses = new_responses[
             new_responses["household_id"].isin(respondent_households)
         ]
+        # copy from household member for relevant columns
+        new_responses = utilities.copy_from_household_member(new_responses, self.randomness)
         # Must be a timestamp, not an actual `date` type, in order to save to HDF in table mode
         new_responses["survey_date"] = pd.Timestamp(event.time.date())
         new_responses = self.add_address(new_responses)
         new_responses = utilities.add_guardian_address_ids(new_responses)
+
         # Apply column schema and concatenate
         return new_responses[self.output_columns]
 
@@ -279,9 +293,9 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["relation_to_household_head"]
+    ADDITIONAL_INPUT_COLUMNS = ["relation_to_reference_person"]
     ADDITIONAL_OUTPUT_COLUMNS = [
-        "relation_to_household_head",
+        "relation_to_reference_person",
         "year",
         "housing_type",
     ]
@@ -305,8 +319,13 @@ class DecennialCensusObserver(BaseObserver):
     def output_columns(self):
         return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.CENSUS
+
     def setup(self, builder: Builder):
         super().setup(builder)
+        self.randomness = builder.randomness.get_stream(self.name)
         self.clock = builder.time.clock()
         self.time_step = builder.configuration.time.step_size  # in days
 
@@ -321,6 +340,8 @@ class DecennialCensusObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # census should include only living simulants
         )
+        # copy from household member for relevant columns
+        pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
         pop["year"] = event.time.year
@@ -333,14 +354,12 @@ class WICObserver(BaseObserver):
 
     INPUT_VALUES = ["income", "household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
-        "household_id",
-        "relation_to_household_head",
+        "relation_to_reference_person",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "year",
-        "household_id",
         "housing_type",
-        "relation_to_household_head",
+        "relation_to_reference_person",
     ]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
@@ -363,7 +382,14 @@ class WICObserver(BaseObserver):
 
     @property
     def output_columns(self):
-        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
+        columns = self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
+        columns.remove("age")
+        columns.remove("copy_age")
+        return columns
+
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.WIC
 
     def setup(self, builder: Builder):
         super().setup(builder)
@@ -385,6 +411,8 @@ class WICObserver(BaseObserver):
 
         # add columns for output
         pop["year"] = event.time.year
+        # copy from household member for relevant columns
+        pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
 
@@ -475,24 +503,24 @@ class WICObserver(BaseObserver):
 class SocialSecurityObserver(BaseObserver):
     """Class for observing columns relevant to Social Security registry."""
 
-    ADDITIONAL_INPUT_COLUMNS = ["tracked", "alive", "entrance_time", "exit_time", "has_ssn"]
+    ADDITIONAL_INPUT_COLUMNS = [
+        "tracked",
+        "alive",
+        "entrance_time",
+        "exit_time",
+        "has_ssn",
+    ]
     OUTPUT_COLUMNS = [
         "first_name_id",
         "middle_name_id",
         "last_name_id",
         "date_of_birth",
+        "copy_date_of_birth",
+        "sex",
+        "race_ethnicity",
         "event_type",
         "event_date",
-        "sex",
-        "race_ethnicity",
-    ]
-    POST_PROCESSING_FIRST_NAME_METADATA_COLS = [
-        "first_name_id",
-        "middle_name_id",
-        "last_name_id",
-        "date_of_birth",
-        "sex",
-        "race_ethnicity",
+        "copy_ssn",
     ]
 
     def __repr__(self):
@@ -510,8 +538,13 @@ class SocialSecurityObserver(BaseObserver):
     def output_columns(self):
         return self.OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.SSA
+
     def setup(self, builder: Builder):
         super().setup(builder)
+        self.randomness = builder.randomness.get_stream(self.name)
         self.clock = builder.time.clock()
         self.start_time = dt.datetime(**builder.configuration.time.start)
         self.end_time = dt.datetime(**builder.configuration.time.end)
@@ -525,7 +558,10 @@ class SocialSecurityObserver(BaseObserver):
             event.index,
             query="has_ssn == True",  # only include simulants with a SSN
         )
-        df_creation = pop.filter(self.POST_PROCESSING_FIRST_NAME_METADATA_COLS)
+        # copy from household member for relevant columns
+        pop = utilities.copy_from_household_member(pop, self.randomness)
+
+        df_creation = pop.copy()
         df_creation["event_type"] = "creation"
         df_creation["event_date"] = np.where(
             pop["entrance_time"] <= self.start_time,
@@ -533,13 +569,13 @@ class SocialSecurityObserver(BaseObserver):
             pop["entrance_time"],
         )
 
-        df_death = pop[pop["alive"] == "dead"].filter(
-            self.POST_PROCESSING_FIRST_NAME_METADATA_COLS
-        )
+        df_death = pop[pop["alive"] == "dead"]
         df_death["event_type"] = "death"
         df_death["event_date"] = pop["exit_time"]
 
-        return pd.concat([df_creation, df_death]).sort_values(["event_date", "date_of_birth"])
+        return pd.concat([df_creation, df_death])[self.output_columns].sort_values(
+            ["event_date", "date_of_birth"]
+        )
 
 
 class TaxObserver:
@@ -582,14 +618,18 @@ class TaxW2Observer(BaseObserver):
         "employer_id",
     ]
     OUTPUT_COLUMNS = [
+        "household_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
         "age",
+        "copy_age",
         "date_of_birth",
+        "copy_date_of_birth",
         "sex",
         "has_ssn",
         "ssn_id",  # simulant id for ssn from another simulant
+        "copy_ssn",
         "address_id",
         "state_id",
         "puma",
@@ -624,6 +664,10 @@ class TaxW2Observer(BaseObserver):
     @property
     def output_columns(self):
         return self.OUTPUT_COLUMNS
+
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.TAXES_W2_1099
 
     def setup(self, builder: Builder):
         super().setup(builder)
@@ -690,25 +734,31 @@ class TaxW2Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop_full = self.population_view.get(event.index)
+        # copy from household member for relevant columns
+        pop_full = utilities.copy_from_household_member(pop_full, self.vivarium_randomness)
         pop_full = self.add_address(pop_full)
 
         ### create dataframe of all person/employment pairs
-
         # start with income to date, which has simulant_id and employer_id as multi-index
         # with the pd.Series, but it is getting lost at some point in the computation
 
         df_w2 = self.income_last_year.reset_index()
+        df_w2["income"] = df_w2["income"].round().astype(int)
         df_w2["tax_year"] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
         for col in [
+            "household_id",
             "first_name_id",
             "middle_name_id",
             "last_name_id",
             "age",
+            "copy_age",
             "date_of_birth",
+            "copy_date_of_birth",
             "sex",
             "has_ssn",
+            "copy_ssn",
             "address_id",
             "state_id",
             "puma",
@@ -732,6 +782,8 @@ class TaxW2Observer(BaseObserver):
             pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
+        # Note the np_randomness is generated once during setup. TODO for RT to determine which
+        # approach is more in line with how vivarium handles CRN.
         ssn_for_simulants_wo = household_members_w_ssn.map(self.np_randomness.choice)
         df_w2["ssn_id"] = ssn_for_simulants_wo
         df_w2["ssn_id"] = df_w2["ssn_id"].fillna(-1).astype(int)
@@ -781,13 +833,16 @@ class TaxDependentsObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
     ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "has_ssn"]
     OUTPUT_COLUMNS = [
+        "household_id",
         "guardian_id",
         "dependent_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
         "age",
+        "copy_age",
         "date_of_birth",
+        "copy_date_of_birth",
         "address_id",
         "po_box",
         "state_id",
@@ -795,6 +850,7 @@ class TaxDependentsObserver(BaseObserver):
         "housing_type",
         "sex",
         "has_ssn",
+        "copy_ssn",
         "tax_year",
         "race_ethnicity",
     ]
@@ -822,9 +878,15 @@ class TaxDependentsObserver(BaseObserver):
     def output_columns(self):
         return self.OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        # TODO figure out where to store this once 1040 is implemented
+        return metadata.DatasetNames.TAXES_DEPENDENTS
+
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
+        self.randomness = builder.randomness.get_stream(self.name)
 
     def to_observe(self, event: Event) -> bool:
         """Observe if Jan 1 falls during this time step"""
@@ -833,6 +895,8 @@ class TaxDependentsObserver(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop_full = self.population_view.get(event.index)
+        # copy from household member for relevant columns
+        pop_full = utilities.copy_from_household_member(pop_full, self.randomness)
         pop_full = self.add_address(pop_full)
 
         # Tracked, US population to be dependents
@@ -903,22 +967,26 @@ class Tax1040Observer(BaseObserver):
         "in_united_states",
         "tracked",
         "has_ssn",
-        "relation_to_household_head",
+        "relation_to_reference_person",
     ]
     OUTPUT_COLUMNS = [
+        "household_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
         "age",
+        "copy_age",
         "date_of_birth",
+        "copy_date_of_birth",
         "sex",
         "has_ssn",
-        "address_id",  # we do not need to include household_id because we can find it from address_id
+        "copy_ssn",
+        "address_id",
         "po_box",
         "state_id",
         "puma",
         "race_ethnicity",
-        "relation_to_household_head",  # needed to identify couples filing jointly
+        "relation_to_reference_person",  # needed to identify couples filing jointly
         "housing_type",
         "tax_year",
         "alive",
@@ -949,6 +1017,10 @@ class Tax1040Observer(BaseObserver):
     def output_columns(self):
         return self.OUTPUT_COLUMNS
 
+    @property
+    def output_name(self) -> str:
+        return metadata.DatasetNames.TAXES_1040
+
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
@@ -961,11 +1033,12 @@ class Tax1040Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(event.index)
+        # copy from household member for relevant columns
+        pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
 
         # add derived columns
         pop["tax_year"] = event.time.year - 1
-        # todo: Add joint filing random choice
         partners = [
             "Opp-sex spouse",
             "Opp-sex partner",
@@ -973,7 +1046,7 @@ class Tax1040Observer(BaseObserver):
             "Same-sex partner",
         ]
         partners_of_household_head_idx = pop.index[
-            pop["relation_to_household_head"].isin(partners)
+            pop["relation_to_reference_person"].isin(partners)
         ]
         pop["joint_filer"] = False
         pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(

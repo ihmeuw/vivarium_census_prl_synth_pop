@@ -15,18 +15,19 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium==1.0.2",
+        "vivarium>=1.1.0",
         "vivarium_public_health==0.10.22",
         "click",
         "gbd_mapping>=3.0.6, <4.0.0",
         "jinja2",
         "loguru",
         "numpy",
-        "pandas",
+        "pandas>=1.0.0, <2.0.0",
         "scipy",
         "tables",
         "pyyaml",
         "faker==13.6.0",
+        "pyarrow",
     ]
 
     # use "pip install -e .[dev]" to install required components + extra components
@@ -64,5 +65,6 @@ if __name__ == "__main__":
             make_artifacts=vivarium_census_prl_synth_pop.tools.cli:make_artifacts
             make_results=vivarium_census_prl_synth_pop.tools.cli:make_results
             jobmon_make_results_runner=vivarium_census_prl_synth_pop.tools.cli:jobmon_make_results_runner
+            make_state_results=vivarium_census_prl_synth_pop.tools.cli:make_state_results
         """,
     )

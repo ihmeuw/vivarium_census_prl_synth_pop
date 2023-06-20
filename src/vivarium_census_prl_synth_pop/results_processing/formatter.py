@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import metadata
@@ -42,13 +43,17 @@ def format_ssn_id(data: pd.DataFrame) -> pd.Series:
 def get_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
     state_name_map = data["state_id"].map(state_id_map)
-    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    state_name_map = state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values()))
+    return state_name_map.astype(pd.CategoricalDtype(categories=categories))
 
 
 def get_employer_state_abbreviation(data: pd.DataFrame) -> pd.Series:
     state_id_map = {state: state_id for state_id, state in metadata.CENSUS_STATE_IDS.items()}
     state_name_map = data["employer_state_id"].map(state_id_map)
-    return state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    state_name_map = state_name_map.map(metadata.US_STATE_ABBRV_MAP)
+    categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values()))
+    return state_name_map.astype(pd.CategoricalDtype(categories=categories))
 
 
 def get_household_id(data: pd.DataFrame) -> pd.Series:
@@ -56,11 +61,19 @@ def get_household_id(data: pd.DataFrame) -> pd.Series:
 
 
 def get_guardian_1_id(data: pd.DataFrame) -> pd.Series:
-    return data["random_seed"].astype(str) + "_" + data["guardian_1"].astype(str)
+    no_guardian_idx = data.index[data["guardian_1"] == -1]
+    column = data["random_seed"].astype(str) + "_" + data["guardian_1"].astype(str)
+    column.loc[no_guardian_idx] = np.nan
+
+    return column
 
 
 def get_guardian_2_id(data: pd.DataFrame) -> pd.Series:
-    return data["random_seed"].astype(str) + "_" + data["guardian_2"].astype(str)
+    no_guardian_idx = data.index[data["guardian_2"] == -1]
+    column = data["random_seed"].astype(str) + "_" + data["guardian_2"].astype(str)
+    column.loc[no_guardian_idx] = np.nan
+
+    return column
 
 
 def get_guardian_1_address_id(data: pd.DataFrame) -> pd.Series:
@@ -77,6 +90,22 @@ def get_guardian_id(data: pd.DataFrame) -> pd.Series:
 
 def format_age(data: pd.DataFrame) -> pd.Series:
     return data["age"].astype(int)
+
+
+def format_copy_age(data: pd.DataFrame) -> pd.Series:
+    no_copy_idx = data.index[data["copy_age"].isna()]
+    column = data["copy_age"].astype(str)
+    column = column.apply(lambda row: row.split(".")[0])
+    column.loc[no_copy_idx] = np.nan
+    return column
+
+
+def format_copy_ssn(data: pd.DataFrame) -> pd.Series:
+    no_copy_idx = data.index[data["copy_ssn"].isna()]
+    column = data["random_seed"].astype(str) + "_" + data["copy_ssn"].astype(str)
+    column = column.apply(lambda row: row.split(".")[0])
+    column.loc[no_copy_idx] = np.nan
+    return column
 
 
 # Fixme: Add formatting functions as necessary
@@ -103,6 +132,8 @@ COLUMN_FORMATTERS = {
     "guardian_id": (get_guardian_id, ["guardian_id", "random_seed"]),
     "ssn_id": (format_ssn_id, ["ssn_id", "random_seed"]),
     "age": (format_age, ["age"]),
+    "copy_age": (format_copy_age, ["copy_age"]),
+    "copy_ssn": (format_copy_ssn, ["copy_ssn", "random_seed"]),
 }
 
 
