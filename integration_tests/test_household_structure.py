@@ -181,8 +181,8 @@ def test_state_population_proportions(populations, sim, fuzzy_checker: FuzzyChec
                 f"State proportion for {state_id}",
                 household_states == state_id,
                 # Relative size of states can change over time in the sim due to differential immigration, emigration
-                true_value_min=proportion * pow(0.95, time_steps),
-                true_value_max=proportion * pow(1.05, time_steps),
+                target_value_min=proportion * pow(0.95, time_steps),
+                target_value_max=proportion * pow(1.05, time_steps),
                 name_addl=f"Time step {time_steps}",
             )
 

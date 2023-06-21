@@ -344,7 +344,7 @@ def test_addresses_during_moves(
                 before_units.loc[mask_moved_units, state_id_col]
                 != after_units.loc[mask_moved_units, state_id_col]
             ),
-            true_value=(1 - true_proportion_moving_within_state),
+            target_value=(1 - true_proportion_moving_within_state),
             name_addl=f"Time step {time_step}",
         )
 
@@ -355,7 +355,7 @@ def test_addresses_during_moves(
                 before_units.loc[mask_moved_units, [state_id_col, puma_col]]
                 == after_units.loc[mask_moved_units, [state_id_col, puma_col]]
             ).all(axis=1),
-            true_value=(1 / len(state_puma_options)),
+            target_value=(1 / len(state_puma_options)),
             name_addl=f"Time step {time_step}",
         )
 
