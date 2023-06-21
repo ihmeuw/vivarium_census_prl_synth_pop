@@ -111,19 +111,21 @@ class FuzzyChecker:
         self,
         name: str,
         boolean_values: pd.Series,
-        true_value: Optional[float] = None,
-        true_value_min: Optional[float] = None,
-        true_value_max: Optional[float] = None,
+        target_value: Optional[float] = None,
+        target_value_min: Optional[float] = None,
+        target_value_max: Optional[float] = None,
         name_addl: Optional[str] = "",
     ) -> None:
-        if true_value is not None:
-            true_value_min = true_value
-            true_value_max = true_value
+        if target_value is not None:
+            target_value_min = target_value
+            target_value_max = target_value
 
-        if true_value_min is None or true_value_max is None:
-            raise ValueError("Not enough information about the true value supplied")
+        if target_value_min is None or target_value_max is None:
+            raise ValueError(
+                f"{name}: Not enough information about the target value supplied"
+            )
 
-        assert true_value_max >= true_value_min
+        assert target_value_max >= target_value_min
 
         # Bonferroni correction
         test_significance_level = self.overall_significance_level / self.num_comparisons
@@ -138,7 +140,7 @@ class FuzzyChecker:
         # Technically this leads to some inaccuracy but this should be so miniscule as to not matter in practice
         with np.errstate(under="ignore"):
             p_value = self._two_tailed_binomial_test(
-                numerator, denominator, true_value_min, true_value_max
+                numerator, denominator, target_value_min, target_value_max
             )
 
             # The maximum integer that is in the lower rejection region
@@ -214,8 +216,8 @@ class FuzzyChecker:
                 "proportion": proportion,
                 "numerator": numerator,
                 "denominator": denominator,
-                "true_value_min": true_value_min,
-                "true_value_max": true_value_max,
+                "target_value_min": target_value_min,
+                "target_value_max": target_value_max,
                 "p_value": p_value,
                 "test_significance_level": test_significance_level,
                 "reject_null": reject_null,
@@ -227,13 +229,13 @@ class FuzzyChecker:
         )
 
         if reject_null:
-            if boolean_values.mean() < true_value_min:
+            if boolean_values.mean() < target_value_min:
                 raise AssertionError(
-                    f"{name} value {proportion:g} is significantly less than {true_value_min:g}, p = {p_value:g} <= {test_significance_level:g}"
+                    f"{name} value {proportion:g} is significantly less than {target_value_min:g}, p = {p_value:g} <= {test_significance_level:g}"
                 )
             else:
                 raise AssertionError(
-                    f"{name} value {proportion:g} is significantly greater than {true_value_max:g}, p = {p_value:g} <= {test_significance_level:g}"
+                    f"{name} value {proportion:g} is significantly greater than {target_value_max:g}, p = {p_value:g} <= {test_significance_level:g}"
                 )
 
     def write_output(self) -> None:
