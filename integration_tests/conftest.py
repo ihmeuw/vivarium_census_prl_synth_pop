@@ -141,6 +141,7 @@ class FuzzyChecker:
                 numerator, denominator, true_value_min, true_value_max
             )
 
+            # The maximum integer that is in the lower rejection region
             rejection_area_low_max = self._binary_search_integers(
                 lambda x: self._two_tailed_binomial_test(
                     x, denominator, true_value_min, true_value_max
@@ -149,6 +150,7 @@ class FuzzyChecker:
                 0,
                 np.floor(true_value_min * denominator),
             )
+            # The minimum integer that is in the higher rejection region
             rejection_area_high_min = (
                 self._binary_search_integers(
                     # Negative of function and target so the function is monotonically *increasing*
@@ -164,6 +166,8 @@ class FuzzyChecker:
             )
             assert rejection_area_low_max <= rejection_area_high_min
 
+            # Find the maximum underlying simulation value we would be powered to detect as *lower*
+            # than the target.
             if rejection_area_low_max <= 0:
                 if true_value_min != 0:
                     warnings.warn(
@@ -183,6 +187,8 @@ class FuzzyChecker:
                     true_value_min,
                 )
 
+            # Find the minimum underlying simulation value we would be powered to detect as *higher*
+            # than the target.
             if rejection_area_high_min >= denominator:
                 if true_value_max != 1:
                     warnings.warn(
@@ -346,8 +352,7 @@ class FuzzyChecker:
             return lo - 1
 
     def _binary_search_floats(self, a, d, lo: float, hi: float, tol: float = 0.00001):
-        # Copied from scipy.stats._binomtest._binary_search_for_binom_tst
-        # and then modified to work with floats
+        # Copied from the above, but modified to work with floats
         """
         Conducts an implicit binary search on a function specified by `a`.
 
