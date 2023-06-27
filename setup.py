@@ -18,7 +18,7 @@ if __name__ == "__main__":
         "vivarium>=1.2.0",
         "vivarium_public_health==0.11.0",
         "click",
-        "gbd_mapping>=3.0.6, <4.0.0",
+        "gbd_mapping>=3.1.0, <4.0.0",
         "jinja2",
         "loguru",
         "numpy",

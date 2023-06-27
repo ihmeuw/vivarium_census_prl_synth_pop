@@ -3,6 +3,3 @@ line_length = 94
 
 [tool.isort]
 profile = "black"
-
-[tool.setuptools]
-py-modules = []
