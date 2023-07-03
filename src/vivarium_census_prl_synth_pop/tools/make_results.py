@@ -205,6 +205,7 @@ FINAL_OBSERVERS = {
         "itin",
         # todo: add copy itin
         "tax_year",
+        "relation_to_reference_person",
     },
     metadata.DatasetNames.TAXES_DEPENDENTS: {
         # Metadata is for a dependent.  This should capture each dependent/guardian pair.  Meaning that if a dependent
