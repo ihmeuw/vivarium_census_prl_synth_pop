@@ -1041,9 +1041,7 @@ class Tax1040Observer(BaseObserver):
         pop["tax_year"] = event.time.year - 1
         partners = [
             "Opp-sex spouse",
-            "Opp-sex partner",
             "Same-sex spouse",
-            "Same-sex partner",
         ]
         partners_of_household_head_idx = pop.index[
             pop["relation_to_reference_person"].isin(partners)
