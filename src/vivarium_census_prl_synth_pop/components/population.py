@@ -1164,7 +1164,6 @@ class Population:
             np.round(simulants["age"] * 365.25), unit="days"
         )
 
-
     def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
         # Takes dataframe containing a column "age" and returns a series of ages shifted with a normal distribution
         #   with mean=0 and sd=10 years.  If a simulant's age shift results in a negative age their perturbed age will
