@@ -196,7 +196,7 @@ class Population:
 
         # NOTE: Must happen after household_ids have been assigned, because it depends
         # on household structure.
-        new_simulants["age"] = self.perturb_household_age(new_simulants)
+        self.perturb_household_age(new_simulants)
 
         return new_simulants
 
@@ -1164,7 +1164,6 @@ class Population:
             np.round(simulants["age"] * 365.25), unit="days"
         )
 
-        return simulants["age"]
 
     def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
         # Takes dataframe containing a column "age" and returns a series of ages shifted with a normal distribution
