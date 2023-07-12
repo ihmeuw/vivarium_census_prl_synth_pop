@@ -1,4 +1,4 @@
-**1.2.0 - 07/12/23**
+**1.1.1 - 07/12/23**
 
  - Add this CHANGELOG
  - Bugfix use categorical types for all states
