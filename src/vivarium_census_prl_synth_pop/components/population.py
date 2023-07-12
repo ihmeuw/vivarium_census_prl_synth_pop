@@ -196,7 +196,7 @@ class Population:
 
         # NOTE: Must happen after household_ids have been assigned, because it depends
         # on household structure.
-        new_simulants["age"] = self.perturb_household_age(new_simulants)
+        self.perturb_household_age(new_simulants)
 
         return new_simulants
 
@@ -206,7 +206,7 @@ class Population:
         pop_data: SimulantData,
     ) -> pd.DataFrame:
         new_simulants = self.initialize_new_simulants_from_acs(acs_persons, pop_data)
-        new_simulants["age"] = self.perturb_individual_age(new_simulants)
+        self.perturb_individual_age(new_simulants)
 
         noninstitutionalized = new_simulants.loc[
             new_simulants["relation_to_reference_person"] == "Noninstitutionalized GQ pop"
@@ -356,7 +356,7 @@ class Population:
         new_simulants = self.initialize_new_simulants_from_acs(
             pop_data.user_data["acs_persons"], pop_data
         ).set_index(pop_data.index)
-        new_simulants["age"] = self.perturb_individual_age(new_simulants)
+        self.perturb_individual_age(new_simulants)
 
         existing_simulants = self.population_view.get(
             pop_data.user_data["current_population_index"],
@@ -1132,7 +1132,7 @@ class Population:
 
         return household_structure
 
-    def perturb_household_age(self, simulants: pd.DataFrame) -> pd.Series:
+    def perturb_household_age(self, simulants: pd.DataFrame) -> None:
         # Takes dataframe of households and returns a series with an applied age shift for each household.
         household_ids = simulants.loc[
             simulants["relation_to_reference_person"] == "Reference person", "household_id"
@@ -1164,9 +1164,7 @@ class Population:
             np.round(simulants["age"] * 365.25), unit="days"
         )
 
-        return simulants["age"]
-
-    def perturb_individual_age(self, pop: pd.DataFrame) -> pd.Series:
+    def perturb_individual_age(self, pop: pd.DataFrame) -> None:
         # Takes dataframe containing a column "age" and returns a series of ages shifted with a normal distribution
         #   with mean=0 and sd=10 years.  If a simulant's age shift results in a negative age their perturbed age will
         #   be redrawn from the distribution. pop will be the population for group quarters or immigrants migrating to
@@ -1209,8 +1207,6 @@ class Population:
         pop["date_of_birth"] = pop.entrance_time - pd.to_timedelta(
             np.round(pop["age"] * 365.25), unit="days"
         )
-
-        return pop["age"]
 
     @staticmethod
     def assign_linked_last_name_ids(
