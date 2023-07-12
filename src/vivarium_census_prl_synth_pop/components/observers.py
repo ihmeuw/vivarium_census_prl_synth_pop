@@ -563,11 +563,7 @@ class SocialSecurityObserver(BaseObserver):
 
         df_creation = pop.copy()
         df_creation["event_type"] = "creation"
-        df_creation["event_date"] = np.where(
-            pop["entrance_time"] <= self.start_time,
-            pop["date_of_birth"],
-            pop["entrance_time"],
-        )
+        df_creation["event_date"] = pop["date_of_birth"]
 
         df_death = pop[pop["alive"] == "dead"]
         df_death["event_type"] = "death"
