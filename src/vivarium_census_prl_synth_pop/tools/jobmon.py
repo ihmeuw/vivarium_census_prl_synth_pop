@@ -1,7 +1,7 @@
 import shutil
+import sys
 import uuid
 from pathlib import Path
-import sys
 
 from jobmon.client.tool import Tool
 from loguru import logger
@@ -135,5 +135,5 @@ def run_make_results_workflow(
     )
     status = workflow.run(configure_logging=True)
     logger.info(f"Workflow {workflow.workflow_id} completed with status {status}.")
-    
+
     return status

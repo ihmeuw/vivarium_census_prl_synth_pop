@@ -1,6 +1,6 @@
+import re
 from datetime import datetime
 from pathlib import Path
-import re
 from typing import Optional, Tuple
 
 from loguru import logger
@@ -9,7 +9,9 @@ from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.utilities import build_output_dir
 
 
-def validate_args(mark_best: bool, test_run: bool, label_version: Optional[str] = None) -> None:
+def validate_args(
+    mark_best: bool, test_run: bool, label_version: Optional[str] = None
+) -> None:
     if mark_best and test_run:
         raise RuntimeError(
             "A test run can't be marked best. "
@@ -44,9 +46,7 @@ def build_final_results_directory(
     return raw_output_dir, final_output_dir
 
 
-def finish_post_processing(
-    final_output_dir: Path, test_run: bool, mark_best: bool
-) -> None:
+def finish_post_processing(final_output_dir: Path, test_run: bool, mark_best: bool) -> None:
     """Every run of `make_results` should
     1. Copy the CHANGELOG to the output directory
     2. Update symlinks if successful
@@ -68,6 +68,10 @@ def _create_results_link(output_dir: Path, link_name: Path) -> None:
 
     # output_root_dir = output_dir.parent
     # link_dir = output_root_dir / link_name
-    link_dir = Path(str(output_dir).split(str(paths.FINAL_RESULTS_DIR_NAME))[0]) / paths.FINAL_RESULTS_DIR_NAME / link_name
+    link_dir = (
+        Path(str(output_dir).split(str(paths.FINAL_RESULTS_DIR_NAME))[0])
+        / paths.FINAL_RESULTS_DIR_NAME
+        / link_name
+    )
     link_dir.unlink(missing_ok=True)
     link_dir.symlink_to(output_dir, target_is_directory=True)
