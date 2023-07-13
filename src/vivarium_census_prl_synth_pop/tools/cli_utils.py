@@ -1,4 +1,5 @@
 import re
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
@@ -51,6 +52,11 @@ def finish_post_processing(final_output_dir: Path, test_run: bool, mark_best: bo
     1. Copy the CHANGELOG to the output directory
     2. Update symlinks if successful
     """
+
+    try:
+        shutil.copyfile(paths.REPO_DIR / "CHANGELOG.rst", final_output_dir / "CHANGELOG.rst")
+    except:
+        raise RuntimeError("Unable to copy the CHANGELOG.rst. Did not generate new symlinks.")
 
     if test_run:
         logger.info("Test run - not marking results as latest.")
