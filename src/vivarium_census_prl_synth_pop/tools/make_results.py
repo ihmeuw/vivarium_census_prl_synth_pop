@@ -256,9 +256,9 @@ def build_results(
     artifact_path: str,
 ) -> None:
     logger.info("Performing post-processing")
-    # perform_post_processing(  # FIXME: UNCOMMENT
-    #     raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
-    # )
+    perform_post_processing( 
+        raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
+    )
 
 
 def perform_post_processing(
