@@ -1,4 +1,4 @@
-**1.3.0 - 07/13/23**
+**1.2.1 - 07/13/23**
  - Copy the CHANGELOG to final results directory
  - Bugfix validation user-provided version label
  - Refactor/bugfix symlink generation
