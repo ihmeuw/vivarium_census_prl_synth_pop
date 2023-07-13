@@ -9,7 +9,7 @@ from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
 
-from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata
 from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -246,44 +246,19 @@ PUBLIC_SAMPLE_ADDRESS_PARTS = {
 
 
 def build_results(
-    raw_output_dir: Union[str, Path],
-    final_output_dir: Union[str, Path],
+    raw_output_dir: Path,
+    final_output_dir: Path,
     mark_best: bool,
     test_run: bool,
     extension: str,
     public_sample: bool,
     seed: str,
-    artifact_path: Union[str, Path],
-):
-    if mark_best and test_run:
-        logger.error(
-            "A test run can't be marked best. "
-            "Please remove either the mark best or the test run flag."
-        )
-        return
-    raw_output_dir = Path(raw_output_dir)
-    final_output_dir = Path(final_output_dir)
-    artifact_path = Path(artifact_path)
+    artifact_path: str,
+) -> None:
     logger.info("Performing post-processing")
-    perform_post_processing(
-        raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
-    )
-
-    if test_run:
-        logger.info("Test run - not marking results as latest.")
-    else:
-        create_results_link(final_output_dir, paths.LATEST_DIR_NAME)
-
-    if mark_best:
-        create_results_link(final_output_dir, paths.BEST_DIR_NAME)
-
-
-def create_results_link(output_dir: Path, link_name: Path) -> None:
-    logger.info(f"Marking results as {link_name}: {str(output_dir)}.")
-    output_root_dir = output_dir.parent
-    link_dir = output_root_dir / link_name
-    link_dir.unlink(missing_ok=True)
-    link_dir.symlink_to(output_dir, target_is_directory=True)
+    # perform_post_processing(  # FIXME: UNCOMMENT
+    #     raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
+    # )
 
 
 def perform_post_processing(
@@ -291,7 +266,7 @@ def perform_post_processing(
     final_output_dir: Path,
     extension: str,
     seed: str,
-    artifact_path: Path,
+    artifact_path: str,
     public_sample: bool,
 ) -> None:
     # Create RandomnessStream for post-processing

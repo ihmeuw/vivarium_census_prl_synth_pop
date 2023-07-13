@@ -1,7 +1,7 @@
 import shutil
 import uuid
 from pathlib import Path
-from typing import Union
+import sys
 
 from jobmon.client.tool import Tool
 from loguru import logger
@@ -20,12 +20,12 @@ def run_make_results_workflow(
     extension: str,
     public_sample: bool,
     seed: str,
-    artifact_path: Union[str, Path],
+    artifact_path: str,
     queue: str,
     peak_memory: int,
     max_runtime: str,
     verbose: int,
-) -> None:
+) -> str:
     """Creates and runs a jobmon workflow to build results datasets
     from the raw data output by observers
     """
@@ -135,3 +135,5 @@ def run_make_results_workflow(
     )
     status = workflow.run(configure_logging=True)
     logger.info(f"Workflow {workflow.workflow_id} completed with status {status}.")
+    
+    return status

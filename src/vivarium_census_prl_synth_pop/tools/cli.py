@@ -1,6 +1,5 @@
-import re
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Tuple
 
 import click
 from loguru import logger
@@ -9,12 +8,14 @@ from vivarium.framework.utilities import handle_exceptions
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
     build_artifacts,
+    build_final_results_directory,
     build_results,
     configure_logging_to_terminal,
+    finish_post_processing,
     subset_results_by_state,
+    validate_args,
 )
 from vivarium_census_prl_synth_pop.tools.jobmon import run_make_results_workflow
-from vivarium_census_prl_synth_pop.utilities import build_final_results_directory
 
 
 @click.command()
@@ -178,16 +179,8 @@ def make_results(
 ) -> None:
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
+    validate_args(mark_best=mark_best, test_run=test_run, label_version=label_version)
     logger.info("Creating final results directory.")
-    if label_version is not None:
-        expected_version_format = re.compile("\d*.\d*.\d*")
-        if expected_version_format.match(label_version):
-            pass
-        else:
-            raise ValueError(
-                f"'{label_version}' is not of correct format. "
-                "Format for version should be '#.#.#'"
-            )
     raw_output_dir, final_output_dir = build_final_results_directory(
         output_dir, label_version
     )
@@ -216,7 +209,7 @@ def make_results(
         func = build_results
         kwargs = {}
     main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
-    main(
+    status = main(
         raw_output_dir,
         final_output_dir,
         mark_best,
@@ -227,6 +220,9 @@ def make_results(
         artifact_path,
         **kwargs,
     )
+    if status and status != "D":
+        raise RuntimeError("Jobmon status did not finish successfully")
+    finish_post_processing(final_output_dir, test_run, mark_best)
 
 
 @click.command()
@@ -272,9 +268,10 @@ def jobmon_make_results_runner(
     extension: str,
     public_sample: bool,
     seed: str,
-    artifact_path: Union[str, Path],
+    artifact_path: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
+    validate_args(mark_best=mark_best, test_run=test_run)
     main = handle_exceptions(func=build_results, logger=logger, with_debugger=False)
     main(
         raw_output_dir,

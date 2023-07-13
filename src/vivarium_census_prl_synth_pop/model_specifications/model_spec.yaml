@@ -36,15 +36,15 @@ configuration:
     time:
         start:
             year: 2019
-            month: 1
+            month: 12
             day: 1
         end:
-            year: 2041
+            year: 2020
             month: 5
             day: 1
         step_size: 28 # Days
     population:
-        population_size: 1_000_000
+        population_size: 100_000
     # us_population_size: 250_000  # Override the default US population size
 
 #    household_survey_observer_acs:
