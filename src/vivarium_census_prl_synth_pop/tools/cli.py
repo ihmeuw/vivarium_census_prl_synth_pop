@@ -58,7 +58,9 @@ def make_artifacts(
     with_debugger: bool,
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(build_artifacts, with_debugger=with_debugger)
+    main = handle_exceptions(
+        func=build_artifacts, exceptions_logger=logger, with_debugger=with_debugger
+    )
     main(location, output_dir, append or replace_keys, replace_keys, verbose)
 
 
@@ -208,7 +210,7 @@ def make_results(
     else:  # run from current node
         func = build_results
         kwargs = {}
-    main = handle_exceptions(func=func, with_debugger=with_debugger)
+    main = handle_exceptions(func=func, exceptions_logger=logger, with_debugger=with_debugger)
     status = main(
         raw_output_dir,
         final_output_dir,
@@ -261,7 +263,9 @@ def jobmon_make_results_runner(
     artifact_path: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(func=build_results, with_debugger=False)
+    main = handle_exceptions(
+        func=build_results, exceptions_logger=logger, with_debugger=False
+    )
     main(
         Path(raw_output_dir),
         Path(final_output_dir),
@@ -298,5 +302,7 @@ def make_state_results(
     state: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(func=subset_results_by_state, with_debugger=with_debugger)
+    main = handle_exceptions(
+        func=subset_results_by_state, exceptions_logger=logger, with_debugger=with_debugger
+    )
     main(processed_results_dir, state)

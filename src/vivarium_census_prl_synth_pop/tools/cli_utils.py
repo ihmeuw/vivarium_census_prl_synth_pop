@@ -12,7 +12,9 @@ from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.utilities import build_output_dir
 
 
-def handle_exceptions(func: Callable, with_debugger: bool) -> Callable:
+def handle_exceptions(
+    func: Callable, exceptions_logger: Any, with_debugger: bool
+) -> Callable:
     """Drops a user into an interactive debugger if func raises an error."""
 
     @functools.wraps(func)
@@ -22,7 +24,7 @@ def handle_exceptions(func: Callable, with_debugger: bool) -> Callable:
         except (BdbQuit, KeyboardInterrupt):
             raise
         except Exception as e:
-            logger.exception("Uncaught exception {}".format(e))
+            exceptions_logger.exception("Uncaught exception {}".format(e))
             if with_debugger:
                 import pdb
                 import traceback
