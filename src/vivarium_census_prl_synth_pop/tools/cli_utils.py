@@ -1,7 +1,7 @@
-from bdb import BdbQuit
 import functools
 import re
 import shutil
+from bdb import BdbQuit
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple
@@ -14,6 +14,7 @@ from vivarium_census_prl_synth_pop.utilities import build_output_dir
 
 def handle_exceptions(func: Callable, with_debugger: bool) -> Callable:
     """Drops a user into an interactive debugger if func raises an error."""
+
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
         try:

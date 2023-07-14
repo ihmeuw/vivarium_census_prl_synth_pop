@@ -3,7 +3,6 @@ from typing import Tuple
 
 import click
 from loguru import logger
-# from vivarium.framework.utilities import handle_exceptions
 
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
@@ -299,7 +298,5 @@ def make_state_results(
     state: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(
-        func=subset_results_by_state, with_debugger=with_debugger
-    )
+    main = handle_exceptions(func=subset_results_by_state, with_debugger=with_debugger)
     main(processed_results_dir, state)
