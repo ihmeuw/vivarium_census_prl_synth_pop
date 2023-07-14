@@ -3,7 +3,7 @@ from typing import Tuple
 
 import click
 from loguru import logger
-from vivarium.framework.utilities import handle_exceptions
+# from vivarium.framework.utilities import handle_exceptions
 
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 from vivarium_census_prl_synth_pop.tools import (
@@ -12,6 +12,7 @@ from vivarium_census_prl_synth_pop.tools import (
     build_results,
     configure_logging_to_terminal,
     finish_post_processing,
+    handle_exceptions,
     subset_results_by_state,
     validate_args,
 )
@@ -58,7 +59,7 @@ def make_artifacts(
     with_debugger: bool,
 ) -> None:
     configure_logging_to_terminal(verbose)
-    main = handle_exceptions(build_artifacts, logger, with_debugger=with_debugger)
+    main = handle_exceptions(build_artifacts, with_debugger=with_debugger)
     main(location, output_dir, append or replace_keys, replace_keys, verbose)
 
 
@@ -180,10 +181,10 @@ def make_results(
     """Create final results datasets from the raw results output by observers"""
     configure_logging_to_terminal(verbose)
     validate_args(mark_best=mark_best, test_run=test_run, label_version=label_version)
-    logger.info("Creating final results directory.")
     raw_output_dir, final_output_dir = build_final_results_directory(
         output_dir, label_version
     )
+    logger.info(f"Final results directory: {str(final_output_dir)}")
     cluster_requests = {
         "queue": queue,
         "peak_memory": peak_memory,
@@ -208,12 +209,10 @@ def make_results(
     else:  # run from current node
         func = build_results
         kwargs = {}
-    main = handle_exceptions(func=func, logger=logger, with_debugger=with_debugger)
+    main = handle_exceptions(func=func, with_debugger=with_debugger)
     status = main(
         raw_output_dir,
         final_output_dir,
-        mark_best,
-        test_run,
         extension,
         public_sample,
         seed,
@@ -229,12 +228,6 @@ def make_results(
 @click.argument("raw_output_dir", type=click.Path(exists=True))
 @click.argument("final_output_dir", type=click.Path(exists=True))
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
-@click.option("-b", "--mark-best", is_flag=True)
-@click.option(
-    "-t",
-    "--test-run",
-    is_flag=True,
-)
 @click.option(
     "-x",
     "--extension",
@@ -260,24 +253,19 @@ def make_results(
     "-i", "--artifact-path", type=click.Path(exists=True), default=paths.DEFAULT_ARTIFACT
 )
 def jobmon_make_results_runner(
-    raw_output_dir: Path,
-    final_output_dir: Path,
+    raw_output_dir: str,
+    final_output_dir: str,
     verbose: int,
-    mark_best: bool,
-    test_run: bool,
     extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: str,
 ) -> None:
     configure_logging_to_terminal(verbose)
-    validate_args(mark_best=mark_best, test_run=test_run)
-    main = handle_exceptions(func=build_results, logger=logger, with_debugger=False)
+    main = handle_exceptions(func=build_results, with_debugger=False)
     main(
-        raw_output_dir,
-        final_output_dir,
-        mark_best,
-        test_run,
+        Path(raw_output_dir),
+        Path(final_output_dir),
         extension,
         public_sample,
         seed,
@@ -312,6 +300,6 @@ def make_state_results(
 ) -> None:
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(
-        func=subset_results_by_state, logger=logger, with_debugger=with_debugger
+        func=subset_results_by_state, with_debugger=with_debugger
     )
     main(processed_results_dir, state)

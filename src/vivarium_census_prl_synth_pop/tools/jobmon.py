@@ -15,8 +15,6 @@ from vivarium_census_prl_synth_pop.utilities import (
 def run_make_results_workflow(
     raw_output_dir: Path,
     final_output_dir: Path,
-    mark_best: bool,
-    test_run: bool,
     extension: str,
     public_sample: bool,
     seed: str,
@@ -36,9 +34,6 @@ def run_make_results_workflow(
     wf_uuid = uuid.uuid4()
 
     # Format arguments to be cli-friendly
-    # TODO: there's got to be a better way to do this?
-    mark_best_arg = "--mark-best" if mark_best else ""
-    test_run_arg = "--test-run" if test_run else ""
     extension_arg = f"--extension {extension}" if extension != "" else ""
     public_sample_arg = "--public-sample" if public_sample else ""
     verbose_arg = "-" + "v" * verbose if verbose else ""
@@ -70,8 +65,6 @@ def run_make_results_workflow(
             "{raw_output_dir} "
             "{final_output_dir} "
             "{verbose} "
-            "{mark_best} "
-            "{test_run} "
             "{extension} "
             "{public_sample} "
             "{seed} "
@@ -81,8 +74,6 @@ def run_make_results_workflow(
         task_args=[
             "raw_output_dir",
             "final_output_dir",
-            "mark_best",
-            "test_run",
             "extension",
             "public_sample",
             "artifact_path",
@@ -99,11 +90,9 @@ def run_make_results_workflow(
         seed_args = [f"--seed {seed}" for seed in seeds]
         task_make_results = template_make_results.create_tasks(
             upstream_tasks=[],
-            raw_output_dir=raw_output_dir,
-            final_output_dir=final_output_dir,
+            raw_output_dir=str(raw_output_dir),
+            final_output_dir=str(final_output_dir),
             verbose=verbose_arg,
-            mark_best=mark_best_arg,
-            test_run=test_run_arg,
             extension=extension_arg,
             public_sample=public_sample_arg,
             seed=seed_args,
@@ -114,11 +103,9 @@ def run_make_results_workflow(
         task_make_results = template_make_results.create_task(
             name="make_results_task",
             upstream_tasks=[],
-            raw_output_dir=raw_output_dir,
-            final_output_dir=final_output_dir,
+            raw_output_dir=str(raw_output_dir),
+            final_output_dir=str(final_output_dir),
             verbose=verbose_arg,
-            mark_best=mark_best_arg,
-            test_run=test_run_arg,
             extension=extension_arg,
             public_sample=public_sample_arg,
             seed=seed_arg,

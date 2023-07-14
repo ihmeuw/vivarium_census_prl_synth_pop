@@ -1,13 +1,36 @@
+from bdb import BdbQuit
+import functools
 import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 from loguru import logger
 
 from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.utilities import build_output_dir
+
+
+def handle_exceptions(func: Callable, with_debugger: bool) -> Callable:
+    """Drops a user into an interactive debugger if func raises an error."""
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except (BdbQuit, KeyboardInterrupt):
+            raise
+        except Exception as e:
+            logger.exception("Uncaught exception {}".format(e))
+            if with_debugger:
+                import pdb
+                import traceback
+
+                traceback.print_exc()
+                pdb.post_mortem()
+            raise
+
+    return wrapped
 
 
 def validate_args(

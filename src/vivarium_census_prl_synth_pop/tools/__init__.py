@@ -2,6 +2,7 @@ from .app_logging import configure_logging_to_terminal
 from .cli_utils import (
     build_final_results_directory,
     finish_post_processing,
+    handle_exceptions,
     validate_args,
 )
 from .make_artifacts import build_artifacts

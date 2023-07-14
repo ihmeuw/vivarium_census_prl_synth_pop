@@ -248,8 +248,6 @@ PUBLIC_SAMPLE_ADDRESS_PARTS = {
 def build_results(
     raw_output_dir: Path,
     final_output_dir: Path,
-    mark_best: bool,
-    test_run: bool,
     extension: str,
     public_sample: bool,
     seed: str,
