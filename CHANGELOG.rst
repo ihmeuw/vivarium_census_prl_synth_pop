@@ -1,4 +1,9 @@
+**1.2.2 - 07/14/23**
+
+ - Bugfix SSN creation date logic
+
 **1.2.1 - 07/13/23**
+
  - Copy the CHANGELOG to final results directory
  - Bugfix validation user-provided version label
  - Refactor/bugfix symlink generation
