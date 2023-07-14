@@ -95,11 +95,6 @@ def finish_post_processing(final_output_dir: Path, test_run: bool, mark_best: bo
 
 def _create_results_link(output_dir: Path, link_name: Path) -> None:
     logger.info(f"Marking results as '{link_name}': {str(output_dir)}.")
-    # Create simulation directory link (two levels higher than output_dir)
-    # Create relative link
-
-    # output_root_dir = output_dir.parent
-    # link_dir = output_root_dir / link_name
     link_dir = (
         Path(str(output_dir).split(str(paths.FINAL_RESULTS_DIR_NAME))[0])
         / paths.FINAL_RESULTS_DIR_NAME
