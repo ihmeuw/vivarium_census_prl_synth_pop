@@ -563,7 +563,16 @@ class SocialSecurityObserver(BaseObserver):
 
         df_creation = pop.copy()
         df_creation["event_type"] = "creation"
-        df_creation["event_date"] = pop["date_of_birth"]
+        # Assign SSN creation event_date as date of birth for everyone except for
+        # immigrants in which case it's their entrance time
+        # NOTE: this simulation uses entrance time == clock time (not event time)
+        df_creation["event_date"] = np.where(
+            # Define immigrants
+            (df_creation["entrance_time"] >= self.start_time)
+            & (df_creation["date_of_birth"] < df_creation["entrance_time"]),
+            df_creation["entrance_time"],
+            df_creation["date_of_birth"],
+        )
 
         df_death = pop[pop["alive"] == "dead"]
         df_death["event_type"] = "death"
