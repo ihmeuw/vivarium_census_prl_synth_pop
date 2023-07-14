@@ -2,6 +2,7 @@
  - Copy the CHANGELOG to final results directory
  - Bugfix validation user-provided version label
  - Refactor/bugfix symlink generation
+ - Modify behavior to raise even when dropped into debugger with --pdb
 
 **1.2.0 - 07/12/23**
 
