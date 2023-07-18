@@ -167,7 +167,7 @@ FINAL_OBSERVERS = {
         "mailing_address_zipcode",
         "mailing_address_state",
         "mailing_address_po_box",
-        "income",
+        "wages",
         "employer_id",
         "employer_name",
         "employer_street_number",
