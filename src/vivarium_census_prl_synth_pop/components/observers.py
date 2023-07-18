@@ -644,7 +644,7 @@ class TaxW2Observer(BaseObserver):
         "employer_address_id",
         "employer_state_id",
         "employer_puma",
-        "income",
+        "wages",
         "housing_type",
         "tax_year",
         "race_ethnicity",
@@ -704,11 +704,11 @@ class TaxW2Observer(BaseObserver):
             event.index,
             query="alive == 'alive' and in_united_states and tracked",
         )
-        pop["income"] = self.pipelines["income"](pop.index)
+        pop["wages"] = self.pipelines["income"](pop.index)
 
         # increment income for all person/employment pairs with income > 0
         income_this_time_step = pd.Series(
-            pop["income"].values * self.time_step / DAYS_PER_YEAR,
+            pop["wages"].values * self.time_step / DAYS_PER_YEAR,
             index=pd.MultiIndex.from_arrays(
                 [pop.index, pop["employer_id"]], names=["simulant_id", "employer_id"]
             ),
@@ -727,9 +727,8 @@ class TaxW2Observer(BaseObserver):
         """
         if self.to_observe(event):
             self.income_last_year = self.income_this_year
-            self.income_last_year.name = (
-                "income"  # HACK: it would be nice if this name stayed
-            )
+            # HACK: it would be nice if this name stayed
+            self.income_last_year.name = "wages"
             self.income_this_year = empty_income_series()
 
     def to_observe(self, event: Event) -> bool:
@@ -748,7 +747,7 @@ class TaxW2Observer(BaseObserver):
         # with the pd.Series, but it is getting lost at some point in the computation
 
         df_w2 = self.income_last_year.reset_index()
-        df_w2["income"] = df_w2["income"].round().astype(int)
+        df_w2["wages"] = df_w2["wages"].round().astype(int)
         df_w2["tax_year"] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
