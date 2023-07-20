@@ -352,7 +352,7 @@ class DecennialCensusObserver(BaseObserver):
 class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
-    INPUT_VALUES = ["income", "household_details"]
+    INPUT_VALUES = ["wages", "household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "relation_to_reference_person",
     ]
@@ -407,7 +407,7 @@ class WICObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # WIC should include only living simulants
         )
-        pop["income"] = self.pipelines["income"](pop.index)
+        pop["wages"] = self.pipelines["wages"](pop.index)
 
         # add columns for output
         pop["year"] = event.time.year
@@ -419,16 +419,16 @@ class WICObserver(BaseObserver):
         # add additional columns for simulating coverage
         pop["nominal_age"] = np.floor(pop["age"])
 
-        # calculate household size and income for measuring WIC eligibility
+        # calculate household size and wages for measuring WIC eligibility
         hh_size = pop["address_id"].value_counts()
         pop["hh_size"] = pop["address_id"].map(hh_size)
 
-        hh_income = pop.groupby("address_id")["income"].sum()
-        pop["hh_income"] = pop["address_id"].map(hh_income)
+        hh_wages = pop.groupby("address_id")["wages"].sum()
+        pop["hh_wages"] = pop["address_id"].map(hh_wages)
 
-        # income eligibility for WIC is total household income less
+        # wage eligibility for WIC is total household wages less
         # than $16,410 + ($8,732 * number of people in the household)
-        pop["wic_eligible"] = pop["hh_income"] <= (
+        pop["wic_eligible"] = pop["hh_wages"] <= (
             self.WIC_BASELINE_SALARY + self.WIC_SALARY_PER_HOUSEHOLD_MEMBER * pop["hh_size"]
         )
 
@@ -610,11 +610,11 @@ class TaxObserver:
 class TaxW2Observer(BaseObserver):
     """Class for observing columns relevant to W2 and 1099 tax data.
 
-    Maintains a pd.Series for last year's income for each (person, employer)-pair,
+    Maintains a pd.Series for last year's wages for each (person, employer)-pair,
     which the Tax1040Observer and TaxDependentObserver classes use
     """
 
-    INPUT_VALUES = ["income", "household_details", "business_details"]
+    INPUT_VALUES = ["wages", "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "in_united_states",
@@ -644,7 +644,7 @@ class TaxW2Observer(BaseObserver):
         "employer_address_id",
         "employer_state_id",
         "employer_puma",
-        "income",
+        "wages",
         "housing_type",
         "tax_year",
         "race_ethnicity",
@@ -682,21 +682,21 @@ class TaxW2Observer(BaseObserver):
         np_random_seed = 12345 + int(self.vivarium_randomness.seed)
         self.np_randomness = np.random.default_rng(np_random_seed)
 
-        # increment income based on the job the simulant has during
+        # increment wages based on the job the simulant has during
         # the course of the time_step, which might change if we do
         # this check on_time_step instead of on_time_step__prepare
         builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
-        self.income_this_year = empty_income_series()
-        self.income_last_year = empty_income_series()
+        self.wages_this_year = empty_wages_series()
+        self.wages_last_year = empty_wages_series()
         self.time_step = builder.configuration.time.step_size  # in days
 
-        # set income_last_year and reset income_this_year on
+        # set wages_last_year and reset wages_this_year on
         # time_step__cleanup to make sure it is in the needed format
         # for all subcomponents of TaxObserver
         builder.event.register_listener("time_step__cleanup", self.on_time_step__cleanup)
 
     def on_time_step__prepare(self, event):
-        """increment income based on the job the simulant has during
+        """increment wages based on the job the simulant has during
         the course of the time_step, which might change if we do
         this check on_time_step instead of on_time_step__prepare
         """
@@ -704,33 +704,30 @@ class TaxW2Observer(BaseObserver):
             event.index,
             query="alive == 'alive' and in_united_states and tracked",
         )
-        pop["income"] = self.pipelines["income"](pop.index)
+        pop["wages"] = self.pipelines["wages"](pop.index)
 
-        # increment income for all person/employment pairs with income > 0
-        income_this_time_step = pd.Series(
-            pop["income"].values * self.time_step / DAYS_PER_YEAR,
+        # increment wages for all person/employment pairs with wages > 0
+        wages_this_time_step = pd.Series(
+            pop["wages"].values * self.time_step / DAYS_PER_YEAR,
             index=pd.MultiIndex.from_arrays(
                 [pop.index, pop["employer_id"]], names=["simulant_id", "employer_id"]
             ),
         )
 
-        income_this_time_step = income_this_time_step[income_this_time_step > 0]
+        wages_this_time_step = wages_this_time_step[wages_this_time_step > 0]
 
-        self.income_this_year = self.income_this_year.add(
-            income_this_time_step, fill_value=0.0
-        )
+        self.wages_this_year = self.wages_this_year.add(wages_this_time_step, fill_value=0.0)
 
     def on_time_step__cleanup(self, event):
-        """set income_last_year and reset income_this_year on
+        """set wages_last_year and reset wages_this_year on
         time_step__cleanup to make sure it is in the needed format
         for all subcomponents of TaxObserver
         """
         if self.to_observe(event):
-            self.income_last_year = self.income_this_year
-            self.income_last_year.name = (
-                "income"  # HACK: it would be nice if this name stayed
-            )
-            self.income_this_year = empty_income_series()
+            self.wages_last_year = self.wages_this_year
+            # HACK: it would be nice if this name stayed
+            self.wages_last_year.name = "wages"
+            self.wages_this_year = empty_wages_series()
 
     def to_observe(self, event: Event) -> bool:
         """Observe if Jan 1 falls during this time step"""
@@ -744,11 +741,11 @@ class TaxW2Observer(BaseObserver):
         pop_full = self.add_address(pop_full)
 
         ### create dataframe of all person/employment pairs
-        # start with income to date, which has simulant_id and employer_id as multi-index
+        # start with wages to date, which has simulant_id and employer_id as multi-index
         # with the pd.Series, but it is getting lost at some point in the computation
 
-        df_w2 = self.income_last_year.reset_index()
-        df_w2["income"] = df_w2["income"].round().astype(int)
+        df_w2 = self.wages_last_year.reset_index()
+        df_w2["wages"] = df_w2["wages"].round().astype(int)
         df_w2["tax_year"] = event.time.year - 1
 
         # merge in simulant columns based on simulant id
@@ -926,16 +923,16 @@ class TaxDependentsObserver(BaseObserver):
         )
 
         # not all simulants with a guardian are eligible to be dependents
-        # need to know income of dependents in past year for this
+        # need to know wages of dependents in past year for this
         #
         # NOTE: this assumes that the
         # TaxDependentObserver.get_observation is called after
         # TaxW2Observer.get_observation, which is achieved by listing
         # them in this order in the TaxObserver
-        last_year_income = self.w2_observer.income_last_year.groupby("simulant_id").sum()
-        df_eligible_dependents["last_year_income"] = last_year_income
-        df_eligible_dependents["last_year_income"] = df_eligible_dependents[
-            "last_year_income"
+        last_year_wages = self.w2_observer.wages_last_year.groupby("simulant_id").sum()
+        df_eligible_dependents["last_year_wages"] = last_year_wages
+        df_eligible_dependents["last_year_wages"] = df_eligible_dependents[
+            "last_year_wages"
         ].fillna(0)
 
         df_eligible_dependents = df_eligible_dependents[
@@ -946,10 +943,10 @@ class TaxDependentsObserver(BaseObserver):
             | (
                 (df_eligible_dependents["age"] < 24)
                 & (df_eligible_dependents["housing_type"] == "College")
-                & (df_eligible_dependents["last_year_income"] < 10_000)
+                & (df_eligible_dependents["last_year_wages"] < 10_000)
             )
             # OR be any age, but earn less than $4300
-            | (df_eligible_dependents["last_year_income"] < 4_300)
+            | (df_eligible_dependents["last_year_wages"] < 4_300)
         ]
 
         df = df_eligible_dependents
@@ -966,7 +963,7 @@ class Tax1040Observer(BaseObserver):
 
     """
 
-    INPUT_VALUES = ["income", "household_details", "business_details"]
+    INPUT_VALUES = ["wages", "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "in_united_states",
@@ -1065,7 +1062,7 @@ class Tax1040Observer(BaseObserver):
         return pop[self.OUTPUT_COLUMNS]
 
 
-def empty_income_series():
+def empty_wages_series():
     return pd.Series(
         index=pd.MultiIndex.from_arrays(
             [[], []],
