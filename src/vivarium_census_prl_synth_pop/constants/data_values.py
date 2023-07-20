@@ -96,8 +96,8 @@ YEARLY_JOB_CHANGE_RATE = 0.5  # 50 changes per 100 py
 
 BUSINESS_MOVE_RATE_YEARLY = 0.1  # 10 changes per 100 py
 
-PERSONAL_WAGES_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.812309**0.5)
-EMPLOYER_WAGES_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.187691**0.5)
+PERSONAL_INCOME_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.812309**0.5)
+EMPLOYER_INCOME_PROPENSITY_DISTRIBUTION = stats.norm(loc=0.0, scale=0.187691**0.5)
 
 
 class KnownEmployer(NamedTuple):

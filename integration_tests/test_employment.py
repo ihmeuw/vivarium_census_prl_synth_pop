@@ -33,18 +33,18 @@ def test_underage_are_unemployed(tracked_live_populations):
         assert (under_18["employer_id"] == data_values.UNEMPLOYED.employer_id).all()
 
 
-def test_unemployed_have_no_wages(tracked_live_populations):
+def test_unemployed_have_no_income(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
         unemployed = pop[pop["employer_id"] == data_values.UNEMPLOYED.employer_id]
-        assert (unemployed["wages"] == 0).all()
+        assert (unemployed["income"] == 0).all()
 
 
-def test_employed_have_wages(tracked_live_populations):
+def test_employed_have_income(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are
         employed = pop[pop["employer_id"] != data_values.UNEMPLOYED.employer_id]
-        assert (employed["wages"] > 0).all()
+        assert (employed["income"] > 0).all()
 
 
 def test_only_living_change_employment(populations):
@@ -86,28 +86,28 @@ def test_movers_change_employment(populations):
         ).all()
 
 
-def test_employment_wages_propensity_updates(simulants_on_adjacent_timesteps):
+def test_employment_income_propensity_updates(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         changed_jobs = (before["employer_id"] != after["employer_id"]) & (
             before["age"] > data_values.WORKING_AGE
         )
         changed_employer_propensity = (
-            before["employer_wages_propensity"] != after["employer_wages_propensity"]
+            before["employer_income_propensity"] != after["employer_income_propensity"]
         ) & (before["age"] > data_values.WORKING_AGE)
 
         assert (changed_jobs == changed_employer_propensity).all()
 
 
-def test_personal_wages_propensity_is_constant(simulants_on_adjacent_timesteps):
+def test_personal_income_propensity_is_constant(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         assert (
-            before["personal_wages_propensity"] == after["personal_wages_propensity"]
+            before["personal_income_propensity"] == after["personal_income_propensity"]
         ).all()
 
 
-def test_wages_updates_for_same_age_simulants(simulants_on_adjacent_timesteps):
+def test_income_updates_for_same_age_simulants(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
-        # Wages are only calculated for tracked simulants
+        # Income is only calculated for tracked simulants
         tracked = after["tracked"]
         before = before[tracked]
         after = after[tracked]
@@ -115,21 +115,20 @@ def test_wages_updates_for_same_age_simulants(simulants_on_adjacent_timesteps):
         changed_jobs = (before["employer_id"] != after["employer_id"]) & (
             np.floor(before["age"]) == np.floor(after["age"])
         )
-        changed_wages = (before["wages"] != after["wages"]) & (
+        changed_income = (before["income"] != after["income"]) & (
             np.floor(before["age"]) == np.floor(after["age"])
         )
 
-        assert (changed_jobs == changed_wages).all()
+        assert (changed_jobs == changed_income).all()
 
 
-def test_wages_updates_when_age_changes(simulants_on_adjacent_timesteps):
-    # Checks whether simulants who age into the next wages age bin and therefore
-    # will have a new wages distribution
-    # Note: The other tests for wages implementation are contigent on comparing
-    # simulants who are the same age and therefore ignore this edge case.
+def test_income_updates_when_age_changes(simulants_on_adjacent_timesteps):
+    # Checks whether simulants who age into the next income age bin and therefore will have a new income distribution
+    # Note: The other tests for income implementation are contigent on comparing simulants who are the same age and
+    #  therefore ignore this edge case.
     # Uses age bins from income distribution CSV
-    wages_distributions = pd.read_csv(paths.WAGES_DISTRIBUTIONS_DATA_PATH)
-    ages = wages_distributions["age_end"]
+    income_distributions = pd.read_csv(paths.INCOME_DISTRIBUTIONS_DATA_PATH)
+    ages = income_distributions["age_end"]
 
     for before, after in simulants_on_adjacent_timesteps:
         for age in ages:
@@ -141,7 +140,7 @@ def test_wages_updates_when_age_changes(simulants_on_adjacent_timesteps):
             ]
 
             assert (
-                before.loc[birthdays_idx, "wages"] != after.loc[birthdays_idx, "wages"]
+                before.loc[birthdays_idx, "income"] != after.loc[birthdays_idx, "income"]
             ).all()
 
 
