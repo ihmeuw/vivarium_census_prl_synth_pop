@@ -1,6 +1,6 @@
 **1.3.0 - 07/18/23**
 
- - Change w2/1099 column name from "income" to "wages"
+ - Change "income" to "wages" throughout, including w2/1099 column name
 
 **1.2.2 - 07/14/23**
 
