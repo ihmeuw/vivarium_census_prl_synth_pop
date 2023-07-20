@@ -352,7 +352,7 @@ class DecennialCensusObserver(BaseObserver):
 class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
-    INPUT_VALUES = ["wages", "household_details"]
+    INPUT_VALUES = ["income", "household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "relation_to_reference_person",
     ]
@@ -407,7 +407,7 @@ class WICObserver(BaseObserver):
             event.index,
             query="alive == 'alive'",  # WIC should include only living simulants
         )
-        pop["wages"] = self.pipelines["wages"](pop.index)
+        pop["income"] = self.pipelines["income"](pop.index)
 
         # add columns for output
         pop["year"] = event.time.year
@@ -419,16 +419,16 @@ class WICObserver(BaseObserver):
         # add additional columns for simulating coverage
         pop["nominal_age"] = np.floor(pop["age"])
 
-        # calculate household size and wages for measuring WIC eligibility
+        # calculate household size and income for measuring WIC eligibility
         hh_size = pop["address_id"].value_counts()
         pop["hh_size"] = pop["address_id"].map(hh_size)
 
-        hh_wages = pop.groupby("address_id")["wages"].sum()
-        pop["hh_wages"] = pop["address_id"].map(hh_wages)
+        hh_income = pop.groupby("address_id")["income"].sum()
+        pop["hh_income"] = pop["address_id"].map(hh_income)
 
-        # wage eligibility for WIC is total household wages less
+        # income eligibility for WIC is total household income less
         # than $16,410 + ($8,732 * number of people in the household)
-        pop["wic_eligible"] = pop["hh_wages"] <= (
+        pop["wic_eligible"] = pop["hh_income"] <= (
             self.WIC_BASELINE_SALARY + self.WIC_SALARY_PER_HOUSEHOLD_MEMBER * pop["hh_size"]
         )
 
@@ -611,10 +611,13 @@ class TaxW2Observer(BaseObserver):
     """Class for observing columns relevant to W2 and 1099 tax data.
 
     Maintains a pd.Series for last year's wages for each (person, employer)-pair,
-    which the Tax1040Observer and TaxDependentObserver classes use
+    which the Tax1040Observer and TaxDependentObserver classes use.
+
+    NOTE: Currently in this simulation, the only source of income is that of
+    employer wages and so the income pipeline is used to calculate them.
     """
 
-    INPUT_VALUES = ["wages", "household_details", "business_details"]
+    INPUT_VALUES = ["income", "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "in_united_states",
@@ -704,7 +707,8 @@ class TaxW2Observer(BaseObserver):
             event.index,
             query="alive == 'alive' and in_united_states and tracked",
         )
-        pop["wages"] = self.pipelines["wages"](pop.index)
+        # Assign wages from the income pipeline
+        pop["wages"] = self.pipelines["income"](pop.index)
 
         # increment wages for all person/employment pairs with wages > 0
         wages_this_time_step = pd.Series(
@@ -923,16 +927,18 @@ class TaxDependentsObserver(BaseObserver):
         )
 
         # not all simulants with a guardian are eligible to be dependents
-        # need to know wages of dependents in past year for this
+        # need to know income of dependents in past year for this
         #
         # NOTE: this assumes that the
         # TaxDependentObserver.get_observation is called after
         # TaxW2Observer.get_observation, which is achieved by listing
         # them in this order in the TaxObserver
-        last_year_wages = self.w2_observer.wages_last_year.groupby("simulant_id").sum()
-        df_eligible_dependents["last_year_wages"] = last_year_wages
-        df_eligible_dependents["last_year_wages"] = df_eligible_dependents[
-            "last_year_wages"
+
+        # NOTE: wages from w2 are assumed to be only source of income
+        last_year_income = self.w2_observer.wages_last_year.groupby("simulant_id").sum()
+        df_eligible_dependents["last_year_income"] = last_year_income
+        df_eligible_dependents["last_year_income"] = df_eligible_dependents[
+            "last_year_income"
         ].fillna(0)
 
         df_eligible_dependents = df_eligible_dependents[
@@ -943,10 +949,10 @@ class TaxDependentsObserver(BaseObserver):
             | (
                 (df_eligible_dependents["age"] < 24)
                 & (df_eligible_dependents["housing_type"] == "College")
-                & (df_eligible_dependents["last_year_wages"] < 10_000)
+                & (df_eligible_dependents["last_year_income"] < 10_000)
             )
             # OR be any age, but earn less than $4300
-            | (df_eligible_dependents["last_year_wages"] < 4_300)
+            | (df_eligible_dependents["last_year_income"] < 4_300)
         ]
 
         df = df_eligible_dependents
@@ -963,7 +969,7 @@ class Tax1040Observer(BaseObserver):
 
     """
 
-    INPUT_VALUES = ["wages", "household_details", "business_details"]
+    INPUT_VALUES = ["income", "household_details", "business_details"]
     ADDITIONAL_INPUT_COLUMNS = [
         "alive",
         "in_united_states",

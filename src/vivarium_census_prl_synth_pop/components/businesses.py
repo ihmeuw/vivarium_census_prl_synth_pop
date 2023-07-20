@@ -25,7 +25,7 @@ class Businesses:
     maintains a data structure of these employers and their details. These are
     accessible by means of the business_details pipeline. It also manages
     initialization and modification of simulant employment. It exposes a
-    pipeline to calculate simulant wages.
+    pipeline to calculate simulant income.
 
     on init:
         assign everyone of working age an employer
@@ -69,8 +69,8 @@ class Businesses:
         self.employer_address_id_count = 0
         self.columns_created = [
             "employer_id",
-            "personal_wages_propensity",
-            "employer_wages_propensity",
+            "personal_income_propensity",
+            "employer_income_propensity",
         ]
         self.columns_used = [
             "tracked",
@@ -90,16 +90,16 @@ class Businesses:
         self.businesses_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
         )
-        self.wages_distribution_data = builder.lookup.build_table(
-            data=pd.read_csv(paths.WAGES_DISTRIBUTIONS_DATA_PATH),
+        self.income_distributions_data = builder.lookup.build_table(
+            data=pd.read_csv(paths.INCOME_DISTRIBUTIONS_DATA_PATH),
             key_columns=["sex", "race_ethnicity"],
             parameter_columns=["age"],
             value_columns=["s", "scale"],
         )
-        self.wages = builder.value.register_value_producer(
-            "wages",
-            source=self.calculate_wages,
-            requires_columns=["personal_wages_propensity", "employer_wages_propensity"],
+        self.income = builder.value.register_value_producer(
+            "income",
+            source=self.calculate_income,
+            requires_columns=["personal_income_propensity", "employer_income_propensity"],
         )
         self.business_details = builder.value.register_value_producer(
             "business_details",
@@ -126,7 +126,7 @@ class Businesses:
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """
         Assign everyone working age and older an employer and initialize
-        wages propensity columns.
+        income propensity columns.
         """
         if pop_data.creation_time < self.start_time:
             # Initial population setup
@@ -151,14 +151,14 @@ class Businesses:
         if not military_index.empty:
             pop.loc[military_index, "employer_id"] = data_values.MILITARY.employer_id
 
-        # Create wages propensity columns
-        pop["personal_wages_propensity"] = self.randomness.get_draw(
+        # Create income propensity columns
+        pop["personal_income_propensity"] = self.randomness.get_draw(
             pop.index,
-            additional_key="personal_wages_propensity",
+            additional_key="personal_income_propensity",
         )
-        pop["employer_wages_propensity"] = self.randomness.get_draw(
+        pop["employer_income_propensity"] = self.randomness.get_draw(
             pop.index,
-            additional_key="employer_wages_propensity",
+            additional_key="employer_income_propensity",
         )
 
         self.population_view.update(pop[self.columns_created])
@@ -233,16 +233,16 @@ class Businesses:
         if len(new_military_idx) > 0:
             pop.loc[new_military_idx, "employer_id"] = data_values.MILITARY.employer_id
 
-        # Update wages
-        # Get new wages propensity and update wages for simulants who have new employers or joined the workforce
+        # Update income
+        # Get new income propensity and update income for simulants who have new employers or joined the workforce
         employment_changing_sims_idx = changing_jobs_idx.union(turning_working_age).union(
             new_military_idx
         )
         pop.loc[
-            employment_changing_sims_idx, "employer_wages_propensity"
+            employment_changing_sims_idx, "employer_income_propensity"
         ] = self.randomness.get_draw(
             employment_changing_sims_idx,
-            additional_key="employer_wages_propensity",
+            additional_key="employer_income_propensity",
         )
 
         self.population_view.update(pop)
@@ -349,33 +349,33 @@ class Businesses:
 
         return new_employers
 
-    def calculate_wages(self, idx: pd.Index) -> pd.Series:
-        wages = pd.Series(0.0, index=idx)
+    def calculate_income(self, idx: pd.Index) -> pd.Series:
+        income = pd.Series(0.0, index=idx)
         pop = self.population_view.get(idx, query="tracked")
         employed_idx = pop.index[pop["employer_id"] != data_values.UNEMPLOYED.employer_id]
 
-        # Get propensities for two components to get wages propensity
-        personal_wages_component = data_values.PERSONAL_WAGES_PROPENSITY_DISTRIBUTION.ppf(
-            pop.loc[employed_idx, "personal_wages_propensity"]
+        # Get propensities for two components to get income propensity
+        personal_income_component = data_values.PERSONAL_INCOME_PROPENSITY_DISTRIBUTION.ppf(
+            pop.loc[employed_idx, "personal_income_propensity"]
         )
-        employer_wages_component = data_values.EMPLOYER_WAGES_PROPENSITY_DISTRIBUTION.ppf(
-            pop.loc[employed_idx, "employer_wages_propensity"]
+        employer_income_component = data_values.EMPLOYER_INCOME_PROPENSITY_DISTRIBUTION.ppf(
+            pop.loc[employed_idx, "employer_income_propensity"]
         )
-        # Wages propensity = cdf(personal_component + employer_component)
-        wages_propensity = pd.Series(
-            data=stats.norm.cdf(personal_wages_component + employer_wages_component),
+        # Income propensity = cdf(personal_component + employer_component)
+        income_propensity = pd.Series(
+            data=stats.norm.cdf(personal_income_component + employer_income_component),
             index=employed_idx,
         )
         # Get distributions from lookup table
-        wages_distributions = self.wages_distribution_data(employed_idx)
+        income_distributions = self.income_distributions_data(employed_idx)
 
-        wages[employed_idx] = stats.lognorm.ppf(
-            q=wages_propensity,
-            s=wages_distributions["s"],
-            scale=wages_distributions["scale"],
+        income[employed_idx] = stats.lognorm.ppf(
+            q=income_propensity,
+            s=income_distributions["s"],
+            scale=income_distributions["scale"],
         )
 
-        return wages
+        return income
 
     def get_business_details(self, ids: Union[pd.Index, pd.Series]) -> pd.DataFrame:
         """Source of the business details pipeline.
