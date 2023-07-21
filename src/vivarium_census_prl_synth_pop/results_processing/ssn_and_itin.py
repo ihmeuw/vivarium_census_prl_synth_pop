@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from vivarium import Artifact
@@ -41,6 +42,7 @@ def get_simulant_id_maps(
     A dictionary of pd.Series suitable for pd.Series.map, indexed by `address_id`
 
     """
+    logger.info(f"Generating {column_name} maps")
     if column_name != "simulant_id":
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
     maps = dict()
