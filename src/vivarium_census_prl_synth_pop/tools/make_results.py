@@ -1,6 +1,6 @@
 from itertools import chain
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -459,6 +459,7 @@ def generate_maps(
 
     # Add column maps to mapper here
     # The key should be the index of the map and the mapping function the value
+
     mappers = {
         "first_name_id": get_given_name_map,
         "middle_name_id": get_middle_initial_map,

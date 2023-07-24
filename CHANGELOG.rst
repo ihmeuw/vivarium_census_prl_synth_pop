@@ -1,3 +1,7 @@
+**1.3.1 - 07/21/23**
+
+ - Add more status logs in post-processing
+
 **1.3.0 - 07/18/23**
 
  - Change w2/1099 column name from "income" to "wages"

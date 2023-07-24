@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
@@ -48,7 +49,7 @@ def get_address_id_maps(
     -------
     A dictionary of pd.Series suitable for pd.Series.map, indexed by `address_id`
     """
-
+    logger.info(f"Generating {column_name} maps")
     try:
         output_cols_superset = {
             "address_id": [column_name, "state_id", "state", "puma", "po_box"],

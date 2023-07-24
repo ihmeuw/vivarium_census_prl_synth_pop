@@ -34,7 +34,7 @@ def get_given_name_map(
     -------
     Dict with column name as key and pd.Series with name_ids as index and string names as values
     """
-
+    logger.info(f"Generating {column_name} maps")
     output_cols = [column_name, "year_of_birth", "sex"]
     name_data = format_data_for_mapping(
         index_name=column_name,
@@ -74,6 +74,7 @@ def get_middle_initial_map(
     Dict with column name as key and pd.Series with middle initial as index and
     string names as values
     """
+    logger.info(f"Generating {column_name} maps")
     middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness, seed)
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
@@ -100,6 +101,7 @@ def get_last_name_map(
     -------
     Dict with column name as key and pd.Series with name_ids as index and string names as values
     """
+    logger.info(f"Generating {column_name} maps")
     output_cols = [column_name, "race_ethnicity", "date_of_birth"]
     name_data = format_data_for_mapping(
         index_name=column_name,
@@ -274,7 +276,7 @@ def get_employer_name_map(
     assigned to employer_ids for final results.
 
     """
-
+    logger.info(f"Generating {column_name} maps")
     known_employer_names = pd.Series(
         [employer.employer_name for employer in data_values.KNOWN_EMPLOYERS],
         index=[employer.employer_id for employer in data_values.KNOWN_EMPLOYERS],
