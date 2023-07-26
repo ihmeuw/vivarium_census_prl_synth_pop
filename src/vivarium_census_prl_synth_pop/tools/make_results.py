@@ -71,6 +71,7 @@ FINAL_OBSERVERS = {
         "copy_age",
         "date_of_birth",
         "copy_date_of_birth",
+        "relationship_to_reference_person",
         "sex",
         "race_ethnicity",
         "street_number",
