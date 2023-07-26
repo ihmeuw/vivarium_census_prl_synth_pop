@@ -195,13 +195,26 @@ class BaseObserver(ABC):
 
 class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = [
-        "alive",
-    ]
-    ADDITIONAL_OUTPUT_COLUMNS = [
-        "survey_date",
-        "housing_type",
-    ]
+    ADDITIONAL_INPUT_COLUMNS = {
+        "acs": [
+            "alive",
+            "relationship_to_reference_person",
+        ],
+        "cps": ["alive"],
+    }
+
+    ADDITIONAL_OUTPUT_COLUMNS = {
+        "acs": [
+            "survey_date",
+            "housing_type",
+            "relationship_to_reference_person",
+        ],
+        "cps": [
+            "survey_date",
+            "housing_type",
+        ],
+    }
+
     SAMPLING_RATE_PER_MONTH = {
         "acs": 12000,
         "cps": 60000,
@@ -229,11 +242,11 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS[self.survey]
 
     @property
     def output_columns(self):
-        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
+        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS[self.survey]
 
     @property
     def output_name(self) -> str:
