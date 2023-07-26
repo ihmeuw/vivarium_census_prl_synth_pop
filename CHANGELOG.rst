@@ -1,3 +1,8 @@
+**1.4.0 - 07/25/23**
+
+ - Change "relation_to_reference_person" column to "relationship_to_reference_person"
+ - Add "relationship_to_reference_person" column to ACS dataset output
+
 **1.3.1 - 07/21/23**
 
  - Add more status logs in post-processing

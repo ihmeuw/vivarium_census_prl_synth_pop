@@ -56,7 +56,7 @@ def test_immigration_into_existing_households(immigrants_by_timestep, sim):
 
         # These will all be non-reference-person immigrants, who cannot have certain relationships
         expected_relationship = ~existing_household_immigrants[
-            "relation_to_reference_person"
+            "relationship_to_reference_person"
         ].isin(
             [
                 "Reference person",
@@ -98,7 +98,7 @@ def test_immigration_into_new_households(immigrants_by_timestep, sim):
         ]
 
         households_established_by_domestic_migration = after[
-            (after["relation_to_reference_person"] == "Reference person")
+            (after["relationship_to_reference_person"] == "Reference person")
             & (~after.index.isin(immigrants.index))
             & (~after["household_id"].isin(existing_households))
         ]["household_id"].unique()
@@ -111,7 +111,7 @@ def test_immigration_into_new_households(immigrants_by_timestep, sim):
         ]
 
         expected_relationship = ~non_reference_person_immigrants[
-            "relation_to_reference_person"
+            "relationship_to_reference_person"
         ].isin(
             [
                 "Reference person",
