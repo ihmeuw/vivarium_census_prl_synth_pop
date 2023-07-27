@@ -44,7 +44,7 @@ HOUSEHOLD_TYPES = list(HOUSEHOLD_TYPE_MAP.values())
 PERSONS_COLUMNS_TO_INITIALIZE = [
     "census_household_id",
     "age",
-    "relation_to_reference_person",
+    "relationship_to_reference_person",
     "sex",
     "race_ethnicity",
     "born_in_us",
@@ -110,7 +110,7 @@ PERSONS_COLUMNS_MAP = {
     "ST": "state",
     "SERIALNO": "census_household_id",
     "AGEP": "age",
-    "RELSHIPP": "relation_to_reference_person",
+    "RELSHIPP": "relationship_to_reference_person",
     "SEX": "sex",
     "HISP": "latino",
     "RAC1P": "race",
@@ -169,7 +169,7 @@ RELATIONSHIP_TO_REFERENCE_PERSON_MAP = {
 }
 RELATIONSHIPS = list(RELATIONSHIP_TO_REFERENCE_PERSON_MAP.values())
 
-NEWBORNS_RELATION_TO_REFERENCE_PERSON_MAP = {
+NEWBORNS_RELATIONSHIP_TO_REFERENCE_PERSON_MAP = {
     "Reference person": "Biological child",
     "Opp-sex spouse": "Biological child",
     "Opp-sex partner": "Biological child",

@@ -30,7 +30,7 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         assert movers_into_new_households.any()
 
         assert (
-            after[movers_into_new_households]["relation_to_reference_person"]
+            after[movers_into_new_households]["relationship_to_reference_person"]
             # Handling the non-reference-person movers described above.
             .isin(["Reference person", "Other nonrelative"]).all()
         )
@@ -38,7 +38,7 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         # These are the true new-household movers, as that term is used in the
         # migration component: the movers who establish a new household.
         new_household_movers = movers_into_new_households & (
-            after["relation_to_reference_person"] == "Reference person"
+            after["relationship_to_reference_person"] == "Reference person"
         )
         assert new_household_movers.any()
         # There is exactly one new-household mover for each new household.
@@ -73,14 +73,14 @@ def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
         assert (before[gq_movers]["household_details.housing_type"] == "Standard").any()
         assert after[gq_movers]["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).all()
         assert (
-            after[gq_movers]["relation_to_reference_person"]
+            after[gq_movers]["relationship_to_reference_person"]
             .isin(["Institutionalized GQ pop", "Noninstitutionalized GQ pop"])
             .all()
         )
 
 
 def get_households_with_stable_reference_person(after, before):
-    reference_persons = before["relation_to_reference_person"] == "Reference person"
+    reference_persons = before["relationship_to_reference_person"] == "Reference person"
     movers = before["household_id"] != after["household_id"]
     deaths = before["alive"] != after["alive"]
     emigrants = before["in_united_states"] & ~after["in_united_states"]
@@ -114,7 +114,7 @@ def test_individual_movers_have_correct_relationship(simulants_on_adjacent_times
         )
         assert (
             after.loc[
-                mover_to_household_with_reference_person, "relation_to_reference_person"
+                mover_to_household_with_reference_person, "relationship_to_reference_person"
             ]
             == "Other nonrelative"
         ).all()
@@ -124,7 +124,8 @@ def test_individual_movers_have_correct_relationship(simulants_on_adjacent_times
         )
         assert (
             after.loc[
-                mover_to_household_without_reference_person, "relation_to_reference_person"
+                mover_to_household_without_reference_person,
+                "relationship_to_reference_person",
             ].isin(["Other nonrelative", "Reference person", "Roommate"])
         ).all()
 
@@ -142,8 +143,8 @@ def test_households_move(simulants_on_adjacent_timesteps):
         )
         movers_with_reference_person = household_movers & in_household_with_reference_person
         assert (
-            before[movers_with_reference_person]["relation_to_reference_person"]
-            == after[movers_with_reference_person]["relation_to_reference_person"]
+            before[movers_with_reference_person]["relationship_to_reference_person"]
+            == after[movers_with_reference_person]["relationship_to_reference_person"]
         ).all()
         assert (
             before[movers_with_reference_person]["household_details.housing_type"]

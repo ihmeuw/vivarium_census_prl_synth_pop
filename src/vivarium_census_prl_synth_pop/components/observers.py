@@ -195,13 +195,26 @@ class BaseObserver(ABC):
 
 class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = [
-        "alive",
-    ]
-    ADDITIONAL_OUTPUT_COLUMNS = [
-        "survey_date",
-        "housing_type",
-    ]
+    ADDITIONAL_INPUT_COLUMNS = {
+        "acs": [
+            "alive",
+            "relationship_to_reference_person",
+        ],
+        "cps": ["alive"],
+    }
+
+    ADDITIONAL_OUTPUT_COLUMNS = {
+        "acs": [
+            "survey_date",
+            "housing_type",
+            "relationship_to_reference_person",
+        ],
+        "cps": [
+            "survey_date",
+            "housing_type",
+        ],
+    }
+
     SAMPLING_RATE_PER_MONTH = {
         "acs": 12000,
         "cps": 60000,
@@ -229,11 +242,11 @@ class HouseholdSurveyObserver(BaseObserver):
 
     @property
     def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS[self.survey]
 
     @property
     def output_columns(self):
-        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
+        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS[self.survey]
 
     @property
     def output_name(self) -> str:
@@ -293,9 +306,9 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["relation_to_reference_person"]
+    ADDITIONAL_INPUT_COLUMNS = ["relationship_to_reference_person"]
     ADDITIONAL_OUTPUT_COLUMNS = [
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
         "year",
         "housing_type",
     ]
@@ -354,12 +367,12 @@ class WICObserver(BaseObserver):
 
     INPUT_VALUES = ["income", "household_details"]
     ADDITIONAL_INPUT_COLUMNS = [
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "year",
         "housing_type",
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
     ]
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
@@ -975,7 +988,7 @@ class Tax1040Observer(BaseObserver):
         "in_united_states",
         "tracked",
         "has_ssn",
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
     ]
     OUTPUT_COLUMNS = [
         "household_id",
@@ -994,7 +1007,7 @@ class Tax1040Observer(BaseObserver):
         "state_id",
         "puma",
         "race_ethnicity",
-        "relation_to_reference_person",  # needed to identify couples filing jointly
+        "relationship_to_reference_person",  # needed to identify couples filing jointly
         "housing_type",
         "tax_year",
         "alive",
@@ -1052,7 +1065,7 @@ class Tax1040Observer(BaseObserver):
             "Same-sex spouse",
         ]
         partners_of_household_head_idx = pop.index[
-            pop["relation_to_reference_person"].isin(partners)
+            pop["relationship_to_reference_person"].isin(partners)
         ]
         pop["joint_filer"] = False
         pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(

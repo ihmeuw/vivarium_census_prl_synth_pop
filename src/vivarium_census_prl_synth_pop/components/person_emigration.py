@@ -41,15 +41,15 @@ class PersonEmigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.household_details = builder.value.get_value("household_details")
         self.columns_needed = [
-            "relation_to_reference_person",
+            "relationship_to_reference_person",
             "in_united_states",
             "exit_time",
             "tracked",
             "state_id_for_lookup",
         ]
         self.population_view = builder.population.get_view(self.columns_needed)
-        self.updated_relation_to_reference_person = builder.value.get_value(
-            "updated_relation_to_reference_person"
+        self.updated_relationship_to_reference_person = builder.value.get_value(
+            "updated_relationship_to_reference_person"
         )
 
         non_reference_person_move_rates_lookup_table = builder.lookup.build_table(
@@ -124,7 +124,7 @@ class PersonEmigration:
         household_details = self.household_details(pop.index)
         non_reference_people_idx = pop.index[
             (household_details["housing_type"] == "Standard")
-            & (pop["relation_to_reference_person"] != "Reference person")
+            & (pop["relationship_to_reference_person"] != "Reference person")
         ]
         non_reference_person_movers_idx = self.randomness.filter_for_rate(
             non_reference_people_idx,
@@ -146,5 +146,7 @@ class PersonEmigration:
 
         self.population_view.update(pop)
 
-        new_relation_to_ref_person = self.updated_relation_to_reference_person(event.index)
-        self.population_view.update(new_relation_to_ref_person)
+        new_relationship_to_reference_person = self.updated_relationship_to_reference_person(
+            event.index
+        )
+        self.population_view.update(new_relationship_to_reference_person)

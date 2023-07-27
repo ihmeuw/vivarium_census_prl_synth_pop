@@ -50,7 +50,7 @@ FINAL_OBSERVERS = {
         "city",
         "zipcode",
         "state",
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
         "sex",
         "race_ethnicity",
         "guardian_1",
@@ -71,6 +71,7 @@ FINAL_OBSERVERS = {
         "copy_age",
         "date_of_birth",
         "copy_date_of_birth",
+        "relationship_to_reference_person",
         "sex",
         "race_ethnicity",
         "street_number",
@@ -127,7 +128,7 @@ FINAL_OBSERVERS = {
         "city",
         "zipcode",
         "state",
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
         "sex",
         "race_ethnicity",
         "guardian_1",
@@ -205,7 +206,7 @@ FINAL_OBSERVERS = {
         "itin",
         # todo: add copy itin
         "tax_year",
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
     },
     metadata.DatasetNames.TAXES_DEPENDENTS: {
         # Metadata is for a dependent.  This should capture each dependent/guardian pair.  Meaning that if a dependent

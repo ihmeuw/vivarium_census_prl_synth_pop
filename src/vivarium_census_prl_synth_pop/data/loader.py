@@ -112,8 +112,8 @@ def load_persons(key: str, location: str) -> pd.DataFrame:
     )
 
     # map relationship to household head
-    data["relation_to_reference_person"] = (
-        data["relation_to_reference_person"]
+    data["relationship_to_reference_person"] = (
+        data["relationship_to_reference_person"]
         .map(metadata.RELATIONSHIP_TO_REFERENCE_PERSON_MAP)
         .astype(pd.CategoricalDtype(categories=metadata.RELATIONSHIPS))
     )

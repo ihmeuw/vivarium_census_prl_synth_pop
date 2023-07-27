@@ -7,8 +7,8 @@ from vivarium_public_health.population import Mortality as _Mortality
 class Mortality(_Mortality):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.updated_relation_to_reference_person = builder.value.get_value(
-            "updated_relation_to_reference_person"
+        self.updated_relationship_to_reference_person = builder.value.get_value(
+            "updated_relationship_to_reference_person"
         )
 
     def _get_population_view(self, builder: Builder) -> PopulationView:
@@ -20,12 +20,14 @@ class Mortality(_Mortality):
                 "exit_time",
                 "age",
                 "sex",
-                "relation_to_reference_person",
+                "relationship_to_reference_person",
             ]
         )
 
     def on_time_step(self, event: Event) -> None:
         super().on_time_step(event)
 
-        new_relation_to_ref_person = self.updated_relation_to_reference_person(event.index)
-        self.population_view.update(new_relation_to_ref_person)
+        new_relationship_to_reference_person = self.updated_relationship_to_reference_person(
+            event.index
+        )
+        self.population_view.update(new_relationship_to_reference_person)
