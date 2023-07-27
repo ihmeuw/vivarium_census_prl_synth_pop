@@ -1073,8 +1073,12 @@ class Tax1040Observer(BaseObserver):
             "Same-sex spouse",
         ]
         # Get partners of reference members who filed taxes
+        hh_ids_with_filing_ref_persons = pop.loc[
+            pop["relationship_to_reference_person"] == "Reference person", "household_id"
+        ]
         partners_of_household_head_idx = pop.index[
-            pop["relationship_to_reference_person"].isin(partners)
+            (pop["household_id"].isin(hh_ids_with_filing_ref_persons))
+            & (pop["relationship_to_reference_person"].isin(partners))
         ]
         pop["joint_filer"] = False
         pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
