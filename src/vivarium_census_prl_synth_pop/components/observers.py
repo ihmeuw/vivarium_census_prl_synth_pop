@@ -1057,7 +1057,9 @@ class Tax1040Observer(BaseObserver):
         # Sample who files taxes
         # TODO: Update with income sampling
         tax_filers_idx = self.randomness.filter_for_probability(
-            pop.index, data_values.Taxes.PROBABILITY_OF_FILING_TAXES, "1040_filing_sample",
+            pop.index,
+            data_values.Taxes.PROBABILITY_OF_FILING_TAXES,
+            "1040_filing_sample",
         )
         pop = pop.loc[tax_filers_idx]
         # copy from household member for relevant columns
