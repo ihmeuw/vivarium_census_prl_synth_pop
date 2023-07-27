@@ -142,6 +142,7 @@ class Taxes(NamedTuple):
     PERCENT_W2_RECEIVED = 0.9465
     PERCENT_1099_RECEIVED = 0.0535
     PROBABILITY_OF_JOINT_FILER = 0.95
+    PROBABILITY_OF_FILING_TAXES = 0.655
 
 
 # Needed to allow HDFs to be filtered on these columns
