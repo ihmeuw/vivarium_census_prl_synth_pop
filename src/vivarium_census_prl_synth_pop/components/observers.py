@@ -1076,13 +1076,13 @@ class Tax1040Observer(BaseObserver):
         hh_ids_with_filing_ref_persons = pop.loc[
             pop["relationship_to_reference_person"] == "Reference person", "household_id"
         ]
-        partners_of_household_head_idx = pop.index[
+        partners_of_reference_person_idx = pop.index[
             (pop["household_id"].isin(hh_ids_with_filing_ref_persons))
             & (pop["relationship_to_reference_person"].isin(partners))
         ]
         pop["joint_filer"] = False
-        pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
-            index=partners_of_household_head_idx,
+        pop.loc[partners_of_reference_person_idx, "joint_filer"] = self.randomness.choice(
+            index=partners_of_reference_person_idx,
             choices=[True, False],
             p=[
                 data_values.Taxes.PROBABILITY_OF_JOINT_FILER,
