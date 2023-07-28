@@ -94,11 +94,13 @@ def finish_post_processing(final_output_dir: Path, test_run: bool, mark_best: bo
 
 
 def _create_results_link(output_dir: Path, link_name: Path) -> None:
+    output_dir = output_dir.resolve()
+    final_results_dir = output_dir.parent.parent
+    parent_dir = final_results_dir.parent.parent
     logger.info(f"Marking results as '{link_name}': {str(output_dir)}.")
-    link_dir = (
-        Path(str(output_dir).split(str(paths.FINAL_RESULTS_DIR_NAME))[0])
-        / paths.FINAL_RESULTS_DIR_NAME
-        / link_name
-    )
-    link_dir.unlink(missing_ok=True)
-    link_dir.symlink_to(output_dir, target_is_directory=True)
+    link_dir_final_results = final_results_dir / link_name
+    link_dir_parent = parent_dir / link_name
+    link_dir_final_results.unlink(missing_ok=True)
+    link_dir_final_results.symlink_to(output_dir, target_is_directory=True)
+    link_dir_parent.unlink(missing_ok=True)
+    link_dir_parent.symlink_to(output_dir, target_is_directory=True)
