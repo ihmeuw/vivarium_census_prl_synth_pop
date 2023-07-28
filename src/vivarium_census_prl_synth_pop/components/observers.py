@@ -1054,6 +1054,14 @@ class Tax1040Observer(BaseObserver):
 
     def get_observation(self, event: Event) -> pd.DataFrame:
         pop = self.population_view.get(event.index)
+        # Sample who files taxes
+        # TODO: Update with income sampling
+        tax_filers_idx = self.randomness.filter_for_probability(
+            pop.index,
+            data_values.Taxes.PROBABILITY_OF_FILING_TAXES,
+            "1040_filing_sample",
+        )
+        pop = pop.loc[tax_filers_idx]
         # copy from household member for relevant columns
         pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
@@ -1064,12 +1072,17 @@ class Tax1040Observer(BaseObserver):
             "Opp-sex spouse",
             "Same-sex spouse",
         ]
-        partners_of_household_head_idx = pop.index[
-            pop["relationship_to_reference_person"].isin(partners)
+        # Get partners of reference members who filed taxes
+        hh_ids_with_filing_ref_persons = pop.loc[
+            pop["relationship_to_reference_person"] == "Reference person", "household_id"
+        ]
+        partners_of_reference_person_idx = pop.index[
+            (pop["household_id"].isin(hh_ids_with_filing_ref_persons))
+            & (pop["relationship_to_reference_person"].isin(partners))
         ]
         pop["joint_filer"] = False
-        pop.loc[partners_of_household_head_idx, "joint_filer"] = self.randomness.choice(
-            index=partners_of_household_head_idx,
+        pop.loc[partners_of_reference_person_idx, "joint_filer"] = self.randomness.choice(
+            index=partners_of_reference_person_idx,
             choices=[True, False],
             p=[
                 data_values.Taxes.PROBABILITY_OF_JOINT_FILER,

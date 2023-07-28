@@ -1,3 +1,8 @@
+**1.4.1 - 07/27/23**
+
+ - Update Tax 1040 observer to apply 65.5% probability of filing
+ - Fixes bug in Tax 1040 observer for joint filing eligibility
+
 **1.4.0 - 07/25/23**
 
  - Change "relation_to_reference_person" column to "relationship_to_reference_person"
