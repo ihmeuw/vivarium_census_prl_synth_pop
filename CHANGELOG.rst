@@ -1,3 +1,8 @@
+**1.4.2 - 07/28/23**
+
+ - Resolve symlinks
+ - Generate second symlinks at location-level directory
+
 **1.4.1 - 07/27/23**
 
  - Update Tax 1040 observer to apply 65.5% probability of filing
