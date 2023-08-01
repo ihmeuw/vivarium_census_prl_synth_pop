@@ -144,6 +144,7 @@ FINAL_OBSERVERS = {
         "first_name",
         "middle_initial",
         "last_name",
+        "sex",
         "date_of_birth",
         "copy_date_of_birth",
         "ssn",
