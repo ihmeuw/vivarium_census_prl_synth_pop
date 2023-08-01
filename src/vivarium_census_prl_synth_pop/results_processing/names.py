@@ -79,7 +79,10 @@ def get_middle_initial_map(
     middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness, seed)
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
-    return {"middle_initial": middle_initial_map, "middle_name": middle_name_map[column_name]}
+    return {
+        "middle_initial": middle_initial_map,
+        "middle_name": middle_name_map[column_name.removesuffix("_id")],
+    }
 
 
 def get_last_name_map(
