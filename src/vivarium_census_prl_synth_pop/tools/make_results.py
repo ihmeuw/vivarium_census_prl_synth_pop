@@ -142,7 +142,7 @@ FINAL_OBSERVERS = {
     metadata.DatasetNames.SSA: {
         "simulant_id",
         "first_name",
-        "middle_initial",
+        "middle_name",
         "last_name",
         "sex",
         "date_of_birth",

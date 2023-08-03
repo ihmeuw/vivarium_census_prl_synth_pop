@@ -72,13 +72,17 @@ def get_middle_initial_map(
     Returns
     -------
     Dict with column name as key and pd.Series with middle initial as index and
-    string names as values
+    string names as values. Also returns a key-series pair for middle names which
+    is the same series as the middle initials that are not stripped down.
     """
     logger.info(f"Generating {column_name} maps")
     middle_name_map = get_given_name_map(column_name, obs_data, artifact, randomness, seed)
     middle_initial_map = middle_name_map[column_name.removesuffix("_id")].str[0]
 
-    return {"middle_initial": middle_initial_map}
+    return {
+        "middle_initial": middle_initial_map,
+        "middle_name": middle_name_map[column_name.removesuffix("_id")],
+    }
 
 
 def get_last_name_map(
