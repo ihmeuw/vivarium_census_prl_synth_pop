@@ -197,8 +197,8 @@ def vectorized_choice(
         raw_draws = random_state.random_sample(len(index))
         probs = pd.Series(raw_draws, index=index)
     else:
-        if "employer" in additional_key:
-            print(f"Vectorized choice call for {additional_key} with a seed of {random_seed}")
+        #if "employer" in additional_key:
+           # print(f"Vectorized choice call for {additional_key} with a seed of {random_seed}")
         probs = randomness_stream.get_draw(index, additional_key=additional_key)
 
     # build cdf based on weights

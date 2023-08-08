@@ -75,6 +75,7 @@ def get_address_id_maps(
     # We need a single seed that doesn't vary for employer details
     seed = "0" if column_name == "employer_address_id" else seed
 
+    breakpoint()
     maps.update(get_zipcode_map(column_name, formatted_obs_data, randomness, seed))
     maps.update(
         get_street_details_map(column_name, formatted_obs_data, artifact, randomness, seed)
@@ -228,6 +229,7 @@ def get_city_map(
     output_cols = [column_name, state_col]
     city_data = obs_data.reset_index()[output_cols].set_index(column_name)
 
+    breakpoint()
     for state in pd.Series(city_data[state_col].str.lower()).unique():
         cities = vectorized_choice(
             options=addresses.loc[addresses["Province"] == state, "Municipality"],
