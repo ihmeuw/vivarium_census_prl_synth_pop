@@ -371,7 +371,9 @@ def perform_post_processing(
                 obs_data[col] = obs_data[col].astype(
                     pd.CategoricalDtype(categories=state_categories)
                 )
+    # TODO: Format 1040 data by combining with tax dependents
 
+    # TODO: make new for loop to write out files except tax dependents
         logger.info(f"Writing final {observer} results.")
         obs_dir = build_output_dir(final_output_dir, subdir=observer)
         seed_ext = f"_{seed}" if seed != "" else ""
