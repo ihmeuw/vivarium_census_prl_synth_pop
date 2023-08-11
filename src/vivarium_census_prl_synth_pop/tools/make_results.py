@@ -205,7 +205,6 @@ FINAL_OBSERVERS = {
         "ssn",
         "copy_ssn",
         "itin",
-        # todo: add copy itin
         "tax_year",
         "relationship_to_reference_person",
     },
@@ -232,6 +231,7 @@ FINAL_OBSERVERS = {
         "sex",
         "ssn",
         "copy_ssn",
+        "itin",
         "guardian_id",
         "housing_type",
         "tax_year",
