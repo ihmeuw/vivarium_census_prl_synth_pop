@@ -371,13 +371,21 @@ def perform_post_processing(
                 obs_data[col] = obs_data[col].astype(
                     pd.CategoricalDtype(categories=state_categories)
                 )
-    # TODO: Format 1040 data by combining with tax dependents
+            processed_results[observer] = obs_data
+    # Format 1040 by combining with tax dependents to match guardians with dependents
+    processed_results[metadata.DatasetNames.TAXES_1040] = formatter.format_1040_dataset(
+        processed_results
+    )
 
-    # TODO: make new for loop to write out files except tax dependents
-        logger.info(f"Writing final {observer} results.")
-        obs_dir = build_output_dir(final_output_dir, subdir=observer)
-        seed_ext = f"_{seed}" if seed != "" else ""
-        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
+    # Write results for each dataset - we do not need to write out tax dependents now that we format
+    # the 1040 dataset above
+    for observer in FINAL_OBSERVERS:
+        if observer != metadata.DatasetNames.TAXES_DEPENDENTS:
+            obs_data = processed_results[observer]
+            logger.info(f"Writing final {observer} results.")
+            obs_dir = build_output_dir(final_output_dir, subdir=observer)
+            seed_ext = f"_{seed}" if seed != "" else ""
+            write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
