@@ -47,8 +47,9 @@ def get_simulant_id_maps(
         raise ValueError(f"Expected `simulant_id`, got `{column_name}`")
     maps = dict()
     maps.update(get_ssn_map(obs_data, column_name, artifact, seed, all_seeds))
-    # todo: add copy itin to get_itin_map
-    maps.update(get_itin_map(obs_data, column_name, artifact, seed, all_seeds))
+    maps.update(
+        get_ssn_itin_map(obs_data, column_name, artifact, seed, all_seeds, maps["ssn"])
+    )
 
     return maps
 
@@ -137,12 +138,13 @@ def get_ssn_map(
     return {"ssn": pd.Series(ssns, index=need_ssns, name="ssn")}
 
 
-def get_itin_map(
+def get_ssn_itin_map(
     obs_data: Dict[str, pd.DataFrame],
     column_name: str,
     artifact: Artifact,
     seed: str,
     all_seeds: List[str],
+    ssns: pd.Series,
 ):
     formatted_obs_data = format_data_for_mapping(
         index_name=column_name,
@@ -152,8 +154,10 @@ def get_itin_map(
     simulant_data = formatted_obs_data.reset_index().drop_duplicates().set_index(column_name)
     itin_mask = ~simulant_data["has_ssn"]
     itins = _load_ids(artifact, "/synthetic_data/itins", itin_mask.sum(), seed, all_seeds)
-
-    return {"itin": pd.Series(itins, index=simulant_data.index[itin_mask], name="itin")}
+    itins = pd.Series(itins, index=simulant_data.index[itin_mask], name="itin")
+    ssn_itins = pd.concat([ssns, itins])
+    ssn_itins.name = "ssn_itin"
+    return {"ssn_itin": ssn_itins}
 
 
 def _load_ids(

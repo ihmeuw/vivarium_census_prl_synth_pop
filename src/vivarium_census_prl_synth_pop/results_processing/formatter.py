@@ -170,9 +170,6 @@ def format_1040_dataset(processed_results: Dict[str, pd.Series]) -> pd.DataFrame
     # Load data
     df_1040 = processed_results[metadata.DatasetNames.TAXES_1040]
     df_dependents = processed_results[metadata.DatasetNames.TAXES_DEPENDENTS]
-    # Combine ssn and itin columns
-    df_1040 = combine_ssn_and_itin_columns(df_1040)
-    df_dependents = combine_ssn_and_itin_columns(df_dependents)
 
     # Get wide format of dependents - metadata for each guardian's dependents
     dependents_wide = flatten_data(
@@ -183,7 +180,7 @@ def format_1040_dataset(processed_results: Dict[str, pd.Series]) -> pd.DataFrame
             "simulant_id",
             "first_name",
             "last_name",
-            "ssn",
+            "ssn_itin",
             "copy_ssn",
         ],
     )
@@ -192,7 +189,7 @@ def format_1040_dataset(processed_results: Dict[str, pd.Series]) -> pd.DataFrame
     # Make sure we have all dependent columns if data does not have a guardian with 4 dependents
     for i in range(2, 5):
         if f"dependent_{i}_first_name" not in dependents_wide.columns:
-            dependents_cols = ["first_name", "last_name", "ssn", "copy_ssn"]
+            dependents_cols = ["first_name", "last_name", "ssn_itin", "copy_ssn"]
             for column in dependents_cols:
                 dependents_wide[f"dependent_{i}_{column}"] = np.nan
 
@@ -210,6 +207,11 @@ def format_1040_dataset(processed_results: Dict[str, pd.Series]) -> pd.DataFrame
     #   dependents_wide, how="left",
     #   left_on=["COLUMNS.spouse_simulant_id.name", "COLUMNS.tax_year.name"],
     #   right_on=["COLUMNS.guardian_id.name", "COLUMNS.tax_year.name"])
+    # Rename "ssn_itin" columns to "ssn"
+    tax_1040_w_dependents.columns = tax_1040_w_dependents.columns.str.replace(
+        "ssn_itin", "ssn"
+    )
+
     return tax_1040_w_dependents
 
 
@@ -262,11 +264,3 @@ def combine_joint_filers(data: pd.DataFrame) -> pd.DataFrame:
     joint_1040 = pd.concat([reference_persons_wide, independent_filers])
 
     return joint_1040
-
-
-def combine_ssn_and_itin_columns(data: pd.DataFrame) -> pd.DataFrame:
-    # This combines the ssn and itin columns into the ssn column.
-    # Simulants can either have an ssn or an itin so we will replace
-    # the nans in the ssn column with that rows corresponding itin value
-    data["ssn"] = np.where(data["ssn"].notna(), data["ssn"], data["itin"])
-    return data

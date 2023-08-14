@@ -202,7 +202,7 @@ FINAL_OBSERVERS = {
         "mailing_address_po_box",
         "housing_type",
         "joint_filer",
-        "ssn",
+        "ssn_itin",
         "copy_ssn",
         "tax_year",
         "relationship_to_reference_person",
@@ -228,14 +228,23 @@ FINAL_OBSERVERS = {
         "mailing_address_state",
         "mailing_address_po_box",
         "sex",
-        "ssn",
+        "ssn_itin",
         "copy_ssn",
-        "itin",
         "guardian_id",
         "housing_type",
         "tax_year",
     },
 }
+
+OUTPUT_DATASETS = [
+    metadata.DatasetNames.ACS,
+    metadata.DatasetNames.CENSUS,
+    metadata.DatasetNames.CPS,
+    metadata.DatasetNames.SSA,
+    metadata.DatasetNames.WIC,
+    metadata.DatasetNames.TAXES_W2_1099,
+    metadata.DatasetNames.TAXES_1040,
+]
 
 PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
 
@@ -379,7 +388,7 @@ def perform_post_processing(
     # Write results for each dataset - we do not need to write out tax dependents now that we format
     # the 1040 dataset above
     for observer in FINAL_OBSERVERS:
-        if observer != metadata.DatasetNames.TAXES_DEPENDENTS:
+        if observer in OUTPUT_DATASETS:
             obs_data = processed_results[observer]
             logger.info(f"Writing final {observer} results.")
             obs_dir = build_output_dir(final_output_dir, subdir=observer)
