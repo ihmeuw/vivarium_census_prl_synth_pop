@@ -204,7 +204,6 @@ FINAL_OBSERVERS = {
         "joint_filer",
         "ssn",
         "copy_ssn",
-        "itin",
         "tax_year",
         "relationship_to_reference_person",
     },
