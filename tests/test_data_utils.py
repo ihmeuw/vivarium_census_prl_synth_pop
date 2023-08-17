@@ -11,6 +11,9 @@ from vivarium_census_prl_synth_pop.results_processing.formatter import (
 
 @pytest.fixture(scope="module")
 def dummy_1040():
+    # pd.DataFrame that has joint filers, single filer across multiple households
+    # Across households we have joint filing reference persons, single filing reference
+    # person and other single filing simulants.
     return pd.DataFrame(
         {
             "simulant_id": list(range(8)) * 2,
@@ -30,7 +33,7 @@ def dummy_1040():
                 "Opp-sex spouse",
                 "Biological child",
                 "Reference person",
-                "Opp-sex spouse",
+                "Same-sex spouse",
                 "Reference person",
                 "Roommate",
                 "Opp-sex spouse",
@@ -56,6 +59,9 @@ def dummy_1040():
 
 @pytest.fixture(scope="module")
 def dummy_tax_dependents():
+    # pd.DataFrame of simulants and guardian pairs
+    # Guardian ids are a simulant in dummy_1040 fixture
+    # Guardians can have 1-4 depedents
     return pd.DataFrame(
         {
             "simulant_id": [2, 103, 104, 105, 106, 107, 108, 109] * 2,
@@ -110,7 +116,7 @@ def test_combine_joint_filers(dummy_1040):
     )
     joint_filer_ids = dummy_1040.loc[dummy_1040["joint_filer"] == True, "simulant_id"]
     # Joint filer ids should not be in simulant ids
-    assert not bool(set(joint_1040["simulant_id"]) & set(joint_filer_ids))
+    assert not set(joint_1040["simulant_id"]) & set(joint_filer_ids)
     # Check we are returned correct number of rows... original data - joint filer rows
     assert len(dummy_1040) - len(joint_filer_ids) == len(joint_1040)
 
@@ -123,10 +129,10 @@ def test_flatten_data(dummy_tax_dependents):
         value_cols=["favorite_food"],
     )
     # Dependent and guardian ids should never overlap
-    assert not bool(
-        set(dependents_wide.reset_index()["guardian_id"])
-        & set(dummy_tax_dependents["simulant_id"])
+    assert not set(dependents_wide.reset_index()["guardian_id"]) & set(
+        dummy_tax_dependents["simulant_id"]
     )
+
     # The length of rows should be total guardian/tax year combinations which is 6
     assert len(dependents_wide) == 6
     # Guardian/simulant id 0 has 4 dependents which is the highest number of dependents
@@ -153,7 +159,7 @@ def test_format_1040_dataset(dummy_1040, dummy_tax_dependents):
     # We must check each year because of migration/joint filing
     for year in tax_1040["tax_year"].unique():
         year_df = tax_1040.loc[tax_1040["tax_year"] == year]
-        assert not bool(set(year_df["simulant_id"]) & set(year_df["spouse_simulant_id"]))
+        assert not set(year_df["simulant_id"]) & set(year_df["spouse_simulant_id"])
     # Check formatted tax 1040 has necessary output columns
     # Note this is before we clense our data of extra columns
     for member_prefix in [
