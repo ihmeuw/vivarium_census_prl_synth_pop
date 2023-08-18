@@ -43,7 +43,7 @@ def mocked_pop_view(observer):
 def mocked_household_details_pipeline(mocked_pop_view):
     def _mocked_pipeline(_):
         df = mocked_pop_view[["household_id"]]
-        df["housing_type"] = ["Van", "Standard"]
+        df["housing_type"] = ["Van", "Household"]
         df["address_id"] = [100, 200]
         df["po_box"] = [-1, -2]
         df["state_id"] = [-1, -2]
