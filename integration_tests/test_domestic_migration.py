@@ -24,7 +24,7 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
         # established by a new-household mover (within the same time step).
         movers_into_new_households = (
             (before["household_id"] != after["household_id"])
-            & (after["household_details.housing_type"] == "Standard")
+            & (after["household_details.housing_type"] == "Household")
             & (~after["household_id"].isin(before["household_id"]))
         )
         assert movers_into_new_households.any()
@@ -67,10 +67,10 @@ def test_individuals_move_into_new_households(simulants_on_adjacent_timesteps):
 def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
     for before, after in simulants_on_adjacent_timesteps:
         gq_movers = (before["household_id"] != after["household_id"]) & (
-            after["household_details.housing_type"] != "Standard"
+            after["household_details.housing_type"] != "Household"
         )
         assert gq_movers.any()
-        assert (before[gq_movers]["household_details.housing_type"] == "Standard").any()
+        assert (before[gq_movers]["household_details.housing_type"] == "Household").any()
         assert after[gq_movers]["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).all()
         assert (
             after[gq_movers]["relationship_to_reference_person"]
@@ -98,7 +98,7 @@ def test_individual_movers_have_correct_relationship(simulants_on_adjacent_times
     for before, after in simulants_on_adjacent_timesteps:
         non_reference_person_movers = (
             (before["household_id"] != after["household_id"])
-            & (after["household_details.housing_type"] == "Standard")
+            & (after["household_details.housing_type"] == "Household")
             & (after["household_id"].isin(before["household_id"]))
         )
         assert non_reference_person_movers.any()
@@ -159,7 +159,7 @@ def test_households_move(simulants_on_adjacent_timesteps):
 
         # Never GQ households
         assert (
-            before[household_movers]["household_details.housing_type"] == "Standard"
+            before[household_movers]["household_details.housing_type"] == "Household"
         ).all()
 
         check_po_box_collisions(after, before, household_movers)

@@ -123,7 +123,7 @@ class PersonEmigration:
         )
         household_details = self.household_details(pop.index)
         non_reference_people_idx = pop.index[
-            (household_details["housing_type"] == "Standard")
+            (household_details["housing_type"] == "Household")
             & (pop["relationship_to_reference_person"] != "Reference person")
         ]
         non_reference_person_movers_idx = self.randomness.filter_for_rate(
@@ -131,7 +131,7 @@ class PersonEmigration:
             self.non_reference_person_move_rates(non_reference_people_idx),
         )
         gq_people_idx = household_details.index[
-            household_details["housing_type"] != "Standard"
+            household_details["housing_type"] != "Household"
         ]
         gq_person_movers_idx = self.randomness.filter_for_rate(
             gq_people_idx,

@@ -309,7 +309,7 @@ def perform_post_processing(
         # the (up to 6) PUMAs with group quarters in them.
         gq_pumas = (
             processed_results[metadata.DatasetNames.CENSUS]
-            .pipe(lambda df: df[df["housing_type"] != "Standard"])[["state_id", "puma"]]
+            .pipe(lambda df: df[df["housing_type"] != "Household"])[["state_id", "puma"]]
             .drop_duplicates()
         )
         pumas_to_keep = pd.concat(

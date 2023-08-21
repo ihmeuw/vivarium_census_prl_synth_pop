@@ -66,9 +66,9 @@ def test_gq_address_columns(tracked_live_populations, time_step):
         == (pop["relationship_to_reference_person"] == "Noninstitutionalized GQ pop")
     ).all()
 
-    # All non-GQ people have standard housing type
+    # All non-GQ people have standard housing type "household"
     assert (
-        (pop["household_details.housing_type"] == "Standard")
+        (pop["household_details.housing_type"] == "Household")
         == (
             ~pop["relationship_to_reference_person"].isin(
                 ["Institutionalized GQ pop", "Noninstitutionalized GQ pop"]

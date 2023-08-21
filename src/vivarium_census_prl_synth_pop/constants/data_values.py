@@ -23,7 +23,7 @@ INSTITUTIONAL_GROUP_QUARTER_IDS = {"Carceral": 0, "Nursing home": 1, "Other inst
 NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "College": 3,
     "Military": 4,
-    "Other non-institutional": 5,
+    "Other noninstitutional": 5,
 }
 GROUP_QUARTER_IDS = {
     "Institutionalized GQ pop": INSTITUTIONAL_GROUP_QUARTER_IDS,
@@ -35,9 +35,9 @@ GQ_HOUSING_TYPE_MAP = {
     2: "Other institutional",
     3: "College",
     4: "Military",
-    5: "Other non-institutional",
+    5: "Other noninstitutional",
 }
-HOUSING_TYPES = ["Standard"] + list(GQ_HOUSING_TYPE_MAP.values())
+HOUSING_TYPES = ["Household"] + list(GQ_HOUSING_TYPE_MAP.values())
 
 PROPORTION_INITIALIZATION_WITH_SSN = 0.743
 PROPORTION_IMMIGRANTS_WITH_SSN = 0.625

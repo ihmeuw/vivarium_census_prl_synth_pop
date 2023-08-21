@@ -127,7 +127,7 @@ class Households:
     def create_households(
         self,
         num_households: int,
-        housing_type: str = "Standard",
+        housing_type: str = "Household",
         states_pumas: Optional[pd.DataFrame] = None,
     ) -> pd.Series:
         """
