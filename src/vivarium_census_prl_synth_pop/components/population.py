@@ -18,15 +18,15 @@ from vivarium_census_prl_synth_pop.utilities import (
 )
 
 # Family/household relationships helper lists
-NON_RELATIVES = ["Roommate", "Other nonrelative"]
+NON_RELATIVES = ["Roommate or housemate", "Other nonrelative"]
 CHILDREN = ["Biological child", "Adopted child", "Foster child", "Stepchild"]
 CHILDREN_RELATIVES = ["Sibling", "Other relative", "Grandchild", "Child-in-law"]
 PARENTS = ["Parent", "Parent-in-law"]
 PARTNERS = [
-    "Opp-sex spouse",
-    "Opp-sex partner",
+    "Opposite-sex spouse",
+    "Opposite-sex unmarried partner",
     "Same-sex spouse",
-    "Same-sex partner",
+    "Same-sex unmarried partner",
 ]
 
 
@@ -209,10 +209,12 @@ class Population:
         self.perturb_individual_age(new_simulants)
 
         noninstitutionalized = new_simulants.loc[
-            new_simulants["relationship_to_reference_person"] == "Noninstitutionalized GQ pop"
+            new_simulants["relationship_to_reference_person"]
+            == "Noninstitutionalized group quarters population"
         ].copy()
         institutionalized = new_simulants.loc[
-            new_simulants["relationship_to_reference_person"] == "Institutionalized GQ pop"
+            new_simulants["relationship_to_reference_person"]
+            == "Institutionalized group quarters population"
         ].copy()
 
         noninstitutionalized_gq_types = vectorized_choice(
@@ -395,10 +397,10 @@ class Population:
                 {
                     "Parent": "Other relative",
                     "Parent-in-law": "Other relative",
-                    "Opp-sex spouse": "Other relative",
+                    "Opposite-sex spouse": "Other relative",
                     "Same-sex spouse": "Other relative",
-                    "Opp-sex partner": "Other nonrelative",
-                    "Same-sex partner": "Other nonrelative",
+                    "Opposite-sex unmarried partner": "Other nonrelative",
+                    "Same-sex unmarried partner": "Other nonrelative",
                 }
             )
             .astype(existing_simulants["relationship_to_reference_person"].dtype)

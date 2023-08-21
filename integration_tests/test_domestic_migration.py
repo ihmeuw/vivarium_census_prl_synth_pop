@@ -74,7 +74,12 @@ def test_individuals_move_into_group_quarters(simulants_on_adjacent_timesteps):
         assert after[gq_movers]["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).all()
         assert (
             after[gq_movers]["relationship_to_reference_person"]
-            .isin(["Institutionalized GQ pop", "Noninstitutionalized GQ pop"])
+            .isin(
+                [
+                    "Institutionalized group quarters population",
+                    "Noninstitutionalized group quarters population",
+                ]
+            )
             .all()
         )
 
@@ -126,7 +131,7 @@ def test_individual_movers_have_correct_relationship(simulants_on_adjacent_times
             after.loc[
                 mover_to_household_without_reference_person,
                 "relationship_to_reference_person",
-            ].isin(["Other nonrelative", "Reference person", "Roommate"])
+            ].isin(["Other nonrelative", "Reference person", "Roommate or housemate"])
         ).all()
 
 

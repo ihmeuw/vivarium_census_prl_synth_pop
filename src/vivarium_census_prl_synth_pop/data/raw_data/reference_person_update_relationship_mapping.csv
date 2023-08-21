@@ -1,28 +1,28 @@
 relationship_to_old_reference_person,new_reference_person_relationship_to_old_reference_person,relationship_to_new_reference_person,Note
-Biological child,Opp-sex spouse,Biological child,
-Adopted child,Opp-sex spouse,Adopted child,
-Stepchild,Opp-sex spouse,Biological child,Could be adopted child
-Sibling,Opp-sex spouse,Other relative,
-Parent,Opp-sex spouse,Parent-in-law,
-Grandchild,Opp-sex spouse,Grandchild,
-Parent-in-law,Opp-sex spouse,Parent,
-Child-in-law,Opp-sex spouse,Child-in-law,
-Other relative,Opp-sex spouse,Other relative,
-Roommate,Opp-sex spouse,Roommate,Questionable how people code roommate vs other nonrelative
-Foster child,Opp-sex spouse,Foster child,
-Other nonrelative,Opp-sex spouse,Other nonrelative,
-Biological child,Opp-sex partner,Biological child,
-Adopted child,Opp-sex partner,Adopted child,
-Stepchild,Opp-sex partner,Biological child,"This likely shouldn't happen; we assume it is due to an expansive definition of ""stepchild."" Could also be adopted child"
-Sibling,Opp-sex partner,Other relative,
-Parent,Opp-sex partner,Other nonrelative,
-Grandchild,Opp-sex partner,Grandchild,
-Parent-in-law,Opp-sex partner,Parent,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
-Child-in-law,Opp-sex partner,Child-in-law,
-Other relative,Opp-sex partner,Other nonrelative,
-Roommate,Opp-sex partner,Roommate,Questionable how people code roommate vs other nonrelative
-Foster child,Opp-sex partner,Foster child,
-Other nonrelative,Opp-sex partner,Other nonrelative,
+Biological child,Opposite-sex spouse,Biological child,
+Adopted child,Opposite-sex spouse,Adopted child,
+Stepchild,Opposite-sex spouse,Biological child,Could be adopted child
+Sibling,Opposite-sex spouse,Other relative,
+Parent,Opposite-sex spouse,Parent-in-law,
+Grandchild,Opposite-sex spouse,Grandchild,
+Parent-in-law,Opposite-sex spouse,Parent,
+Child-in-law,Opposite-sex spouse,Child-in-law,
+Other relative,Opposite-sex spouse,Other relative,
+Roommate or housemate,Opposite-sex spouse,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Foster child,Opposite-sex spouse,Foster child,
+Other nonrelative,Opposite-sex spouse,Other nonrelative,
+Biological child,Opposite-sex unmarried partner,Biological child,
+Adopted child,Opposite-sex unmarried partner,Adopted child,
+Stepchild,Opposite-sex unmarried partner,Biological child,"This likely shouldn't happen; we assume it is due to an expansive definition of ""stepchild."" Could also be adopted child"
+Sibling,Opposite-sex unmarried partner,Other relative,
+Parent,Opposite-sex unmarried partner,Other nonrelative,
+Grandchild,Opposite-sex unmarried partner,Grandchild,
+Parent-in-law,Opposite-sex unmarried partner,Parent,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
+Child-in-law,Opposite-sex unmarried partner,Child-in-law,
+Other relative,Opposite-sex unmarried partner,Other nonrelative,
+Roommate or housemate,Opposite-sex unmarried partner,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Foster child,Opposite-sex unmarried partner,Foster child,
+Other nonrelative,Opposite-sex unmarried partner,Other nonrelative,
 Biological child,Same-sex spouse,Adopted child,We assume a second-parent adoption
 Adopted child,Same-sex spouse,Adopted child,"Possibly biological child (second-parent adoption), but we can't be sure"
 Stepchild,Same-sex spouse,Biological child,Could be adopted child
@@ -32,25 +32,25 @@ Grandchild,Same-sex spouse,Grandchild,
 Parent-in-law,Same-sex spouse,Parent,
 Child-in-law,Same-sex spouse,Child-in-law,
 Other relative,Same-sex spouse,Other relative,
-Roommate,Same-sex spouse,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Same-sex spouse,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Same-sex spouse,Foster child,
 Other nonrelative,Same-sex spouse,Other nonrelative,
-Biological child,Same-sex partner,Adopted child,We assume a second-parent adoption
-Adopted child,Same-sex partner,Adopted child,"Possibly biological child (second-parent adoption), but we can't be sure"
-Stepchild,Same-sex partner,Biological child,"This likely shouldn't happen; we assume it is due to an expansive definition of ""stepchild."" Could also be adopted child"
-Sibling,Same-sex partner,Other relative,
-Parent,Same-sex partner,Other nonrelative,
-Grandchild,Same-sex partner,Grandchild,
-Parent-in-law,Same-sex partner,Parent,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
-Child-in-law,Same-sex partner,Child-in-law,
-Other relative,Same-sex partner,Other nonrelative,
-Roommate,Same-sex partner,Roommate,Questionable how people code roommate vs other nonrelative
-Foster child,Same-sex partner,Foster child,
-Other nonrelative,Same-sex partner,Other nonrelative,
-Opp-sex spouse,Biological child,Parent,
-Opp-sex partner,Biological child,Parent,
+Biological child,Same-sex unmarried partner,Adopted child,We assume a second-parent adoption
+Adopted child,Same-sex unmarried partner,Adopted child,"Possibly biological child (second-parent adoption), but we can't be sure"
+Stepchild,Same-sex unmarried partner,Biological child,"This likely shouldn't happen; we assume it is due to an expansive definition of ""stepchild."" Could also be adopted child"
+Sibling,Same-sex unmarried partner,Other relative,
+Parent,Same-sex unmarried partner,Other nonrelative,
+Grandchild,Same-sex unmarried partner,Grandchild,
+Parent-in-law,Same-sex unmarried partner,Parent,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
+Child-in-law,Same-sex unmarried partner,Child-in-law,
+Other relative,Same-sex unmarried partner,Other nonrelative,
+Roommate or housemate,Same-sex unmarried partner,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Foster child,Same-sex unmarried partner,Foster child,
+Other nonrelative,Same-sex unmarried partner,Other nonrelative,
+Opposite-sex spouse,Biological child,Parent,
+Opposite-sex unmarried partner,Biological child,Parent,
 Same-sex spouse,Biological child,Parent,
-Same-sex partner,Biological child,Parent,
+Same-sex unmarried partner,Biological child,Parent,
 Biological child,Biological child,Sibling,"Could be half-sibling, which might not be reported as sibling"
 Adopted child,Biological child,Sibling,Might not be reported as sibling
 Stepchild,Biological child,Other relative,"Assuming step-siblings are not reported as ""brother or sister"""
@@ -60,13 +60,13 @@ Grandchild,Biological child,Other relative,"Could also be a child (we assume not
 Parent-in-law,Biological child,Other relative,Grandparent
 Child-in-law,Biological child,Other relative,"Most likely some kind of spouse/partner, but we need to enforce only 1 spouse/partner"
 Other relative,Biological child,Other relative,
-Roommate,Biological child,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Biological child,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Biological child,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Biological child,Other nonrelative,
-Opp-sex spouse,Adopted child,Parent,
-Opp-sex partner,Adopted child,Parent,
+Opposite-sex spouse,Adopted child,Parent,
+Opposite-sex unmarried partner,Adopted child,Parent,
 Same-sex spouse,Adopted child,Parent,
-Same-sex partner,Adopted child,Parent,
+Same-sex unmarried partner,Adopted child,Parent,
 Biological child,Adopted child,Sibling,Might not be reported as sibling
 Adopted child,Adopted child,Sibling,Might not be reported as sibling
 Stepchild,Adopted child,Other relative,"Assuming step-siblings are not reported as ""brother or sister"""
@@ -76,13 +76,13 @@ Grandchild,Adopted child,Other relative,"Could also be a child (we assume not, i
 Parent-in-law,Adopted child,Other relative,Grandparent
 Child-in-law,Adopted child,Other relative,"Most likely some kind of spouse/partner, but we need to enforce only 1 spouse/partner"
 Other relative,Adopted child,Other relative,
-Roommate,Adopted child,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Adopted child,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Adopted child,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Adopted child,Other nonrelative,
-Opp-sex spouse,Stepchild,Parent,
-Opp-sex partner,Stepchild,Parent,"We assume that this occurs due to expansive definition of ""stepchild"""
+Opposite-sex spouse,Stepchild,Parent,
+Opposite-sex unmarried partner,Stepchild,Parent,"We assume that this occurs due to expansive definition of ""stepchild"""
 Same-sex spouse,Stepchild,Parent,
-Same-sex partner,Stepchild,Parent,"We assume that this occurs due to expansive definition of ""stepchild"""
+Same-sex unmarried partner,Stepchild,Parent,"We assume that this occurs due to expansive definition of ""stepchild"""
 Biological child,Stepchild,Other relative,"Assuming step-siblings are not reported as ""brother or sister"""
 Adopted child,Stepchild,Other relative,"Assuming step-siblings are not reported as ""brother or sister"""
 Stepchild,Stepchild,Sibling,"Could be half-sibling, which might not be reported as sibling"
@@ -92,13 +92,13 @@ Grandchild,Stepchild,Other relative,"Could also be a child (we assume not, in ho
 Parent-in-law,Stepchild,Other relative,
 Child-in-law,Stepchild,Other relative,"Could be some kind of spouse/partner with expansive definition of ""child-in-law"", but we need to enforce only 1 spouse/partner"
 Other relative,Stepchild,Other relative,
-Roommate,Stepchild,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Stepchild,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Stepchild,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Stepchild,Other nonrelative,
-Opp-sex spouse,Sibling,Other relative,
-Opp-sex partner,Sibling,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
+Opposite-sex spouse,Sibling,Other relative,
+Opposite-sex unmarried partner,Sibling,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
 Same-sex spouse,Sibling,Other relative,
-Same-sex partner,Sibling,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
+Same-sex unmarried partner,Sibling,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
 Biological child,Sibling,Other relative,Niece/nephew
 Adopted child,Sibling,Other relative,Niece/nephew
 Stepchild,Sibling,Other relative,
@@ -108,13 +108,13 @@ Grandchild,Sibling,Other relative,
 Parent-in-law,Sibling,Other relative,
 Child-in-law,Sibling,Other relative,
 Other relative,Sibling,Other relative,
-Roommate,Sibling,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Sibling,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Sibling,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Sibling,Other nonrelative,
-Opp-sex spouse,Parent,Child-in-law,
-Opp-sex partner,Parent,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
+Opposite-sex spouse,Parent,Child-in-law,
+Opposite-sex unmarried partner,Parent,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
 Same-sex spouse,Parent,Child-in-law,
-Same-sex partner,Parent,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
+Same-sex unmarried partner,Parent,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
 Biological child,Parent,Grandchild,
 Adopted child,Parent,Grandchild,
 Stepchild,Parent,Grandchild,"We consider this relationship a grandparent/grandchild relationship, including at birth"
@@ -124,13 +124,13 @@ Grandchild,Parent,Other relative,Great-grandchild
 Parent-in-law,Parent,Other relative,
 Child-in-law,Parent,Other relative,
 Other relative,Parent,Other relative,
-Roommate,Parent,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Parent,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Parent,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Parent,Other nonrelative,
-Opp-sex spouse,Grandchild,Other relative,Grandparent
-Opp-sex partner,Grandchild,Other relative,Grandparent
+Opposite-sex spouse,Grandchild,Other relative,Grandparent
+Opposite-sex unmarried partner,Grandchild,Other relative,Grandparent
 Same-sex spouse,Grandchild,Other relative,Grandparent
-Same-sex partner,Grandchild,Other relative,Grandparent
+Same-sex unmarried partner,Grandchild,Other relative,Grandparent
 Biological child,Grandchild,Other relative,"Could be parent, but we are hoping that is tracked"
 Adopted child,Grandchild,Other relative,"Could be parent, but we are hoping that is tracked"
 Stepchild,Grandchild,Other relative,"Could be parent with expansive ""grandchild"" definition, but we are hoping that is tracked"
@@ -140,13 +140,13 @@ Grandchild,Grandchild,Sibling,"Could be other relative (cousins), but this is pr
 Parent-in-law,Grandchild,Other relative,Great-grandparent
 Child-in-law,Grandchild,Other relative,"Could be parent, but we are hoping that is tracked"
 Other relative,Grandchild,Other relative,
-Roommate,Grandchild,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Grandchild,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Grandchild,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Grandchild,Other nonrelative,
-Opp-sex spouse,Parent-in-law,Biological child,Could be adopted child
-Opp-sex partner,Parent-in-law,Biological child,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
+Opposite-sex spouse,Parent-in-law,Biological child,Could be adopted child
+Opposite-sex unmarried partner,Parent-in-law,Biological child,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
 Same-sex spouse,Parent-in-law,Biological child,Could be adopted child
-Same-sex partner,Parent-in-law,Biological child,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
+Same-sex unmarried partner,Parent-in-law,Biological child,"This likely shouldn't happen; we assume it is due to a liberal use of ""in-law"""
 Biological child,Parent-in-law,Grandchild,
 Adopted child,Parent-in-law,Grandchild,
 Stepchild,Parent-in-law,Grandchild,"NOT using expansive definition of ""grandchild"" -- parent-in-law should be direct grandparent of stepchild"
@@ -156,13 +156,13 @@ Grandchild,Parent-in-law,Other relative,Great-grandchild
 Parent-in-law,Parent-in-law,Other relative,Most likely some kind of spouse/partner; but we need to handle the (rare) case in ACS where there are >2 parent-in-laws
 Child-in-law,Parent-in-law,Other relative,
 Other relative,Parent-in-law,Other relative,
-Roommate,Parent-in-law,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Parent-in-law,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Parent-in-law,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Parent-in-law,Other nonrelative,
-Opp-sex spouse,Child-in-law,Parent-in-law,
-Opp-sex partner,Child-in-law,Parent-in-law,
+Opposite-sex spouse,Child-in-law,Parent-in-law,
+Opposite-sex unmarried partner,Child-in-law,Parent-in-law,
 Same-sex spouse,Child-in-law,Parent-in-law,
-Same-sex partner,Child-in-law,Parent-in-law,
+Same-sex unmarried partner,Child-in-law,Parent-in-law,
 Biological child,Child-in-law,Other relative,"Most likely some kind of spouse/partner, but we need to enforce only 1 spouse/partner"
 Adopted child,Child-in-law,Other relative,"Most likely some kind of spouse/partner, but we need to enforce only 1 spouse/partner"
 Stepchild,Child-in-law,Other relative,"Could be some kind of spouse/partner, but we need to enforce only 1 spouse/partner"
@@ -172,13 +172,13 @@ Grandchild,Child-in-law,Other relative,"We assume they are a niece/nephew, hopin
 Parent-in-law,Child-in-law,Other relative,
 Child-in-law,Child-in-law,Other relative,
 Other relative,Child-in-law,Other relative,
-Roommate,Child-in-law,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Child-in-law,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Child-in-law,Other nonrelative,"Assuming foster children are not relatives and ""child-in-law"" is not used for spouse of a foster child"
 Other nonrelative,Child-in-law,Other nonrelative,Could be a relative of some kind
-Opp-sex spouse,Other relative,Other relative,
-Opp-sex partner,Other relative,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
+Opposite-sex spouse,Other relative,Other relative,
+Opposite-sex unmarried partner,Other relative,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
 Same-sex spouse,Other relative,Other relative,
-Same-sex partner,Other relative,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
+Same-sex unmarried partner,Other relative,Other nonrelative,"We assume they do not have children with their unmarried partner; if they did, they would be a relative"
 Biological child,Other relative,Other relative,
 Adopted child,Other relative,Other relative,
 Stepchild,Other relative,Other relative,
@@ -188,29 +188,29 @@ Grandchild,Other relative,Other relative,
 Parent-in-law,Other relative,Other relative,
 Child-in-law,Other relative,Other relative,
 Other relative,Other relative,Other relative,
-Roommate,Other relative,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Other relative,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Other relative,Other nonrelative,Assuming foster children are not relatives
 Other nonrelative,Other relative,Other nonrelative,
-Opp-sex spouse,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Opp-sex partner,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Same-sex spouse,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Same-sex partner,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Biological child,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Adopted child,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Stepchild,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Sibling,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Parent,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Grandchild,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Parent-in-law,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Child-in-law,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Other relative,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Roommate,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Foster child,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Other nonrelative,Roommate,Roommate,Questionable how people code roommate vs other nonrelative
-Opp-sex spouse,Foster child,Other nonrelative,Assuming foster children are not relatives
-Opp-sex partner,Foster child,Other nonrelative,Assuming foster children are not relatives
+Opposite-sex spouse,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Opposite-sex unmarried partner,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Same-sex spouse,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Same-sex unmarried partner,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Biological child,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Adopted child,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Stepchild,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Sibling,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Parent,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Grandchild,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Parent-in-law,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Child-in-law,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Other relative,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Roommate or housemate,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Foster child,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Other nonrelative,Roommate or housemate,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
+Opposite-sex spouse,Foster child,Other nonrelative,Assuming foster children are not relatives
+Opposite-sex unmarried partner,Foster child,Other nonrelative,Assuming foster children are not relatives
 Same-sex spouse,Foster child,Other nonrelative,Assuming foster children are not relatives
-Same-sex partner,Foster child,Other nonrelative,Assuming foster children are not relatives
+Same-sex unmarried partner,Foster child,Other nonrelative,Assuming foster children are not relatives
 Biological child,Foster child,Other nonrelative,Assuming foster children are not relatives
 Adopted child,Foster child,Other nonrelative,Assuming foster children are not relatives
 Stepchild,Foster child,Other nonrelative,Assuming foster children are not relatives
@@ -220,13 +220,13 @@ Grandchild,Foster child,Other nonrelative,Assuming foster children are not relat
 Parent-in-law,Foster child,Other nonrelative,Assuming foster children are not relatives
 Child-in-law,Foster child,Other nonrelative,Assuming foster children are not relatives
 Other relative,Foster child,Other nonrelative,Assuming foster children are not relatives
-Roommate,Foster child,Roommate,Questionable how people code roommate vs other nonrelative
+Roommate or housemate,Foster child,Roommate or housemate,Questionable how people code Roommate or housemate vs other nonrelative
 Foster child,Foster child,Other nonrelative,"Assuming foster children are not relatives, and not relatives of each other"
 Other nonrelative,Foster child,Other nonrelative,"Assuming foster children are not relatives, and not relatives of other nonrelatives"
-Opp-sex spouse,Other nonrelative,Other nonrelative,Could be a relative of some kind
-Opp-sex partner,Other nonrelative,Other nonrelative,Could be a relative of some kind
+Opposite-sex spouse,Other nonrelative,Other nonrelative,Could be a relative of some kind
+Opposite-sex unmarried partner,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Same-sex spouse,Other nonrelative,Other nonrelative,Could be a relative of some kind
-Same-sex partner,Other nonrelative,Other nonrelative,Could be a relative of some kind
+Same-sex unmarried partner,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Biological child,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Adopted child,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Stepchild,Other nonrelative,Other nonrelative,Could be a relative of some kind
@@ -236,6 +236,6 @@ Grandchild,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Parent-in-law,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Child-in-law,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Other relative,Other nonrelative,Other nonrelative,Could be a relative of some kind
-Roommate,Other nonrelative,Other nonrelative,Could be a relative of some kind
+Roommate or housemate,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Foster child,Other nonrelative,Other nonrelative,Could be a relative of some kind
 Other nonrelative,Other nonrelative,Other nonrelative,Could be a relative of some kind

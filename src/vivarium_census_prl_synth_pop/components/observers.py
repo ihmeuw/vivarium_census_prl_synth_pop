@@ -1069,7 +1069,7 @@ class Tax1040Observer(BaseObserver):
         # add derived columns
         pop["tax_year"] = event.time.year - 1
         partners = [
-            "Opp-sex spouse",
+            "Opposite-sex spouse",
             "Same-sex spouse",
         ]
         # Get partners of reference members who filed taxes

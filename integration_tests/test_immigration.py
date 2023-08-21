@@ -60,13 +60,13 @@ def test_immigration_into_existing_households(immigrants_by_timestep, sim):
         ].isin(
             [
                 "Reference person",
-                "Institutionalized GQ pop",
-                "Noninstitutionalized GQ pop",
+                "Institutionalized group quarters population",
+                "Noninstitutionalized group quarters population",
                 "Parent",
-                "Opp-sex spouse",
-                "Opp-sex partner",
+                "Opposite-sex spouse",
+                "Opposite-sex unmarried partner",
                 "Same-sex spouse",
-                "Same-sex partner",
+                "Same-sex unmarried partner",
             ]
         )
 
@@ -115,13 +115,13 @@ def test_immigration_into_new_households(immigrants_by_timestep, sim):
         ].isin(
             [
                 "Reference person",
-                "Institutionalized GQ pop",
-                "Noninstitutionalized GQ pop",
+                "Institutionalized group quarters population",
+                "Noninstitutionalized group quarters population",
                 "Parent",
-                "Opp-sex spouse",
-                "Opp-sex partner",
+                "Opposite-sex spouse",
+                "Opposite-sex unmarried partner",
                 "Same-sex spouse",
-                "Same-sex partner",
+                "Same-sex unmarried partner",
             ]
         )
 

@@ -30,13 +30,13 @@ def dummy_1040():
             * 2,
             "relationship_to_reference_person": [
                 "Reference person",
-                "Opp-sex spouse",
+                "Opposite-sex spouse",
                 "Biological child",
                 "Reference person",
                 "Same-sex spouse",
                 "Reference person",
-                "Roommate",
-                "Opp-sex spouse",
+                "Roommate or housemate",
+                "Opposite-sex spouse",
             ]
             * 2,
             "household_id": [
