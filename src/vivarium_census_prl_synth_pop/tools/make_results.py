@@ -542,8 +542,9 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             if output_file_path.exists():
                 continue
             if observer == metadata.DatasetNames.SSA:
-                state_data = read_datafile(usa_obs_file, reset_index=False)
+                state_filter_val = None
             else:
-                state_data = read_datafile(usa_obs_file, reset_index=False, state=state)
+                state_filter_val = state
+            state_data = read_datafile(usa_obs_file, reset_index=False, state=state_filter_val)
             write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
