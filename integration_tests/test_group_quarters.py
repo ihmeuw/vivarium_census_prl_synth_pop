@@ -23,13 +23,19 @@ def test_gq_relationship_column(tracked_live_populations):
         # All people in institutional GQ have the correct "relation to household head"
         assert (
             (pop["household_id"].isin(data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.values()))
-            == (pop["relationship_to_reference_person"] == "Institutionalized GQ pop")
+            == (
+                pop["relationship_to_reference_person"]
+                == "Institutionalized group quarters population"
+            )
         ).all()
 
     # All people in non-institutional GQ have the correct "relation to household head"
     assert (
         (pop.household_id.isin(data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.values()))
-        == (pop["relationship_to_reference_person"] == "Noninstitutionalized GQ pop")
+        == (
+            pop["relationship_to_reference_person"]
+            == "Noninstitutionalized group quarters population"
+        )
     ).all()
 
 
@@ -53,7 +59,10 @@ def test_gq_address_columns(tracked_live_populations, time_step):
                 data_values.INSTITUTIONAL_GROUP_QUARTER_IDS.keys()
             )
         )
-        == (pop["relationship_to_reference_person"] == "Institutionalized GQ pop")
+        == (
+            pop["relationship_to_reference_person"]
+            == "Institutionalized group quarters population"
+        )
     ).all()
 
     # All people in non-institutional GQ have a correct housing type
@@ -63,7 +72,10 @@ def test_gq_address_columns(tracked_live_populations, time_step):
                 data_values.NONINSTITUTIONAL_GROUP_QUARTER_IDS.keys()
             )
         )
-        == (pop["relationship_to_reference_person"] == "Noninstitutionalized GQ pop")
+        == (
+            pop["relationship_to_reference_person"]
+            == "Noninstitutionalized group quarters population"
+        )
     ).all()
 
     # All non-GQ people have standard housing type "household"
@@ -71,7 +83,10 @@ def test_gq_address_columns(tracked_live_populations, time_step):
         (pop["household_details.housing_type"] == "Household")
         == (
             ~pop["relationship_to_reference_person"].isin(
-                ["Institutionalized GQ pop", "Noninstitutionalized GQ pop"]
+                [
+                    "Institutionalized group quarters population",
+                    "Noninstitutionalized group quarters population",
+                ]
             )
         )
     ).all()

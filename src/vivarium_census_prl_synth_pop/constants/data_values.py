@@ -26,8 +26,8 @@ NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "Other noninstitutional": 5,
 }
 GROUP_QUARTER_IDS = {
-    "Institutionalized GQ pop": INSTITUTIONAL_GROUP_QUARTER_IDS,
-    "Noninstitutionalized GQ pop": NONINSTITUTIONAL_GROUP_QUARTER_IDS,
+    "Institutionalized group quarters population": INSTITUTIONAL_GROUP_QUARTER_IDS,
+    "Noninstitutionalized group quarters population": NONINSTITUTIONAL_GROUP_QUARTER_IDS,
 }
 GQ_HOUSING_TYPE_MAP = {
     0: "Carceral",

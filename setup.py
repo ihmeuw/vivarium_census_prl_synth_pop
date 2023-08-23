@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     # use "pip install -e .[dev]" to install required components + extra components
     data_requires = [
-        "jobmon_installer_ihme==10.6.0",
+        "jobmon_installer_ihme==10.6.2",
         "vivarium_cluster_tools>=1.3.8",
         "vivarium_inputs[data]==4.0.10",
     ]

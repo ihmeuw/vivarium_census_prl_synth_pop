@@ -103,10 +103,10 @@ def test_households_only_have_one_parter_or_spouse(tracked_live_populations):
         household_ids = pop.loc[
             pop["relationship_to_reference_person"].isin(
                 [
-                    "Opp-sex spouse",
-                    "Opp-sex partner",
+                    "Opposite-sex spouse",
+                    "Opposite-sex unmarried partner",
                     "Same-sex spouse",
-                    "Same-sex partner",
+                    "Same-sex unmarried partner",
                 ]
             ),
             "household_id",
