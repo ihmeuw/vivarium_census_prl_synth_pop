@@ -545,6 +545,8 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
                 state_filter_val = None
             else:
                 state_filter_val = state
-            state_data = read_datafile(usa_obs_file, reset_index=False, state=state_filter_val)
+            state_data = read_datafile(
+                usa_obs_file, reset_index=False, state=state_filter_val
+            )
             write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
