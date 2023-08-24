@@ -531,9 +531,6 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
 
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing {observer} data")
-        if observer == metadata.DatasetNames.SSA:
-            logger.info(f"Ignoring {observer} as it does not have a state column.")
-            continue
         usa_obs_dir = usa_results_dir / observer
         usa_obs_files = sorted(
             list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
@@ -544,6 +541,12 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             output_file_path = state_observer_dir / usa_obs_file.name
             if output_file_path.exists():
                 continue
-            state_data = read_datafile(usa_obs_file, reset_index=False, state=state)
+            if observer == metadata.DatasetNames.SSA:
+                state_filter_val = None
+            else:
+                state_filter_val = state
+            state_data = read_datafile(
+                usa_obs_file, reset_index=False, state=state_filter_val
+            )
             write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
