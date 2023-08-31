@@ -682,7 +682,7 @@ def test_mailing_address(mocker):
 
     for column in ["street_number", "street_name", "unit_number"]:
         column_name = f"mailing_address_{column}"
-        assert (mailing_map[column_name][po_box_mask] == "").all()
+        assert (mailing_map[column_name][po_box_mask].isna()).all()
         assert (
             mailing_map[column_name][~po_box_mask] == fake_maps[column][~po_box_mask]
         ).all()
