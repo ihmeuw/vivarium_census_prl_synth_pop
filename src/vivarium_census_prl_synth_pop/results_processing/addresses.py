@@ -262,14 +262,14 @@ def get_mailing_address_map(
     must contain columns for physical address ["street_number", "street_name", etc].
     """
 
-    # Get address_ds that have a PO box
+    # Get address_ids that have a PO box
     po_box_address_ids = formatted_obs_data["po_box"] != data_values.NO_PO_BOX
     # Setup mailing address map
     mailing_address_map = {}
     # Copy address line one columns and blank out columns for PO box address_ids.
     for column in HOUSEHOLD_ADDRESS_COL_MAP.values():
         mailing_address_map[f"mailing_address_{column}"] = pd.Series(
-            "", index=formatted_obs_data.index
+            np.nan, index=formatted_obs_data.index
         )
         # Move over address details for non-PO box addresses
         mailing_address_map[f"mailing_address_{column}"][~po_box_address_ids] = maps[column][
