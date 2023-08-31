@@ -250,7 +250,7 @@ PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
 
 PUBLIC_SAMPLE_ADDRESS_PARTS = {
     "city": "Anytown",
-    "state": "US",
+    "state": "WA",
     "zipcode": "00000",
 }
 
@@ -371,9 +371,7 @@ def perform_post_processing(
                     if f"{address_prefix}{address_part}" in obs_data.columns:
                         obs_data[f"{address_prefix}{address_part}"] = address_part_value
             # Fix the state column dtypes
-            state_categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values())) + [
-                PUBLIC_SAMPLE_ADDRESS_PARTS["state"]
-            ]
+            state_categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values()))
             state_cols = [c for c in obs_data.columns if "state" in c]
             for col in state_cols:
                 obs_data[col] = obs_data[col].astype(
