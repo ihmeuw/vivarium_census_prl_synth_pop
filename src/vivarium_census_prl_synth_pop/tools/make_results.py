@@ -263,6 +263,7 @@ def build_results(
     seed: str,
     artifact_path: str,
 ) -> None:
+    # Comment to test linting on pull request builds
     logger.info("Performing post-processing")
     perform_post_processing(
         raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
