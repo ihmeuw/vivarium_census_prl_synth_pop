@@ -87,4 +87,8 @@ jobs:
           isort . --check -v
       - name: Test
         run: |
-          pytest ./tests
+          if github.event_name == 'schedule'; then
+            pytest --runslow ./tests
+          else
+            pytest ./tests
+          fi
