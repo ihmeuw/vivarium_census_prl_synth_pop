@@ -39,10 +39,6 @@ class Population(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict:
-        return self.CONFIGURATION_DEFAULTS
-
-    @property
     def columns_created(self) -> List[str]:
         return [
             "household_id",
