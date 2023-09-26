@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -30,28 +31,16 @@ PARTNERS = [
 ]
 
 
-class Population:
-    configuration_defaults = {"us_population_size": data_values.US_POPULATION}
+class Population(Component):
+    CONFIGURATION_DEFAULTS = {"us_population_size": data_values.US_POPULATION}
+
+    ##############
+    # Properties #
+    ##############
 
     @property
-    def name(self):
-        return "population"
-
-    def setup(self, builder: Builder):
-        self.config = builder.configuration.population
-        self.seed = builder.configuration.randomness.random_seed
-        self.randomness = builder.randomness.get_stream("household_sampling")
-        self.proportion_with_ssn = builder.lookup.build_table(
-            data=data_values.PROPORTION_INITIALIZATION_WITH_SSN
-        )
-        self.proportion_immigrants_with_ssn = builder.lookup.build_table(
-            data=data_values.PROPORTION_IMMIGRANTS_WITH_SSN
-        )
-
-        self.start_time = get_time_stamp(builder.configuration.time.start)
-        self.step_size_days = builder.configuration.time.step_size
-
-        self.columns_created = [
+    def columns_created(self) -> List[str]:
+        return [
             "household_id",
             "relationship_to_reference_person",
             "sex",
@@ -69,9 +58,24 @@ class Population:
             "guardian_2",
             "born_in_us",
         ]
-        self.population_view = builder.population.get_view(
-            self.columns_created + ["state_id_for_lookup"]
+    
+    @property
+    def colums_required(self) -> List[str]:
+        return ["state_id_for_lookup"]
+
+    def setup(self, builder: Builder):
+        self.config = builder.configuration.population
+        self.seed = builder.configuration.randomness.random_seed
+        self.randomness = builder.randomness.get_stream("household_sampling")
+        self.proportion_with_ssn = builder.lookup.build_table(
+            data=data_values.PROPORTION_INITIALIZATION_WITH_SSN
         )
+        self.proportion_immigrants_with_ssn = builder.lookup.build_table(
+            data=data_values.PROPORTION_IMMIGRANTS_WITH_SSN
+        )
+
+        self.start_time = get_time_stamp(builder.configuration.time.start)
+        self.step_size_days = builder.configuration.time.step_size
         self.households = builder.components.get_component("households")
 
         # HACK: ACS data must be loaded in setup, since it comes from the artifact;
@@ -89,10 +93,6 @@ class Population:
             ],
         )
 
-        builder.population.initializes_simulants(
-            self.initialize_simulants, creates_columns=self.columns_created
-        )
-
         builder.event.register_listener("time_step__cleanup", self.on_time_step__cleanup)
 
     def _load_population_data(self, builder: Builder):
@@ -100,7 +100,7 @@ class Population:
         persons = builder.data.load(data_keys.POPULATION.PERSONS)
         return {"households": households, "persons": persons}
 
-    def initialize_simulants(self, pop_data: SimulantData) -> None:
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         # at start of sim, generate base population
         if pop_data.creation_time < self.start_time:
             self.generate_initial_population(pop_data)

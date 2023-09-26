@@ -15,14 +15,14 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium>=1.1.0",
-        "vivarium_public_health==0.10.22",
+        "vivarium>=2.0.0",
+        "vivarium_public_health>=2.0.0",
         "click",
         "gbd_mapping>=3.0.6, <4.0.0",
         "jinja2",
         "loguru",
         "numpy",
-        "pandas>=1.0.0, <2.0.0",
+        "pandas",
         "scipy",
         "tables",
         "pyyaml",
