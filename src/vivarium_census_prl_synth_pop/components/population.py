@@ -39,6 +39,10 @@ class Population(Component):
     ##############
 
     @property
+    def configuration_defaults(self) -> Dict:
+        return self.CONFIGURATION_DEFAULTS
+
+    @property
     def columns_created(self) -> List[str]:
         return [
             "household_id",
@@ -58,7 +62,7 @@ class Population(Component):
             "guardian_2",
             "born_in_us",
         ]
-    
+
     @property
     def colums_required(self) -> List[str]:
         return ["state_id_for_lookup"]
