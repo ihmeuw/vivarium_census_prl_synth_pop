@@ -39,10 +39,6 @@ class Population(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict:
-        return self.CONFIGURATION_DEFAULTS
-
-    @property
     def columns_created(self) -> List[str]:
         return [
             "household_id",
@@ -96,8 +92,6 @@ class Population(Component):
                 "guardian_1",
             ],
         )
-
-        builder.event.register_listener("time_step__cleanup", self.on_time_step__cleanup)
 
     def _load_population_data(self, builder: Builder):
         households = builder.data.load(data_keys.POPULATION.HOUSEHOLDS)
@@ -453,7 +447,7 @@ class Population(Component):
 
         self.population_view.update(new_simulants[self.columns_created])
 
-    def on_time_step__cleanup(self, event: Event):
+    def on_time_step_cleanup(self, event: Event):
         """Ages simulants each time step.
         Parameters
         ----------
