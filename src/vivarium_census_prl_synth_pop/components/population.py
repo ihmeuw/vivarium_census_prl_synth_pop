@@ -58,7 +58,6 @@ class Population(Component):
             "guardian_2",
             "born_in_us",
         ]
-
     @property
     def columns_required(self) -> List[str]:
         return ["state_id_for_lookup"]
