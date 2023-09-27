@@ -43,6 +43,7 @@ class Households(Component):
     def initialization_requires(self) -> Dict[str, List[str]]:
         return {
             "requires_values": ["household_details"],
+            "requires_columns": ["state_id_for_lookup"],
         }
 
     #################

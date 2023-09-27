@@ -60,10 +60,6 @@ class Population(Component):
         ]
 
     @property
-    def colums_required(self) -> List[str]:
-        return ["state_id_for_lookup"]
-
-    @property
     def initialization_requires(self) -> Dict[str, List[str]]:
         return {
             "requires_columns": ["state_id_for_lookup"],
