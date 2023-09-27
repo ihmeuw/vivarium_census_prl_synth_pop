@@ -21,17 +21,6 @@ class Fertility(FertilityAgeSpecificRates):
         - surname
     """
 
-    def __repr__(self) -> str:
-        return "Fertility()"
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self):
-        return "fertility"
-
     ########################
     # Event-driven methods #
     ########################
@@ -79,13 +68,3 @@ class Fertility(FertilityAgeSpecificRates):
                     "current_population_index": event.index,
                 },
             )
-
-    ###########
-    # Helpers #
-    ###########
-
-    def load_age_specific_fertility_rate_data(self, builder: Builder):
-        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
-        columns = ["year_start", "year_end", "age_start", "age_end", "value"]
-        asfr_data = asfr_data.loc[asfr_data.sex == "Female"][columns]
-        return asfr_data
