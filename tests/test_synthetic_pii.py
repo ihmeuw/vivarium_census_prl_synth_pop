@@ -167,6 +167,7 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
     assert (first_names["first_name"] != middle_names["middle_name"]).any()
 
 
+@pytest.mark.slow
 def test_last_names_proportions(mocker, last_names, fake_obs_data):
     # This function tests that the sampling proportions are working as expected
     artifact = mocker.MagicMock()
