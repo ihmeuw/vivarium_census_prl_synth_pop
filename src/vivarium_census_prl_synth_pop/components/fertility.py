@@ -23,6 +23,14 @@ class Fertility(FertilityAgeSpecificRates):
         - surname
     """
 
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def columns_created(self) -> List[str]:
+        return []
+
     ########################
     # Event-driven methods #
     ########################
