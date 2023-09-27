@@ -96,6 +96,8 @@ def test_get_observation(
     expected["middle_initial"] = ["J", "M"]
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2
+    # FIXME: Having dtype with with datime64[s] and [ns] causes pd.testing.assert_frame_equal to fail
+    expected["survey_date"] = expected["survey_date"].astype("datetime64[s]")
     expected[
         ["housing_type", "address_id", "state_id", "puma"]
     ] = mocked_household_details_pipeline("dummy")[
@@ -135,6 +137,8 @@ def test_multiple_observation(
     expected["middle_initial"] = ["J", "M"] * 2
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2 + [event.time] * 2
+    # FIXME: Having dtype with with datime64[s] and [ns] causes pd.testing.assert_frame_equal to fail
+    expected["survey_date"] = expected["survey_date"].astype("datetime64[s]")
     expected[["housing_type", "address_id", "state_id", "puma"]] = pd.concat(
         [
             mocked_household_details_pipeline("dummy")[

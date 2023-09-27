@@ -205,7 +205,7 @@ def vectorized_choice(
 
     # for each p_i in probs, count how many elements of cdf for which p_i >= cdf_i
     chosen_indices = np.searchsorted(cdf, probs, side="right")
-    return np.take(options, chosen_indices)
+    return np.take(options, chosen_indices, axis=0)
 
 
 def random_integers(
