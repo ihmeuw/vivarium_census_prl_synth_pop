@@ -60,10 +60,18 @@ class Population(Component):
         ]
 
     @property
+    def columns_required(self) -> List[str]:
+        return []
+    
+    @property
     def initialization_requires(self) -> Dict[str, List[str]]:
         return {
-            "requires_columns": ["state_id_for_lookup"],
+            "requires_columns": ["state_id_for_lookup", "in_united_states"],
         }
+    
+    #####################
+    # Lifecycle Methods #
+    #####################
 
     def setup(self, builder: Builder):
         self.config = builder.configuration.population
