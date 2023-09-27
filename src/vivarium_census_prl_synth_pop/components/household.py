@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
 from vivarium.framework.time import get_time_stamp
@@ -23,19 +24,26 @@ HOUSEHOLD_DETAILS_DTYPES = {
 }
 
 
-class Households:
+class Households(Component):
     """Manages household details"""
-
-    def __repr__(self) -> str:
-        return "Households()"
 
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "households"
+    def column_created(self) -> List[str]:
+        return ["state_id_for_lookup"]
+
+    @property
+    def columns_required(self) -> List[str]:
+        return ["tracked", "household_id"]
+
+    @property
+    def initialization_requires(self) -> Dict[str, List[str]]:
+        return {
+            "requires_values": ["household_details"],
+        }
 
     #################
     # Setup methods #
@@ -45,13 +53,6 @@ class Households:
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.randomness = builder.randomness.get_stream(self.name)
         self.state_puma_options = get_state_puma_options(builder)
-        self.columns_used = [
-            "tracked",
-            "household_id",
-            "state_id_for_lookup",
-        ]
-
-        self.population_view = builder.population.get_view(self.columns_used)
 
         # GQ households are special, with fixed IDs
         gq_household_ids = (
@@ -80,12 +81,6 @@ class Households:
             "household_details",
             source=self.get_household_details,
             requires_columns=["household_id", "tracked"],
-        )
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=["state_id_for_lookup"],
-            requires_values=["household_details"],
         )
 
     ##################################
