@@ -1,3 +1,5 @@
+from typing import List
+
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -21,11 +23,20 @@ class Fertility(FertilityAgeSpecificRates):
         - surname
     """
 
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def columns_created(self) -> List[str]:
+        return []
+
     ########################
     # Event-driven methods #
     ########################
 
     def on_time_step(self, event: Event):
+
         """Produces new children and updates parent status on time steps.
         Parameters
         ----------
