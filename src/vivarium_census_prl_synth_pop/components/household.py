@@ -32,7 +32,7 @@ class Households(Component):
     ##############
 
     @property
-    def column_created(self) -> List[str]:
+    def columns_created(self) -> List[str]:
         return ["state_id_for_lookup"]
 
     @property
@@ -43,7 +43,6 @@ class Households(Component):
     def initialization_requires(self) -> Dict[str, List[str]]:
         return {
             "requires_values": ["household_details"],
-            "requires_columns": ["state_id_for_lookup"],
         }
 
     #################
