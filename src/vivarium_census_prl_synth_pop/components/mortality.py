@@ -13,13 +13,7 @@ class Mortality(_Mortality):
 
     @property
     def columns_required(self) -> List[str]:
-        return [
-            "alive",
-            "exit_time",
-            "age",
-            "sex",
-            "relationship_to_reference_person",
-        ]
+        return super().columns_required + ["relationship_to_reference_person"]
 
     #####################
     # Lifecycle methods #
