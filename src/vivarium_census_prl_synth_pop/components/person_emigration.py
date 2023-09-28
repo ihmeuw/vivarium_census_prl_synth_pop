@@ -36,7 +36,6 @@ class PersonEmigration(Component):
     def columns_required(self) -> List[str]:
         return [
             "relationship_to_reference_person",
-            "in_united_states",
             "exit_time",
             "tracked",
             "state_id_for_lookup",
