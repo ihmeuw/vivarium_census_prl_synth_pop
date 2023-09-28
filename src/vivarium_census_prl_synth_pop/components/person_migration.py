@@ -1,6 +1,8 @@
-import numpy as np
+from typing import Dict, List
+
 import pandas as pd
 from loguru import logger
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -10,7 +12,7 @@ from vivarium.framework.utilities import from_yearly
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 
-class PersonMigration:
+class PersonMigration(Component):
     """
     Handles domestic (within the US) migration of individuals (not in household groups).
 
@@ -24,16 +26,27 @@ class PersonMigration:
     The population at risk for all three move types is all simulants.
     """
 
-    def __repr__(self) -> str:
-        return "PersonMigration()"
-
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "person_migration"
+    def columns_required(self) -> List[str]:
+        return [
+            "household_id",
+            "relationship_to_reference_person",
+            "previous_timestep_address_id",
+        ]
+
+    @property
+    def initialization_requires(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": ["previous_timestep_address_id"],
+        }
+
+    @property
+    def time_step_priority(sself) -> int:
+        return metadata.PRIORITY_MAP["person_migration.on_time_step"]
 
     #################
     # Setup methods #
@@ -43,12 +56,6 @@ class PersonMigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.households = builder.components.get_component("households")
         self.household_details = builder.value.get_value("household_details")
-        self.columns_needed = [
-            "household_id",
-            "relationship_to_reference_person",
-            "previous_timestep_address_id",
-        ]
-        self.population_view = builder.population.get_view(self.columns_needed)
         self.updated_relationship_to_reference_person = builder.value.get_value(
             "updated_relationship_to_reference_person"
         )
@@ -79,17 +86,6 @@ class PersonMigration:
         self.person_move_probabilities = builder.value.register_value_producer(
             f"{self.name}.move_probabilities",
             source=move_probabilities_lookup_table,
-        )
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=["previous_timestep_address_id"],
-        )
-        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
-        builder.event.register_listener(
-            "time_step",
-            self.on_time_step,
-            priority=metadata.PRIORITY_MAP["person_migration.on_time_step"],
         )
 
     ########################
