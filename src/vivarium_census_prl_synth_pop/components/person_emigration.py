@@ -49,7 +49,6 @@ class PersonEmigration(Component):
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
         self.household_details = builder.value.get_value("household_details")
-        self.population_view = builder.population.get_view(self.columns_needed)
         self.updated_relationship_to_reference_person = builder.value.get_value(
             "updated_relationship_to_reference_person"
         )
