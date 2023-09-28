@@ -61,7 +61,10 @@ class Population(Component):
 
     @property
     def columns_required(self) -> List[str]:
-        return ["in_united_state"]
+        return [
+            "in_united_states",
+            "tracked",
+        ]
 
     @property
     def initialization_requires(self) -> Dict[str, List[str]]:
