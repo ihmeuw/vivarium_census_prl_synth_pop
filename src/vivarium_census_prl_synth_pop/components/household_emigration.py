@@ -30,7 +30,7 @@ class HouseholdEmigration(Component):
             "in_united_states",
             "exit_time",
             "tracked",
-            "state_id_for_lookup"
+            "state_id_for_lookup",
         ]
 
     @property
