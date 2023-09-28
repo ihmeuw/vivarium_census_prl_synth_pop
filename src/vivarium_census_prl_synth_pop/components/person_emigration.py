@@ -2,6 +2,7 @@ from functools import partial
 from typing import Dict, List
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
@@ -10,7 +11,7 @@ from vivarium.framework.population import SimulantData
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 
 
-class PersonEmigration:
+class PersonEmigration(Component):
     """
     Handles migration of individuals (not in household groups) from within the US to outside of it.
 
