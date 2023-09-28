@@ -2,7 +2,6 @@ from typing import List
 
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView
 from vivarium_public_health.population import Mortality as _Mortality
 
 
@@ -14,7 +13,13 @@ class Mortality(_Mortality):
 
     @property
     def columns_required(self) -> List[str]:
-        return ["alive", "exit_time", "age", "sex", "relationship_to_reference_person"]
+        return [
+            "alive",
+            "exit_time",
+            "age",
+            "sex",
+            "relationship_to_reference_person",
+        ]
 
     #####################
     # Lifecycle methods #

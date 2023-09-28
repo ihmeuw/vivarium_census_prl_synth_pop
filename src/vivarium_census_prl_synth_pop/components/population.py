@@ -61,14 +61,14 @@ class Population(Component):
 
     @property
     def columns_required(self) -> List[str]:
-        return []
-    
+        return ["in_united_state"]
+
     @property
     def initialization_requires(self) -> Dict[str, List[str]]:
         return {
             "requires_columns": ["state_id_for_lookup", "in_united_states"],
         }
-    
+
     #####################
     # Lifecycle Methods #
     #####################
