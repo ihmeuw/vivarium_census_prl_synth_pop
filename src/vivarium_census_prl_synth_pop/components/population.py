@@ -60,8 +60,12 @@ class Population(Component):
         ]
 
     @property
-    def colums_required(self) -> List[str]:
+    def columns_required(self) -> List[str]:
         return ["state_id_for_lookup"]
+
+    #####################
+    # Lifecycle Methods #
+    #####################
 
     def setup(self, builder: Builder):
         self.config = builder.configuration.population

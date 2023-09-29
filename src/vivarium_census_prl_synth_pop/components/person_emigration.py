@@ -1,6 +1,8 @@
 from functools import partial
+from typing import Dict, List
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
@@ -9,7 +11,7 @@ from vivarium.framework.population import SimulantData
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 
 
-class PersonEmigration:
+class PersonEmigration(Component):
     """
     Handles migration of individuals (not in household groups) from within the US to outside of it.
 
@@ -22,16 +24,26 @@ class PersonEmigration:
     There is no overlap in the population at risk between these move types.
     """
 
-    def __repr__(self) -> str:
-        return "PersonEmigration()"
-
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "person_emigration"
+    def columns_created(self) -> List[str]:
+        return ["in_united_states"]
+
+    @property
+    def columns_required(self) -> List[str]:
+        return [
+            "relationship_to_reference_person",
+            "exit_time",
+            "tracked",
+            "state_id_for_lookup",
+        ]
+
+    @property
+    def time_step_cleanup_priority(self) -> int:
+        return metadata.PRIORITY_MAP["person_emigration.on_time_step"]
 
     #################
     # Setup methods #
@@ -40,14 +52,6 @@ class PersonEmigration:
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
         self.household_details = builder.value.get_value("household_details")
-        self.columns_needed = [
-            "relationship_to_reference_person",
-            "in_united_states",
-            "exit_time",
-            "tracked",
-            "state_id_for_lookup",
-        ]
-        self.population_view = builder.population.get_view(self.columns_needed)
         self.updated_relationship_to_reference_person = builder.value.get_value(
             "updated_relationship_to_reference_person"
         )
@@ -76,16 +80,6 @@ class PersonEmigration:
         self.gq_person_move_rates = builder.value.register_rate_producer(
             f"{self.name}.gq_person_move_rates",
             source=partial(self.get_move_rates, gq_person_move_rates_lookup_table),
-        )
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=["in_united_states"],
-        )
-        builder.event.register_listener(
-            "time_step",
-            self.on_time_step,
-            priority=metadata.PRIORITY_MAP["person_emigration.on_time_step"],
         )
 
     def get_move_rates(self, lookup_table: LookupTable, idx: pd.Index) -> LookupTable:
