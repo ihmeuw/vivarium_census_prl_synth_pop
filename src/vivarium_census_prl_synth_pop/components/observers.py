@@ -1,10 +1,12 @@
 import datetime as dt
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 from loguru import logger
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
@@ -14,14 +16,14 @@ from vivarium_census_prl_synth_pop import utilities
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 
-class BaseObserver(ABC):
+class BaseObserver(Component):
     """Base class for observing and recording relevant state table results. It
     maintains a separate dataset per concrete observation class and allows for
     recording/updating on some subset of timesteps (defaults to every time step)
     and then writing out the results at the end of the sim.
     """
 
-    DEFAULT_INPUT_COLUMNS = [
+    DEFAULT_REQUIRED_COLUMNS = [
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -54,13 +56,7 @@ class BaseObserver(ABC):
         "guardian_2_address_id",
     ]
 
-    configuration_defaults = {"observer": {"file_extension": "hdf"}}
-
-    def __init__(self):
-        self.configuration_defaults = self._get_configuration_defaults()
-
-    def _get_configuration_defaults(self) -> dict[str, dict]:
-        return {self.name: BaseObserver.configuration_defaults["observer"]}
+    CONFIGURATION_DEFAULTS = {"observer": {"file_extension": "hdf"}}
 
     def __repr__(self):
         return "BaseObserver()"
@@ -70,12 +66,12 @@ class BaseObserver(ABC):
     ##############
 
     @property
-    def name(self):
-        return "base_observer"
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {self.name: BaseObserver.CONFIGURATION_DEFAULTS["observer"]}
 
     @property
     @abstractmethod
-    def input_columns(self):
+    def required_columns(self):
         pass
 
     @property
@@ -101,23 +97,10 @@ class BaseObserver(ABC):
         self.seed = builder.configuration.randomness.random_seed
         self.file_extension = self.get_file_extension(builder)
         self.output_dir = Path(builder.configuration.output_data.results_directory)
-        self.population_view = self.get_population_view(builder)
         self.responses = None
         self.pipelines = {
             pipeline: builder.value.get_value(pipeline) for pipeline in self.input_values
         }
-
-        # Register the listener to update the responses
-        builder.event.register_listener(
-            "collect_metrics",
-            self.on_collect_metrics,
-        )
-
-        # Register the listener for final write-out
-        builder.event.register_listener(
-            "simulation_end",
-            self.on_simulation_end,
-        )
 
     def get_file_extension(self, builder: Builder) -> str:
         extension = builder.configuration[self.name].file_extension
@@ -128,12 +111,6 @@ class BaseObserver(ABC):
                 f"{metadata.SUPPORTED_EXTENSIONS}."
             )
         return extension
-
-    def get_population_view(self, builder) -> PopulationView:
-        """Returns the population view of interest to the observer"""
-        cols = self.input_columns
-        population_view = builder.population.get_view(columns=cols)
-        return population_view
 
     ########################
     # Event-driven methods #
@@ -195,7 +172,7 @@ class BaseObserver(ABC):
 
 class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = {
+    ADDITIONAL_REQUIRED_COLUMNS = {
         "acs": [
             "alive",
             "relationship_to_reference_person",
@@ -223,7 +200,6 @@ class HouseholdSurveyObserver(BaseObserver):
 
     def __init__(self, survey):
         self.survey = survey
-        super().__init__()
 
     def __repr__(self):
         return f"HouseholdSurveyObserver({self.survey})"
@@ -241,8 +217,8 @@ class HouseholdSurveyObserver(BaseObserver):
         return self.INPUT_VALUES
 
     @property
-    def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS[self.survey]
+    def required_columns(self):
+        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS[self.survey]
 
     @property
     def output_columns(self):
@@ -306,7 +282,7 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["relationship_to_reference_person"]
+    ADDITIONAL_REQUIRED_COLUMNS = ["relationship_to_reference_person"]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "relationship_to_reference_person",
         "year",
@@ -317,16 +293,12 @@ class DecennialCensusObserver(BaseObserver):
         return f"DecennialCensusObserver()"
 
     @property
-    def name(self):
-        return f"decennial_census_observer"
-
-    @property
     def input_values(self):
         return self.INPUT_VALUES
 
     @property
-    def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+    def required_columns(self):
+        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
 
     @property
     def output_columns(self):
@@ -366,7 +338,7 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
-    ADDITIONAL_INPUT_COLUMNS = [
+    ADDITIONAL_REQUIRED_COLUMNS = [
         "relationship_to_reference_person",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
@@ -382,12 +354,8 @@ class WICObserver(BaseObserver):
         return f"WICObserver()"
 
     @property
-    def name(self):
-        return f"wic_observer"
-
-    @property
-    def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+    def required_columns(self):
+        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
 
     @property
     def input_values(self):
@@ -516,7 +484,7 @@ class WICObserver(BaseObserver):
 class SocialSecurityObserver(BaseObserver):
     """Class for observing columns relevant to Social Security registry."""
 
-    ADDITIONAL_INPUT_COLUMNS = [
+    ADDITIONAL_REQUIRED_COLUMNS = [
         "tracked",
         "alive",
         "entrance_time",
@@ -540,12 +508,8 @@ class SocialSecurityObserver(BaseObserver):
         return f"SocialSecurityObserver()"
 
     @property
-    def name(self):
-        return f"social_security_observer"
-
-    @property
-    def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+    def required_columns(self):
+        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
 
     @property
     def output_columns(self):
@@ -631,7 +595,7 @@ class TaxW2Observer(BaseObserver):
     """
 
     INPUT_VALUES = ["income", "household_details", "business_details"]
-    ADDITIONAL_INPUT_COLUMNS = [
+    ADDITIONAL_REQUIRED_COLUMNS = [
         "alive",
         "in_united_states",
         "tracked",
@@ -671,12 +635,8 @@ class TaxW2Observer(BaseObserver):
         return f"TaxW2Observer()"
 
     @property
-    def name(self):
-        return f"tax_w2_observer"
-
-    @property
-    def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+    def required_columns(self):
+        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
 
     @property
     def input_values(self):
@@ -701,17 +661,11 @@ class TaxW2Observer(BaseObserver):
         # increment wages based on the job the simulant has during
         # the course of the time_step, which might change if we do
         # this check on_time_step instead of on_time_step__prepare
-        builder.event.register_listener("time_step__prepare", self.on_time_step__prepare)
         self.wages_this_year = empty_wages_series()
         self.wages_last_year = empty_wages_series()
         self.time_step = builder.configuration.time.step_size  # in days
 
-        # set wages_last_year and reset wages_this_year on
-        # time_step__cleanup to make sure it is in the needed format
-        # for all subcomponents of TaxObserver
-        builder.event.register_listener("time_step__cleanup", self.on_time_step__cleanup)
-
-    def on_time_step__prepare(self, event):
+    def on_time_step_prepare(self, event):
         """increment wages based on the job the simulant has during
         the course of the time_step, which might change if we do
         this check on_time_step instead of on_time_step__prepare
@@ -735,7 +689,7 @@ class TaxW2Observer(BaseObserver):
 
         self.wages_this_year = self.wages_this_year.add(wages_this_time_step, fill_value=0.0)
 
-    def on_time_step__cleanup(self, event):
+    def on_time_step_cleanup(self, event):
         """set wages_last_year and reset wages_this_year on
         time_step__cleanup to make sure it is in the needed format
         for all subcomponents of TaxObserver
@@ -850,7 +804,7 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_INPUT_COLUMNS = ["alive", "in_united_states", "tracked", "has_ssn"]
+    ADDITIONAL_REQUIRED_COLUMNS = ["alive", "in_united_states", "tracked", "has_ssn"]
     OUTPUT_COLUMNS = [
         "household_id",
         "guardian_id",
@@ -882,12 +836,8 @@ class TaxDependentsObserver(BaseObserver):
         return f"TaxDependentsObserver()"
 
     @property
-    def name(self):
-        return f"tax_dependents_observer"
-
-    @property
-    def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+    def required_columns(self):
+        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
 
     @property
     def input_values(self):
@@ -983,7 +933,7 @@ class Tax1040Observer(BaseObserver):
     """
 
     INPUT_VALUES = ["income", "household_details", "business_details"]
-    ADDITIONAL_INPUT_COLUMNS = [
+    ADDITIONAL_REQUIRED_COLUMNS = [
         "alive",
         "in_united_states",
         "tracked",
@@ -1023,12 +973,8 @@ class Tax1040Observer(BaseObserver):
         return f"Tax1040Observer()"
 
     @property
-    def name(self):
-        return f"tax_1040_observer"
-
-    @property
-    def input_columns(self):
-        return self.DEFAULT_INPUT_COLUMNS + self.ADDITIONAL_INPUT_COLUMNS
+    def required_columns(self):
+        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
 
     @property
     def input_values(self):
