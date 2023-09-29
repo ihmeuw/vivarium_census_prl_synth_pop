@@ -67,6 +67,10 @@ class Businesses(Component):
     def initialization_requires(self) -> Dict[str, List[str]]:
         return {"requires_columns": ["age"]}
 
+    @property
+    def time_step_priority(self) -> int:
+        return metadata.PRIORITY_MAP["businesses.on_time_step"]
+
     #################
     # Setup methods #
     #################

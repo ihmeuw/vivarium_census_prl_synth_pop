@@ -41,6 +41,10 @@ class PersonEmigration(Component):
             "state_id_for_lookup",
         ]
 
+    @property
+    def time_step_cleanup_priority(self) -> int:
+        return metadata.PRIORITY_MAP["person_emigration.on_time_step"]
+
     #################
     # Setup methods #
     #################
