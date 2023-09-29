@@ -24,10 +24,6 @@ class Immigration(Component):
     ##############
 
     @property
-    def columns_required(self) -> List[str]:
-        return []
-
-    @property
     def on_time_step_priority(self) -> int:
         return metadata.PRIORITY_MAP["immigration.on_time_step"]
 

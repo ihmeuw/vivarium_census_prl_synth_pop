@@ -35,14 +35,11 @@ class PersonMigration(Component):
         return [
             "household_id",
             "relationship_to_reference_person",
-            "previous_timestep_address_id",
         ]
 
     @property
-    def initialization_requires(self) -> Dict[str, List[str]]:
-        return {
-            "requires_columns": ["previous_timestep_address_id"],
-        }
+    def columns_created(self) -> List[str]:
+        return ["previous_timestep_address_id"]
 
     @property
     def time_step_priority(sself) -> int:
