@@ -1,4 +1,7 @@
+from typing import List
+
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
@@ -6,7 +9,7 @@ from vivarium.framework.lookup import LookupTable
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 
 
-class HouseholdEmigration:
+class HouseholdEmigration(Component):
     """
     Handles migration of households from within the US to outside of it.
 
@@ -15,16 +18,24 @@ class HouseholdEmigration:
     All non-GQ households are at risk of an emigration event.
     """
 
-    def __repr__(self) -> str:
-        return "HouseholdEmigration()"
-
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "household_emigration"
+    def columns_required(self) -> List[str]:
+        return [
+            "household_id",
+            "relationship_to_reference_person",
+            "in_united_states",
+            "exit_time",
+            "tracked",
+            "state_id_for_lookup",
+        ]
+
+    @property
+    def on_time_step_priority(self) -> int:
+        return metadata.PRIORITY_MAP["household_emigration.on_time_step"]
 
     #################
     # Setup methods #
@@ -43,23 +54,6 @@ class HouseholdEmigration:
         )
         self.household_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=self.get_household_move_rates
-        )
-
-        self.population_view = builder.population.get_view(
-            [
-                "household_id",
-                "relationship_to_reference_person",
-                "in_united_states",
-                "exit_time",
-                "tracked",
-                "state_id_for_lookup",
-            ]
-        )
-
-        builder.event.register_listener(
-            "time_step",
-            self.on_time_step,
-            priority=metadata.PRIORITY_MAP["household_emigration.on_time_step"],
         )
 
     def get_household_move_rates(self, idx: pd.Index) -> LookupTable:

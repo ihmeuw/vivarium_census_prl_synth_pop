@@ -1,7 +1,8 @@
 from math import ceil, floor
-from typing import Callable
+from typing import List
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.utilities import from_yearly
@@ -13,21 +14,18 @@ from vivarium_census_prl_synth_pop.utilities import (
 )
 
 
-class Immigration:
+class Immigration(Component):
     """
     Handles migration of individuals *into* the US.
     """
-
-    def __repr__(self) -> str:
-        return "Immigration()"
 
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "immigration"
+    def on_time_step_priority(self) -> int:
+        return metadata.PRIORITY_MAP["immigration.on_time_step"]
 
     #################
     # Setup methods #
@@ -78,14 +76,7 @@ class Immigration:
             self.household_immigrant_households["household_weight"].sum(),
             builder.configuration,
         )
-
         self.simulant_creator = builder.population.get_simulant_creator()
-
-        builder.event.register_listener(
-            "time_step",
-            self.on_time_step,
-            priority=metadata.PRIORITY_MAP["immigration.on_time_step"],
-        )
 
     ########################
     # Event-driven methods #
