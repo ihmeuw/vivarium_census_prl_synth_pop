@@ -1,7 +1,7 @@
 import datetime as dt
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,6 @@ from loguru import logger
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView
 from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop import utilities
@@ -23,7 +22,7 @@ class BaseObserver(Component):
     and then writing out the results at the end of the sim.
     """
 
-    DEFAULT_REQUIRED_COLUMNS = [
+    DEFAULT_COLUMNS_REQUIRED = [
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -35,6 +34,7 @@ class BaseObserver(Component):
         "guardian_2",
         "household_id",
     ]
+    ADDITIONAL_COLUMNS_REQUIRED = []
     DEFAULT_OUTPUT_COLUMNS = [
         "household_id",  # Included in every dataset as a source of truth
         "first_name_id",
@@ -55,11 +55,10 @@ class BaseObserver(Component):
         "guardian_1_address_id",
         "guardian_2_address_id",
     ]
+    ADDITIONAL_OUTPUT_COLUMNS = []
+    INPUT_VALUES = []
 
     CONFIGURATION_DEFAULTS = {"observer": {"file_extension": "hdf"}}
-
-    def __repr__(self):
-        return "BaseObserver()"
 
     ##############
     # Properties #
@@ -70,18 +69,16 @@ class BaseObserver(Component):
         return {self.name: BaseObserver.CONFIGURATION_DEFAULTS["observer"]}
 
     @property
-    @abstractmethod
-    def required_columns(self):
-        pass
+    def columns_required(self):
+        return self.DEFAULT_COLUMNS_REQUIRED + self.ADDITIONAL_COLUMNS_REQUIRED
 
     @property
     def input_values(self):
-        return []
+        return self.INPUT_VALUES
 
     @property
-    @abstractmethod
     def output_columns(self):
-        pass
+        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
     @property
     @abstractmethod
@@ -172,7 +169,7 @@ class BaseObserver(Component):
 
 class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_REQUIRED_COLUMNS = {
+    ADDITIONAL_COLUMNS_REQUIRED = {
         "acs": [
             "alive",
             "relationship_to_reference_person",
@@ -201,9 +198,6 @@ class HouseholdSurveyObserver(BaseObserver):
     def __init__(self, survey):
         self.survey = survey
 
-    def __repr__(self):
-        return f"HouseholdSurveyObserver({self.survey})"
-
     ##############
     # Properties #
     ##############
@@ -213,12 +207,8 @@ class HouseholdSurveyObserver(BaseObserver):
         return f"household_survey_observer_{self.survey}"
 
     @property
-    def input_values(self):
-        return self.INPUT_VALUES
-
-    @property
-    def required_columns(self):
-        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS[self.survey]
+    def columns_required(self):
+        return self.DEFAULT_COLUMNS_REQUIRED + self.ADDITIONAL_COLUMNS_REQUIRED[self.survey]
 
     @property
     def output_columns(self):
@@ -282,27 +272,12 @@ class DecennialCensusObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_REQUIRED_COLUMNS = ["relationship_to_reference_person"]
+    ADDITIONAL_COLUMNS_REQUIRED = ["relationship_to_reference_person"]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "relationship_to_reference_person",
         "year",
         "housing_type",
     ]
-
-    def __repr__(self):
-        return f"DecennialCensusObserver()"
-
-    @property
-    def input_values(self):
-        return self.INPUT_VALUES
-
-    @property
-    def required_columns(self):
-        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
-
-    @property
-    def output_columns(self):
-        return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
 
     @property
     def output_name(self) -> str:
@@ -312,7 +287,7 @@ class DecennialCensusObserver(BaseObserver):
         super().setup(builder)
         self.randomness = builder.randomness.get_stream(self.name)
         self.clock = builder.time.clock()
-        self.time_step = builder.configuration.time.step_size  # in days
+        self.time_step = builder.time.step_size()  # in days
 
     def to_observe(self, event: Event) -> bool:
         """Only observe if the census date falls during the time step"""
@@ -338,7 +313,7 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
-    ADDITIONAL_REQUIRED_COLUMNS = [
+    ADDITIONAL_COLUMNS_REQUIRED = [
         "relationship_to_reference_person",
     ]
     ADDITIONAL_OUTPUT_COLUMNS = [
@@ -349,17 +324,6 @@ class WICObserver(BaseObserver):
     WIC_BASELINE_SALARY = 16_410
     WIC_SALARY_PER_HOUSEHOLD_MEMBER = 8_732
     WIC_RACE_ETHNICITIES = ["White", "Black", "Latino", "Other"]
-
-    def __repr__(self):
-        return f"WICObserver()"
-
-    @property
-    def required_columns(self):
-        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
-
-    @property
-    def input_values(self):
-        return self.INPUT_VALUES
 
     @property
     def output_columns(self):
@@ -375,7 +339,7 @@ class WICObserver(BaseObserver):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
-        self.time_step = builder.configuration.time.step_size  # in days
+        self.time_step = builder.time.step_size()  # in days
         self.randomness = builder.randomness.get_stream(self.name)
 
     def to_observe(self, event: Event) -> bool:
@@ -484,7 +448,7 @@ class WICObserver(BaseObserver):
 class SocialSecurityObserver(BaseObserver):
     """Class for observing columns relevant to Social Security registry."""
 
-    ADDITIONAL_REQUIRED_COLUMNS = [
+    ADDITIONAL_COLUMNS_REQUIRED = [
         "tracked",
         "alive",
         "entrance_time",
@@ -503,13 +467,6 @@ class SocialSecurityObserver(BaseObserver):
         "event_date",
         "copy_ssn",
     ]
-
-    def __repr__(self):
-        return f"SocialSecurityObserver()"
-
-    @property
-    def required_columns(self):
-        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
 
     @property
     def output_columns(self):
@@ -595,7 +552,7 @@ class TaxW2Observer(BaseObserver):
     """
 
     INPUT_VALUES = ["income", "household_details", "business_details"]
-    ADDITIONAL_REQUIRED_COLUMNS = [
+    ADDITIONAL_COLUMNS_REQUIRED = [
         "alive",
         "in_united_states",
         "tracked",
@@ -631,17 +588,6 @@ class TaxW2Observer(BaseObserver):
         "tax_form",
     ]
 
-    def __repr__(self):
-        return f"TaxW2Observer()"
-
-    @property
-    def required_columns(self):
-        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
-
-    @property
-    def input_values(self):
-        return self.INPUT_VALUES
-
     @property
     def output_columns(self):
         return self.OUTPUT_COLUMNS
@@ -663,7 +609,7 @@ class TaxW2Observer(BaseObserver):
         # this check on_time_step instead of on_time_step__prepare
         self.wages_this_year = empty_wages_series()
         self.wages_last_year = empty_wages_series()
-        self.time_step = builder.configuration.time.step_size  # in days
+        self.time_step = builder.time.step_size()  # in days
 
     def on_time_step_prepare(self, event):
         """increment wages based on the job the simulant has during
@@ -804,7 +750,7 @@ class TaxDependentsObserver(BaseObserver):
     """
 
     INPUT_VALUES = ["household_details"]
-    ADDITIONAL_REQUIRED_COLUMNS = ["alive", "in_united_states", "tracked", "has_ssn"]
+    ADDITIONAL_COLUMNS_REQUIRED = ["alive", "in_united_states", "tracked", "has_ssn"]
     OUTPUT_COLUMNS = [
         "household_id",
         "guardian_id",
@@ -831,17 +777,6 @@ class TaxDependentsObserver(BaseObserver):
     def __init__(self, w2_observer):
         super().__init__()
         self.w2_observer = w2_observer
-
-    def __repr__(self):
-        return f"TaxDependentsObserver()"
-
-    @property
-    def required_columns(self):
-        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
-
-    @property
-    def input_values(self):
-        return self.INPUT_VALUES
 
     @property
     def output_columns(self):
@@ -933,7 +868,7 @@ class Tax1040Observer(BaseObserver):
     """
 
     INPUT_VALUES = ["income", "household_details", "business_details"]
-    ADDITIONAL_REQUIRED_COLUMNS = [
+    ADDITIONAL_COLUMNS_REQUIRED = [
         "alive",
         "in_united_states",
         "tracked",
@@ -968,17 +903,6 @@ class Tax1040Observer(BaseObserver):
     def __init__(self, w2_observer):
         super().__init__()
         self.w2_observer = w2_observer
-
-    def __repr__(self):
-        return f"Tax1040Observer()"
-
-    @property
-    def required_columns(self):
-        return self.DEFAULT_REQUIRED_COLUMNS + self.ADDITIONAL_REQUIRED_COLUMNS
-
-    @property
-    def input_values(self):
-        return self.INPUT_VALUES
 
     @property
     def output_columns(self):
