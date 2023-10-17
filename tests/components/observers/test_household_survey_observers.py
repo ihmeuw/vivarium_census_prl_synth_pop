@@ -22,7 +22,7 @@ def observer(mocker, tmp_path, request):
 @pytest.fixture
 def mocked_pop_view(observer):
     """Generate a state table view"""
-    cols = observer.input_columns
+    cols = observer.columns_required
     df = pd.DataFrame(np.random.randint(0, 100, size=(2, len(cols))), columns=cols)
     df["alive"] = "alive"
     df[["first_name", "middle_name", "last_name"]] = (
@@ -54,7 +54,7 @@ def mocked_household_details_pipeline(mocked_pop_view):
 
 
 def test_instantiate(observer):
-    assert str(observer) == "HouseholdSurveyObserver(acs)"
+    assert observer.name == "household_survey_observer_acs"
 
 
 def test_on_simulation_end(observer, mocker):

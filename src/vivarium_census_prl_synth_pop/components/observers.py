@@ -91,6 +91,7 @@ class BaseObserver(Component):
 
     def setup(self, builder: Builder):
         # FIXME: move filepaths to data container
+        super().setup(builder)
         self.seed = builder.configuration.randomness.random_seed
         self.file_extension = self.get_file_extension(builder)
         self.output_dir = Path(builder.configuration.output_data.results_directory)
@@ -196,6 +197,7 @@ class HouseholdSurveyObserver(BaseObserver):
     OVERSAMPLE_FACTOR = 2
 
     def __init__(self, survey):
+        super().__init__()
         self.survey = survey
 
     ##############
