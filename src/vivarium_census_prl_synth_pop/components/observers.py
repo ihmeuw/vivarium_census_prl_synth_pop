@@ -627,7 +627,7 @@ class TaxW2Observer(BaseObserver):
 
         # increment wages for all person/employment pairs with wages > 0
         wages_this_time_step = pd.Series(
-            pop["wages"].values * self.time_step / DAYS_PER_YEAR,
+            pop["wages"].values * self.time_step() / DAYS_PER_YEAR,
             index=pd.MultiIndex.from_arrays(
                 [pop.index, pop["employer_id"]], names=["simulant_id", "employer_id"]
             ),
