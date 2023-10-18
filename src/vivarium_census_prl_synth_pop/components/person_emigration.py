@@ -42,7 +42,7 @@ class PersonEmigration(Component):
         ]
 
     @property
-    def time_step_cleanup_priority(self) -> int:
+    def time_step_priority(self) -> int:
         return metadata.PRIORITY_MAP["person_emigration.on_time_step"]
 
     #################
