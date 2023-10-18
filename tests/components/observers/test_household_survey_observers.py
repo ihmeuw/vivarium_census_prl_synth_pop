@@ -15,7 +15,7 @@ def observer(mocker, tmp_path, request):
     builder = mocker.MagicMock()
     builder.configuration.output_data.results_directory = tmp_path
     builder.configuration["household_survey_observer_acs"].file_extension = request.param
-    observer.setup(builder)
+    observer.setup_component(builder)
     return observer
 
 

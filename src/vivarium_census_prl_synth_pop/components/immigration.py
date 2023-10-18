@@ -1,5 +1,4 @@
 from math import ceil, floor
-from typing import List
 
 import pandas as pd
 from vivarium import Component

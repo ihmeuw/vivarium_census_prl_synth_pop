@@ -91,7 +91,6 @@ class BaseObserver(Component):
 
     def setup(self, builder: Builder):
         # FIXME: move filepaths to data container
-        super().setup(builder)
         self.seed = builder.configuration.randomness.random_seed
         self.file_extension = self.get_file_extension(builder)
         self.output_dir = Path(builder.configuration.output_data.results_directory)
@@ -519,7 +518,7 @@ class SocialSecurityObserver(BaseObserver):
         )
 
 
-class TaxObserver:
+class TaxObserver(Component):
     """Holder for three interdependent observers relevant to tax data"""
 
     @property
@@ -535,12 +534,7 @@ class TaxObserver:
             tax_w2,
             tax_1040,
             tax_dependents,
-        ]  # following pattern from vivarium.examples.disease_model.disease.SISDiseaseModel
-        # TODO: it would be cool if there was more documentation on this, and if it was easy to find!
-
-    @property
-    def sub_components(self):
-        return self._sub_components
+        ]
 
 
 class TaxW2Observer(BaseObserver):
