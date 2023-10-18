@@ -23,7 +23,7 @@ class Immigration(Component):
     ##############
 
     @property
-    def on_time_step_priority(self) -> int:
+    def time_step_priority(self) -> int:
         return metadata.PRIORITY_MAP["immigration.on_time_step"]
 
     #################
