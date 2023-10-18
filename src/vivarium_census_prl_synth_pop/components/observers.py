@@ -1,5 +1,5 @@
 import datetime as dt
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict
 
@@ -79,11 +79,6 @@ class BaseObserver(Component):
     @property
     def output_columns(self):
         return self.DEFAULT_OUTPUT_COLUMNS + self.ADDITIONAL_OUTPUT_COLUMNS
-
-    @property
-    @abstractmethod
-    def output_name(self) -> str:
-        pass
 
     #################
     # Setup methods #
@@ -288,7 +283,7 @@ class DecennialCensusObserver(BaseObserver):
         super().setup(builder)
         self.randomness = builder.randomness.get_stream(self.name)
         self.clock = builder.time.clock()
-        self.time_step = builder.time.step_size()  # in days
+        self.step_size = builder.time.step_size()  # in days
 
     def to_observe(self, event: Event) -> bool:
         """Only observe if the census date falls during the time step"""
@@ -340,7 +335,7 @@ class WICObserver(BaseObserver):
     def setup(self, builder: Builder):
         super().setup(builder)
         self.clock = builder.time.clock()
-        self.time_step = builder.time.step_size()  # in days
+        self.step_size = builder.time.step_size()  # in days
         self.randomness = builder.randomness.get_stream(self.name)
 
     def to_observe(self, event: Event) -> bool:
@@ -605,7 +600,7 @@ class TaxW2Observer(BaseObserver):
         # this check on_time_step instead of on_time_step__prepare
         self.wages_this_year = empty_wages_series()
         self.wages_last_year = empty_wages_series()
-        self.time_step = builder.time.step_size()  # in days
+        self.step_size = builder.time.step_size()  # in days
 
     def on_time_step_prepare(self, event):
         """increment wages based on the job the simulant has during
@@ -621,7 +616,7 @@ class TaxW2Observer(BaseObserver):
 
         # increment wages for all person/employment pairs with wages > 0
         wages_this_time_step = pd.Series(
-            pop["wages"].values * self.time_step().days / DAYS_PER_YEAR,
+            pop["wages"].values * self.step_size().days / DAYS_PER_YEAR,
             index=pd.MultiIndex.from_arrays(
                 [pop.index, pop["employer_id"]], names=["simulant_id", "employer_id"]
             ),
