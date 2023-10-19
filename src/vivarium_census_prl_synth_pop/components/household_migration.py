@@ -1,4 +1,7 @@
+from typing import List
+
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.time import get_time_stamp
@@ -6,7 +9,7 @@ from vivarium.framework.time import get_time_stamp
 from vivarium_census_prl_synth_pop.constants import metadata, paths
 
 
-class HouseholdMigration:
+class HouseholdMigration(Component):
     """
     - on simulant_initialization, adds household details
     - on time_step, updates some households to new addresses
@@ -16,16 +19,20 @@ class HouseholdMigration:
     - puma will not change (pumas and zip codes currently unrelated)
     """
 
-    def __repr__(self) -> str:
-        return "HouseholdMigration()"
-
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "household_migration"
+    def columns_required(self) -> List[str]:
+        return [
+            "household_id",
+            "relationship_to_reference_person",
+        ]
+
+    @property
+    def time_step_priority(self) -> int:
+        return metadata.PRIORITY_MAP["household_migration.on_time_step"]
 
     #################
     # Setup methods #
@@ -34,6 +41,7 @@ class HouseholdMigration:
     def setup(self, builder: Builder):
         self.start_time = get_time_stamp(builder.configuration.time.start)
         self.households = builder.components.get_component("households")
+        self.randomness = builder.randomness.get_stream(self.name)
 
         move_rate_data = builder.lookup.build_table(
             data=pd.read_csv(
@@ -45,20 +53,6 @@ class HouseholdMigration:
         )
         self.household_move_rate = builder.value.register_rate_producer(
             f"{self.name}.move_rate", source=move_rate_data
-        )
-
-        self.randomness = builder.randomness.get_stream(self.name)
-        self.columns_used = [
-            "household_id",
-            "relationship_to_reference_person",
-        ]
-
-        self.population_view = builder.population.get_view(self.columns_used)
-
-        builder.event.register_listener(
-            "time_step",
-            self.on_time_step,
-            priority=metadata.PRIORITY_MAP["household_migration.on_time_step"],
         )
 
     ########################

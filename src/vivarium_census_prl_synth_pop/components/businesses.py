@@ -1,9 +1,10 @@
-from typing import Any, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy import stats
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -19,7 +20,7 @@ from vivarium_census_prl_synth_pop.utilities import (
 )
 
 
-class Businesses:
+class Businesses(Component):
     """
     This component manages all the employers that exist in the simulation. It
     maintains a data structure of these employers and their details. These are
@@ -41,16 +42,34 @@ class Businesses:
     their addresses will not change in this ticket.
     """
 
-    def __repr__(self) -> str:
-        return "Businesses()"
-
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "businesses"
+    def columns_created(self) -> List[str]:
+        return [
+            "employer_id",
+            "personal_income_propensity",
+            "employer_income_propensity",
+        ]
+
+    @property
+    def columns_required(self) -> List[str]:
+        return [
+            "tracked",
+            "previous_timestep_address_id",
+            "age",
+            "household_id",
+        ]
+
+    @property
+    def initialization_requires(self) -> Dict[str, List[str]]:
+        return {"requires_columns": ["age"]}
+
+    @property
+    def time_step_priority(self) -> int:
+        return metadata.PRIORITY_MAP["businesses.on_time_step"]
 
     #################
     # Setup methods #
@@ -67,18 +86,6 @@ class Businesses:
         self.state_puma_options = get_state_puma_options(builder)
         self.household_details = builder.value.get_value("household_details")
         self.employer_address_id_count = 0
-        self.columns_created = [
-            "employer_id",
-            "personal_income_propensity",
-            "employer_income_propensity",
-        ]
-        self.columns_used = [
-            "tracked",
-            "previous_timestep_address_id",
-            "age",
-            "household_id",
-        ] + self.columns_created
-        self.population_view = builder.population.get_view(self.columns_used)
         self.businesses = None
 
         job_change_rate_data = builder.lookup.build_table(data_values.YEARLY_JOB_CHANGE_RATE)
@@ -105,18 +112,6 @@ class Businesses:
             "business_details",
             source=self.get_business_details,
             requires_columns=["employer_id", "tracked"],
-        )
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            requires_columns=["age"],
-            creates_columns=self.columns_created,
-        )
-        # note: priority must be later than that of migration components
-        builder.event.register_listener(
-            "time_step",
-            self.on_time_step,
-            priority=metadata.PRIORITY_MAP["businesses.on_time_step"],
         )
 
     ########################

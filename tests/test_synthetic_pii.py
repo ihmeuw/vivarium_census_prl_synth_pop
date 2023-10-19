@@ -120,7 +120,7 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
     totals = given_names.reset_index().groupby(["yob", "sex"])["freq"].sum()
     name_freq = given_names.reset_index("freq")
     proportions = name_freq["freq"] / totals
-    proportions.index = proportions.index.rename("year_of_birth", "yob")
+    proportions.index = proportions.index.set_names({"year_of_birth": "yob"})
 
     # Get name frequencies for comparison
     first_names = get_given_name_map(
@@ -167,6 +167,7 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
     assert (first_names["first_name"] != middle_names["middle_name"]).any()
 
 
+@pytest.mark.slow
 def test_last_names_proportions(mocker, last_names, fake_obs_data):
     # This function tests that the sampling proportions are working as expected
     artifact = mocker.MagicMock()

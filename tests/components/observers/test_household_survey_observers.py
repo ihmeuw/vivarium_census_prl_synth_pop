@@ -15,14 +15,14 @@ def observer(mocker, tmp_path, request):
     builder = mocker.MagicMock()
     builder.configuration.output_data.results_directory = tmp_path
     builder.configuration["household_survey_observer_acs"].file_extension = request.param
-    observer.setup(builder)
+    observer.setup_component(builder)
     return observer
 
 
 @pytest.fixture
 def mocked_pop_view(observer):
     """Generate a state table view"""
-    cols = observer.input_columns
+    cols = observer.columns_required
     df = pd.DataFrame(np.random.randint(0, 100, size=(2, len(cols))), columns=cols)
     df["alive"] = "alive"
     df[["first_name", "middle_name", "last_name"]] = (
@@ -54,7 +54,7 @@ def mocked_household_details_pipeline(mocked_pop_view):
 
 
 def test_instantiate(observer):
-    assert str(observer) == "HouseholdSurveyObserver(acs)"
+    assert observer.name == "household_survey_observer_acs"
 
 
 def test_on_simulation_end(observer, mocker):
@@ -96,6 +96,8 @@ def test_get_observation(
     expected["middle_initial"] = ["J", "M"]
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2
+    # FIXME: Having dtype with with datime64[s] and [ns] causes pd.testing.assert_frame_equal to fail
+    expected["survey_date"] = expected["survey_date"].astype("datetime64[s]")
     expected[
         ["housing_type", "address_id", "state_id", "puma"]
     ] = mocked_household_details_pipeline("dummy")[
@@ -135,6 +137,8 @@ def test_multiple_observation(
     expected["middle_initial"] = ["J", "M"] * 2
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2 + [event.time] * 2
+    # FIXME: Having dtype with with datime64[s] and [ns] causes pd.testing.assert_frame_equal to fail
+    expected["survey_date"] = expected["survey_date"].astype("datetime64[s]")
     expected[["housing_type", "address_id", "state_id", "puma"]] = pd.concat(
         [
             mocked_household_details_pipeline("dummy")[
