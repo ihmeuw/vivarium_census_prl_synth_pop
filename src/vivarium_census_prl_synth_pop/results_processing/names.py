@@ -112,12 +112,13 @@ def get_last_name_map(
         obs_results=obs_data,
         output_columns=output_cols,
     )
-
     # Get oldest simulant for each existing last_name_id
-    name_data = name_data.groupby("last_name_id", group_keys=False).apply(
-        pd.DataFrame.sort_values, "date_of_birth"
+    oldest = (
+        name_data.sort_values("date_of_birth")
+        .reset_index()
+        .drop_duplicates("last_name_id")
+        .set_index("last_name_id")
     )
-    oldest = name_data.reset_index().drop_duplicates("last_name_id").set_index("last_name_id")
 
     last_names_map = pd.Series("", index=oldest.index)
     for race_eth, df_race_eth in oldest.groupby("race_ethnicity"):
