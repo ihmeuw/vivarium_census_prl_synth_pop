@@ -537,6 +537,6 @@ def copy_from_household_member(
 
 def write_metadata_file(final_output_dir: Path, label_version: str) -> None:
     metadata = {"data_version": label_version}
-    outpath = final_output_dir / "metadata.parquet"
+    outpath = final_output_dir / "metadata.yaml"
     with open(outpath, "w") as file:
         yaml.dump(metadata, file)
