@@ -69,8 +69,7 @@ def make_artifacts(
 @click.argument(
     "-V",
     "--label-version",
-    help="Provide a version number for final results. "
-    "Version should follow format of '#.#.#'.",
+    # Version for final results and metadata file. This should be of format '#.#.#'
 )
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
