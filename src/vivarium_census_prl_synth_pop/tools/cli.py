@@ -67,8 +67,7 @@ def make_artifacts(
 @click.command()
 @click.argument("output_dir", type=click.Path(exists=True))
 @click.argument(
-    "-V",
-    "--label-version",
+    "label_version",
     # Version for final results and metadata file. This should be of format '#.#.#'
 )
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
