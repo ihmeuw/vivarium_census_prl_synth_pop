@@ -66,12 +66,9 @@ def make_artifacts(
 
 @click.command()
 @click.argument("output_dir", type=click.Path(exists=True))
-@click.option(
+@click.argument(
     "-V",
     "--label-version",
-    type=str,
-    default=None,
-    show_default=True,
     help="Provide a version number for final results. "
     "Version should follow format of '#.#.#'.",
 )

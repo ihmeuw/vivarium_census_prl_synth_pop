@@ -532,3 +532,10 @@ def copy_from_household_member(
             )
 
     return pop
+
+
+def write_metadata_file(final_output_dir: Path, label_version: str) -> None:
+    data_version = pd.Series(label_version)
+    metadata = pd.DataFrame({"data_version": data_version})
+    outpath = final_output_dir / "metadata.parquet"
+    metadata.to_parquet(outpath)
