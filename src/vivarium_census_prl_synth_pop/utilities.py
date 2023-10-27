@@ -540,3 +540,11 @@ def write_metadata_file(final_output_dir: Path, label_version: str) -> None:
     outpath = final_output_dir / "metadata.yaml"
     with open(outpath, "w") as file:
         yaml.dump(metadata, file)
+
+
+def load_nicknames_data():
+    # Load and format nicknames dataset
+    nicknames = pd.read_csv(paths.NICKNAMES_DATA_PATH)
+    nicknames = nicknames.apply(lambda x: x.astype(str).str.title()).set_index("name")
+    nicknames = nicknames.replace("Nan", np.nan)
+    return nicknames

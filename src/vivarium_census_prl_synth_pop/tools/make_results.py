@@ -10,7 +10,11 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
 
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
-from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
+from vivarium_census_prl_synth_pop.constants.metadata import (
+    COPY_HOUSEHOLD_MEMBER_COLS,
+    METADATA_COLUMNS,
+    SUPPORTED_EXTENSIONS,
+)
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_address_id_maps,
@@ -29,6 +33,7 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
     get_all_simulation_seeds,
+    load_nicknames_data,
     sanitize_location,
     write_to_disk,
 )
@@ -391,6 +396,7 @@ def perform_post_processing(
             logger.info(f"Writing final {observer} results.")
             obs_dir = build_output_dir(final_output_dir, subdir=observer)
             seed_ext = f"_{seed}" if seed != "" else ""
+            write_shard_metadata(observer, obs_data, obs_dir, seed)
             write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
@@ -548,3 +554,37 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             )
             write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
+
+
+def write_shard_metadata(
+    observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed: str
+) -> None:
+    # Writes metadata for each shard of data. This will be proportions available to noise
+    # for specific columns.
+
+    shard_metadata = pd.DataFrame()
+    shard_metadata["dataset"] = observer
+    shard_metadata["random_seed"] = seed_ext
+    for column in METADATA_COLUMNS:
+        if column not in obs_data.columns:
+            continue
+        elif column in COPY_HOUSEHOLD_MEMBER_COLS:
+            # Proportion based on missingness from available household members that can
+            # have a copy value
+            shard_metadata[f"{column}_proportion_to_noise"] = obs_data[
+                f"copy_{column}"
+            ].notna().sum() / len(obs_data)
+        elif column == "first_name":
+            # Proportion of first names that have an associated nickname to be noised
+            # Everyone should have a first name so there is no missingness
+            nicknames = load_nicknames_data()
+            shard_metadata[f"{column}_proportion_to_noise"] = obs_data[column].isin(
+                nicknames.index
+            ).sum() / len(obs_data)
+        # TODO: Add guaridan based duplication
+        else:
+            raise ValueError(f"Column '{column}' not supported for metadata recording.")
+
+    # Write shard metadata
+    shard_metadata_path = obs_dir / f"shard_metadata_{seed}.csv"
+    shard_metadata.to_csv(shard_metadata_path)
