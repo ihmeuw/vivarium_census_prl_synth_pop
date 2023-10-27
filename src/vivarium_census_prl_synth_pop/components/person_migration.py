@@ -139,7 +139,9 @@ class PersonMigration(Component):
         new_relationship_to_reference_person = self.updated_relationship_to_reference_person(
             event.index
         )
-        self.population_view.update(new_relationship_to_reference_person)
+        self.population_view.update(
+            new_relationship_to_reference_person.rename("relationship_to_reference_person")
+        )
 
     ##################
     # Helper methods #
