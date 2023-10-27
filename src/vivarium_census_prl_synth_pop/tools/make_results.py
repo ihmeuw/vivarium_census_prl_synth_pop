@@ -587,4 +587,4 @@ def write_shard_metadata(
 
     # Write shard metadata
     shard_metadata_path = obs_dir / f"shard_metadata_{seed}.csv"
-    shard_metadata.to_csv(shard_metadata_path)
+    shard_metadata.to_csv(shard_metadata_path, index=False)
