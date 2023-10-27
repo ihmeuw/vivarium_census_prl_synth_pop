@@ -9,7 +9,10 @@ from typing import Any, Callable, Optional, Tuple
 from loguru import logger
 
 from vivarium_census_prl_synth_pop.constants import paths
-from vivarium_census_prl_synth_pop.utilities import build_output_dir
+from vivarium_census_prl_synth_pop.utilities import (
+    build_output_dir,
+    write_metadata_file,
+)
 
 
 def handle_exceptions(
@@ -57,19 +60,16 @@ def validate_args(
 
 def build_final_results_directory(
     results_dir: str,
-    version: Optional[str] = None,
+    version: str,
 ) -> Tuple[Path, Path]:
     tmp = paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    if version is None:
-        subdir = tmp / "pseudopeople_input_data_usa"
-    else:
-        subdir = tmp / f"pseudopeople_input_data_usa_{version}"
+    subdir = tmp / f"pseudopeople_input_data_usa_{version}"
     final_output_dir = build_output_dir(
         Path(results_dir),
         subdir=subdir,
     )
     raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
-
+    write_metadata_file(final_output_dir, version)
     return raw_output_dir, final_output_dir
 
 

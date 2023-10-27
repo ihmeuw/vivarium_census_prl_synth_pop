@@ -66,14 +66,9 @@ def make_artifacts(
 
 @click.command()
 @click.argument("output_dir", type=click.Path(exists=True))
-@click.option(
-    "-V",
-    "--label-version",
-    type=str,
-    default=None,
-    show_default=True,
-    help="Provide a version number for final results. "
-    "Version should follow format of '#.#.#'.",
+@click.argument(
+    "label_version",
+    # Version for final results and metadata file. This should be of format '#.#.#'
 )
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
 @click.option(
@@ -179,7 +174,24 @@ def make_results(
     peak_memory: int,
     max_runtime: str,
 ) -> None:
-    """Create final results datasets from the raw results output by observers"""
+    """Create final results datasets from the raw results output by observers
+
+    :param output_dir: Directory where the raw results are stored
+    :param label_version: Version for final results and metadata file. This should be of format '#.#.#'
+    :param verbose: Configure logging verbosity.
+    :param with_debugger: Drop into python debugger if an error occurs.
+    :param mark_best: Marks this version of results with a 'best' symlink.
+    :param test_run: Skips updating the 'latest' symlink with this version of results.
+    :param extension: File type to write results out as. Supported file types are hdf and parquet.
+    :param public_sample: Generates results for the small-scale public sample data.
+    :param seed: Provide seed in order to run only on the files corresponding to that seed. If no seed it provided, will run on all files.
+    :param artifact_path: Path to artifact used in simulation.
+    :param jobmon: Launches a jobmon workflow to generate results.
+    :param queue: NOTE: only required if --jobmon. The cluster queue to assign jobmon tasks to. long.q allows for much longer runtimes although there may be reasons to send jobs to that queue even if they don't have runtime constraints (eg node availability).
+    :param peak_memory: NOTE: only required if --jobmon. The estimated maximum memory usage in GB of an individual task. The tasks will be run with this as a limit.
+    :param max_runtime: NOTE: only required if --jobmon. The estimated maximum runtime ('hh:mm:ss') of the jobmon tasks. Once this time limit is hit, the cluster will terminate jobs regardless of queue. The maximum supported runtime is 3 days. Keep in mind that runtimes by node vary wildly.
+
+    """
     configure_logging_to_terminal(verbose)
     validate_args(mark_best=mark_best, test_run=test_run, label_version=label_version)
     raw_output_dir, final_output_dir = build_final_results_directory(

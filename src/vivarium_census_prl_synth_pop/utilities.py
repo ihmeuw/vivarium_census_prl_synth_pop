@@ -6,6 +6,7 @@ from typing import Any, List, Optional, Tuple, Union
 import click
 import numpy as np
 import pandas as pd
+import yaml
 from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
@@ -532,3 +533,10 @@ def copy_from_household_member(
             )
 
     return pop
+
+
+def write_metadata_file(final_output_dir: Path, label_version: str) -> None:
+    metadata = {"data_version": label_version}
+    outpath = final_output_dir / "metadata.yaml"
+    with open(outpath, "w") as file:
+        yaml.dump(metadata, file)
