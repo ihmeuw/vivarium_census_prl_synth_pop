@@ -44,7 +44,7 @@ HOUSEHOLD_TYPES = list(HOUSEHOLD_TYPE_MAP.values())
 PERSONS_COLUMNS_TO_INITIALIZE = [
     "census_household_id",
     "age",
-    "relation_to_reference_person",
+    "relationship_to_reference_person",
     "sex",
     "race_ethnicity",
     "born_in_us",
@@ -110,7 +110,7 @@ PERSONS_COLUMNS_MAP = {
     "ST": "state",
     "SERIALNO": "census_household_id",
     "AGEP": "age",
-    "RELSHIPP": "relation_to_reference_person",
+    "RELSHIPP": "relationship_to_reference_person",
     "SEX": "sex",
     "HISP": "latino",
     "RAC1P": "race",
@@ -148,10 +148,10 @@ SEXES = list(SEX_VAR_MAP.values())
 
 RELATIONSHIP_TO_REFERENCE_PERSON_MAP = {
     20: "Reference person",
-    21: "Opp-sex spouse",
-    22: "Opp-sex partner",
+    21: "Opposite-sex spouse",
+    22: "Opposite-sex unmarried partner",
     23: "Same-sex spouse",
-    24: "Same-sex partner",
+    24: "Same-sex unmarried partner",
     25: "Biological child",
     26: "Adopted child",
     27: "Stepchild",
@@ -161,20 +161,20 @@ RELATIONSHIP_TO_REFERENCE_PERSON_MAP = {
     31: "Parent-in-law",
     32: "Child-in-law",
     33: "Other relative",
-    34: "Roommate",
+    34: "Roommate or housemate",
     35: "Foster child",
     36: "Other nonrelative",
-    37: "Institutionalized GQ pop",
-    38: "Noninstitutionalized GQ pop",
+    37: "Institutionalized group quarters population",
+    38: "Noninstitutionalized group quarters population",
 }
 RELATIONSHIPS = list(RELATIONSHIP_TO_REFERENCE_PERSON_MAP.values())
 
-NEWBORNS_RELATION_TO_REFERENCE_PERSON_MAP = {
+NEWBORNS_RELATIONSHIP_TO_REFERENCE_PERSON_MAP = {
     "Reference person": "Biological child",
-    "Opp-sex spouse": "Biological child",
-    "Opp-sex partner": "Biological child",
+    "Opposite-sex spouse": "Biological child",
+    "Opposite-sex unmarried partner": "Biological child",
     "Same-sex spouse": "Biological child",
-    "Same-sex partner": "Biological child",
+    "Same-sex unmarried partner": "Biological child",
     "Biological child": "Grandchild",
     "Adopted child": "Grandchild",
     "Stepchild": "Grandchild",
@@ -184,11 +184,11 @@ NEWBORNS_RELATION_TO_REFERENCE_PERSON_MAP = {
     "Parent-in-law": "Other relative",
     "Child-in-law": "Grandchild",
     "Other relative": "Other relative",
-    "Roommate": "Other nonrelative",
+    "Roommate or housemate": "Other nonrelative",
     "Foster child": "Grandchild",
     "Other nonrelative": "Other nonrelative",
-    "Institutionalized GQ pop": "Institutionalized GQ pop",
-    "Noninstitutionalized GQ pop": "Noninstitutionalized GQ pop",
+    "Institutionalized group quarters population": "Institutionalized group quarters population",
+    "Noninstitutionalized group quarters population": "Noninstitutionalized group quarters population",
 }
 
 US_STATE_ABBRV_MAP = {

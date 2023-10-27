@@ -1,6 +1,6 @@
 from itertools import chain
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -9,7 +9,7 @@ from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
 
-from vivarium_census_prl_synth_pop.constants import data_keys, metadata, paths
+from vivarium_census_prl_synth_pop.constants import data_keys, metadata
 from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
@@ -50,7 +50,7 @@ FINAL_OBSERVERS = {
         "city",
         "zipcode",
         "state",
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
         "sex",
         "race_ethnicity",
         "guardian_1",
@@ -71,6 +71,7 @@ FINAL_OBSERVERS = {
         "copy_age",
         "date_of_birth",
         "copy_date_of_birth",
+        "relationship_to_reference_person",
         "sex",
         "race_ethnicity",
         "street_number",
@@ -127,7 +128,7 @@ FINAL_OBSERVERS = {
         "city",
         "zipcode",
         "state",
-        "relation_to_reference_person",
+        "relationship_to_reference_person",
         "sex",
         "race_ethnicity",
         "guardian_1",
@@ -141,8 +142,9 @@ FINAL_OBSERVERS = {
     metadata.DatasetNames.SSA: {
         "simulant_id",
         "first_name",
-        "middle_initial",
+        "middle_name",
         "last_name",
+        "sex",
         "date_of_birth",
         "copy_date_of_birth",
         "ssn",
@@ -167,7 +169,7 @@ FINAL_OBSERVERS = {
         "mailing_address_zipcode",
         "mailing_address_state",
         "mailing_address_po_box",
-        "income",
+        "wages",
         "employer_id",
         "employer_name",
         "employer_street_number",
@@ -200,11 +202,10 @@ FINAL_OBSERVERS = {
         "mailing_address_po_box",
         "housing_type",
         "joint_filer",
-        "ssn",
+        "ssn_itin",
         "copy_ssn",
-        "itin",
-        # todo: add copy itin
         "tax_year",
+        "relationship_to_reference_person",
     },
     metadata.DatasetNames.TAXES_DEPENDENTS: {
         # Metadata is for a dependent.  This should capture each dependent/guardian pair.  Meaning that if a dependent
@@ -227,7 +228,7 @@ FINAL_OBSERVERS = {
         "mailing_address_state",
         "mailing_address_po_box",
         "sex",
-        "ssn",
+        "ssn_itin",
         "copy_ssn",
         "guardian_id",
         "housing_type",
@@ -235,54 +236,37 @@ FINAL_OBSERVERS = {
     },
 }
 
+OUTPUT_DATASETS = [
+    metadata.DatasetNames.ACS,
+    metadata.DatasetNames.CENSUS,
+    metadata.DatasetNames.CPS,
+    metadata.DatasetNames.SSA,
+    metadata.DatasetNames.WIC,
+    metadata.DatasetNames.TAXES_W2_1099,
+    metadata.DatasetNames.TAXES_1040,
+]
+
 PUBLIC_SAMPLE_PUMA_PROPORTION = 0.5
 
 PUBLIC_SAMPLE_ADDRESS_PARTS = {
     "city": "Anytown",
-    "state": "US",
+    "state": "WA",
     "zipcode": "00000",
 }
 
 
 def build_results(
-    raw_output_dir: Union[str, Path],
-    final_output_dir: Union[str, Path],
-    mark_best: bool,
-    test_run: bool,
+    raw_output_dir: Path,
+    final_output_dir: Path,
     extension: str,
     public_sample: bool,
     seed: str,
-    artifact_path: Union[str, Path],
-):
-    if mark_best and test_run:
-        logger.error(
-            "A test run can't be marked best. "
-            "Please remove either the mark best or the test run flag."
-        )
-        return
-    raw_output_dir = Path(raw_output_dir)
-    final_output_dir = Path(final_output_dir)
-    artifact_path = Path(artifact_path)
+    artifact_path: str,
+) -> None:
     logger.info("Performing post-processing")
     perform_post_processing(
         raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
     )
-
-    if test_run:
-        logger.info("Test run - not marking results as latest.")
-    else:
-        create_results_link(final_output_dir, paths.LATEST_DIR_NAME)
-
-    if mark_best:
-        create_results_link(final_output_dir, paths.BEST_DIR_NAME)
-
-
-def create_results_link(output_dir: Path, link_name: Path) -> None:
-    logger.info(f"Marking results as {link_name}: {str(output_dir)}.")
-    output_root_dir = output_dir.parent
-    link_dir = output_root_dir / link_name
-    link_dir.unlink(missing_ok=True)
-    link_dir.symlink_to(output_dir, target_is_directory=True)
 
 
 def perform_post_processing(
@@ -290,7 +274,7 @@ def perform_post_processing(
     final_output_dir: Path,
     extension: str,
     seed: str,
-    artifact_path: Path,
+    artifact_path: str,
     public_sample: bool,
 ) -> None:
     # Create RandomnessStream for post-processing
@@ -325,7 +309,7 @@ def perform_post_processing(
         # the (up to 6) PUMAs with group quarters in them.
         gq_pumas = (
             processed_results[metadata.DatasetNames.CENSUS]
-            .pipe(lambda df: df[df["housing_type"] != "Standard"])[["state_id", "puma"]]
+            .pipe(lambda df: df[df["housing_type"] != "Household"])[["state_id", "puma"]]
             .drop_duplicates()
         )
         pumas_to_keep = pd.concat(
@@ -387,19 +371,27 @@ def perform_post_processing(
                     if f"{address_prefix}{address_part}" in obs_data.columns:
                         obs_data[f"{address_prefix}{address_part}"] = address_part_value
             # Fix the state column dtypes
-            state_categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values())) + [
-                PUBLIC_SAMPLE_ADDRESS_PARTS["state"]
-            ]
+            state_categories = sorted(list(metadata.US_STATE_ABBRV_MAP.values()))
             state_cols = [c for c in obs_data.columns if "state" in c]
             for col in state_cols:
                 obs_data[col] = obs_data[col].astype(
                     pd.CategoricalDtype(categories=state_categories)
                 )
+            processed_results[observer] = obs_data
+    # Format 1040 by combining with tax dependents to match guardians with dependents
+    processed_results[metadata.DatasetNames.TAXES_1040] = formatter.format_1040_dataset(
+        processed_results
+    )
 
-        logger.info(f"Writing final {observer} results.")
-        obs_dir = build_output_dir(final_output_dir, subdir=observer)
-        seed_ext = f"_{seed}" if seed != "" else ""
-        write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
+    # Write results for each dataset - we do not need to write out tax dependents now that we format
+    # the 1040 dataset above
+    for observer in FINAL_OBSERVERS:
+        if observer in OUTPUT_DATASETS:
+            obs_data = processed_results[observer]
+            logger.info(f"Writing final {observer} results.")
+            obs_dir = build_output_dir(final_output_dir, subdir=observer)
+            seed_ext = f"_{seed}" if seed != "" else ""
+            write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
@@ -485,6 +477,7 @@ def generate_maps(
 
     # Add column maps to mapper here
     # The key should be the index of the map and the mapping function the value
+
     mappers = {
         "first_name_id": get_given_name_map,
         "middle_name_id": get_middle_initial_map,
@@ -536,9 +529,6 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
 
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing {observer} data")
-        if observer == metadata.DatasetNames.SSA:
-            logger.info(f"Ignoring {observer} as it does not have a state column.")
-            continue
         usa_obs_dir = usa_results_dir / observer
         usa_obs_files = sorted(
             list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
@@ -549,6 +539,12 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             output_file_path = state_observer_dir / usa_obs_file.name
             if output_file_path.exists():
                 continue
-            state_data = read_datafile(usa_obs_file, reset_index=False, state=state)
+            if observer == metadata.DatasetNames.SSA:
+                state_filter_val = None
+            else:
+                state_filter_val = state
+            state_data = read_datafile(
+                usa_obs_file, reset_index=False, state=state_filter_val
+            )
             write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")

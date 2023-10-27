@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 from itertools import chain
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
@@ -7,6 +6,7 @@ from typing import Any, List, Optional, Tuple, Union
 import click
 import numpy as np
 import pandas as pd
+import yaml
 from loguru import logger
 from scipy import stats
 from vivarium.framework.engine import Builder
@@ -206,7 +206,7 @@ def vectorized_choice(
 
     # for each p_i in probs, count how many elements of cdf for which p_i >= cdf_i
     chosen_indices = np.searchsorted(cdf, probs, side="right")
-    return np.take(options, chosen_indices)
+    return np.take(options, chosen_indices, axis=0)
 
 
 def random_integers(
@@ -286,24 +286,6 @@ def build_output_dir(output_dir: Path, subdir: Optional[Union[str, Path]] = None
         os.umask(old_umask)
 
     return output_dir
-
-
-def build_final_results_directory(
-    results_dir: str,
-    version: Optional[str] = None,
-) -> Tuple[Path, Path]:
-    tmp = paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    if version is None:
-        subdir = tmp / "pseudopeople_input_data_usa"
-    else:
-        subdir = tmp / f"pseudopeople_input_data_usa_{version}"
-    final_output_dir = build_output_dir(
-        Path(results_dir),
-        subdir=subdir,
-    )
-    raw_output_dir = Path(results_dir) / paths.RAW_RESULTS_DIR_NAME
-
-    return raw_output_dir, final_output_dir
 
 
 def add_guardian_address_ids(pop: pd.DataFrame) -> pd.DataFrame:
@@ -551,3 +533,10 @@ def copy_from_household_member(
             )
 
     return pop
+
+
+def write_metadata_file(final_output_dir: Path, label_version: str) -> None:
+    metadata = {"data_version": label_version}
+    outpath = final_output_dir / "metadata.yaml"
+    with open(outpath, "w") as file:
+        yaml.dump(metadata, file)

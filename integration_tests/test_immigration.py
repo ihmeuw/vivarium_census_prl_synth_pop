@@ -33,7 +33,7 @@ def test_there_is_immigration(immigrants_by_timestep, sim):
 def test_immigration_into_gq(immigrants_by_timestep, sim):
     all_time_gq_immigrants = pd.concat(
         [
-            immigrants[immigrants["household_details.housing_type"] != "Standard"]
+            immigrants[immigrants["household_details.housing_type"] != "Household"]
             for _, _, immigrants in immigrants_by_timestep
         ]
     )
@@ -47,7 +47,7 @@ def test_immigration_into_existing_households(immigrants_by_timestep, sim):
     all_time_existing_household_immigrants = []
 
     for before, _, immigrants in immigrants_by_timestep:
-        existing_households = before[before["household_details.housing_type"] == "Standard"][
+        existing_households = before[before["household_details.housing_type"] == "Household"][
             "household_id"
         ].unique()
         existing_household_immigrants = immigrants[
@@ -56,17 +56,17 @@ def test_immigration_into_existing_households(immigrants_by_timestep, sim):
 
         # These will all be non-reference-person immigrants, who cannot have certain relationships
         expected_relationship = ~existing_household_immigrants[
-            "relation_to_reference_person"
+            "relationship_to_reference_person"
         ].isin(
             [
                 "Reference person",
-                "Institutionalized GQ pop",
-                "Noninstitutionalized GQ pop",
+                "Institutionalized group quarters population",
+                "Noninstitutionalized group quarters population",
                 "Parent",
-                "Opp-sex spouse",
-                "Opp-sex partner",
+                "Opposite-sex spouse",
+                "Opposite-sex unmarried partner",
                 "Same-sex spouse",
-                "Same-sex partner",
+                "Same-sex unmarried partner",
             ]
         )
 
@@ -89,16 +89,16 @@ def test_immigration_into_new_households(immigrants_by_timestep, sim):
     all_time_household_immigrants = []
 
     for before, after, immigrants in immigrants_by_timestep:
-        existing_households = before[before["household_details.housing_type"] == "Standard"][
+        existing_households = before[before["household_details.housing_type"] == "Household"][
             "household_id"
         ].unique()
         new_household_immigrants = immigrants[
-            (immigrants["household_details.housing_type"] == "Standard")
+            (immigrants["household_details.housing_type"] == "Household")
             & ~immigrants["household_id"].isin(existing_households)
         ]
 
         households_established_by_domestic_migration = after[
-            (after["relation_to_reference_person"] == "Reference person")
+            (after["relationship_to_reference_person"] == "Reference person")
             & (~after.index.isin(immigrants.index))
             & (~after["household_id"].isin(existing_households))
         ]["household_id"].unique()
@@ -111,17 +111,17 @@ def test_immigration_into_new_households(immigrants_by_timestep, sim):
         ]
 
         expected_relationship = ~non_reference_person_immigrants[
-            "relation_to_reference_person"
+            "relationship_to_reference_person"
         ].isin(
             [
                 "Reference person",
-                "Institutionalized GQ pop",
-                "Noninstitutionalized GQ pop",
+                "Institutionalized group quarters population",
+                "Noninstitutionalized group quarters population",
                 "Parent",
-                "Opp-sex spouse",
-                "Opp-sex partner",
+                "Opposite-sex spouse",
+                "Opposite-sex unmarried partner",
                 "Same-sex spouse",
-                "Same-sex partner",
+                "Same-sex unmarried partner",
             ]
         )
 

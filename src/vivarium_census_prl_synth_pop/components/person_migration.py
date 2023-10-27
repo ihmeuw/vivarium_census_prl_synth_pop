@@ -1,6 +1,8 @@
-import numpy as np
+from typing import List
+
 import pandas as pd
 from loguru import logger
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -10,7 +12,7 @@ from vivarium.framework.utilities import from_yearly
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 
-class PersonMigration:
+class PersonMigration(Component):
     """
     Handles domestic (within the US) migration of individuals (not in household groups).
 
@@ -24,16 +26,24 @@ class PersonMigration:
     The population at risk for all three move types is all simulants.
     """
 
-    def __repr__(self) -> str:
-        return "PersonMigration()"
-
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "person_migration"
+    def columns_required(self) -> List[str]:
+        return [
+            "household_id",
+            "relationship_to_reference_person",
+        ]
+
+    @property
+    def columns_created(self) -> List[str]:
+        return ["previous_timestep_address_id"]
+
+    @property
+    def time_step_priority(sself) -> int:
+        return metadata.PRIORITY_MAP["person_migration.on_time_step"]
 
     #################
     # Setup methods #
@@ -43,14 +53,8 @@ class PersonMigration:
         self.randomness = builder.randomness.get_stream(self.name)
         self.households = builder.components.get_component("households")
         self.household_details = builder.value.get_value("household_details")
-        self.columns_needed = [
-            "household_id",
-            "relation_to_reference_person",
-            "previous_timestep_address_id",
-        ]
-        self.population_view = builder.population.get_view(self.columns_needed)
-        self.updated_relation_to_reference_person = builder.value.get_value(
-            "updated_relation_to_reference_person"
+        self.updated_relationship_to_reference_person = builder.value.get_value(
+            "updated_relationship_to_reference_person"
         )
 
         move_rates_data = pd.read_csv(
@@ -79,17 +83,6 @@ class PersonMigration:
         self.person_move_probabilities = builder.value.register_value_producer(
             f"{self.name}.move_probabilities",
             source=move_probabilities_lookup_table,
-        )
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=["previous_timestep_address_id"],
-        )
-        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
-        builder.event.register_listener(
-            "time_step",
-            self.on_time_step,
-            priority=metadata.PRIORITY_MAP["person_migration.on_time_step"],
         )
 
     ########################
@@ -143,8 +136,10 @@ class PersonMigration:
 
         self.population_view.update(pop)
 
-        new_relation_to_ref_person = self.updated_relation_to_reference_person(event.index)
-        self.population_view.update(new_relation_to_ref_person)
+        new_relationship_to_reference_person = self.updated_relationship_to_reference_person(
+            event.index
+        )
+        self.population_view.update(new_relationship_to_reference_person)
 
     ##################
     # Helper methods #
@@ -160,7 +155,7 @@ class PersonMigration:
 
         # update pop table
         pop.loc[movers, "household_id"] = new_household_ids
-        pop.loc[movers, "relation_to_reference_person"] = "Reference person"
+        pop.loc[movers, "relationship_to_reference_person"] = "Reference person"
 
         return pop
 
@@ -172,7 +167,7 @@ class PersonMigration:
             return pop
 
         # The two GQ housing type categories (institutional, non-institutional) are
-        # tracked in the "relation_to_reference_person" column, even though
+        # tracked in the "relationship_to_reference_person" column, even though
         # that column name doesn't really make sense in a GQ setting.
         categories = list(data_values.GROUP_QUARTER_IDS.keys())
         housing_type_category_values = self.randomness.choice(
@@ -180,11 +175,11 @@ class PersonMigration:
             choices=categories,
             additional_key="gq_person_move_housing_type_categories",
         )
-        pop.loc[movers, "relation_to_reference_person"] = housing_type_category_values
+        pop.loc[movers, "relationship_to_reference_person"] = housing_type_category_values
 
         for category, housing_types in data_values.GROUP_QUARTER_IDS.items():
             movers_in_category = movers.intersection(
-                pop.index[pop["relation_to_reference_person"] == category]
+                pop.index[pop["relationship_to_reference_person"] == category]
             )
             if len(movers_in_category) == 0:
                 continue
@@ -248,6 +243,6 @@ class PersonMigration:
             )
 
         pop.loc[movers, "household_id"] = household_id_values
-        pop.loc[movers, "relation_to_reference_person"] = "Other nonrelative"
+        pop.loc[movers, "relationship_to_reference_person"] = "Other nonrelative"
 
         return pop

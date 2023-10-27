@@ -26,8 +26,8 @@ def test_there_is_emigration(simulants_on_adjacent_timesteps):
         == emigrants["household_details.housing_type_after"]
     ).all()
     assert (
-        emigrants["relation_to_reference_person_before"]
-        == emigrants["relation_to_reference_person_after"]
+        emigrants["relationship_to_reference_person_before"]
+        == emigrants["relationship_to_reference_person_after"]
     ).all()
 
     # VERY conservative upper bound on how often this should be occurring, as a proportion
@@ -51,12 +51,12 @@ def test_non_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
         simulants_on_adjacent_timesteps,
         lambda before, after: (
             after["household_id"].isin(after[after["in_united_states"]]["household_id"])
-            & (before["household_details.housing_type"] == "Standard")
+            & (before["household_details.housing_type"] == "Household")
         ),
     )
 
     emigrants = all_simulant_links[all_non_gq_emigration_status]
-    assert (emigrants["relation_to_reference_person_before"] != "Reference person").all()
+    assert (emigrants["relationship_to_reference_person_before"] != "Reference person").all()
 
     assert 0 < all_non_gq_emigration_status.mean() < 0.1
 
@@ -64,7 +64,7 @@ def test_non_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
 def test_gq_individuals_emigrate(simulants_on_adjacent_timesteps):
     _, all_gq_emigration_status = all_time_emigration_condition(
         simulants_on_adjacent_timesteps,
-        lambda before, after: before["household_details.housing_type"] != "Standard",
+        lambda before, after: before["household_details.housing_type"] != "Household",
     )
 
     assert 0 < all_gq_emigration_status.mean() < 0.1
@@ -81,7 +81,7 @@ def test_households_emigrate(simulants_on_adjacent_timesteps):
     emigrants = all_simulant_links[all_household_emigration_status]
 
     # GQ households never emigrate
-    assert (emigrants["household_details.housing_type_before"] == "Standard").all()
+    assert (emigrants["household_details.housing_type_before"] == "Household").all()
 
     assert 0 < all_household_emigration_status.mean() < 0.1
 

@@ -19,8 +19,8 @@ fake_household_1 = pd.DataFrame(
         ],
         "age": [39, 8, 5, 7, 35],
         "guardian_1": [-1, 0, 300, -1, -1],
-        "relation_to_reference_person": [
-            "Opp-sex spouse",
+        "relationship_to_reference_person": [
+            "Opposite-sex spouse",
             "Stepchild",
             "Adopted child",
             "Adopted child",
@@ -42,7 +42,7 @@ fake_household_2 = pd.DataFrame(
         ],
         "age": [68, 44, 7, 9, 38],
         "guardian_1": [-1, -1, 100, 100, -1],
-        "relation_to_reference_person": [
+        "relationship_to_reference_person": [
             "Parent-in-law",
             "Same-sex spouse",
             "Biological child",
@@ -65,11 +65,11 @@ fake_household_3 = pd.DataFrame(
         ],
         "age": [63, 27, 60, 23, 2],
         "guardian_1": [-1, -1, -1, -1, 35],
-        "relation_to_reference_person": [
+        "relationship_to_reference_person": [
             "Parent",
             "Sibling",
             "Parent",
-            "Opp-sex spouse",
+            "Opposite-sex spouse",
             "Biological child",
         ],
     },
@@ -88,11 +88,11 @@ fake_household_4 = pd.DataFrame(
         ],
         "age": [23, 22, 22, 21, 20],
         "guardian_1": [-1, -1, -1, -1, -1],
-        "relation_to_reference_person": [
-            "Roommate",
-            "Roommate",
-            "Roommate",
-            "Roommate",
+        "relationship_to_reference_person": [
+            "Roommate or housemate",
+            "Roommate or housemate",
+            "Roommate or housemate",
+            "Roommate or housemate",
             "Sibling",
         ],
     },
@@ -111,10 +111,10 @@ fake_household_5 = pd.DataFrame(
         ],
         "age": [38, 5, 36, 34, 36],
         "guardian_1": [-1, 20, -1, 20, -1],
-        "relation_to_reference_person": [
-            "Opp-sex spouse",
+        "relationship_to_reference_person": [
+            "Opposite-sex spouse",
             "Other relative",
-            "Roommate",
+            "Roommate or housemate",
             "Other relative",
             "Other nonrelative",
         ],
@@ -170,10 +170,10 @@ def test_update_to_reference_person_and_relationships(mocker, fake_population):
     expected_relationships_4 = pd.Series(
         data=[
             "Reference person",
-            "Roommate",
-            "Roommate",
-            "Roommate",
-            "Roommate",
+            "Roommate or housemate",
+            "Roommate or housemate",
+            "Roommate or housemate",
+            "Roommate or housemate",
         ],
         index=[15, 16, 17, 18, 19],
     )
@@ -181,7 +181,7 @@ def test_update_to_reference_person_and_relationships(mocker, fake_population):
         data=[
             "Reference person",
             "Biological child",
-            "Roommate",
+            "Roommate or housemate",
             "Other relative",
             "Other nonrelative",
         ],
@@ -208,7 +208,7 @@ def test_update_to_reference_person_and_relationships(mocker, fake_population):
     expected_reference_person = (
         fake_population.loc[fake_population.index].groupby(["household_id"])["age"].idxmax()
     )
-    updated_relationships = pop_component.get_updated_relation_to_reference_person(
+    updated_relationships = pop_component.get_updated_relationship_to_reference_person(
         fake_population.index
     )
 

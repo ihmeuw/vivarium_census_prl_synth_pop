@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 
@@ -48,7 +49,7 @@ def get_address_id_maps(
     -------
     A dictionary of pd.Series suitable for pd.Series.map, indexed by `address_id`
     """
-
+    logger.info(f"Generating {column_name} maps")
     try:
         output_cols_superset = {
             "address_id": [column_name, "state_id", "state", "puma", "po_box"],
@@ -261,14 +262,14 @@ def get_mailing_address_map(
     must contain columns for physical address ["street_number", "street_name", etc].
     """
 
-    # Get address_ds that have a PO box
+    # Get address_ids that have a PO box
     po_box_address_ids = formatted_obs_data["po_box"] != data_values.NO_PO_BOX
     # Setup mailing address map
     mailing_address_map = {}
     # Copy address line one columns and blank out columns for PO box address_ids.
     for column in HOUSEHOLD_ADDRESS_COL_MAP.values():
         mailing_address_map[f"mailing_address_{column}"] = pd.Series(
-            "", index=formatted_obs_data.index
+            np.nan, index=formatted_obs_data.index
         )
         # Move over address details for non-PO box addresses
         mailing_address_map[f"mailing_address_{column}"][~po_box_address_ids] = maps[column][

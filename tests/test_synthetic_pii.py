@@ -120,7 +120,7 @@ def test_first_and_middle_names(mocker, given_names, fake_obs_data):
     totals = given_names.reset_index().groupby(["yob", "sex"])["freq"].sum()
     name_freq = given_names.reset_index("freq")
     proportions = name_freq["freq"] / totals
-    proportions.index = proportions.index.rename("year_of_birth", "yob")
+    proportions.index = proportions.index.set_names({"year_of_birth": "yob"})
 
     # Get name frequencies for comparison
     first_names = get_given_name_map(
@@ -682,7 +682,7 @@ def test_mailing_address(mocker):
 
     for column in ["street_number", "street_name", "unit_number"]:
         column_name = f"mailing_address_{column}"
-        assert (mailing_map[column_name][po_box_mask] == "").all()
+        assert (mailing_map[column_name][po_box_mask].isna()).all()
         assert (
             mailing_map[column_name][~po_box_mask] == fake_maps[column][~po_box_mask]
         ).all()

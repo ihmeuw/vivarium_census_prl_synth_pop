@@ -23,11 +23,11 @@ INSTITUTIONAL_GROUP_QUARTER_IDS = {"Carceral": 0, "Nursing home": 1, "Other inst
 NONINSTITUTIONAL_GROUP_QUARTER_IDS = {
     "College": 3,
     "Military": 4,
-    "Other non-institutional": 5,
+    "Other noninstitutional": 5,
 }
 GROUP_QUARTER_IDS = {
-    "Institutionalized GQ pop": INSTITUTIONAL_GROUP_QUARTER_IDS,
-    "Noninstitutionalized GQ pop": NONINSTITUTIONAL_GROUP_QUARTER_IDS,
+    "Institutionalized group quarters population": INSTITUTIONAL_GROUP_QUARTER_IDS,
+    "Noninstitutionalized group quarters population": NONINSTITUTIONAL_GROUP_QUARTER_IDS,
 }
 GQ_HOUSING_TYPE_MAP = {
     0: "Carceral",
@@ -35,9 +35,9 @@ GQ_HOUSING_TYPE_MAP = {
     2: "Other institutional",
     3: "College",
     4: "Military",
-    5: "Other non-institutional",
+    5: "Other noninstitutional",
 }
-HOUSING_TYPES = ["Standard"] + list(GQ_HOUSING_TYPE_MAP.values())
+HOUSING_TYPES = ["Household"] + list(GQ_HOUSING_TYPE_MAP.values())
 
 PROPORTION_INITIALIZATION_WITH_SSN = 0.743
 PROPORTION_IMMIGRANTS_WITH_SSN = 0.625
@@ -142,6 +142,7 @@ class Taxes(NamedTuple):
     PERCENT_W2_RECEIVED = 0.9465
     PERCENT_1099_RECEIVED = 0.0535
     PROBABILITY_OF_JOINT_FILER = 0.95
+    PROBABILITY_OF_FILING_TAXES = 0.655
 
 
 # Needed to allow HDFs to be filtered on these columns
