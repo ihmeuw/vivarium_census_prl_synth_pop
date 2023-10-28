@@ -132,17 +132,9 @@ class FuzzyChecker:
 
             no_bug_distribution = scipy.stats.betabinom(a=a, b=b, n=denominator)
 
-        # We can be dealing with some _extremely_ unlikely events here, so we have to set numpy to not error
-        # if we generate a probability too small to be stored in a floating point number(!), which is known
-        # as "underflow"
-        with np.errstate(under="ignore"):
-            bug_marginal_likelihood = bug_distribution.pmf(numerator)
-            no_bug_marginal_likelihood = no_bug_distribution.pmf(numerator)
-
-        if no_bug_marginal_likelihood > 0:
-            bayes_factor = bug_marginal_likelihood / no_bug_marginal_likelihood
-        else:
-            bayes_factor = 1_000_000
+        bayes_factor = self._calculate_bayes_factor(
+            numerator, bug_distribution, no_bug_distribution
+        )
 
         # TODO: Make this configurable?
         reject_null = bayes_factor > 100
@@ -169,6 +161,37 @@ class FuzzyChecker:
                 raise AssertionError(
                     f"{name} value {proportion:g} is significantly greater than expected, bayes factor = {bayes_factor:g}"
                 )
+
+        if self._calculate_bayes_factor(0, bug_distribution, no_bug_distribution) < 100:
+            warnings.warn(
+                f"Sample size ({denominator}) too small to ever find that the simulation's '{name}' value is less than expected."
+            )
+
+        if (
+            self._calculate_bayes_factor(denominator, bug_distribution, no_bug_distribution)
+            < 100
+        ):
+            warnings.warn(
+                f"Sample size ({denominator}) too small to ever find that the simulation's '{name}' value is greater than expected."
+            )
+
+    def _calculate_bayes_factor(
+        self,
+        numerator: int,
+        bug_distribution: scipy.stats.rv_discrete,
+        no_bug_distribution: scipy.stats.rv_discrete,
+    ) -> float:
+        # We can be dealing with some _extremely_ unlikely events here, so we have to set numpy to not error
+        # if we generate a probability too small to be stored in a floating point number(!), which is known
+        # as "underflow"
+        with np.errstate(under="ignore"):
+            bug_marginal_likelihood = bug_distribution.pmf(numerator)
+            no_bug_marginal_likelihood = no_bug_distribution.pmf(numerator)
+
+        try:
+            return bug_marginal_likelihood / no_bug_marginal_likelihood
+        except (ZeroDivisionError, FloatingPointError):
+            return 1_000_000.0
 
     @cache
     def _fit_beta_distribution_to_ui(self, lb: float, ub: float) -> Tuple[float, float]:
