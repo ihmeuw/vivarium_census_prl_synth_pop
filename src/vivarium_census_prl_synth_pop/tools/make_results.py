@@ -592,7 +592,11 @@ def write_shard_metadata(
         shard_metadata = _get_metadata_values(obs_data, "USA")
     else:
         location_groups = obs_data.groupby(
-            [col for col in obs_data.columns if "state" in col and col != "employer_state"]
+            [
+                col
+                for col in obs_data.columns
+                if "state" in col and col not in ["employer_state", "state_id"]
+            ]
         )
         metadata_dfs = []
         for location, location_data in location_groups:
