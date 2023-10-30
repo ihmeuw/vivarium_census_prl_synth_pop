@@ -568,7 +568,7 @@ def write_shard_metadata(
         for column in METADATA_COLUMNS:
             if column not in df.columns:
                 continue
-            elif column in COPY_HOUSEHOLD_MEMBER_COLS:
+            elif f"copy_{column}" in COPY_HOUSEHOLD_MEMBER_COLS.values():
                 # Proportion based on missingness from available household members that can
                 # have a copy value
                 metadata_df[f"{column}_proportion_to_noise"] = df[
