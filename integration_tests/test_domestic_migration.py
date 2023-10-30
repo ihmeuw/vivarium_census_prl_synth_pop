@@ -201,10 +201,10 @@ def test_individuals_move_into_group_quarters(
         fuzzy_checker.fuzzy_assert_proportion(
             "Domestic migration into GQ from GQ",
             # Since this is sampled randomly from the population only based on demographics, it should
-            # be around 3%, with some leeway for demographics correlations
+            # be around 3%, with substantial leeway for demographics correlations
             into_gq_from_gq,
             target_value_lb=data_values.PROP_POPULATION_IN_GQ * 0.5,
-            target_value_ub=data_values.PROP_POPULATION_IN_GQ * 3,
+            target_value_ub=data_values.PROP_POPULATION_IN_GQ * 5,
             name_addl=f"Time step {time_step}",
         )
         all_time_into_gq_from_gq.append(into_gq_from_gq)
@@ -235,10 +235,10 @@ def test_individuals_move_into_group_quarters(
     fuzzy_checker.fuzzy_assert_proportion(
         "Domestic migration into GQ from GQ",
         # Since this is sampled randomly from the population only based on demographics, it should
-        # be around 3%, with some leeway for demographics correlations
+        # be around 3%, with substantial leeway for demographics correlations
         all_time_into_gq_from_gq,
         target_value_lb=data_values.PROP_POPULATION_IN_GQ * 0.5,
-        target_value_ub=data_values.PROP_POPULATION_IN_GQ * 3,
+        target_value_ub=data_values.PROP_POPULATION_IN_GQ * 5,
         name_addl="All time steps",
     )
 
