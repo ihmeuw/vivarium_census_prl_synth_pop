@@ -45,6 +45,8 @@ def target_migration_rates(sim):
 def test_individuals_move(
     simulants_on_adjacent_timesteps, fuzzy_checker: FuzzyChecker, target_migration_rates
 ):
+    all_time_individual_movers = []
+
     for time_steps, (before, after) in enumerate(simulants_on_adjacent_timesteps):
         individual_movers = before["household_id"] != after["household_id"]
         fuzzy_checker.fuzzy_assert_proportion(
@@ -63,11 +65,26 @@ def test_individuals_move(
             != after[individual_movers]["household_details.address_id"]
         ).all()
         check_po_box_collisions(after, before, individual_movers)
+        all_time_individual_movers.append(individual_movers)
+
+    all_time_individual_movers = pd.concat(all_time_individual_movers, ignore_index=True)
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Individual migration rate",
+        all_time_individual_movers,
+        # We say it could vary by up to 10% because of demographic
+        # change over the sim
+        target_value_lb=target_migration_rates["individual"]["total"] * 0.9,
+        target_value_ub=target_migration_rates["individual"]["total"] * 1.1,
+        name_addl="All time steps",
+    )
 
 
 def test_individuals_move_into_new_households(
     simulants_on_adjacent_timesteps, fuzzy_checker: FuzzyChecker, target_migration_rates
 ):
+    all_time_joining_recently_created_households = []
+    all_time_new_household_movers = []
+
     for time_step, (before, after) in enumerate(simulants_on_adjacent_timesteps):
         # NOTE: This set is not exactly the same as "new-household movers," as
         # implemented in the component, because it can in rare cases include
@@ -90,13 +107,19 @@ def test_individuals_move_into_new_households(
         new_household_movers = movers_into_new_households & (
             after["relationship_to_reference_person"] == "Reference person"
         )
+        joining_recently_created_households = movers_into_new_households & (
+            ~new_household_movers
+        )
         fuzzy_checker.fuzzy_assert_proportion(
             "Domestic migration joining recently created households",
             # This case -- people who joined a just-created household -- should be exceedingly rare.
-            movers_into_new_households & (~new_household_movers),
+            joining_recently_created_households,
             target_value_lb=0,
             target_value_ub=0.001,
             name_addl=f"Time step {time_step}",
+        )
+        all_time_joining_recently_created_households.append(
+            joining_recently_created_households
         )
         fuzzy_checker.fuzzy_assert_proportion(
             "Domestic migration creating new households",
@@ -109,6 +132,7 @@ def test_individuals_move_into_new_households(
             * pow(1.01, time_step),
             name_addl=f"Time step {time_step}",
         )
+        all_time_new_household_movers.append(new_household_movers)
         # There is exactly one new-household mover for each new household.
         assert (
             new_household_movers[movers_into_new_households]
@@ -126,10 +150,37 @@ def test_individuals_move_into_new_households(
         assert new_addresses.nunique() == len(new_addresses)
         assert not new_addresses.isin(before["household_details.address_id"]).any()
 
+    all_time_joining_recently_created_households = pd.concat(
+        all_time_joining_recently_created_households, ignore_index=True
+    )
+    all_time_new_household_movers = pd.concat(
+        all_time_new_household_movers, ignore_index=True
+    )
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Domestic migration joining recently created households",
+        # This case -- people who joined a just-created household -- should be exceedingly rare.
+        all_time_joining_recently_created_households,
+        target_value_lb=0,
+        target_value_ub=0.001,
+        name_addl="All time steps",
+    )
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Domestic migration creating new households",
+        all_time_new_household_movers,
+        # We say it could vary by up to 10% because of demographic
+        # change over the sim
+        target_value_lb=target_migration_rates["individual"]["new_household"] * 0.9,
+        target_value_ub=target_migration_rates["individual"]["new_household"] * 1.1,
+        name_addl="All time steps",
+    )
+
 
 def test_individuals_move_into_group_quarters(
     simulants_on_adjacent_timesteps, fuzzy_checker: FuzzyChecker, target_migration_rates
 ):
+    all_time_gq_movers = []
+    all_time_into_gq_from_gq = []
+
     for time_step, (before, after) in enumerate(simulants_on_adjacent_timesteps):
         gq_movers = (before["household_id"] != after["household_id"]) & (
             after["household_details.housing_type"] != "Household"
@@ -145,15 +196,18 @@ def test_individuals_move_into_group_quarters(
             * pow(1.01, time_step),
             name_addl=f"Time step {time_step}",
         )
+        all_time_gq_movers.append(gq_movers)
+        into_gq_from_gq = before[gq_movers]["household_details.housing_type"] != "Household"
         fuzzy_checker.fuzzy_assert_proportion(
             "Domestic migration into GQ from GQ",
             # Since this is sampled randomly from the population only based on demographics, it should
             # be around 3%, with some leeway for demographics correlations
-            (before[gq_movers]["household_details.housing_type"] != "Household"),
+            into_gq_from_gq,
             target_value_lb=data_values.PROP_POPULATION_IN_GQ * 0.5,
             target_value_ub=data_values.PROP_POPULATION_IN_GQ * 3,
             name_addl=f"Time step {time_step}",
         )
+        all_time_into_gq_from_gq.append(into_gq_from_gq)
         assert after[gq_movers]["household_id"].isin(data_values.GQ_HOUSING_TYPE_MAP).all()
         assert (
             after[gq_movers]["relationship_to_reference_person"]
@@ -165,6 +219,28 @@ def test_individuals_move_into_group_quarters(
             )
             .all()
         )
+
+    all_time_gq_movers = pd.concat(all_time_gq_movers, ignore_index=True)
+    all_time_into_gq_from_gq = pd.concat(all_time_into_gq_from_gq, ignore_index=True)
+
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Domestic migration into GQ",
+        all_time_gq_movers,
+        # We say it could vary by up to 10% because of demographic
+        # change over the sim
+        target_value_lb=target_migration_rates["individual"]["gq_person"] * 0.9,
+        target_value_ub=target_migration_rates["individual"]["gq_person"] * 1.1,
+        name_addl="All time steps",
+    )
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Domestic migration into GQ from GQ",
+        # Since this is sampled randomly from the population only based on demographics, it should
+        # be around 3%, with some leeway for demographics correlations
+        all_time_into_gq_from_gq,
+        target_value_lb=data_values.PROP_POPULATION_IN_GQ * 0.5,
+        target_value_ub=data_values.PROP_POPULATION_IN_GQ * 3,
+        name_addl="All time steps",
+    )
 
 
 def get_households_with_stable_reference_person(after, before):
@@ -185,6 +261,8 @@ def get_households_with_stable_reference_person(after, before):
 def test_individual_movers_have_correct_relationship(
     simulants_on_adjacent_timesteps, fuzzy_checker: FuzzyChecker, target_migration_rates
 ):
+    all_time_non_reference_person_movers = []
+
     for time_step, (before, after) in enumerate(simulants_on_adjacent_timesteps):
         non_reference_person_movers = (
             (before["household_id"] != after["household_id"])
@@ -202,6 +280,7 @@ def test_individual_movers_have_correct_relationship(
             * pow(1.01, time_step),
             name_addl=f"Time step {time_step}",
         )
+        all_time_non_reference_person_movers.append(non_reference_person_movers)
 
         # They move in as nonrelative, which doesn't change unless the reference person
         # of their new household also moved or died
@@ -229,23 +308,40 @@ def test_individual_movers_have_correct_relationship(
             ].isin(["Other nonrelative", "Reference person", "Roommate or housemate"])
         ).all()
 
+    all_time_non_reference_person_movers = pd.concat(
+        all_time_non_reference_person_movers, ignore_index=True
+    )
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Domestic migration into existing households",
+        all_time_non_reference_person_movers,
+        # We say it could vary by up to 10% because of demographic
+        # change over the sim
+        target_value_lb=target_migration_rates["individual"]["non_reference_person"] * 0.9,
+        target_value_ub=target_migration_rates["individual"]["non_reference_person"] * 1.1,
+        name_addl="All time steps",
+    )
+
 
 def test_households_move(
     simulants_on_adjacent_timesteps, fuzzy_checker: FuzzyChecker, target_migration_rates
 ):
+    all_time_household_moves = []
+
     for time_step, (before, after) in enumerate(simulants_on_adjacent_timesteps):
         household_movers = (before["household_id"] == after["household_id"]) & (
             before["household_details.address_id"] != after["household_details.address_id"]
         )
+        household_moves = household_movers.groupby(before["household_id"]).first()
         fuzzy_checker.fuzzy_assert_proportion(
             "Domestic migration of households",
-            household_movers.groupby(before["household_id"]).first(),
+            household_moves,
             # We say it could vary by up to 1% per timestep because of demographic
             # change over the sim
             target_value_lb=target_migration_rates["household"] * pow(0.99, time_step),
             target_value_ub=target_migration_rates["household"] * pow(1.01, time_step),
             name_addl=f"Time step {time_step}",
         )
+        all_time_household_moves.append(household_moves)
 
         # Household moves don't change household structure unless the reference person left
         in_household_with_reference_person = get_households_with_stable_reference_person(
@@ -273,6 +369,17 @@ def test_households_move(
         ).all()
 
         check_po_box_collisions(after, before, household_movers)
+
+    all_time_household_moves = pd.concat(all_time_household_moves, ignore_index=True)
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Domestic migration of households",
+        all_time_household_moves,
+        # We say it could vary by up to 10% because of demographic
+        # change over the sim
+        target_value_lb=target_migration_rates["household"] * 0.9,
+        target_value_ub=target_migration_rates["household"] * 1.1,
+        name_addl="All time steps",
+    )
 
 
 def check_po_box_collisions(after, before, movers):
@@ -440,6 +547,27 @@ def test_addresses_during_moves(
         after_units = after_units.reindex(total_index)
         mask_moved_units = before_units[address_id_col] != after_units[address_id_col]
 
+        if unit_id_col == "employer_id":
+            fuzzy_checker.fuzzy_assert_proportion(
+                "Domestic migration of businesses",
+                mask_moved_units,
+                target_value=from_yearly(
+                    data_values.BUSINESS_MOVE_RATE_YEARLY,
+                    pd.Timedelta(days=sim.configuration.time.step_size),
+                ),
+                name_addl=f"Time step {time_step}",
+            )
+        else:
+            fuzzy_checker.fuzzy_assert_proportion(
+                "Domestic migration of households",
+                mask_moved_units,
+                # We say it could vary by up to 1% per timestep because of demographic
+                # change over the sim
+                target_value_lb=target_migration_rates["household"] * pow(0.99, time_step),
+                target_value_ub=target_migration_rates["household"] * pow(1.01, time_step),
+                name_addl=f"Time step {time_step}",
+            )
+
         all_time_moved.append(mask_moved_units)
 
         # Check that address details do not change if address_id does not change
@@ -479,6 +607,7 @@ def test_addresses_during_moves(
                 data_values.BUSINESS_MOVE_RATE_YEARLY,
                 pd.Timedelta(days=sim.configuration.time.step_size),
             ),
+            name_addl="All time steps",
         )
     else:
         fuzzy_checker.fuzzy_assert_proportion(
@@ -488,19 +617,24 @@ def test_addresses_during_moves(
             # change over the sim
             target_value_lb=target_migration_rates["household"] * 0.9,
             target_value_ub=target_migration_rates["household"] * 1.1,
+            name_addl="All time steps",
         )
 
 
 def test_po_box(tracked_live_populations, fuzzy_checker: FuzzyChecker):
     """Tests the prevalence of PO Boxes."""
+    all_time_no_po_box = []
+
     for time_step, pop in enumerate(tracked_live_populations):
         po_box_values = pop.groupby("household_id")["household_details.po_box"].first()
+        no_po_box = po_box_values == data_values.NO_PO_BOX
         fuzzy_checker.fuzzy_assert_proportion(
             "Proportion without PO box",
-            po_box_values == data_values.NO_PO_BOX,
+            no_po_box,
             target_value=data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
             name_addl=f"Time step {time_step}",
         )
+        all_time_no_po_box.append(no_po_box)
 
         # Check that PO Boxes are within the min and max defined in constants
         assert (
@@ -510,3 +644,11 @@ def test_po_box(tracked_live_populations, fuzzy_checker: FuzzyChecker):
                 & (po_box_values >= data_values.MIN_PO_BOX)
             )
         ).all()
+
+    all_time_no_po_box = pd.concat(all_time_no_po_box, ignore_index=True)
+    fuzzy_checker.fuzzy_assert_proportion(
+        "Proportion without PO box",
+        no_po_box,
+        target_value=data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
+        name_addl="All time steps",
+    )
