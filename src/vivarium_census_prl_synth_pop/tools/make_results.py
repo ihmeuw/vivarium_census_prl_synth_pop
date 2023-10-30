@@ -571,9 +571,9 @@ def write_shard_metadata(
             elif f"copy_{column}" in COPY_HOUSEHOLD_MEMBER_COLS.values():
                 # Proportion based on missingness from available household members that can
                 # have a copy value
-                metadata_df[f"{column}_proportion_to_noise"] = df[
-                    f"copy_{column}"
-                ].notna().sum() / len(df)
+                metadata_df[f"{column}_proportion_to_noise"] = (
+                    df[f"copy_{column}"].notna().mean()
+                )
             elif column == "first_name":
                 # Proportion of first names that have an associated nickname to be noised
                 # Everyone should have a first name so there is no missingness
@@ -591,13 +591,8 @@ def write_shard_metadata(
     if observer == metadata.DatasetNames.SSA:
         shard_metadata = _get_metadata_values(obs_data, "USA")
     else:
-        location_groups = obs_data.groupby(
-            [
-                col
-                for col in obs_data.columns
-                if "state" in col and col not in ["employer_state", "state_id"]
-            ]
-        )
+        groupby_col = "state" if "state" in obs_data.columns else "mailing_address_state"
+        location_groups = obs_data.groupby(groupby_col)
         metadata_dfs = []
         for location, location_data in location_groups:
             state_df = obs_data.loc[location_data.index]
