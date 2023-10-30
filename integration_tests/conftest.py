@@ -178,6 +178,9 @@ class FuzzyChecker:
                 f"Sample size too small to ever find that the simulation's '{name}' value is greater than expected."
             )
 
+        if 100 > bayes_factor > 0.1:
+            warnings.warn(f"Bayes factor for '{name}' is not conclusive.")
+
     def _calculate_bayes_factor(
         self,
         numerator: int,
