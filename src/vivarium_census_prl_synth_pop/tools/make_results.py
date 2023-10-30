@@ -562,28 +562,48 @@ def write_shard_metadata(
     # Writes metadata for each shard of data. This will be proportions available to noise
     # for specific columns.
 
-    shard_metadata = pd.DataFrame()
+    def _get_metadata_values(df: pd.DataFrame, location: str):
+        metadata_df = pd.DataFrame()
+        metadata_df["state"] = location
+        for column in METADATA_COLUMNS:
+            if column not in df.columns:
+                continue
+            elif column in COPY_HOUSEHOLD_MEMBER_COLS:
+                # Proportion based on missingness from available household members that can
+                # have a copy value
+                metadata_df[f"{column}_proportion_to_noise"] = df[
+                    f"copy_{column}"
+                ].notna().sum() / len(df)
+            elif column == "first_name":
+                # Proportion of first names that have an associated nickname to be noised
+                # Everyone should have a first name so there is no missingness
+                nicknames = load_nicknames_data()
+                metadata_df[f"{column}_proportion_to_noise"] = df[column].isin(
+                    nicknames.index
+                ).sum() / len(df)
+            # TODO: Add guaridan based duplication
+            else:
+                raise ValueError(f"Column '{column}' not supported for metadata recording.")
+        metadata_df.set_index("state", inplace=True)
+        return metadata_df
+
+    # Special case SSA dataset since that does not have a state column
+    if observer == metadata.DatasetNames.SSA:
+        shard_metadata = _get_metadata_values(obs_data, "USA")
+    else:
+        location_groups = obs_data.groupby(
+            [col for col in obs_data.columns if "state" in col and col != "employer_state"]
+        )
+        metadata_dfs = []
+        for location, location_data in location_groups:
+            state_df = obs_data.loc[location_data.index]
+            state_metadata = _get_metadata_values(state_df, location)
+            metadata_dfs.append(state_metadata)
+        shard_metadata = pd.concat(metadata_dfs)
+
     shard_metadata["dataset"] = observer
-    shard_metadata["random_seed"] = seed_ext
-    for column in METADATA_COLUMNS:
-        if column not in obs_data.columns:
-            continue
-        elif column in COPY_HOUSEHOLD_MEMBER_COLS:
-            # Proportion based on missingness from available household members that can
-            # have a copy value
-            shard_metadata[f"{column}_proportion_to_noise"] = obs_data[
-                f"copy_{column}"
-            ].notna().sum() / len(obs_data)
-        elif column == "first_name":
-            # Proportion of first names that have an associated nickname to be noised
-            # Everyone should have a first name so there is no missingness
-            nicknames = load_nicknames_data()
-            shard_metadata[f"{column}_proportion_to_noise"] = obs_data[column].isin(
-                nicknames.index
-            ).sum() / len(obs_data)
-        # TODO: Add guaridan based duplication
-        else:
-            raise ValueError(f"Column '{column}' not supported for metadata recording.")
+    # Seed will be "" for sample data
+    shard_metadata["random_seed"] = seed
 
     # Write shard metadata
     shard_metadata_path = obs_dir / f"shard_metadata_{seed}.csv"
