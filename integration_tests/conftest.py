@@ -162,17 +162,20 @@ class FuzzyChecker:
                     f"{name} value {proportion:g} is significantly greater than expected, bayes factor = {bayes_factor:g}"
                 )
 
-        if self._calculate_bayes_factor(0, bug_distribution, no_bug_distribution) < 100:
+        if (
+            target_value_lb > 0
+            and self._calculate_bayes_factor(0, bug_distribution, no_bug_distribution) < 100
+        ):
             warnings.warn(
-                f"Sample size ({denominator}) too small to ever find that the simulation's '{name}' value is less than expected."
+                f"Sample size too small to ever find that the simulation's '{name}' value is less than expected."
             )
 
-        if (
+        if target_value_ub < 1 and (
             self._calculate_bayes_factor(denominator, bug_distribution, no_bug_distribution)
             < 100
         ):
             warnings.warn(
-                f"Sample size ({denominator}) too small to ever find that the simulation's '{name}' value is greater than expected."
+                f"Sample size too small to ever find that the simulation's '{name}' value is greater than expected."
             )
 
     def _calculate_bayes_factor(
