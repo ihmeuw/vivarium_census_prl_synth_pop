@@ -589,6 +589,7 @@ def write_shard_metadata(
             else:
                 raise ValueError(f"Column '{column}' not supported for metadata recording.")
         metadata_df.set_index("state", inplace=True)
+        breakpoint()
         return metadata_df
 
     # Special case SSA dataset since that does not have a state column
@@ -601,11 +602,12 @@ def write_shard_metadata(
         for location, location_data in location_groups:
             state_df = obs_data.loc[location_data.index]
             state_metadata = _get_metadata_values(state_df, location)
+            breakpoint()
             metadata_dfs.append(state_metadata)
         shard_metadata = pd.concat(metadata_dfs)
 
     shard_metadata["dataset"] = observer
-    # Seed will be "" for sample data
+    # Seed will be "" for sample data which turns into 0
     shard_metadata["random_seed"] = seed
 
     # Write shard metadata
