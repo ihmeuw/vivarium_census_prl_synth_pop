@@ -571,6 +571,7 @@ def write_shard_metadata(
             elif f"copy_{column}" in COPY_HOUSEHOLD_MEMBER_COLS.values():
                 # Proportion based on missingness from available household members that can
                 # have a copy value
+                print(f"{column} in output. Calculating metadata proportion for copy_{column}...")
                 metadata_df[f"{column}_proportion_to_noise"] = (
                     df[f"copy_{column}"].notna().mean()
                 )
