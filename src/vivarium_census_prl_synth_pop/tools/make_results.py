@@ -565,23 +565,26 @@ def write_shard_metadata(
     def _get_metadata_values(df: pd.DataFrame, location: str):
         metadata_df = pd.DataFrame()
         metadata_df["state"] = location
+        metadata_df["number_of_rows"] = len(df)
         for column in METADATA_COLUMNS:
             if column not in df.columns:
                 continue
             elif f"copy_{column}" in COPY_HOUSEHOLD_MEMBER_COLS.values():
                 # Proportion based on missingness from available household members that can
                 # have a copy value
-                print(f"{column} in output. Calculating metadata proportion for copy_{column}...")
-                metadata_df[f"{column}_proportion_to_noise"] = (
-                    df[f"copy_{column}"].notna().mean()
+                print(
+                    f"{column} in output. Calculating metadata proportion for copy_{column}..."
+                )
+                metadata_df[f"{column}_copy_number_of_rows"] = (
+                    df[f"copy_{column}"].notna().sum()
                 )
             elif column == "first_name":
                 # Proportion of first names that have an associated nickname to be noised
                 # Everyone should have a first name so there is no missingness
                 nicknames = load_nicknames_data()
-                metadata_df[f"{column}_proportion_to_noise"] = df[column].isin(
-                    nicknames.index
-                ).sum() / len(df)
+                metadata_df[f"{column}_nicknames_number_of_rows"] = (
+                    df[column].isin(nicknames.index).sum()
+                )
             # TODO: Add guaridan based duplication
             else:
                 raise ValueError(f"Column '{column}' not supported for metadata recording.")
