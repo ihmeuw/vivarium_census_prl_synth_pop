@@ -563,8 +563,7 @@ def write_shard_metadata(
     # for specific columns.
 
     def _get_metadata_values(df: pd.DataFrame, location: str):
-        metadata_df = pd.DataFrame()
-        metadata_df["state"] = location
+        metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
         for column in METADATA_COLUMNS:
             if column not in df.columns:
@@ -588,8 +587,6 @@ def write_shard_metadata(
             # TODO: Add guaridan based duplication
             else:
                 raise ValueError(f"Column '{column}' not supported for metadata recording.")
-        metadata_df.set_index("state", inplace=True)
-        breakpoint()
         return metadata_df
 
     # Special case SSA dataset since that does not have a state column
@@ -602,7 +599,6 @@ def write_shard_metadata(
         for location, location_data in location_groups:
             state_df = obs_data.loc[location_data.index]
             state_metadata = _get_metadata_values(state_df, location)
-            breakpoint()
             metadata_dfs.append(state_metadata)
         shard_metadata = pd.concat(metadata_dfs)
 
