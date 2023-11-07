@@ -5,7 +5,8 @@ from typing import Dict, List
 import pandas as pd
 import pyarrow.parquet as pq
 from loguru import logger
-from pseudopeople.constants.metadata import COPY_HOUSEHOLD_MEMBER_COLS, METADATA_COLUMNS
+from pseudopeople.constants.metadata import COPY_HOUSEHOLD_MEMBER_COLS
+from pseudopeople.schema_entities import COLUMNS
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
@@ -562,21 +563,23 @@ def write_shard_metadata(
     def _get_metadata_values(df: pd.DataFrame, location: str):
         metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
-        for column in METADATA_COLUMNS:
-            if column not in df.columns:
-                continue
-            elif column in COPY_HOUSEHOLD_MEMBER_COLS.values():
+        copy_columns = [
+            col for col in COLUMNS if "copy_from_household_member" in col.noise_types
+        ]
+        nicknames_columns = [col for col in COLUMNS if "use_nickname" in col.noise_types]
+        for column in df.columns:
+            if column in copy_columns:
                 # Get number of rows that could potentially copy a household member
-                metadata_df[f"{column}_copy_number_of_rows"] = df[column].notna().sum()
-            elif column == "first_name":
+                metadata_df[f"{column}.copy_from_household_member"] = (
+                    df[COPY_HOUSEHOLD_MEMBER_COLS[column]].notna().sum()
+                )
+            elif column in nicknames_columns:
                 # Get number of rows eligible to be noised to a nickname
                 nicknames = load_nicknames_data()
-                metadata_df[f"{column}_nicknames_number_of_rows"] = (
-                    df[column].isin(nicknames.index).sum()
-                )
-            # TODO: Add guardian based duplication
+                metadata_df[f"{column}.use_nickname"] = df[column].isin(nicknames.index).sum()
             else:
-                raise ValueError(f"Column '{column}' not supported for metadata recording.")
+                # TODO: Add guardian based duplication
+                continue
         return metadata_df
 
     # Special case SSA dataset since that does not have a state column
