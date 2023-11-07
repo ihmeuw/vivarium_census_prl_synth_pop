@@ -5,7 +5,7 @@ from typing import Dict, List
 import pandas as pd
 import pyarrow.parquet as pq
 from loguru import logger
-from pseudopeople.metadata import COPY_HOUSEHOLD_MEMBER_COLS, METADATA_COLUMNS
+from pseudopeople.constats.metadata import COPY_HOUSEHOLD_MEMBER_COLS, METADATA_COLUMNS
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
