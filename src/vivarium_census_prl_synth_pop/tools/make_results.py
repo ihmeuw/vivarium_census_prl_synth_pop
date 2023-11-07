@@ -5,16 +5,13 @@ from typing import Dict, List
 import pandas as pd
 import pyarrow.parquet as pq
 from loguru import logger
+from pseudopeople.metadata import COPY_HOUSEHOLD_MEMBER_COLS, METADATA_COLUMNS
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
 
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
-from vivarium_census_prl_synth_pop.constants.metadata import (
-    COPY_HOUSEHOLD_MEMBER_COLS,
-    METADATA_COLUMNS,
-    SUPPORTED_EXTENSIONS,
-)
+from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_address_id_maps,
@@ -568,11 +565,9 @@ def write_shard_metadata(
         for column in METADATA_COLUMNS:
             if column not in df.columns:
                 continue
-            elif f"copy_{column}" in COPY_HOUSEHOLD_MEMBER_COLS.values():
+            elif column in COPY_HOUSEHOLD_MEMBER_COLS.values():
                 # Get number of rows that could potentially copy a household member
-                metadata_df[f"{column}_copy_number_of_rows"] = (
-                    df[f"copy_{column}"].notna().sum()
-                )
+                metadata_df[f"{column}_copy_number_of_rows"] = df[column].notna().sum()
             elif column == "first_name":
                 # Get number of rows eligible to be noised to a nickname
                 nicknames = load_nicknames_data()
