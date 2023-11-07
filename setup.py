@@ -28,6 +28,7 @@ if __name__ == "__main__":
         "pyyaml",
         "faker==13.6.0",
         "pyarrow",
+        "pseudopeople",
     ]
 
     # use "pip install -e .[dev]" to install required components + extra components
