@@ -569,14 +569,12 @@ def write_shard_metadata(
             if column not in df.columns:
                 continue
             elif f"copy_{column}" in COPY_HOUSEHOLD_MEMBER_COLS.values():
-                # Proportion based on missingness from available household members that can
-                # have a copy value
+                # Get number of rows that could potentially copy a household member
                 metadata_df[f"{column}_copy_number_of_rows"] = (
                     df[f"copy_{column}"].notna().sum()
                 )
             elif column == "first_name":
-                # Proportion of first names that have an associated nickname to be noised
-                # Everyone should have a first name so there is no missingness
+                # Get number of rows eligible to be noised to a nickname
                 nicknames = load_nicknames_data()
                 metadata_df[f"{column}_nicknames_number_of_rows"] = (
                     df[column].isin(nicknames.index).sum()
