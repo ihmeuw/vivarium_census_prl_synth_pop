@@ -571,9 +571,6 @@ def write_shard_metadata(
             elif f"copy_{column}" in COPY_HOUSEHOLD_MEMBER_COLS.values():
                 # Proportion based on missingness from available household members that can
                 # have a copy value
-                print(
-                    f"{column} in output. Calculating metadata proportion for copy_{column}..."
-                )
                 metadata_df[f"{column}_copy_number_of_rows"] = (
                     df[f"copy_{column}"].notna().sum()
                 )
@@ -584,7 +581,7 @@ def write_shard_metadata(
                 metadata_df[f"{column}_nicknames_number_of_rows"] = (
                     df[column].isin(nicknames.index).sum()
                 )
-            # TODO: Add guaridan based duplication
+            # TODO: Add guardian based duplication
             else:
                 raise ValueError(f"Column '{column}' not supported for metadata recording.")
         return metadata_df
