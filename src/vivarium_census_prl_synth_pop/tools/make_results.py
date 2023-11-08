@@ -564,9 +564,17 @@ def write_shard_metadata(
         metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
         copy_columns = [
-            col for col in COLUMNS if "copy_from_household_member" in col.noise_types
+            col.name
+            for col in COLUMNS
+            for noise_type in col.noise_types
+            if "copy_from_household_member" == noise_type.name
         ]
-        nicknames_columns = [col for col in COLUMNS if "use_nickname" in col.noise_types]
+        nicknames_columns = [
+            col.name
+            for col in COLUMNS
+            for noise_type in col.noise_types
+            if "use_nickname" == noise_type.name
+        ]
         for column in df.columns:
             if column in copy_columns:
                 # Get number of rows that could potentially copy a household member
