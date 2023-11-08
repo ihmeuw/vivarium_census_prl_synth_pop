@@ -596,18 +596,16 @@ def write_shard_metadata(
     state_col = "state" if "state" in obs_data.columns else "mailing_address_state"
     # Special case SSA dataset since that does not have a state column
     if observer == metadata.DatasetNames.SSA:
-        year_groups = obs_data.groupby(year_col)
         metadata_dfs = []
-        for year, year_data in year_groups:
+        for year, year_data in obs_data.groupby(year_col):
             year_df = obs_data.loc[year_data.index]
             year_metadata = _get_metadata_values(year_df, "USA", year)
             metadata_dfs.append(year_metadata)
 
     else:
         groupby_cols = year_col + [state_col]
-        location_groups = obs_data.groupby(groupby_cols)
         metadata_dfs = []
-        for (year, location), location_data in location_groups:
+        for (year, location), location_data in obs_data.groupby(groupby_cols):
             state_df = obs_data.loc[location_data.index]
             state_metadata = _get_metadata_values(state_df, location, year)
             metadata_dfs.append(state_metadata)
