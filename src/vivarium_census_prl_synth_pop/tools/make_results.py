@@ -560,9 +560,10 @@ def write_shard_metadata(
     # Writes metadata for each shard of data. This will be proportions available to noise
     # for specific columns.
 
-    def _get_metadata_values(df: pd.DataFrame, location: str):
+    def _get_metadata_values(df: pd.DataFrame, location: str, year: int) -> pd.DataFrame:
         metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
+        metadata_df["year"] = year
         copy_columns = [
             col.name
             for col in COLUMNS
@@ -590,19 +591,28 @@ def write_shard_metadata(
                 continue
         return metadata_df
 
+    # Get year column to group by
+    year_col = [col for col in obs_data.columns if "year" in col or "date" in col]
+    state_col = "state" if "state" in obs_data.columns else "mailing_address_state"
     # Special case SSA dataset since that does not have a state column
     if observer == metadata.DatasetNames.SSA:
-        shard_metadata = _get_metadata_values(obs_data, "USA")
-    else:
-        groupby_col = "state" if "state" in obs_data.columns else "mailing_address_state"
-        location_groups = obs_data.groupby(groupby_col)
+        year_groups = obs_data.groupby(year_col)
         metadata_dfs = []
-        for location, location_data in location_groups:
-            state_df = obs_data.loc[location_data.index]
-            state_metadata = _get_metadata_values(state_df, location)
-            metadata_dfs.append(state_metadata)
-        shard_metadata = pd.concat(metadata_dfs)
+        for year, year_data in year_groups:
+            year_df = obs_data.loc[year_data.index]
+            year_metadata = _get_metadata_values(year_df, "USA", year)
+            metadata_dfs.append(year_metadata)
 
+    else:
+        groupby_cols = year_col + [state_col]
+        location_groups = obs_data.groupby(groupby_cols)
+        metadata_dfs = []
+        for (year, location), location_data in location_groups:
+            state_df = obs_data.loc[location_data.index]
+            state_metadata = _get_metadata_values(state_df, location, year)
+            metadata_dfs.append(state_metadata)
+
+    shard_metadata = pd.concat(metadata_dfs)
     shard_metadata["dataset"] = observer
     # Seed will be "" for sample data which turns into 0
     shard_metadata["random_seed"] = seed
