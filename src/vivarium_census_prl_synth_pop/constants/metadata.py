@@ -295,11 +295,3 @@ COPY_HOUSEHOLD_MEMBER_COLS = {
     "date_of_birth": "copy_date_of_birth",
     "has_ssn": "copy_ssn",
 }
-
-METADATA_COLUMNS = [
-    "age",
-    "date_of_birth",
-    "ssn",
-    "first_name",
-    # TODO: add guardian based duplication columns
-]
