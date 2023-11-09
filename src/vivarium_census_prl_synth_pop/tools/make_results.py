@@ -612,8 +612,6 @@ def write_shard_metadata(
 
     shard_metadata = pd.concat(metadata_dfs)
     shard_metadata["dataset"] = observer
-    # Seed will be "" for sample data which turns into 0
-    shard_metadata["random_seed"] = seed
 
     # Write shard metadata
     shard_metadata_path = obs_dir / f"shard_metadata_{seed}.csv"
