@@ -588,7 +588,9 @@ def extract_metadata_proportions(final_output_dir: Path) -> None:
             melted_metadata["value"] / melted_metadata["number_of_rows"]
         )
         # Drop unnecessary columns
-        melted_metadata = melted_metadata.drop(columns=["variable", "value", "number_of_rows""])
+        melted_metadata = melted_metadata.drop(
+            columns=["variable", "value", "number_of_rows"]
+        )
         dataset_metadata_dfs.append(melted_metadata)
 
     # Concatenate all datasets metadata
