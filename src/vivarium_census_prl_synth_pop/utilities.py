@@ -548,3 +548,50 @@ def load_nicknames_data():
     nicknames = nicknames.apply(lambda x: x.astype(str).str.title()).set_index("name")
     nicknames = nicknames.replace("Nan", np.nan)
     return nicknames
+
+
+def extract_metadata_proportions(final_output_dir: Path) -> None:
+    # Get directories for each dataset which will contain all shard metadata files
+    dataset_metadata_dfs = []
+    directories = [
+        x.name for x in final_output_dir.iterdir() if x.is_dir() and x.name != "logs"
+    ]
+    for directory in directories:
+        dataset_directory = final_output_dir / directory
+        shard_metadata_files = sorted(list(chain(*[dataset_directory.glob(f"*.csv")])))
+        metadata_dfs = []
+        for shard_metadata_file in shard_metadata_files:
+            metadata_df = pd.read_csv(shard_metadata_file)
+            metadata_dfs.append(metadata_df)
+        dataset_metadata = pd.concat(metadata_dfs)
+        # Aggregate metadata
+        groupby_cols = ["dataset", "state", "year", "random_seed"]
+        aggregate_cols = [col for col in dataset_metadata.columns if col not in groupby_cols]
+        aggregated_metadata = (
+            dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
+        )
+        # Calculate proportions for each dataset's location, year combination.
+        # Reshape metadata to have dataset, year, state, column, noise_type
+        # and proportion columns
+        melted_metadata = pd.melt(
+            aggregated_metadata,
+            id_vars=["dataset", "state", "year", "number_of_rows", "random_seed"],
+        )
+        # "Variable" column is created from melting and is all the different column and noise types
+        # we have in the metadata and value is that original columns value
+        # Example age.copy_from_household_member is in variable.unique() and its "value"
+        # is the number of non-null rows we recorded in the original shard metadata
+        melted_metadata["column"] = melted_metadata["variable"].str.split(".").str[0]
+        melted_metadata["noise_type"] = melted_metadata["variable"].str.split(".").str[1]
+        # Calculate proportions
+        melted_metadata["proportion"] = (
+            melted_metadata["value"] / melted_metadata["number_of_rows"]
+        )
+        # Drop unnecessary columns
+        melted_metadata = melted_metadata.drop(columns=["variable", "value"])
+        dataset_metadata_dfs.append(melted_metadata)
+
+    # Concatenate all datasets metadata
+    metadata = pd.concat(dataset_metadata_dfs)
+    # Write metadata to file
+    metadata.to_csv(final_output_dir / "metadata_proportions.csv", index=False)
