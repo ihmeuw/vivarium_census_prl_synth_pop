@@ -565,7 +565,7 @@ def extract_metadata_proportions(final_output_dir: Path) -> None:
             metadata_dfs.append(metadata_df)
         dataset_metadata = pd.concat(metadata_dfs)
         # Aggregate metadata
-        groupby_cols = ["dataset", "state", "year", "random_seed"]
+        groupby_cols = ["dataset", "state", "year"]
         aggregate_cols = [col for col in dataset_metadata.columns if col not in groupby_cols]
         aggregated_metadata = (
             dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
@@ -575,7 +575,7 @@ def extract_metadata_proportions(final_output_dir: Path) -> None:
         # and proportion columns
         melted_metadata = pd.melt(
             aggregated_metadata,
-            id_vars=["dataset", "state", "year", "number_of_rows", "random_seed"],
+            id_vars=["dataset", "state", "year", "number_of_rows"],
         )
         # "Variable" column is created from melting and is all the different column and noise types
         # we have in the metadata and value is that original columns value
@@ -588,7 +588,7 @@ def extract_metadata_proportions(final_output_dir: Path) -> None:
             melted_metadata["value"] / melted_metadata["number_of_rows"]
         )
         # Drop unnecessary columns
-        melted_metadata = melted_metadata.drop(columns=["variable", "value"])
+        melted_metadata = melted_metadata.drop(columns=["variable", "value", "number_of_rows""])
         dataset_metadata_dfs.append(melted_metadata)
 
     # Concatenate all datasets metadata
