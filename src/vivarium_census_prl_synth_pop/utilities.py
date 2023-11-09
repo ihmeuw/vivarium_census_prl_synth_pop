@@ -550,7 +550,7 @@ def load_nicknames_data():
     return nicknames
 
 
-def extract_metadata_proportions(final_output_dir: Path) -> None:
+def iextract_metadata_proportions(final_output_dir: Path) -> None:
     # Get directories for each dataset which will contain all shard metadata files
     dataset_metadata_dfs = []
     directories = [
@@ -558,7 +558,7 @@ def extract_metadata_proportions(final_output_dir: Path) -> None:
     ]
     for directory in directories:
         dataset_directory = final_output_dir / directory
-        shard_metadata_files = sorted(list(chain(*[dataset_directory.glob(f"*.csv")])))
+        shard_metadata_files = sorted(list(chain(*[dataset_directory.glob("*.csv")])))
         metadata_dfs = []
         for shard_metadata_file in shard_metadata_files:
             metadata_df = pd.read_csv(shard_metadata_file)
