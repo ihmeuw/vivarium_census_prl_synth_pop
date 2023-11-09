@@ -550,7 +550,7 @@ def load_nicknames_data():
     return nicknames
 
 
-def iextract_metadata_proportions(final_output_dir: Path) -> None:
+def extract_metadata_proportions(final_output_dir: Path) -> None:
     # Get directories for each dataset which will contain all shard metadata files
     dataset_metadata_dfs = []
     directories = [
