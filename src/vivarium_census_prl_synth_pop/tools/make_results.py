@@ -554,7 +554,9 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
         logger.info(f"Finished writing {observer} files for {state_name}.")
 
 
-def write_shard_metadata(observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed: str) -> None:
+def write_shard_metadata(
+    observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed: str
+) -> None:
     # Writes metadata for each shard of data. This will be proportions available to noise
     # for specific columns.
 
