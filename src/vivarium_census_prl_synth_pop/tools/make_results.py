@@ -564,31 +564,20 @@ def write_shard_metadata(
         metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
         metadata_df["year"] = year
-        copy_columns = [
-            col.name
-            for col in COLUMNS
-            for noise_type in col.noise_types
-            if "copy_from_household_member" == noise_type.name
-        ]
-        nicknames_columns = [
-            col.name
-            for col in COLUMNS
-            for noise_type in col.noise_types
-            if "use_nickname" == noise_type.name
-        ]
-        for column in df.columns:
-            if column in copy_columns:
+
+        for column_name in df.columns:
+            column = COLUMNS.get_column(column_name)
+            noise_type_names = [noise_type.name for noise_type in column.noise_types]
+            if "copy_from_household_member" in noise_type_names:
                 # Get number of rows that could potentially copy a household member
                 metadata_df[f"{column}.copy_from_household_member"] = (
                     df[COPY_HOUSEHOLD_MEMBER_COLS[column]].notna().sum()
                 )
-            elif column in nicknames_columns:
+            if "use_nickname" in noise_type_names:
                 # Get number of rows eligible to be noised to a nickname
                 nicknames = load_nicknames_data()
                 metadata_df[f"{column}.use_nickname"] = df[column].isin(nicknames.index).sum()
-            else:
-                # TODO: Add guardian based duplication
-                continue
+            # TODO: Add guardian based duplication
         return metadata_df
 
     # Get year column to group by
@@ -597,18 +586,17 @@ def write_shard_metadata(
     state_col = "state" if "state" in obs_data.columns else "mailing_address_state"
     # Special case SSA dataset since that does not have a state column
     if observer == metadata.DatasetNames.SSA:
-        metadata_dfs = []
-        for year, year_data in obs_data.groupby(year_col):
-            year_df = obs_data.loc[year_data.index]
-            year_metadata = _get_metadata_values(year_df, "USA", year)
-            metadata_dfs.append(year_metadata)
-    else:
-        groupby_cols = year_col + [state_col]
-        metadata_dfs = []
-        for (year, location), location_data in obs_data.groupby(groupby_cols):
-            state_df = obs_data.loc[location_data.index]
-            state_metadata = _get_metadata_values(state_df, location, year)
-            metadata_dfs.append(state_metadata)
+        state_col = "state"
+        obs_data[state_col] = "USA"
+
+    groupby_cols = year_col + [state_col]
+    metadata_dfs = []
+    # FIXME: This current implement will miss any location year combination that does not have data.
+    # For example: In a small dataset, we may have a year where a state has no data. This would result
+    # in the metadata file not having a row for that state and year combination.
+    for (year, location), group_data in obs_data.groupby(groupby_cols):
+        state_metadata = _get_metadata_values(group_data, location, year)
+        metadata_dfs.append(state_metadata)
 
     shard_metadata = pd.concat(metadata_dfs)
     shard_metadata["dataset"] = observer
