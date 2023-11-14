@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
+from pseudopeople.schema_entities import DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
@@ -550,19 +551,16 @@ def load_nicknames_data():
     return nicknames
 
 
-def extract_metadata_proportions(final_output_dir: Path) -> None:
+def record_metadata_proportions(final_output_dir: Path) -> None:
     # Get directories for each dataset which will contain all shard metadata files
     dataset_metadata_dfs = []
-    directories = [
-        x.name for x in final_output_dir.iterdir() if x.is_dir() and x.name != "logs"
-    ]
-    for directory in directories:
-        dataset_directory = final_output_dir / directory
+    datasets = [dataset.name for dataset in DATASETS]
+    for dataset in datasets:
+        dataset_directory = final_output_dir / dataset
         shard_metadata_files = sorted(list(chain(*[dataset_directory.glob("*.csv")])))
-        metadata_dfs = []
-        for shard_metadata_file in shard_metadata_files:
-            metadata_df = pd.read_csv(shard_metadata_file)
-            metadata_dfs.append(metadata_df)
+        metadata_dfs = [
+            pd.read_csv(shard_metadata_file) for shard_metadata_file in shard_metadata_files
+        ]
         dataset_metadata = pd.concat(metadata_dfs)
         # Aggregate metadata
         groupby_cols = ["dataset", "state", "year"]
@@ -570,6 +568,7 @@ def extract_metadata_proportions(final_output_dir: Path) -> None:
         aggregated_metadata = (
             dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
         )
+        breakpoint()
         # Calculate proportions for each dataset's location, year combination.
         # Reshape metadata to have dataset, year, state, column, noise_type
         # and proportion columns
