@@ -28,7 +28,6 @@ class Fertility(FertilityAgeSpecificRates):
     ########################
 
     def on_time_step(self, event: Event):
-
         """Produces new children and updates parent status on time steps.
         Parameters
         ----------

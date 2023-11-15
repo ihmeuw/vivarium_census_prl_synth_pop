@@ -394,7 +394,7 @@ def perform_post_processing(
             logger.info(f"Writing final {observer} results.")
             obs_dir = build_output_dir(final_output_dir, subdir=observer)
             seed_ext = f"_{seed}" if seed != "" else ""
-            write_shard_metadata(observer, obs_data, obs_dir, seed)
+            write_shard_metadata(observer, obs_data, obs_dir, seed_ext)
             write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
@@ -555,7 +555,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
 
 
 def write_shard_metadata(
-    observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed: str
+    observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed_ext: str
 ) -> None:
     # Writes metadata for each shard of data. This will be proportions available to noise
     # for specific columns.
@@ -602,5 +602,5 @@ def write_shard_metadata(
     shard_metadata["dataset"] = observer
 
     # Write shard metadata
-    shard_metadata_path = obs_dir / f"shard_metadata_{seed}.csv"
+    shard_metadata_path = obs_dir / f"shard_metadata{seed_ext}.csv"
     shard_metadata.to_csv(shard_metadata_path, index_label="state")
