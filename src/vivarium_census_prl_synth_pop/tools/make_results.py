@@ -572,14 +572,14 @@ def write_shard_metadata(
                 noise_type_names = [noise_type.name for noise_type in column.noise_types]
                 if "copy_from_household_member" in noise_type_names:
                     # Get number of rows that could potentially copy a household member
-                    metadata_df[f"{column}.copy_from_household_member"] = (
-                        df[COPY_HOUSEHOLD_MEMBER_COLS[column]].notna().sum()
+                    metadata_df[f"{column_name}.copy_from_household_member"] = (
+                        df[COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
                     )
                 if "use_nickname" in noise_type_names:
                     # Get number of rows eligible to be noised to a nickname
                     nicknames = load_nicknames_data()
-                    metadata_df[f"{column}.use_nickname"] = (
-                        df[column].isin(nicknames.index).sum()
+                    metadata_df[f"{column_name}.use_nickname"] = (
+                        df[column_name].isin(nicknames.index).sum()
                     )
                 # TODO: Add guardian based duplication
         return metadata_df
