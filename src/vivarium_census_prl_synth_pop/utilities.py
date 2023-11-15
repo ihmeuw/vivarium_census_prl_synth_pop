@@ -565,10 +565,30 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         # Aggregate metadata
         groupby_cols = ["dataset", "state", "year"]
         aggregate_cols = [col for col in dataset_metadata.columns if col not in groupby_cols]
-        aggregated_metadata = (
+        state_year_aggregated_metadata = (
             dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
         )
-        breakpoint()
+        # Aggregate for all years and for all locations
+        state_aggregated_metadata = (
+            dataset_metadata.groupby(by=["dataset", "state"])[aggregate_cols]
+            .sum()
+            .reset_index()
+        )
+        state_aggregated_metadata["year"] = "all"
+        year_aggregated_metadata = (
+            dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
+            .sum()
+            .reset_index()
+        )
+        year_aggregated_metadata["state"] = "all"
+
+        aggregated_metadata = pd.concat(
+            [
+                state_year_aggregated_metadata,
+                state_aggregated_metadata,
+                year_aggregated_metadata,
+            ]
+        )
         # Calculate proportions for each dataset's location, year combination.
         # Reshape metadata to have dataset, year, state, column, noise_type
         # and proportion columns
