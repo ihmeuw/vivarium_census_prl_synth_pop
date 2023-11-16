@@ -556,6 +556,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
     dataset_metadata_dfs = []
     datasets = [dataset.name for dataset in DATASETS]
     for dataset in datasets:
+        aggregated_metadata_dfs = []
         dataset_directory = final_output_dir / dataset
         shard_metadata_files = sorted(list(chain(*[dataset_directory.glob("*.csv")])))
         metadata_dfs = [
@@ -568,6 +569,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         state_year_aggregated_metadata = (
             dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
         )
+        aggregated_metadata_dfs.append(state_year_aggregated_metadata)
         # Aggregate for all years and for all locations
         state_aggregated_metadata = (
             dataset_metadata.groupby(by=["dataset", "state"])[aggregate_cols]
@@ -575,20 +577,19 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             .reset_index()
         )
         state_aggregated_metadata["year"] = "all"
-        year_aggregated_metadata = (
-            dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
-            .sum()
-            .reset_index()
-        )
-        year_aggregated_metadata["state"] = "all"
+        aggregated_metadata_dfs.append(state_aggregated_metadata)
 
-        aggregated_metadata = pd.concat(
-            [
-                state_year_aggregated_metadata,
-                state_aggregated_metadata,
-                year_aggregated_metadata,
-            ]
-        )
+        # SSA has no state so we do not need an aggregation for locations for each year
+        if dataset != metadata.DatasetNames.SSA:
+            year_aggregated_metadata = (
+                dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
+                .sum()
+                .reset_index()
+            )
+            year_aggregated_metadata["state"] = "USA"
+            aggregated_metadata_dfs.append(year_aggregated_metadata)
+
+        aggregated_metadata = pd.concat(aggregated_metadata_dfs)
         # Calculate proportions for each dataset's location, year combination.
         # Reshape metadata to have dataset, year, state, column, noise_type
         # and proportion columns
@@ -613,6 +614,6 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         dataset_metadata_dfs.append(melted_metadata)
 
     # Concatenate all datasets metadata
-    metadata = pd.concat(dataset_metadata_dfs)
+    metadata_final = pd.concat(dataset_metadata_dfs)
     # Write metadata to file
-    metadata.to_csv(final_output_dir / "metadata_proportions.csv", index=False)
+    metadata_final.to_csv(final_output_dir / "metadata_proportions.csv", index=False)
