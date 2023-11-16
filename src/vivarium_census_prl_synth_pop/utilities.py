@@ -580,7 +580,8 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         aggregated_metadata_dfs.append(state_aggregated_metadata)
 
         # SSA has no state so we do not need an aggregation for locations for each year
-        if dataset != metadata.DatasetNames.SSA:
+        # We also need to handle this with the sample data where all locations are USA
+        if dataset_metadata["state"].unique() == "USA":
             year_aggregated_metadata = (
                 dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
                 .sum()
