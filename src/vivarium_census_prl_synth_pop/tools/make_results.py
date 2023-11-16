@@ -597,7 +597,7 @@ def write_shard_metadata(
         metadata.DatasetNames.SSA,
     ]:
         # Note: In these 3 datasets the year column is survey date or event date.
-        obs_data["year"] = obs_data[year_col].dt.year
+        obs_data["year"] = obs_data[year_col].squeeze().dt.year
         year_col = ["year"]
     # Special case SSA dataset since that does not have a state column
     if observer == metadata.DatasetNames.SSA:
