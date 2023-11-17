@@ -554,7 +554,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
             write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
 
-    # Copy over metadata files and subset proportions file
+    # Update metadata and proportions files for state
     metadata_proportions = pd.read_csv(usa_results_dir / "metadata_proportions.csv")
     state_proportions = metadata_proportions.loc[metadata_proportions["state"] == state]
     state_proportions.to_csv(state_dir / "metadata_proportions.csv", index=False)
