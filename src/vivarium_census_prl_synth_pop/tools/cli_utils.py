@@ -11,6 +11,7 @@ from loguru import logger
 from vivarium_census_prl_synth_pop.constants import paths
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
+    record_metadata_proportions,
     write_metadata_file,
 )
 
@@ -79,6 +80,7 @@ def finish_post_processing(final_output_dir: Path, test_run: bool, mark_best: bo
     2. Update symlinks if successful
     """
 
+    record_metadata_proportions(final_output_dir)
     try:
         shutil.copyfile(paths.REPO_DIR / "CHANGELOG.rst", final_output_dir / "CHANGELOG.rst")
     except:

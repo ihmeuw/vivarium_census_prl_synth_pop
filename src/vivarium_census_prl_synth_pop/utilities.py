@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
+from pseudopeople.schema_entities import DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
@@ -548,3 +549,72 @@ def load_nicknames_data():
     nicknames = nicknames.apply(lambda x: x.astype(str).str.title()).set_index("name")
     nicknames = nicknames.replace("Nan", np.nan)
     return nicknames
+
+
+def record_metadata_proportions(final_output_dir: Path) -> None:
+    # Get directories for each dataset which will contain all shard metadata files
+    dataset_metadata_dfs = []
+    datasets = [dataset.name for dataset in DATASETS]
+    for dataset in datasets:
+        aggregated_metadata_dfs = []
+        dataset_directory = final_output_dir / dataset
+        shard_metadata_files = sorted(list(chain(*[dataset_directory.glob("*.csv")])))
+        metadata_dfs = [
+            pd.read_csv(shard_metadata_file) for shard_metadata_file in shard_metadata_files
+        ]
+        dataset_metadata = pd.concat(metadata_dfs)
+        # Aggregate metadata
+        groupby_cols = ["dataset", "state", "year"]
+        aggregate_cols = [col for col in dataset_metadata.columns if col not in groupby_cols]
+        state_year_aggregated_metadata = (
+            dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
+        )
+        aggregated_metadata_dfs.append(state_year_aggregated_metadata)
+        # Aggregate for all years and for all locations
+        state_aggregated_metadata = (
+            dataset_metadata.groupby(by=["dataset", "state"])[aggregate_cols]
+            .sum()
+            .reset_index()
+        )
+        state_aggregated_metadata["year"] = "all"
+        aggregated_metadata_dfs.append(state_aggregated_metadata)
+
+        # SSA has no state so we do not need an aggregation for locations for each year
+        # We also need to handle this with the sample data where all locations are USA
+        if (dataset_metadata["state"].unique() == "USA").all():
+            year_aggregated_metadata = (
+                dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
+                .sum()
+                .reset_index()
+            )
+            year_aggregated_metadata["state"] = "USA"
+            aggregated_metadata_dfs.append(year_aggregated_metadata)
+
+        aggregated_metadata = pd.concat(aggregated_metadata_dfs)
+        # Calculate proportions for each dataset's location, year combination.
+        # Reshape metadata to have dataset, year, state, column, noise_type
+        # and proportion columns
+        melted_metadata = pd.melt(
+            aggregated_metadata,
+            id_vars=["dataset", "state", "year", "number_of_rows"],
+        )
+        # "Variable" column is created from melting and is all the different column and noise types
+        # we have in the metadata and value is that original columns value
+        # Example age.copy_from_household_member is in variable.unique() and its "value"
+        # is the number of non-null rows we recorded in the original shard metadata
+        melted_metadata["column"] = melted_metadata["variable"].str.split(".").str[0]
+        melted_metadata["noise_type"] = melted_metadata["variable"].str.split(".").str[1]
+        # Calculate proportions
+        melted_metadata["proportion"] = (
+            melted_metadata["value"] / melted_metadata["number_of_rows"]
+        )
+        # Drop unnecessary columns
+        melted_metadata = melted_metadata.drop(
+            columns=["variable", "value", "number_of_rows"]
+        )
+        dataset_metadata_dfs.append(melted_metadata)
+
+    # Concatenate all datasets metadata
+    metadata_final = pd.concat(dataset_metadata_dfs)
+    # Write metadata to file
+    metadata_final.to_csv(final_output_dir / "metadata_proportions.csv", index=False)

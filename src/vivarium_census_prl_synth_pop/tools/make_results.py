@@ -585,9 +585,20 @@ def write_shard_metadata(
         return metadata_df
 
     # Get year column to group by
+    obs_data = obs_data.copy()
     date_columns = ["year", "tax_year", "event_date", "survey_date"]
     year_col = [col for col in obs_data.columns if col in date_columns]
     state_col = "state" if "state" in obs_data.columns else "mailing_address_state"
+    # For ACS, CPS, and SSA, we need to extract year from the year column because they are
+    # currently dates
+    if observer in [
+        metadata.DatasetNames.ACS,
+        metadata.DatasetNames.CPS,
+        metadata.DatasetNames.SSA,
+    ]:
+        # Note: In these 3 datasets the year column is survey date or event date.
+        obs_data["year"] = obs_data[year_col].squeeze().dt.year
+        year_col = ["year"]
     # Special case SSA dataset since that does not have a state column
     if observer == metadata.DatasetNames.SSA:
         state_col = "state"
