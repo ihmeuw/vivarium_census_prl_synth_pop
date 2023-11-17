@@ -175,7 +175,6 @@ def format_1040_dataset(processed_results: Dict[str, pd.Series]) -> pd.DataFrame
     dependents_wide = flatten_data(
         data=df_dependents,
         index_cols=["guardian_id", "tax_year"],
-        rank_col="simulant_id",
         value_cols=[
             "simulant_id",
             "first_name",
@@ -218,19 +217,13 @@ def format_1040_dataset(processed_results: Dict[str, pd.Series]) -> pd.DataFrame
 def flatten_data(
     data: pd.DataFrame,
     index_cols: str,
-    rank_col: str,
     value_cols: List[str],
-    ascending: bool = False,
 ) -> pd.DataFrame:
     # Function that takes a dataset and widens (pivots) it to capture multiple metadata columns
     # Example: simulant_id, dependdent_1, dependent_2, dependent_1_name, dependent_2_name, etc...
     data = data.copy()
     # fixme: find a better solution than the following call since applying lambda functions is slow
-    data["rank"] = (
-        data.groupby(index_cols, group_keys=False)[rank_col]
-        .apply(lambda x: x.rank(method="first", ascending=ascending))
-        .astype(int)
-    )
+    data["rank"] = data.groupby(index_cols).cumcount() + 1
     # TODO: Improve via mic-4244 for random sampling of dependents
     # Choose 4 dependents
     data = data.loc[data["rank"] < 5]

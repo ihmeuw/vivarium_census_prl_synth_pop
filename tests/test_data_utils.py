@@ -125,7 +125,6 @@ def test_flatten_data(dummy_tax_dependents):
     dependents_wide = flatten_data(
         data=dummy_tax_dependents,
         index_cols=["guardian_id", "tax_year"],
-        rank_col="simulant_id",
         value_cols=["favorite_food"],
     )
     # Dependent and guardian ids should never overlap
@@ -148,7 +147,6 @@ def test_flatten_data(dummy_tax_dependents):
 
 
 def test_format_1040_dataset(dummy_1040, dummy_tax_dependents):
-
     obs_data = {
         metadata.DatasetNames.TAXES_1040: dummy_1040,
         metadata.DatasetNames.TAXES_DEPENDENTS: dummy_tax_dependents,

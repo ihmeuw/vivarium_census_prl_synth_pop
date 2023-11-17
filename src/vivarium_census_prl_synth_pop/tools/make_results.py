@@ -395,7 +395,7 @@ def perform_post_processing(
             logger.info(f"Writing final {observer} results.")
             obs_dir = build_output_dir(final_output_dir, subdir=observer)
             seed_ext = f"_{seed}" if seed != "" else ""
-            write_shard_metadata(observer, obs_data, obs_dir, seed)
+            write_shard_metadata(observer, obs_data, obs_dir, seed_ext)
             write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
 
 
@@ -565,7 +565,7 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
 
 
 def write_shard_metadata(
-    observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed: str
+    observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed_ext: str
 ) -> None:
     # Writes metadata for each shard of data. This will be proportions available to noise
     # for specific columns.
@@ -574,55 +574,58 @@ def write_shard_metadata(
         metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
         metadata_df["year"] = year
-        copy_columns = [
-            col.name
-            for col in COLUMNS
-            for noise_type in col.noise_types
-            if "copy_from_household_member" == noise_type.name
-        ]
-        nicknames_columns = [
-            col.name
-            for col in COLUMNS
-            for noise_type in col.noise_types
-            if "use_nickname" == noise_type.name
-        ]
-        for column in df.columns:
-            if column in copy_columns:
-                # Get number of rows that could potentially copy a household member
-                metadata_df[f"{column}.copy_from_household_member"] = (
-                    df[COPY_HOUSEHOLD_MEMBER_COLS[column]].notna().sum()
-                )
-            elif column in nicknames_columns:
-                # Get number of rows eligible to be noised to a nickname
-                nicknames = load_nicknames_data()
-                metadata_df[f"{column}.use_nickname"] = df[column].isin(nicknames.index).sum()
-            else:
+
+        for column_name in df.columns:
+            columns = [col.name for col in COLUMNS]
+            if column_name in columns:
+                column = COLUMNS.get_column(column_name)
+                noise_type_names = [noise_type.name for noise_type in column.noise_types]
+                if "copy_from_household_member" in noise_type_names:
+                    # Get number of rows that could potentially copy a household member
+                    metadata_df[f"{column_name}.copy_from_household_member"] = (
+                        df[COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
+                    )
+                if "use_nickname" in noise_type_names:
+                    # Get number of rows eligible to be noised to a nickname
+                    nicknames = load_nicknames_data()
+                    metadata_df[f"{column_name}.use_nickname"] = (
+                        df[column_name].isin(nicknames.index).sum()
+                    )
                 # TODO: Add guardian based duplication
-                continue
         return metadata_df
 
     # Get year column to group by
+    obs_data = obs_data.copy()
     date_columns = ["year", "tax_year", "event_date", "survey_date"]
     year_col = [col for col in obs_data.columns if col in date_columns]
     state_col = "state" if "state" in obs_data.columns else "mailing_address_state"
+    # For ACS, CPS, and SSA, we need to extract year from the year column because they are
+    # currently dates
+    if observer in [
+        metadata.DatasetNames.ACS,
+        metadata.DatasetNames.CPS,
+        metadata.DatasetNames.SSA,
+    ]:
+        # Note: In these 3 datasets the year column is survey date or event date.
+        obs_data["year"] = obs_data[year_col].squeeze().dt.year
+        year_col = ["year"]
     # Special case SSA dataset since that does not have a state column
     if observer == metadata.DatasetNames.SSA:
-        metadata_dfs = []
-        for year, year_data in obs_data.groupby(year_col):
-            year_df = obs_data.loc[year_data.index]
-            year_metadata = _get_metadata_values(year_df, "USA", year)
-            metadata_dfs.append(year_metadata)
-    else:
-        groupby_cols = year_col + [state_col]
-        metadata_dfs = []
-        for (year, location), location_data in obs_data.groupby(groupby_cols):
-            state_df = obs_data.loc[location_data.index]
-            state_metadata = _get_metadata_values(state_df, location, year)
-            metadata_dfs.append(state_metadata)
+        state_col = "state"
+        obs_data[state_col] = "USA"
+
+    groupby_cols = year_col + [state_col]
+    metadata_dfs = []
+    # FIXME: This current implement will miss any location year combination that does not have data.
+    # For example: In a small dataset, we may have a year where a state has no data. This would result
+    # in the metadata file not having a row for that state and year combination.
+    for (year, location), group_data in obs_data.groupby(groupby_cols):
+        state_metadata = _get_metadata_values(group_data, location, year)
+        metadata_dfs.append(state_metadata)
 
     shard_metadata = pd.concat(metadata_dfs)
     shard_metadata["dataset"] = observer
 
     # Write shard metadata
-    shard_metadata_path = obs_dir / f"shard_metadata_{seed}.csv"
+    shard_metadata_path = obs_dir / f"shard_metadata{seed_ext}.csv"
     shard_metadata.to_csv(shard_metadata_path, index_label="state")
