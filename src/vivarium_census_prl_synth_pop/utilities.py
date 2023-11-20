@@ -576,7 +576,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             .sum()
             .reset_index()
         )
-        state_aggregated_metadata["year"] = "all"
+        state_aggregated_metadata["year"] = 3000
         aggregated_metadata_dfs.append(state_aggregated_metadata)
 
         # SSA has no state so we do not need an aggregation for locations for each year
@@ -609,9 +609,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             melted_metadata["value"] / melted_metadata["number_of_rows"]
         )
         # Drop unnecessary columns
-        melted_metadata = melted_metadata.drop(
-            columns=["variable", "value", "number_of_rows"]
-        )
+        melted_metadata = melted_metadata.drop(columns=["variable", "value"])
         dataset_metadata_dfs.append(melted_metadata)
 
     # Concatenate all datasets metadata
