@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
+from pseudopeople.constants.metadata import YEAR_AGGREGATION_VALUE
 from pseudopeople.schema_entities import DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
@@ -576,7 +577,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             .sum()
             .reset_index()
         )
-        state_aggregated_metadata["year"] = 3000
+        state_aggregated_metadata["year"] = YEAR_AGGREGATION_VALUE
         aggregated_metadata_dfs.append(state_aggregated_metadata)
 
         # SSA has no state so we do not need an aggregation for locations for each year
