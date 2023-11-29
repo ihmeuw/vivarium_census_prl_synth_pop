@@ -114,7 +114,7 @@ def test_individuals_move_into_new_households(
             "Domestic migration joining recently created households",
             # This case -- people who joined a just-created household -- should be exceedingly rare.
             joining_recently_created_households,
-            target_value_lb=0,
+            target_value_lb=(1 / 1_000_000_000),
             target_value_ub=0.001,
             name_addl=f"Time step {time_step}",
         )
@@ -160,7 +160,7 @@ def test_individuals_move_into_new_households(
         "Domestic migration joining recently created households",
         # This case -- people who joined a just-created household -- should be exceedingly rare.
         all_time_joining_recently_created_households,
-        target_value_lb=0,
+        target_value_lb=(1 / 1_000_000_000),
         target_value_ub=0.001,
         name_addl="All time steps",
     )

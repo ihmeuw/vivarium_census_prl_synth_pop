@@ -201,35 +201,34 @@ class FuzzyChecker:
 
     @cache
     def _fit_beta_distribution_to_ui(self, lb: float, ub: float) -> Tuple[float, float]:
-        assert lb > 0 or ub < 1
+        assert lb > 0 and ub < 1
         # Inspired by https://stats.stackexchange.com/a/112671/
         def objective(x):
             # np.exp ensures they are always positive
             a, b = np.exp(x)
             dist = scipy.stats.beta(a=a, b=b)
 
-            squared_error_lower = (
-                self._quantile_squared_error(dist, lb, 0.025) if lb > 0 else 0
-            )
-            squared_error_upper = (
-                self._quantile_squared_error(dist, ub, 0.975) if ub < 1 else 0
-            )
+            squared_error_lower = self._quantile_squared_error(dist, lb, 0.025)
+            squared_error_upper = self._quantile_squared_error(dist, ub, 0.975)
 
             return squared_error_lower + squared_error_upper
 
         # It is quite important to start with a reasonable guess.
         ui_midpoint = (lb + ub) / 2
         # TODO: Is this reasonable!?
-        first_guess_concentration = 10
-        optimization_result = scipy.optimize.minimize(
-            objective,
-            x0=[
-                np.log(ui_midpoint * first_guess_concentration),
-                np.log((1 - ui_midpoint) * first_guess_concentration),
-            ],
-        )
-        # Sometimes it warns that it may not have found a good solution,
-        # but the solution is very accurate.
+        for first_guess_concentration in [1_000, 100, 10]:
+            optimization_result = scipy.optimize.minimize(
+                objective,
+                x0=[
+                    np.log(ui_midpoint * first_guess_concentration),
+                    np.log((1 - ui_midpoint) * first_guess_concentration),
+                ],
+            )
+            # Sometimes it warns that it may not have found a good solution,
+            # but the solution is very accurate.
+            if optimization_result.success or optimization_result.fun < 1e-05:
+                break
+
         assert optimization_result.success or optimization_result.fun < 1e-05
 
         result = np.exp(optimization_result.x)
