@@ -1,4 +1,4 @@
-import json
+import yaml
 import os
 from pathlib import Path
 
@@ -19,9 +19,9 @@ def target_migration_rates(sim):
     ), "Integration tests do not support subsets by US state"
 
     with open(
-        Path(os.path.dirname(__file__)) / "v_and_v_inputs/domestic_migration.json"
+        Path(os.path.dirname(__file__)) / "v_and_v_inputs/domestic_migration.yaml"
     ) as f:
-        targets = json.load(f)
+        targets = yaml.safe_load(f)
 
     targets["individual_migration_rate_per_year"]["total"] = sum(
         [v for v in targets["individual_migration_rate_per_year"].values()]

@@ -1,4 +1,4 @@
-import json
+import yaml
 import math
 import os
 from pathlib import Path
@@ -19,8 +19,8 @@ def target_immigration_events(sim):
         metadata.UNITED_STATES_LOCATIONS == []
     ), "Automated V&V does not support subsets by US state"
 
-    with open(Path(os.path.dirname(__file__)) / "v_and_v_inputs/immigration.json") as f:
-        targets = json.load(f)
+    with open(Path(os.path.dirname(__file__)) / "v_and_v_inputs/immigration.yaml") as f:
+        targets = yaml.safe_load(f)
 
     # Rescale to configured sim size, and from yearly to per-timestep
     targets_rescaled = {}
