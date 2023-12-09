@@ -1,4 +1,3 @@
-import yaml
 import math
 import os
 from pathlib import Path
@@ -6,6 +5,7 @@ from typing import List, Tuple
 
 import pandas as pd
 import pytest
+import yaml
 from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import metadata

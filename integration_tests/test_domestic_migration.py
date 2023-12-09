@@ -1,10 +1,10 @@
-import yaml
 import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
