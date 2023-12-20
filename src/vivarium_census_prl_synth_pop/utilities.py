@@ -603,8 +603,10 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         # we have in the metadata and value is that original columns value
         # Example age.copy_from_household_member is in variable.unique() and its "value"
         # is the number of non-null rows we recorded in the original shard metadata
-        melted_metadata["column"] = melted_metadata["variable"].str.split(".").str[0]
-        melted_metadata["noise_type"] = melted_metadata["variable"].str.split(".").str[1]
+        # Schema entity is either a column name or row noise and noise entity is the column
+        # or row noise type.
+        melted_metadata["schema_entity"] = melted_metadata["variable"].str.split(".").str[0]
+        melted_metadata["noise_entity"] = melted_metadata["variable"].str.split(".").str[1]
         # Calculate proportions
         melted_metadata["proportion"] = (
             melted_metadata["value"] / melted_metadata["number_of_rows"]

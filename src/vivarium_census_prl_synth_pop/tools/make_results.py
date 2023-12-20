@@ -570,10 +570,31 @@ def write_shard_metadata(
     # Writes metadata for each shard of data. This will be proportions available to noise
     # for specific columns.
 
-    def _get_metadata_values(df: pd.DataFrame, location: str, year: int) -> pd.DataFrame:
+    def _get_metadata_values(
+        observer: str, df: pd.DataFrame, location: str, year: int
+    ) -> pd.DataFrame:
         metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
         metadata_df["year"] = year
+        # Get number of rows for each duplicate with guardian group
+        # We only have data to do this for census, ACS, and CPS and is currently only
+        # implemented for census.
+        if observer in [
+            metadata.DatasetNames.CENSUS,
+            metadata.DatasetNames.ACS,
+            metadata.DatasetNames.CPS,
+        ]:
+            metadata_df["row_probability.row_probability_in_households_under_18"] = len(
+                df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")]
+            )
+            metadata_df["row_probability.row_probability_in_households_18_to_23"] = len(
+                df.loc[
+                    (df["age"] >= 18) & (df["age"] < 24) & (df["housing_type"] == "Household")
+                ]
+            )
+            metadata_df["row_probability.row_probability_in_group_quarters_under_24"] = len(
+                df.loc[(df["age"] < 24) & (df["housing_type"] != "Household")]
+            )
 
         for column_name in df.columns:
             columns = [col.name for col in COLUMNS]
@@ -606,7 +627,7 @@ def write_shard_metadata(
         metadata.DatasetNames.CPS,
         metadata.DatasetNames.SSA,
     ]:
-        # Note: In these 3 datasets the year column is survey date or event date.
+        # Note: In these three datasets the year column is survey date or event date.
         obs_data["year"] = obs_data[year_col].squeeze().dt.year
         year_col = ["year"]
     # Special case SSA dataset since that does not have a state column
@@ -620,7 +641,7 @@ def write_shard_metadata(
     # For example: In a small dataset, we may have a year where a state has no data. This would result
     # in the metadata file not having a row for that state and year combination.
     for (year, location), group_data in obs_data.groupby(groupby_cols):
-        state_metadata = _get_metadata_values(group_data, location, year)
+        state_metadata = _get_metadata_values(observer, group_data, location, year)
         metadata_dfs.append(state_metadata)
 
     shard_metadata = pd.concat(metadata_dfs)
