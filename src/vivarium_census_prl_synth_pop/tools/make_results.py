@@ -587,13 +587,8 @@ def write_shard_metadata(
             metadata_df["row_noise.row_probability_in_households_under_18"] = len(
                 df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")]
             )
-            metadata_df["row_noise.row_probability_in_households_18_to_23"] = len(
-                df.loc[
-                    (df["age"] >= 18) & (df["age"] < 24) & (df["housing_type"] == "Household")
-                ]
-            )
-            metadata_df["row_noise.row_probability_in_group_quarters_under_24"] = len(
-                df.loc[(df["age"] < 24) & (df["housing_type"] != "Household")]
+            metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
+                df.loc[(df["age"] < 24) & (df["housing_type"] == "College")]
             )
 
         for column_name in df.columns:
