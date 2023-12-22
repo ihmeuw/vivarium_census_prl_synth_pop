@@ -608,10 +608,13 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         melted_metadata["schema_entity"] = melted_metadata["variable"].str.split(".").str[0]
         melted_metadata["noise_entity"] = melted_metadata["variable"].str.split(".").str[1]
         # Calculate proportions
-        melted_metadata["proportion"] = (
-            melted_metadata["value"] / melted_metadata["number_of_rows"]
+        # If schema entity is row noise we have already calculated the proportions
+        # so we only need to calculate the proportion for column noise
+        melted_metadata["proportion"] = np.where(
+            melted_metadata["schema_entity"] == "row_noise",
+            melted_metadata["value"],
+            (melted_metadata["value"] / melted_metadata["number_of_rows"]),
         )
-        # Drop unnecessary columns
         melted_metadata = melted_metadata.drop(columns=["variable", "value"])
         dataset_metadata_dfs.append(melted_metadata)
 
