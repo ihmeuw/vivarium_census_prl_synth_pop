@@ -570,7 +570,9 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
         )
         aggregated_metadata_dfs.append(state_year_aggregated_metadata)
+
         # Aggregate for all years and for all locations
+        # Note: This only gets the aggregation for all years and not each iteration
         state_aggregated_metadata = (
             dataset_metadata.groupby(by=["dataset", "state"])[aggregate_cols]
             .sum()
@@ -583,6 +585,13 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         # SSA has no state so we do not need an aggregation for locations for each year
         # We also need to handle this with the sample data where all locations are WA
         if len(dataset_metadata["state"].unique()) != 1:
+            # Note: For guardian duplication row noise, when we write out metadata for each
+            # shard we get the proportion for each state and the full USA dataset for each year.
+            # Because of this, we do not need to do an aggregation for each year to get the USA proportion
+            # because we already have it from the state-year aggregatio nabove.
+            dataset_metadata = dataset_metadata.drop(
+                columns=[col for col in dataset_metadata.columns if "row_noise" in col]
+            )
             year_aggregated_metadata = (
                 dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
                 .sum()
@@ -622,3 +631,68 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
     metadata_final = pd.concat(dataset_metadata_dfs)
     # Write metadata to file
     metadata_final.to_csv(final_output_dir / "metadata_proportions.csv", index=False)
+
+
+def merge_dependents_and_guardians(data: pd.DataFrame) -> pd.DataFrame:
+    # Merge dependents with their guardians. We have to merge twice to check
+    # if either guardian is living at a separate location from the dependent.
+    guardian_1s = data.loc[
+        data["simulant_id"].isin(data["guardian_1"]),
+        ["simulant_id", "household_id"],
+    ].add_prefix("guardian_1_")
+    dependents_and_guardians_df = data.merge(
+        guardian_1s,
+        how="left",
+        left_on=["guardian_1", "year"],
+        right_on=["guardian_1_simulant_id", "guardian_1_year"],
+    )
+    del guardian_1s
+    guardian_2s = data.loc[
+        data["simulant_id"].isin(data["guardian_2"]),
+        ["simulant_id", "household_id"],
+    ].add_prefix("guardian_2_")
+    dependents_and_guardians_df = dependents_and_guardians_df.merge(
+        guardian_2s,
+        how="left",
+        left_on=["guardian_2", "year"],
+        right_on=["guardian_2_simulant_id", "guardian_2_year"],
+    )
+    del guardian_2s
+
+    return dependents_and_guardians_df
+
+
+def calculate_guardian_duplication_metadata_proportions(
+    metadata_df: pd.DataFrame, df: pd.DataFrame
+) -> pd.DataFrame:
+    # Get number of rows for each duplicate with guardian group
+    metadata_df["row_noise.row_probability_in_households_under_18"] = len(
+        df.loc[
+            (df["age"] < 18)
+            & (df["housing_type"] == "Household")
+            & (df["guardian_1"].notna())
+            & (
+                (df["household_id"] != df["guardian_1_household_id"])
+                | (
+                    (df["guardian_2"].notna())
+                    & (df["household_id"] != df["guardian_2_household_id"])
+                )
+            )
+        ]
+    ) / len(df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")])
+    metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
+        df.loc[
+            (df["age"] < 24)
+            & (df["housing_type"] == "College")
+            & (df["guardian_1"].notna())
+            & (
+                (df["household_id"] != df["guardian_1_household_id"])
+                | (
+                    (df["guardian_2"].notna())
+                    & (df["household_id"] != df["guardian_2_household_id"])
+                )
+            )
+        ]
+    ) / len(df.loc[(df["age"] < 24) & (df["housing_type"] == "College")])
+
+    return metadata_df

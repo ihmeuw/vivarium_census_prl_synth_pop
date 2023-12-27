@@ -31,8 +31,10 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
 )
 from vivarium_census_prl_synth_pop.utilities import (
     build_output_dir,
+    calculate_guardian_duplication_metadata_proportions,
     get_all_simulation_seeds,
     load_nicknames_data,
+    merge_dependents_and_guardians,
     sanitize_location,
     write_to_disk,
 )
@@ -576,31 +578,13 @@ def write_shard_metadata(
         metadata_df = pd.DataFrame(index=[location])
         metadata_df["number_of_rows"] = len(df)
         metadata_df["year"] = year
-        # Get number of rows for each duplicate with guardian group
-        # We only have data to do this for census, ACS, and CPS and is currently only
-        # implemented for census.
+
         if observer in [
             metadata.DatasetNames.CENSUS,
             metadata.DatasetNames.ACS,
             metadata.DatasetNames.CPS,
         ]:
-            metadata_df["row_noise.row_probability_in_households_under_18"] = len(
-                df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")]
-            ) / len(
-                df.loc[
-                    (df["age"] < 18)
-                    & (df["housing_type"] == "Household")
-                    & (df["guardian_1"].notna())
-                ]
-            )
-            metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
-                df.loc[(df["age"] < 24) & (df["housing_type"] == "College")]
-            ) / len(
-                df.loc[
-                    df["age"]
-                    < 24 & (df["housing_type"] == "College") & (df["guardian_1"].notna())
-                ]
-            )
+            df = calculate_guardian_duplication_metadata_proportions(metadata_df, df)
 
         for column_name in df.columns:
             columns = [col.name for col in COLUMNS]
@@ -618,7 +602,6 @@ def write_shard_metadata(
                     metadata_df[f"{column_name}.use_nickname"] = (
                         df[column_name].isin(nicknames.index).sum()
                     )
-                # TODO: Add guardian based duplication
         return metadata_df
 
     # Get year column to group by
@@ -641,14 +624,34 @@ def write_shard_metadata(
         state_col = "state"
         obs_data[state_col] = "USA"
 
+    # Merge dependents with their guardians. This is only implemented for census
+    # but we have data to implement this for ACS and CPS as well.
+    if observer in [
+        metadata.DatasetNames.CENSUS,
+        metadata.DatasetNames.ACS,
+        metadata.DatasetNames.CPS,
+    ]:
+        obs_data = merge_dependents_and_guardians(obs_data)
     groupby_cols = year_col + [state_col]
     metadata_dfs = []
-    # FIXME: This current implement will miss any location year combination that does not have data.
-    # For example: In a small dataset, we may have a year where a state has no data. This would result
-    # in the metadata file not having a row for that state and year combination.
     for (year, location), group_data in obs_data.groupby(groupby_cols):
         state_metadata = _get_metadata_values(observer, group_data, location, year)
         metadata_dfs.append(state_metadata)
+
+    # We need to also calculate guardian duplication at the national level here since
+    # each shard should have all guardian dependent pair.
+    if observer in [
+        metadata.DatasetNames.CENSUS,
+        metadata.DatasetNames.ACS,
+        metadata.DatasetNames.CPS,
+    ]:
+        for year in obs_data["year"].unique():
+            national_metadata = pd.DataFrame(index=["USA"])
+            national_metadata["year"] = year
+            national_metadata = calculate_guardian_duplication_metadata_proportions(
+                national_metadata, obs_data[obs_data["year"] == year]
+            )
+            metadata_dfs.append(national_metadata)
 
     shard_metadata = pd.concat(metadata_dfs)
     shard_metadata["dataset"] = observer
