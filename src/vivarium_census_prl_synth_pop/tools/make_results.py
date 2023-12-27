@@ -631,7 +631,7 @@ def write_shard_metadata(
         metadata.DatasetNames.ACS,
         metadata.DatasetNames.CPS,
     ]:
-        obs_data = merge_dependents_and_guardians(obs_data)
+        obs_data = merge_dependents_and_guardians(observer, obs_data)
     groupby_cols = year_col + [state_col]
     metadata_dfs = []
     for (year, location), group_data in obs_data.groupby(groupby_cols):

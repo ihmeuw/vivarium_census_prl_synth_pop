@@ -633,29 +633,30 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
     metadata_final.to_csv(final_output_dir / "metadata_proportions.csv", index=False)
 
 
-def merge_dependents_and_guardians(data: pd.DataFrame) -> pd.DataFrame:
+def merge_dependents_and_guardians(dataset_name: str, data: pd.DataFrame) -> pd.DataFrame:
     # Merge dependents with their guardians. We have to merge twice to check
     # if either guardian is living at a separate location from the dependent.
+    dataset = DATASETS.get_dataset(dataset_name)
     guardian_1s = data.loc[
         data["simulant_id"].isin(data["guardian_1"]),
-        ["simulant_id", "household_id"],
+        ["simulant_id", "household_id", dataset.year_column],
     ].add_prefix("guardian_1_")
     dependents_and_guardians_df = data.merge(
         guardian_1s,
         how="left",
         left_on=["guardian_1", "year"],
-        right_on=["guardian_1_simulant_id", "guardian_1_year"],
+        right_on=["guardian_1_simulant_id", f"guardian_1_{dataset.year_column}"],
     )
     del guardian_1s
     guardian_2s = data.loc[
         data["simulant_id"].isin(data["guardian_2"]),
-        ["simulant_id", "household_id"],
+        ["simulant_id", "household_id", dataset.year_column],
     ].add_prefix("guardian_2_")
     dependents_and_guardians_df = dependents_and_guardians_df.merge(
         guardian_2s,
         how="left",
         left_on=["guardian_2", "year"],
-        right_on=["guardian_2_simulant_id", "guardian_2_year"],
+        right_on=["guardian_2_simulant_id", f"guardian_2_{dataset.year_column}"],
     )
     del guardian_2s
 
