@@ -584,7 +584,7 @@ def write_shard_metadata(
             metadata.DatasetNames.ACS,
             metadata.DatasetNames.CPS,
         ]:
-            df = calculate_guardian_duplication_metadata_proportions(metadata_df, df)
+            metadata_df = calculate_guardian_duplication_metadata_proportions(metadata_df, df)
 
         for column_name in df.columns:
             columns = [col.name for col in COLUMNS]
