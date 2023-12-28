@@ -6,7 +6,6 @@ from vivarium_public_health.population import Mortality as _Mortality
 
 
 class Mortality(_Mortality):
-
     ##############
     # Properties #
     ##############

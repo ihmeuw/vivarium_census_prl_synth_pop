@@ -295,3 +295,6 @@ COPY_HOUSEHOLD_MEMBER_COLS = {
     "date_of_birth": "copy_date_of_birth",
     "has_ssn": "copy_ssn",
 }
+
+
+YEAR_AGGREGATION_VALUE = 3000
