@@ -666,33 +666,39 @@ def calculate_guardian_duplication_metadata_proportions(
     metadata_df: pd.DataFrame, df: pd.DataFrame
 ) -> pd.DataFrame:
     # Get number of rows for each duplicate with guardian group
-    metadata_df["row_noise.row_probability_in_households_under_18"] = len(
-        df.loc[
-            (df["age"] < 18)
-            & (df["housing_type"] == "Household")
-            & (df["guardian_1"].notna())
-            & (
-                (df["household_id"] != df["guardian_1_household_id"])
-                | (
-                    (df["guardian_2"].notna())
-                    & (df["household_id"] != df["guardian_2_household_id"])
+    try:
+        metadata_df["row_noise.row_probability_in_households_under_18"] = len(
+            df.loc[
+                (df["age"] < 18)
+                & (df["housing_type"] == "Household")
+                & (df["guardian_1"].notna())
+                & (
+                    (df["household_id"] != df["guardian_1_household_id"])
+                    | (
+                        (df["guardian_2"].notna())
+                        & (df["household_id"] != df["guardian_2_household_id"])
+                    )
                 )
-            )
-        ]
-    ) / len(df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")])
-    metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
-        df.loc[
-            (df["age"] < 24)
-            & (df["housing_type"] == "College")
-            & (df["guardian_1"].notna())
-            & (
-                (df["household_id"] != df["guardian_1_household_id"])
-                | (
-                    (df["guardian_2"].notna())
-                    & (df["household_id"] != df["guardian_2_household_id"])
+            ]
+        ) / len(df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")])
+    except ZeroDivisionError:
+        metadata_df["row_noise.row_probability_in_households_under_18"] = 0.0
+    try:
+        metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
+            df.loc[
+                (df["age"] < 24)
+                & (df["housing_type"] == "College")
+                & (df["guardian_1"].notna())
+                & (
+                    (df["household_id"] != df["guardian_1_household_id"])
+                    | (
+                        (df["guardian_2"].notna())
+                        & (df["household_id"] != df["guardian_2_household_id"])
+                    )
                 )
-            )
-        ]
-    ) / len(df.loc[(df["age"] < 24) & (df["housing_type"] == "College")])
+            ]
+        ) / len(df.loc[(df["age"] < 24) & (df["housing_type"] == "College")])
+    except ZeroDivisionError:
+        metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = 0.0
 
     return metadata_df
