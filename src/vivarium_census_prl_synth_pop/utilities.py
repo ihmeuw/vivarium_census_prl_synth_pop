@@ -592,6 +592,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             dataset_metadata = dataset_metadata.drop(
                 columns=[col for col in dataset_metadata.columns if "row_noise" in col]
             )
+            aggregate_cols = [col for col in aggregate_cols if "row_noise" not in col]
             year_aggregated_metadata = (
                 dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
                 .sum()
