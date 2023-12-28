@@ -640,11 +640,7 @@ def write_shard_metadata(
 
     # We need to also calculate guardian duplication at the national level here since
     # each shard should have all guardian dependent pair.
-    if observer in [
-        metadata.DatasetNames.CENSUS,
-        metadata.DatasetNames.ACS,
-        metadata.DatasetNames.CPS,
-    ]:
+    if observer == metadata.DatasetNames.CENSUS:
         for year in obs_data["year"].unique():
             national_metadata = pd.DataFrame(index=["USA"])
             national_metadata["year"] = year
