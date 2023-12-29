@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
-from pseudopeople.schema_entities import DATASETS
+from pseudopeople.constants.metadata import COPY_HOUSEHOLD_MEMBER_COLS
+from pseudopeople.schema_entities import COLUMNS, DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
@@ -556,57 +557,18 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
     dataset_metadata_dfs = []
     datasets = [dataset.name for dataset in DATASETS]
     for dataset in datasets:
-        aggregated_metadata_dfs = []
         dataset_directory = final_output_dir / dataset
         shard_metadata_files = sorted(list(chain(*[dataset_directory.glob("*.csv")])))
         metadata_dfs = [
             pd.read_csv(shard_metadata_file) for shard_metadata_file in shard_metadata_files
         ]
         dataset_metadata = pd.concat(metadata_dfs)
-        # Aggregate metadata
-        groupby_cols = ["dataset", "state", "year"]
-        aggregate_cols = [col for col in dataset_metadata.columns if col not in groupby_cols]
-        state_year_aggregated_metadata = (
-            dataset_metadata.groupby(by=groupby_cols)[aggregate_cols].sum().reset_index()
-        )
-        aggregated_metadata_dfs.append(state_year_aggregated_metadata)
 
-        # Aggregate for all years and for all locations
-        # Note: This only gets the aggregation for all years and not each iteration
-        state_aggregated_metadata = (
-            dataset_metadata.groupby(by=["dataset", "state"])[aggregate_cols]
-            .sum()
-            .reset_index()
-        )
-        # TODO: import from Pseudopeople once released
-        state_aggregated_metadata["year"] = metadata.YEAR_AGGREGATION_VALUE
-        aggregated_metadata_dfs.append(state_aggregated_metadata)
-
-        # SSA has no state so we do not need an aggregation for locations for each year
-        # We also need to handle this with the sample data where all locations are WA
-        if len(dataset_metadata["state"].unique()) != 1:
-            # Note: For guardian duplication row noise, when we write out metadata for each
-            # shard we get the proportion for each state and the full USA dataset for each year.
-            # Because of this, we do not need to do an aggregation for each year to get the USA proportion
-            # because we already have it from the state-year aggregatio nabove.
-            dataset_metadata = dataset_metadata.drop(
-                columns=[col for col in dataset_metadata.columns if "row_noise" in col]
-            )
-            aggregate_cols = [col for col in aggregate_cols if "row_noise" not in col]
-            year_aggregated_metadata = (
-                dataset_metadata.groupby(by=["dataset", "year"])[aggregate_cols]
-                .sum()
-                .reset_index()
-            )
-            year_aggregated_metadata["state"] = "USA"
-            aggregated_metadata_dfs.append(year_aggregated_metadata)
-
-        aggregated_metadata = pd.concat(aggregated_metadata_dfs)
         # Calculate proportions for each dataset's location, year combination.
         # Reshape metadata to have dataset, year, state, column, noise_type
         # and proportion columns
         melted_metadata = pd.melt(
-            aggregated_metadata,
+            dataset_metadata,
             id_vars=["dataset", "state", "year", "number_of_rows"],
         )
         # "Variable" column is created from melting and is all the different column and noise types
@@ -617,15 +579,13 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         # or row noise type.
         melted_metadata["schema_entity"] = melted_metadata["variable"].str.split(".").str[0]
         melted_metadata["noise_entity"] = melted_metadata["variable"].str.split(".").str[1]
-        # Calculate proportions
-        # If schema entity is row noise we have already calculated the proportions
-        # so we only need to calculate the proportion for column noise
-        melted_metadata["proportion"] = np.where(
-            melted_metadata["schema_entity"] == "row_noise",
-            melted_metadata["value"],
-            (melted_metadata["value"] / melted_metadata["number_of_rows"]),
+        # Calculate noise proportions
+        melted_metadata["proportion"] = (
+            melted_metadata["value"] / melted_metadata["number_of_rows"]
         )
-        melted_metadata = melted_metadata.drop(columns=["variable", "value"])
+        melted_metadata = melted_metadata.drop(
+            columns=["variable", "value", "number_of_rows"]
+        )
         dataset_metadata_dfs.append(melted_metadata)
 
     # Concatenate all datasets metadata
@@ -663,43 +623,72 @@ def merge_dependents_and_guardians(data: pd.DataFrame) -> pd.DataFrame:
     return dependents_and_guardians_df
 
 
-def calculate_guardian_duplication_metadata_proportions(
+def get_guardian_duplication_row_counts(
     metadata_df: pd.DataFrame, df: pd.DataFrame
 ) -> pd.DataFrame:
     # Get number of rows for each duplicate with guardian group
-    try:
-        metadata_df["row_noise.row_probability_in_households_under_18"] = len(
-            df.loc[
-                (df["age"] < 18)
-                & (df["housing_type"] == "Household")
-                & (df["guardian_1"].notna())
-                & (
-                    (df["household_id"] != df["guardian_1_household_id"])
-                    | (
-                        (df["guardian_2"].notna())
-                        & (df["household_id"] != df["guardian_2_household_id"])
-                    )
+    metadata_df["row_noise.row_probability_in_households_under_18"] = len(
+        df.loc[
+            (df["age"] < 18)
+            & (df["housing_type"] == "Household")
+            & (df["guardian_1"].notna())
+            & (
+                (df["household_id"] != df["guardian_1_household_id"])
+                | (
+                    (df["guardian_2"].notna())
+                    & (df["household_id"] != df["guardian_2_household_id"])
                 )
-            ]
-        ) / len(df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")])
-    except ZeroDivisionError:
-        metadata_df["row_noise.row_probability_in_households_under_18"] = 0.0
-    try:
-        metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
-            df.loc[
-                (df["age"] < 24)
-                & (df["housing_type"] == "College")
-                & (df["guardian_1"].notna())
-                & (
-                    (df["household_id"] != df["guardian_1_household_id"])
-                    | (
-                        (df["guardian_2"].notna())
-                        & (df["household_id"] != df["guardian_2_household_id"])
-                    )
+            )
+        ]
+    )
+    metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
+        df.loc[
+            (df["age"] < 24)
+            & (df["housing_type"] == "College")
+            & (df["guardian_1"].notna())
+            & (
+                (df["household_id"] != df["guardian_1_household_id"])
+                | (
+                    (df["guardian_2"].notna())
+                    & (df["household_id"] != df["guardian_2_household_id"])
                 )
-            ]
-        ) / len(df.loc[(df["age"] < 24) & (df["housing_type"] == "College")])
-    except ZeroDivisionError:
-        metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = 0.0
+            )
+        ]
+    )
 
+    return metadata_df
+
+
+def _get_metadata_counts(
+    observer: str, df: pd.DataFrame, location: str, year: int
+) -> pd.DataFrame:
+    # This function should only be used for writing shard metadata in post-processing
+    # and no where else.
+    metadata_df = pd.DataFrame(index=[location])
+    metadata_df["number_of_rows"] = len(df)
+    metadata_df["year"] = year
+
+    if observer in [
+        metadata.DatasetNames.CENSUS,
+        metadata.DatasetNames.ACS,
+        metadata.DatasetNames.CPS,
+    ]:
+        metadata_df = get_guardian_duplication_row_counts(metadata_df, df)
+
+    for column_name in df.columns:
+        columns = [col.name for col in COLUMNS]
+        if column_name in columns:
+            column = COLUMNS.get_column(column_name)
+            noise_type_names = [noise_type.name for noise_type in column.noise_types]
+            if "copy_from_household_member" in noise_type_names:
+                # Get number of rows that could potentially copy a household member
+                metadata_df[f"{column_name}.copy_from_household_member"] = (
+                    df[COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
+                )
+            if "use_nickname" in noise_type_names:
+                # Get number of rows eligible to be noised to a nickname
+                nicknames = load_nicknames_data()
+                metadata_df[f"{column_name}.use_nickname"] = (
+                    df[column_name].isin(nicknames.index).sum()
+                )
     return metadata_df

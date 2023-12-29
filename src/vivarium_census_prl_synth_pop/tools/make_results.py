@@ -6,8 +6,6 @@ from typing import Dict, List
 import pandas as pd
 import pyarrow.parquet as pq
 from loguru import logger
-from pseudopeople.constants.metadata import COPY_HOUSEHOLD_MEMBER_COLS
-from pseudopeople.schema_entities import COLUMNS
 from vivarium import Artifact
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
@@ -30,10 +28,10 @@ from vivarium_census_prl_synth_pop.results_processing.ssn_and_itin import (
     get_simulant_id_maps,
 )
 from vivarium_census_prl_synth_pop.utilities import (
+    _get_metadata_counts,
     build_output_dir,
-    calculate_guardian_duplication_metadata_proportions,
     get_all_simulation_seeds,
-    load_nicknames_data,
+    get_guardian_duplication_row_counts,
     merge_dependents_and_guardians,
     sanitize_location,
     write_to_disk,
@@ -569,46 +567,18 @@ def subset_results_by_state(processed_results_dir: str, state: str) -> None:
 def write_shard_metadata(
     observer: str, obs_data: pd.DataFrame, obs_dir: Path, seed_ext: str
 ) -> None:
-    # Writes metadata for each shard of data. This will be proportions available to noise
-    # for specific columns.
-
-    def _get_metadata_values(
-        observer: str, df: pd.DataFrame, location: str, year: int
-    ) -> pd.DataFrame:
-        metadata_df = pd.DataFrame(index=[location])
-        metadata_df["number_of_rows"] = len(df)
-        metadata_df["year"] = year
-
-        if observer in [
-            metadata.DatasetNames.CENSUS,
-            metadata.DatasetNames.ACS,
-            metadata.DatasetNames.CPS,
-        ]:
-            metadata_df = calculate_guardian_duplication_metadata_proportions(metadata_df, df)
-
-        for column_name in df.columns:
-            columns = [col.name for col in COLUMNS]
-            if column_name in columns:
-                column = COLUMNS.get_column(column_name)
-                noise_type_names = [noise_type.name for noise_type in column.noise_types]
-                if "copy_from_household_member" in noise_type_names:
-                    # Get number of rows that could potentially copy a household member
-                    metadata_df[f"{column_name}.copy_from_household_member"] = (
-                        df[COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
-                    )
-                if "use_nickname" in noise_type_names:
-                    # Get number of rows eligible to be noised to a nickname
-                    nicknames = load_nicknames_data()
-                    metadata_df[f"{column_name}.use_nickname"] = (
-                        df[column_name].isin(nicknames.index).sum()
-                    )
-        return metadata_df
+    # Writes metadata for each shard of data. This will be used to aggregate metadata
+    # to calculate noise proportions at the end of post-processing.
 
     # Get year column to group by
     obs_data = obs_data.copy()
     date_columns = ["year", "tax_year", "event_date", "survey_date"]
     year_col = [col for col in obs_data.columns if col in date_columns]
-    state_col = "state" if "state" in obs_data.columns else "mailing_address_state"
+    state_col = (
+        "state"
+        if "state" in obs_data.columns or observer == metadata.DatasetNames.SSA
+        else "mailing_address_state"
+    )
     # For ACS, CPS, and SSA, we need to extract year from the year column because they are
     # currently dates
     if observer in [
@@ -621,7 +591,6 @@ def write_shard_metadata(
         year_col = ["year"]
     # Special case SSA dataset since that does not have a state column
     if observer == metadata.DatasetNames.SSA:
-        state_col = "state"
         obs_data[state_col] = "USA"
 
     # Merge dependents with their guardians. This is only implemented for census
@@ -632,26 +601,82 @@ def write_shard_metadata(
         metadata.DatasetNames.CPS,
     ]:
         obs_data = merge_dependents_and_guardians(obs_data)
-    groupby_cols = year_col + [state_col]
     metadata_dfs = []
-    for (year, location), group_data in obs_data.groupby(groupby_cols):
-        state_metadata = _get_metadata_values(observer, group_data, location, year)
+    # Get metadata for each year, location pair
+    for (year, location), group_data in obs_data.groupby(year_col + [state_col]):
+        state_metadata = _get_metadata_counts(observer, group_data, location, year)
         metadata_dfs.append(state_metadata)
 
     # We need to also calculate guardian duplication at the national level here since
     # each shard should have all guardian dependent pair.
-    if observer == metadata.DatasetNames.CENSUS:
-        for year in obs_data["year"].unique():
-            national_metadata = pd.DataFrame(index=["USA"])
-            national_metadata["year"] = year
-            national_metadata = calculate_guardian_duplication_metadata_proportions(
+    for year in obs_data["year"].unique():
+        national_metadata = pd.DataFrame(index=["USA"])
+        national_metadata["year"] = year
+        if observer in [
+            metadata.DatasetNames.CENSUS,
+            metadata.DatasetNames.ACS,
+            metadata.DatasetNames.CPS,
+        ]:
+            national_metadata = get_guardian_duplication_row_counts(
                 national_metadata, obs_data[obs_data["year"] == year]
             )
-            metadata_dfs.append(national_metadata)
+        metadata_dfs.append(national_metadata)
+    # Combined metadata for processing
+    shard_metadata = pd.concat(metadata_dfs).reset_index().rename(columns={"index": "state"})
 
-    shard_metadata = pd.concat(metadata_dfs)
-    shard_metadata["dataset"] = observer
+    # Aggregate count columns to get national counts for each year
+    location_aggregation_cols = [
+        col
+        for col in shard_metadata.columns
+        if col not in ["year", state_col] and "row_noise" not in col
+    ]
+    for year in shard_metadata["year"].unique():
+        shard_metadata.loc[
+            (shard_metadata["state"] == "USA") & (shard_metadata["year"] == year),
+            location_aggregation_cols,
+        ] = (
+            shard_metadata.loc[
+                (shard_metadata["state"] != "USA") & (shard_metadata["year"] == year),
+                location_aggregation_cols,
+            ]
+            .sum()
+            .values
+        )
+
+    # Aggregate location counts to get counts for ALL years. First, we need to add placeholder rows
+    # for each location and the aggregated year value
+    for location in shard_metadata["state"].unique():
+        year_aggregation_df = pd.DataFrame(
+            {"state": [location], "year": [metadata.YEAR_AGGREGATION_VALUE]}
+        )
+        shard_metadata = shard_metadata.concat([shard_metadata, year_aggregation_df])
+        shard_metadata.loc[
+            (shard_metadata["state"] == location)
+            & (shard_metadata["year"] == metadata.YEAR_AGGREGATION_VALUE),
+            [col for col in shard_metadata.columns if col not in ["year", state_col]],
+        ] = (
+            shard_metadata.loc[
+                (shard_metadata["state"] == location)
+                & (shard_metadata["year"] != metadata.YEAR_AGGREGATION_VALUE),
+                [col for col in shard_metadata.columns if col not in ["year", state_col]],
+            ]
+            .sum()
+            .values
+        )
+
+    # We must "weight" (cumulative sum) the SSA counts because when users query in pseudopeople user filters
+    # are the queried year AND all preceeding years.
+    if observer == metadata.DatasetNames.SSA:
+        shard_metadata = shard_metadata.sort_values("year")
+        shard_metadata = (
+            shard_metadata.groupby(["state", "year"])
+            .sum()
+            .groupby(level=0)
+            .cumsum()
+            .reset_index()
+        )
 
     # Write shard metadata
+    shard_metadata["dataset"] = observer
     shard_metadata_path = obs_dir / f"shard_metadata{seed_ext}.csv"
-    shard_metadata.to_csv(shard_metadata_path, index_label="state")
+    shard_metadata.to_csv(shard_metadata_path, index=False)
