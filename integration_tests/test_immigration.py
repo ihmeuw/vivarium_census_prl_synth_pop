@@ -66,8 +66,9 @@ def test_immigration_into_gq(
 
     fuzzy_checker.fuzzy_assert_proportion(
         "GQ immigration stochastic rounding",
-        pd.Series(rounded_up),
-        target_value=target_per_timestep % 1,
+        observed_numerator=sum(rounded_up),
+        observed_denominator=len(rounded_up),
+        target_proportion=target_per_timestep % 1,
     )
 
 
@@ -142,8 +143,9 @@ def test_immigration_into_existing_households(
 
     fuzzy_checker.fuzzy_assert_proportion(
         "Non-reference-person immigration stochastic rounding",
-        pd.Series(rounded_up),
-        target_value=target_per_timestep % 1,
+        observed_numerator=sum(rounded_up),
+        observed_denominator=len(rounded_up),
+        target_proportion=target_per_timestep % 1,
     )
 
 
@@ -208,6 +210,7 @@ def test_immigration_into_new_households(
 
     fuzzy_checker.fuzzy_assert_proportion(
         "Household immigration stochastic rounding",
-        pd.Series(rounded_up),
-        target_value=target_per_timestep % 1,
+        observed_numerator=sum(rounded_up),
+        observed_denominator=len(rounded_up),
+        target_proportion=target_per_timestep % 1,
     )
