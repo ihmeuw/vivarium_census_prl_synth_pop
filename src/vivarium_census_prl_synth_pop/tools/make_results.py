@@ -649,7 +649,7 @@ def write_shard_metadata(
         year_aggregation_df = pd.DataFrame(
             {"state": [location], "year": [metadata.YEAR_AGGREGATION_VALUE]}
         )
-        shard_metadata = shard_metadata.concat([shard_metadata, year_aggregation_df])
+        shard_metadata = pd.concat([shard_metadata, year_aggregation_df])
         shard_metadata.loc[
             (shard_metadata["state"] == location)
             & (shard_metadata["year"] == metadata.YEAR_AGGREGATION_VALUE),
