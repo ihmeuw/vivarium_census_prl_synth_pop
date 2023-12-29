@@ -607,9 +607,10 @@ def write_shard_metadata(
         state_metadata = _get_metadata_counts(observer, group_data, location, year)
         metadata_dfs.append(state_metadata)
 
-    # We need to also calculate guardian duplication at the national level here since
+    # We need to create a nation aggregation row to update later.
+    # We also need to also calculate guardian duplication at the national level here since
     # each shard should have all guardian dependent pair.
-    for year in obs_data["year"].unique():
+    for year in obs_data[year_col].squeeze().unique():
         national_metadata = pd.DataFrame(index=["USA"])
         national_metadata["year"] = year
         if observer in [
