@@ -678,7 +678,11 @@ def test_po_box(tracked_live_populations, fuzzy_checker: FuzzyChecker):
     all_time_no_po_box = []
 
     for time_step, pop in enumerate(tracked_live_populations):
-        po_box_values = pop[pop["household_details.housing_type"] == "Household"].groupby("household_details.address_id")["household_details.po_box"].first()
+        po_box_values = (
+            pop[pop["household_details.housing_type"] == "Household"]
+            .groupby("household_details.address_id")["household_details.po_box"]
+            .first()
+        )
         no_po_box = po_box_values == data_values.NO_PO_BOX
         fuzzy_checker.fuzzy_assert_proportion(
             "Proportion without PO box",
@@ -700,10 +704,17 @@ def test_po_box(tracked_live_populations, fuzzy_checker: FuzzyChecker):
 
     all_time_no_po_box = pd.concat(all_time_no_po_box)
     # An individual address_id either has a PO box or doesn't.
-    assert (all_time_no_po_box.groupby("household_details.address_id")["household_details.po_box"].nunique() == 1).all()
+    assert (
+        all_time_no_po_box.groupby("household_details.address_id")[
+            "household_details.po_box"
+        ].nunique()
+        == 1
+    ).all()
     # We only consider each unique address ID once, since repeated observations
     # of the same address ID are not independent.
-    all_time_no_po_box = all_time_no_po_box.groupby("household_details.address_id")["household_details.po_box"].first()
+    all_time_no_po_box = all_time_no_po_box.groupby("household_details.address_id")[
+        "household_details.po_box"
+    ].first()
 
     fuzzy_checker.fuzzy_assert_proportion(
         "Proportion without PO box",
