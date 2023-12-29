@@ -563,6 +563,14 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             pd.read_csv(shard_metadata_file) for shard_metadata_file in shard_metadata_files
         ]
         dataset_metadata = pd.concat(metadata_dfs)
+        # Sum count values
+        groupby_cols = ["dataset", "state", "year"]
+        aggregate_count_cols = [
+            col for col in dataset_metadata.columns if col not in groupby_cols
+        ]
+        dataset_metadata = (
+            dataset_metadata.groupby(groupby_cols)[aggregate_count_cols].sum().reset_index()
+        )
 
         # Calculate proportions for each dataset's location, year combination.
         # Reshape metadata to have dataset, year, state, column, noise_type
