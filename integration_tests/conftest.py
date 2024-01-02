@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 import scipy.stats
 from vivarium import InteractiveContext
+from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import paths
 
@@ -286,7 +287,7 @@ class FuzzyChecker:
         # TODO: Further refine these concentration values. As long as we get convergence
         # with one of them (for all the assertions we do), we're good -- but this specific
         # list may not get us to convergence for future assertions we add.
-        for first_guess_concentration in [1_000, 100, 10]:
+        for first_guess_concentration in [10_000, 1_000, 100, 10, 1, 0.5]:
             optimization_result = scipy.optimize.minimize(
                 objective,
                 x0=[
@@ -344,13 +345,26 @@ def fuzzy_checker() -> FuzzyChecker:
     checker.save_diagnostic_output()
 
 
-def multiplicative_drift_to_bound_at_timestep(value, drift_per_timestep, num_timesteps):
+# Utilities for working with "multiplicative drifts" -- these are
+# pretty specific to this simulation, where we have a lot of fuzzy checks
+# that start out precise at the first timestep and gradually become
+# fuzzier as the simulation progresses.
+# We express these as multiplicative factors applied to the target value
+# per unit time.
+
+
+def multiplicative_drift_to_bound_at_timestep(
+    value: float, drift_per_timestep: float, num_timesteps: int
+) -> float:
     return value * pow(drift_per_timestep, num_timesteps)
 
 
 def multiplicative_drift_to_bounds_at_timestep(
-    value, lower_bound_drift_per_timestep, upper_bound_drift_per_timestep, num_timesteps
-):
+    value: float,
+    lower_bound_drift_per_timestep: float,
+    upper_bound_drift_per_timestep: float,
+    num_timesteps: int,
+) -> Tuple[float, float]:
     return (
         multiplicative_drift_to_bound_at_timestep(
             value, lower_bound_drift_per_timestep, num_timesteps
@@ -361,7 +375,9 @@ def multiplicative_drift_to_bounds_at_timestep(
     )
 
 
-def multiplicative_drift_to_bound_through_timestep(value, drift_per_timestep, num_timesteps):
+def multiplicative_drift_to_bound_through_timestep(
+    value: float, drift_per_timestep: float, num_timesteps: int
+) -> float:
     # Assumption: timesteps have equal sample sizes. This is reasonably accurate.
     return np.mean(
         [
@@ -372,8 +388,11 @@ def multiplicative_drift_to_bound_through_timestep(value, drift_per_timestep, nu
 
 
 def multiplicative_drift_to_bounds_through_timestep(
-    value, lower_bound_drift_per_timestep, upper_bound_drift_per_timestep, num_timesteps
-):
+    value: float,
+    lower_bound_drift_per_timestep: float,
+    upper_bound_drift_per_timestep: float,
+    num_timesteps: int,
+) -> Tuple[float, float]:
     return (
         multiplicative_drift_to_bound_through_timestep(
             value, lower_bound_drift_per_timestep, num_timesteps
@@ -382,3 +401,9 @@ def multiplicative_drift_to_bounds_through_timestep(
             value, upper_bound_drift_per_timestep, num_timesteps
         ),
     )
+
+
+def from_yearly_multiplicative_drift(yearly_drift: float, time_step_days: int) -> float:
+    # (Expected) drift per year = drift per timestep ^ (timestep / 1 year)
+    # Solve for drift per timestep
+    return yearly_drift ** (time_step_days / utilities.DAYS_PER_YEAR)

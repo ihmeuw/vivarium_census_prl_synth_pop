@@ -1,13 +1,49 @@
+import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
+import pytest
+import yaml
+from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 from .conftest import (
     FuzzyChecker,
+    from_yearly_multiplicative_drift,
     multiplicative_drift_to_bounds_at_timestep,
-    multiplicative_drift_to_bounds_through_timestep,
 )
+
+
+@pytest.fixture(scope="module")
+def target_state_proportions(sim):
+    assert (
+        metadata.UNITED_STATES_LOCATIONS == []
+    ), "Integration tests do not support subsets by US state"
+
+    with open(
+        Path(os.path.dirname(__file__)) / "v_and_v_inputs/household_structure.yaml"
+    ) as f:
+        targets = yaml.safe_load(f)["state_proportions"]
+
+    result = {
+        "states": targets["states"],
+    }
+
+    result["multiplicative_drift"] = {
+        "lower_bound": from_yearly_multiplicative_drift(
+            targets["multiplicative_drift_per_year"]["lower_bound"],
+            time_step_days=sim.configuration.time.step_size,
+        ),
+        "upper_bound": from_yearly_multiplicative_drift(
+            targets["multiplicative_drift_per_year"]["upper_bound"],
+            time_step_days=sim.configuration.time.step_size,
+        ),
+    }
+
+    return result
+
 
 # TODO: Broader test coverage
 
@@ -150,34 +186,30 @@ def test_housing_type_does_not_change(simulants_on_adjacent_timesteps):
         assert not after.index.duplicated().any()
 
 
-def test_state_population_proportions(populations, sim, fuzzy_checker: FuzzyChecker):
-    # We want the proportion of the *households* in each state in ACS PUMS.
-    # That's because it's only the location of *households* that are independent
-    # of each other.
-    # The GQ population is a whole other issue (we know we are way off in the
-    # state distribution) which is ignored here.
-    state_proportions = (
-        sim._data.artifact.load("population.households")
-        .reset_index()
-        .pipe(lambda df: df[df["household_type"] == "Housing unit"])
-        .groupby("state")
-        .household_weight.sum()
-    )
-    state_proportions = state_proportions / state_proportions.sum()
-
-    all_time_household_states = []
+def test_state_population_proportions(
+    populations, fuzzy_checker: FuzzyChecker, target_state_proportions
+):
+    # NOTE: We check these proportions on each timestep, but not across timesteps.
+    # The reason for this is that households generally stay in the same state from
+    # timestep to timestep, so multiple observations of the same house are not independent.
     for time_steps, pop in enumerate(populations):
-        # No states in sim that were not in artifact
-        assert set(state_proportions.index) >= set(pop["household_details.state_id"])
+        # No states in sim that were not in PUMS
+        assert set(target_state_proportions["states"].keys()) >= set(
+            pop["household_details.state_id"]
+        )
 
         household_states = (
+            # We want the proportion of the *households* in each state.
+            # That's because it's only the location of *households* that are independent
+            # of each other.
+            # The GQ population is a whole other issue (we know we are way off in the
+            # state distribution) which is ignored here.
             pop[pop["household_details.housing_type"] == "Household"]
             .groupby("household_id")["household_details.state_id"]
             .first()
         )
-        all_time_household_states.append(household_states)
 
-        for state_id, proportion in state_proportions.items():
+        for state_id, proportion in target_state_proportions["states"].items():
             # NOTE: Prior to fuzzy checking, we checked that all states were at least present in the population table.
             # The exact analog to this would be some complicated hypothesis about a coupon collector's partition with
             # uneven probabilities of different "coupons" (since states are different sizes).
@@ -192,22 +224,13 @@ def test_state_population_proportions(populations, sim, fuzzy_checker: FuzzyChec
                 # Relative size of states can change over time in the sim due to differential immigration, emigration,
                 # mortality and fertility, and domestic migration
                 target_proportion=multiplicative_drift_to_bounds_at_timestep(
-                    proportion, 0.95, 1.05, time_steps
+                    proportion,
+                    target_state_proportions["multiplicative_drift"]["lower_bound"],
+                    target_state_proportions["multiplicative_drift"]["upper_bound"],
+                    time_steps,
                 ),
                 name_additional=f"Time step {time_steps}",
             )
-
-    all_time_household_states = pd.concat(all_time_household_states, ignore_index=True)
-    for state_id, proportion in state_proportions.items():
-        fuzzy_checker.fuzzy_assert_proportion(
-            f"State proportion for {state_id}",
-            observed_numerator=(all_time_household_states == state_id).sum(),
-            observed_denominator=len(all_time_household_states),
-            target_proportion=multiplicative_drift_to_bounds_through_timestep(
-                proportion, 0.95, 1.05, time_steps
-            ),
-            name_additional="All time steps",
-        )
 
 
 def test_pumas_states(populations):

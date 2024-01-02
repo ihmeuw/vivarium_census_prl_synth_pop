@@ -11,6 +11,7 @@ from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 from .conftest import (
     FuzzyChecker,
+    from_yearly_multiplicative_drift,
     multiplicative_drift_to_bounds_at_timestep,
     multiplicative_drift_to_bounds_through_timestep,
 )
@@ -43,7 +44,16 @@ def target_migration_rates(sim):
             pd.Timedelta(days=sim.configuration.time.step_size),
         )
 
-    # TODO: Convert multiplicative_drift to per_timestep
+    targets["multiplicative_drift"] = {
+        "lower_bound": from_yearly_multiplicative_drift(
+            targets["multiplicative_drift_per_year"]["lower_bound"],
+            time_step_days=sim.configuration.time.step_size,
+        ),
+        "upper_bound": from_yearly_multiplicative_drift(
+            targets["multiplicative_drift_per_year"]["upper_bound"],
+            time_step_days=sim.configuration.time.step_size,
+        ),
+    }
 
     return targets
 
@@ -61,8 +71,8 @@ def test_individuals_move(
             observed_denominator=len(individual_movers),
             target_proportion=multiplicative_drift_to_bounds_at_timestep(
                 target_migration_rates["individual"]["total"],
-                target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-                target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
                 time_steps,
             ),
             name_additional=f"Time step {time_steps}",
@@ -81,8 +91,8 @@ def test_individuals_move(
         observed_denominator=len(all_time_individual_movers),
         target_proportion=multiplicative_drift_to_bounds_through_timestep(
             target_migration_rates["individual"]["total"],
-            target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-            target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+            target_migration_rates["multiplicative_drift"]["lower_bound"],
+            target_migration_rates["multiplicative_drift"]["upper_bound"],
             len(simulants_on_adjacent_timesteps),
         ),
         name_additional="All time steps",
@@ -140,8 +150,8 @@ def test_individuals_move_into_new_households(
             observed_denominator=len(new_household_movers),
             target_proportion=multiplicative_drift_to_bounds_at_timestep(
                 target_migration_rates["individual"]["new_household"],
-                target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-                target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
                 time_step,
             ),
             name_additional=f"Time step {time_step}",
@@ -187,8 +197,8 @@ def test_individuals_move_into_new_households(
         observed_denominator=len(all_time_new_household_movers),
         target_proportion=multiplicative_drift_to_bounds_through_timestep(
             target_migration_rates["individual"]["new_household"],
-            target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-            target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+            target_migration_rates["multiplicative_drift"]["lower_bound"],
+            target_migration_rates["multiplicative_drift"]["upper_bound"],
             len(simulants_on_adjacent_timesteps),
         ),
         name_additional="All time steps",
@@ -211,8 +221,8 @@ def test_individuals_move_into_group_quarters(
             observed_denominator=len(gq_movers),
             target_proportion=multiplicative_drift_to_bounds_at_timestep(
                 target_migration_rates["individual"]["gq_person"],
-                target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-                target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
                 time_step,
             ),
             name_additional=f"Time step {time_step}",
@@ -253,8 +263,8 @@ def test_individuals_move_into_group_quarters(
         observed_denominator=len(all_time_gq_movers),
         target_proportion=multiplicative_drift_to_bounds_through_timestep(
             target_migration_rates["individual"]["gq_person"],
-            target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-            target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+            target_migration_rates["multiplicative_drift"]["lower_bound"],
+            target_migration_rates["multiplicative_drift"]["upper_bound"],
             len(simulants_on_adjacent_timesteps),
         ),
         name_additional="All time steps",
@@ -305,8 +315,8 @@ def test_individual_movers_have_correct_relationship(
             observed_denominator=len(non_reference_person_movers),
             target_proportion=multiplicative_drift_to_bounds_at_timestep(
                 target_migration_rates["individual"]["non_reference_person"],
-                target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-                target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
                 time_step,
             ),
             name_additional=f"Time step {time_step}",
@@ -348,8 +358,8 @@ def test_individual_movers_have_correct_relationship(
         observed_denominator=len(all_time_non_reference_person_movers),
         target_proportion=multiplicative_drift_to_bounds_through_timestep(
             target_migration_rates["individual"]["non_reference_person"],
-            target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-            target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+            target_migration_rates["multiplicative_drift"]["lower_bound"],
+            target_migration_rates["multiplicative_drift"]["upper_bound"],
             len(simulants_on_adjacent_timesteps),
         ),
         name_additional="All time steps",
@@ -372,8 +382,8 @@ def test_households_move(
             observed_denominator=len(household_moves),
             target_proportion=multiplicative_drift_to_bounds_at_timestep(
                 target_migration_rates["household"],
-                target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-                target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
                 time_step,
             ),
             name_additional=f"Time step {time_step}",
@@ -414,8 +424,8 @@ def test_households_move(
         observed_denominator=len(all_time_household_moves),
         target_proportion=multiplicative_drift_to_bounds_at_timestep(
             target_migration_rates["household"],
-            target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-            target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+            target_migration_rates["multiplicative_drift"]["lower_bound"],
+            target_migration_rates["multiplicative_drift"]["upper_bound"],
             time_step,
         ),
         name_additional="All time steps",
@@ -605,8 +615,8 @@ def test_addresses_during_moves(
                 observed_denominator=len(mask_moved_units),
                 target_proportion=multiplicative_drift_to_bounds_at_timestep(
                     target_migration_rates["household"],
-                    target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-                    target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+                    target_migration_rates["multiplicative_drift"]["lower_bound"],
+                    target_migration_rates["multiplicative_drift"]["upper_bound"],
                     time_step,
                 ),
                 name_additional=f"Time step {time_step}",
@@ -665,8 +675,8 @@ def test_addresses_during_moves(
             observed_denominator=len(all_time_moved),
             target_proportion=multiplicative_drift_to_bounds_through_timestep(
                 target_migration_rates["household"],
-                target_migration_rates["multiplicative_drift_per_timestep_lower_bound"],
-                target_migration_rates["multiplicative_drift_per_timestep_upper_bound"],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
                 time_step,
             ),
             name_additional="All time steps",
