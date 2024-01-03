@@ -171,8 +171,12 @@ class FuzzyChecker:
         else:
             target_lower_bound = target_upper_bound = target_proportion
 
-        assert observed_numerator <= observed_denominator
-        assert target_upper_bound >= target_lower_bound
+        assert (
+            observed_numerator <= observed_denominator
+        ), f"There cannot be more events ({observed_numerator}) than opportunities for events ({observed_denominator})"
+        assert (
+            target_upper_bound >= target_lower_bound
+        ), f"The lower bound of the V&V target ({target_lower_bound}) cannot be greater than the upper bound ({target_upper_bound})"
 
         bug_issue_alpha, bug_issue_beta = bug_issue_beta_distribution_parameters
         bug_issue_distribution = scipy.stats.betabinom(
@@ -184,7 +188,9 @@ class FuzzyChecker:
                 p=target_lower_bound, n=observed_denominator
             )
         else:
-            a, b = self._fit_beta_distribution_to_ui(target_lower_bound, target_upper_bound)
+            a, b = self._fit_beta_distribution_to_uncertainty_interval(
+                target_lower_bound, target_upper_bound
+            )
 
             no_bug_issue_distribution = scipy.stats.betabinom(
                 a=a, b=b, n=observed_denominator
@@ -263,7 +269,7 @@ class FuzzyChecker:
             return np.finfo(float).max
 
     @cache
-    def _fit_beta_distribution_to_ui(
+    def _fit_beta_distribution_to_uncertainty_interval(
         self, lower_bound: float, upper_bound: float
     ) -> Tuple[float, float]:
         assert lower_bound > 0 and upper_bound < 1
@@ -283,7 +289,7 @@ class FuzzyChecker:
                 return np.finfo(float).max
 
         # It is quite important to start with a reasonable guess.
-        ui_midpoint = (lower_bound + upper_bound) / 2
+        uncertainty_interval_midpoint = (lower_bound + upper_bound) / 2
         # TODO: Further refine these concentration values. As long as we get convergence
         # with one of them (for all the assertions we do), we're good -- but this specific
         # list may not get us to convergence for future assertions we add.
@@ -291,8 +297,8 @@ class FuzzyChecker:
             optimization_result = scipy.optimize.minimize(
                 objective,
                 x0=[
-                    np.log(ui_midpoint * first_guess_concentration),
-                    np.log((1 - ui_midpoint) * first_guess_concentration),
+                    np.log(uncertainty_interval_midpoint * first_guess_concentration),
+                    np.log((1 - uncertainty_interval_midpoint) * first_guess_concentration),
                 ],
             )
             # Sometimes it warns that it *may* not have found a good solution,
