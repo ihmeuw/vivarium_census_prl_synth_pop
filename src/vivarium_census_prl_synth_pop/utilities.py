@@ -585,7 +585,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         # is the number of non-null rows we recorded in the original shard metadata
         # Schema entity is either a column name or row noise and noise entity is the column
         # or row noise type.
-        melted_metadata["schema_entity"] = melted_metadata["variable"].str.split(".").str[0]
+        melted_metadata["column"] = melted_metadata["variable"].str.split(".").str[0]
         melted_metadata["noise_entity"] = melted_metadata["variable"].str.split(".").str[1]
         # Calculate noise proportions
         melted_metadata["proportion"] = (
@@ -598,6 +598,8 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
 
     # Concatenate all datasets metadata
     metadata_final = pd.concat(dataset_metadata_dfs)
+    # Make "row_noise" null in column
+    metadata_final.loc[metadata_final["column"] == "row_noise", "column"] = np.nan
     # Write metadata to file
     metadata_final.to_csv(final_output_dir / "metadata_proportions.csv", index=False)
 
@@ -635,6 +637,10 @@ def get_guardian_duplication_row_counts(
     metadata_df: pd.DataFrame, df: pd.DataFrame
 ) -> pd.DataFrame:
     # Get number of rows for each duplicate with guardian group
+    # For each group below, we are getting the number of rows where a dependent
+    # lives in a different address from at least one of their guardians.
+
+    # This is for depedents living in standard households under 18
     metadata_df["row_noise.row_probability_in_households_under_18"] = len(
         df.loc[
             (df["age"] < 18)
@@ -649,6 +655,7 @@ def get_guardian_duplication_row_counts(
             )
         ]
     )
+    # This is for depedents living in college group quarters under 24
     metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
         df.loc[
             (df["age"] < 24)

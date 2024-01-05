@@ -646,6 +646,9 @@ def write_shard_metadata(
 
     # Aggregate location counts to get counts for ALL years. First, we need to add placeholder rows
     # for each location and the aggregated year value
+    year_aggregation_columns = [
+        col for col in shard_metadata.columns if col not in ["year", state_col]
+    ]
     for location in shard_metadata["state"].unique():
         year_aggregation_df = pd.DataFrame(
             {"state": [location], "year": [metadata.YEAR_AGGREGATION_VALUE]}
@@ -654,12 +657,12 @@ def write_shard_metadata(
         shard_metadata.loc[
             (shard_metadata["state"] == location)
             & (shard_metadata["year"] == metadata.YEAR_AGGREGATION_VALUE),
-            [col for col in shard_metadata.columns if col not in ["year", state_col]],
+            year_aggregation_columns,
         ] = (
             shard_metadata.loc[
                 (shard_metadata["state"] == location)
                 & (shard_metadata["year"] != metadata.YEAR_AGGREGATION_VALUE),
-                [col for col in shard_metadata.columns if col not in ["year", state_col]],
+                year_aggregation_columns,
             ]
             .sum()
             .values
