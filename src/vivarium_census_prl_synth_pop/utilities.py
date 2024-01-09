@@ -663,7 +663,7 @@ def get_guardian_duplication_row_counts(
             )
         ]
     )
-    metadata_df["group_rows.in_household_under_18"] = len(
+    metadata_df["group_rows.row_probability_in_households_under_18"] = len(
         df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")]
     )
     # This is for depedents living in college group quarters under 24
@@ -681,7 +681,7 @@ def get_guardian_duplication_row_counts(
             )
         ]
     )
-    metadata_df["group_rows.in_college_group_quarters_under_24"] = len(
+    metadata_df["group_rows.row_probability_in_college_group_quarters_under_24"] = len(
         df.loc[(df["age"] < 24) & (df["housing_type"] == "College")]
     )
 
