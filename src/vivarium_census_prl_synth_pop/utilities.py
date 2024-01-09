@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
-from pseudopeople.constants.noise_type_metadata import COPY_HOUSEHOLD_MEMBER_COLS
 from pseudopeople.schema_entities import COLUMNS, DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
@@ -692,6 +691,18 @@ def get_guardian_duplication_row_counts(
 def _get_metadata_counts(
     observer: str, df: pd.DataFrame, location: str, year: int
 ) -> pd.DataFrame:
+    # FIXME: import this from pseudopeople after release
+    COPY_HOUSEHOLD_MEMBER_COLS = {
+        "age": "copy_age",
+        "date_of_birth": "copy_date_of_birth",
+        "ssn": "copy_ssn",
+        "spouse_ssn": "spouse_copy_ssn",
+        "dependent_1_ssn": "dependent_1_copy_ssn",
+        "dependent_2_ssn": "dependent_2_copy_ssn",
+        "dependent_3_ssn": "dependent_3_copy_ssn",
+        "dependent_4_ssn": "dependent_4_copy_ssn",
+    }
+
     # This function should only be used for writing shard metadata in post-processing
     # and no where else.
     metadata_df = pd.DataFrame(index=[location])
