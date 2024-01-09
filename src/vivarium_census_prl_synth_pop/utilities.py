@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
-from pseudopeople.constants.metadata import COPY_HOUSEHOLD_MEMBER_COLS
 from pseudopeople.schema_entities import COLUMNS, DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
@@ -563,6 +562,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             pd.read_csv(shard_metadata_file) for shard_metadata_file in shard_metadata_files
         ]
         dataset_metadata = pd.concat(metadata_dfs)
+
         # Sum count values
         groupby_cols = ["dataset", "state", "year"]
         aggregate_count_cols = [
@@ -579,6 +579,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             dataset_metadata,
             id_vars=["dataset", "state", "year", "number_of_rows"],
         )
+
         # "Variable" column is created from melting and is all the different column and noise types
         # we have in the metadata and value is that original columns value
         # Example age.copy_from_household_member is in variable.unique() and its "value"
@@ -587,6 +588,13 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         # or row noise type.
         melted_metadata["column"] = melted_metadata["variable"].str.split(".").str[0]
         melted_metadata["noise_type"] = melted_metadata["variable"].str.split(".").str[1]
+        # Swap in correct number of rows for guardian duplication to calculate proportions
+        if dataset in [
+            metadata.DatasetNames.CENSUS,
+            metadata.DatasetNames.ACS,
+            metadata.DatasetNames.CPS,
+        ]:
+            melted_metadata = update_guardian_duplication_row_counts(melted_metadata)
         # Calculate noise proportions
         melted_metadata["proportion"] = (
             melted_metadata["value"] / melted_metadata["number_of_rows"]
@@ -655,6 +663,9 @@ def get_guardian_duplication_row_counts(
             )
         ]
     )
+    metadata_df["group_rows.in_household_under_18"] = len(
+        df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")]
+    )
     # This is for depedents living in college group quarters under 24
     metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
         df.loc[
@@ -669,6 +680,9 @@ def get_guardian_duplication_row_counts(
                 )
             )
         ]
+    )
+    metadata_df["group_rows.in_college_group_quarters_under_24"] = len(
+        df.loc[(df["age"] < 24) & (df["housing_type"] == "College")]
     )
 
     return metadata_df
@@ -698,7 +712,7 @@ def _get_metadata_counts(
             if "copy_from_household_member" in noise_type_names:
                 # Get number of rows that could potentially copy a household member
                 metadata_df[f"{column_name}.copy_from_household_member"] = (
-                    df[COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
+                    df[metadata.COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
                 )
             if "use_nickname" in noise_type_names:
                 # Get number of rows eligible to be noised to a nickname
@@ -707,3 +721,31 @@ def _get_metadata_counts(
                     df[column_name].isin(nicknames.index).sum()
                 )
     return metadata_df
+
+
+def update_guardian_duplication_row_counts(melted_df: pd.DataFrame) -> pd.DataFrame:
+    # Update guardian duplication row counts to make number of rows match anticipated
+    # conditional probability
+
+    # This will be the number of rows where a dependent is in the group (the denominator)
+    # for the conditional probability
+    guardian_duplication_group_row_counts = melted_df.loc[melted_df["column"] == "group_rows"]
+    guardian_duplication_group_row_counts = guardian_duplication_group_row_counts.rename(
+        columns={"column": "column_y", "value": "group_row_counts"}
+    )
+    # Remove these rows from so we do not output them later
+    melted_df = melted_df.loc[
+        melted_df.index.difference(guardian_duplication_group_row_counts.index)
+    ]
+    # Merge two dataframes
+    melted_df = melted_df.merge(
+        guardian_duplication_group_row_counts,
+        how="left",
+        on=["dataset", "state", "year", "noise_type"],
+    )
+    # Swap number of rows with group row counts
+    melted_df.loc[melted_df["column"] == "row_noise", "number_of_rows"] = melted_df.loc[
+        melted_df["column"] == "row_noise", "group_row_counts"
+    ]
+    melted_df = melted_df.drop(columns=["column_y", "group_row_counts"])
+    return melted_df
