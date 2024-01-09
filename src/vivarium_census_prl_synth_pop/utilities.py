@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
+from pseudopeople.constants.noise_type_metadata import COPY_HOUSEHOLD_MEMBER_COLS
 from pseudopeople.schema_entities import COLUMNS, DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
@@ -712,7 +713,7 @@ def _get_metadata_counts(
             if "copy_from_household_member" in noise_type_names:
                 # Get number of rows that could potentially copy a household member
                 metadata_df[f"{column_name}.copy_from_household_member"] = (
-                    df[metadata.COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
+                    df[COPY_HOUSEHOLD_MEMBER_COLS[column_name]].notna().sum()
                 )
             if "use_nickname" in noise_type_names:
                 # Get number of rows eligible to be noised to a nickname

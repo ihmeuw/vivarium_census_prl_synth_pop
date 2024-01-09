@@ -293,12 +293,7 @@ class DatasetNames:
 COPY_HOUSEHOLD_MEMBER_COLS = {
     "age": "copy_age",
     "date_of_birth": "copy_date_of_birth",
-    "ssn": "copy_ssn",
-    "spouse_ssn": "spouse_copy_ssn",
-    "dependent_1_ssn": "dependent_1_copy_ssn",
-    "dependent_2_ssn": "dependent_2_copy_ssn",
-    "dependent_3_ssn": "dependent_3_copy_ssn",
-    "dependent_4_ssn": "dependent_4_copy_ssn",
+    "has_ssn": "copy_ssn",
 }
 
 
