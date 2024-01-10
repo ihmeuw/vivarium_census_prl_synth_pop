@@ -595,8 +595,10 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             metadata.DatasetNames.CPS,
         ]:
             melted_metadata = update_guardian_duplication_row_counts(melted_metadata)
-        # Calculate noise proportions
-        melted_metadata["proportion"] = (
+        # Calculate noise proportions - prevent divide by zero error caused by very
+        # small populations
+        melted_metadata.loc[melted_metadata["value"] == 0.0, "proportion"] = 0.0
+        melted_metadata.loc[melted_metadata["proportion"].isna(), "proportion"] = (
             melted_metadata["value"] / melted_metadata["number_of_rows"]
         )
         melted_metadata = melted_metadata.drop(
