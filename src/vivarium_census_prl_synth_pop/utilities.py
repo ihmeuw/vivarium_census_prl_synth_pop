@@ -753,11 +753,21 @@ def update_guardian_duplication_row_counts(melted_df: pd.DataFrame) -> pd.DataFr
     melted_df = melted_df.merge(
         guardian_duplication_group_row_counts,
         how="left",
-        on=["dataset", "state", "year", "noise_type", "number_of_rows"],
+        on=[
+            data_keys.METADATA_COLUMNS.DATASET,
+            data_keys.METADATA_COLUMNS.STATE,
+            data_keys.METADATA_COLUMNS.YEAR,
+            data_keys.METADATA_COLUMNS.NOISE_TYPE,
+            data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS,
+        ],
     )
     # Swap number of rows with group row counts
-    melted_df.loc[melted_df["column"] == "row_noise", "number_of_rows"] = melted_df.loc[
-        melted_df["column"] == "row_noise", "group_row_counts"
+    melted_df.loc[
+        melted_df[data_keys.METADATA_COLUMNS.COLUMN] == "row_noise",
+        data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS,
+    ] = melted_df.loc[
+        melted_df[data_keys.METADATA_COLUMNS.COLUMN] == "row_noise",
+        data_keys.METADATA_COLUMNS.GROUP_ROW_COUNTS,
     ]
     melted_df = melted_df.drop(columns=["column_y", "group_row_counts", "variable_y"])
     return melted_df

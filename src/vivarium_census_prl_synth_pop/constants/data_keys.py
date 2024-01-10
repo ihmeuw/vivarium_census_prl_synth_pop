@@ -51,3 +51,17 @@ MAKE_ARTIFACT_KEY_GROUPS = [
     POPULATION,
     SYNTHETIC_DATA,
 ]
+
+
+class __MetadataColumns(NamedTuple):
+    DATASET = "dataset"
+    STATE = "state"
+    YEAR = "year"
+    NUMBER_OF_ROWS = "number_of_rows"
+    COLUMN = "column"
+    NOISE_TYPE = "noise_type"
+    PROPORTION = "proportion"
+    GROUP_ROW_COUNTS = "group_row_counts"
+
+
+METADATA_COLUMNS = __MetadataColumns()
