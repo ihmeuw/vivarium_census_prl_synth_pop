@@ -12,8 +12,8 @@ from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 from .conftest import (
     FuzzyChecker,
     from_yearly_multiplicative_drift,
-    multiplicative_drift_to_bounds_at_timestep,
-    multiplicative_drift_to_bounds_through_timestep,
+    multiplicative_drifts_to_bounds_at_timestep,
+    multiplicative_drifts_to_bounds_through_timestep,
 )
 
 
@@ -69,7 +69,7 @@ def test_individuals_move(
             "Individual migration rate",
             observed_numerator=individual_movers.sum(),
             observed_denominator=len(individual_movers),
-            target_proportion=multiplicative_drift_to_bounds_at_timestep(
+            target_proportion=multiplicative_drifts_to_bounds_at_timestep(
                 target_migration_rates["individual"]["total"],
                 target_migration_rates["multiplicative_drift"]["lower_bound"],
                 target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -89,7 +89,7 @@ def test_individuals_move(
         "Individual migration rate",
         observed_numerator=all_time_individual_movers.sum(),
         observed_denominator=len(all_time_individual_movers),
-        target_proportion=multiplicative_drift_to_bounds_through_timestep(
+        target_proportion=multiplicative_drifts_to_bounds_through_timestep(
             target_migration_rates["individual"]["total"],
             target_migration_rates["multiplicative_drift"]["lower_bound"],
             target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -148,7 +148,7 @@ def test_individuals_move_into_new_households(
             "Domestic migration creating new households",
             observed_numerator=new_household_movers.sum(),
             observed_denominator=len(new_household_movers),
-            target_proportion=multiplicative_drift_to_bounds_at_timestep(
+            target_proportion=multiplicative_drifts_to_bounds_at_timestep(
                 target_migration_rates["individual"]["new_household"],
                 target_migration_rates["multiplicative_drift"]["lower_bound"],
                 target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -195,7 +195,7 @@ def test_individuals_move_into_new_households(
         "Domestic migration creating new households",
         observed_numerator=all_time_new_household_movers.sum(),
         observed_denominator=len(all_time_new_household_movers),
-        target_proportion=multiplicative_drift_to_bounds_through_timestep(
+        target_proportion=multiplicative_drifts_to_bounds_through_timestep(
             target_migration_rates["individual"]["new_household"],
             target_migration_rates["multiplicative_drift"]["lower_bound"],
             target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -219,7 +219,7 @@ def test_individuals_move_into_group_quarters(
             "Domestic migration into GQ",
             observed_numerator=gq_movers.sum(),
             observed_denominator=len(gq_movers),
-            target_proportion=multiplicative_drift_to_bounds_at_timestep(
+            target_proportion=multiplicative_drifts_to_bounds_at_timestep(
                 target_migration_rates["individual"]["gq_person"],
                 target_migration_rates["multiplicative_drift"]["lower_bound"],
                 target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -261,7 +261,7 @@ def test_individuals_move_into_group_quarters(
         "Domestic migration into GQ",
         observed_numerator=all_time_gq_movers.sum(),
         observed_denominator=len(all_time_gq_movers),
-        target_proportion=multiplicative_drift_to_bounds_through_timestep(
+        target_proportion=multiplicative_drifts_to_bounds_through_timestep(
             target_migration_rates["individual"]["gq_person"],
             target_migration_rates["multiplicative_drift"]["lower_bound"],
             target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -313,7 +313,7 @@ def test_individual_movers_have_correct_relationship(
             "Domestic migration into existing households",
             observed_numerator=non_reference_person_movers.sum(),
             observed_denominator=len(non_reference_person_movers),
-            target_proportion=multiplicative_drift_to_bounds_at_timestep(
+            target_proportion=multiplicative_drifts_to_bounds_at_timestep(
                 target_migration_rates["individual"]["non_reference_person"],
                 target_migration_rates["multiplicative_drift"]["lower_bound"],
                 target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -356,7 +356,7 @@ def test_individual_movers_have_correct_relationship(
         "Domestic migration into existing households",
         observed_numerator=all_time_non_reference_person_movers.sum(),
         observed_denominator=len(all_time_non_reference_person_movers),
-        target_proportion=multiplicative_drift_to_bounds_through_timestep(
+        target_proportion=multiplicative_drifts_to_bounds_through_timestep(
             target_migration_rates["individual"]["non_reference_person"],
             target_migration_rates["multiplicative_drift"]["lower_bound"],
             target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -380,7 +380,7 @@ def test_households_move(
             "Domestic migration of households",
             observed_numerator=household_moves.sum(),
             observed_denominator=len(household_moves),
-            target_proportion=multiplicative_drift_to_bounds_at_timestep(
+            target_proportion=multiplicative_drifts_to_bounds_at_timestep(
                 target_migration_rates["household"],
                 target_migration_rates["multiplicative_drift"]["lower_bound"],
                 target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -422,7 +422,7 @@ def test_households_move(
         "Domestic migration of households",
         observed_numerator=all_time_household_moves.sum(),
         observed_denominator=len(all_time_household_moves),
-        target_proportion=multiplicative_drift_to_bounds_at_timestep(
+        target_proportion=multiplicative_drifts_to_bounds_at_timestep(
             target_migration_rates["household"],
             target_migration_rates["multiplicative_drift"]["lower_bound"],
             target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -613,7 +613,7 @@ def test_addresses_during_moves(
                 "Domestic migration of households",
                 observed_numerator=mask_moved_units.sum(),
                 observed_denominator=len(mask_moved_units),
-                target_proportion=multiplicative_drift_to_bounds_at_timestep(
+                target_proportion=multiplicative_drifts_to_bounds_at_timestep(
                     target_migration_rates["household"],
                     target_migration_rates["multiplicative_drift"]["lower_bound"],
                     target_migration_rates["multiplicative_drift"]["upper_bound"],
@@ -673,7 +673,7 @@ def test_addresses_during_moves(
             "Domestic migration of households",
             observed_numerator=all_time_moved.sum(),
             observed_denominator=len(all_time_moved),
-            target_proportion=multiplicative_drift_to_bounds_through_timestep(
+            target_proportion=multiplicative_drifts_to_bounds_through_timestep(
                 target_migration_rates["household"],
                 target_migration_rates["multiplicative_drift"]["lower_bound"],
                 target_migration_rates["multiplicative_drift"]["upper_bound"],

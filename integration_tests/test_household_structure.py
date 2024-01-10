@@ -12,7 +12,7 @@ from vivarium_census_prl_synth_pop.constants import data_values, metadata
 from .conftest import (
     FuzzyChecker,
     from_yearly_multiplicative_drift,
-    multiplicative_drift_to_bounds_at_timestep,
+    multiplicative_drifts_to_bounds_at_timestep,
 )
 
 
@@ -223,7 +223,7 @@ def test_state_population_proportions(
                 observed_denominator=len(household_states),
                 # Relative size of states can change over time in the sim due to differential immigration, emigration,
                 # mortality and fertility, and domestic migration
-                target_proportion=multiplicative_drift_to_bounds_at_timestep(
+                target_proportion=multiplicative_drifts_to_bounds_at_timestep(
                     proportion,
                     target_state_proportions["multiplicative_drift"]["lower_bound"],
                     target_state_proportions["multiplicative_drift"]["upper_bound"],

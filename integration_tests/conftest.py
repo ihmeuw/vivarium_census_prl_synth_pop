@@ -365,7 +365,7 @@ def multiplicative_drift_to_bound_at_timestep(
     return value * pow(drift_per_timestep, num_timesteps)
 
 
-def multiplicative_drift_to_bounds_at_timestep(
+def multiplicative_drifts_to_bounds_at_timestep(
     value: float,
     lower_bound_drift_per_timestep: float,
     upper_bound_drift_per_timestep: float,
@@ -393,7 +393,7 @@ def multiplicative_drift_to_bound_through_timestep(
     )
 
 
-def multiplicative_drift_to_bounds_through_timestep(
+def multiplicative_drifts_to_bounds_through_timestep(
     value: float,
     lower_bound_drift_per_timestep: float,
     upper_bound_drift_per_timestep: float,
