@@ -736,8 +736,10 @@ def _get_metadata_counts(
 
 
 def update_guardian_duplication_row_counts(melted_df: pd.DataFrame) -> pd.DataFrame:
-    # Update guardian duplication row counts to make number of rows match anticipated
-    # conditional probability
+    """
+    Update guardian duplication row counts to make number of rows match anticipated
+    conditional probability
+    """
 
     # This will be the number of rows where a dependent is in the group (the denominator)
     # for the conditional probability
