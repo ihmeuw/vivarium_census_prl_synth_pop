@@ -743,7 +743,7 @@ def update_guardian_duplication_row_counts(melted_df: pd.DataFrame) -> pd.DataFr
     # for the conditional probability
     guardian_duplication_group_row_counts = melted_df.loc[melted_df["column"] == "group_rows"]
     guardian_duplication_group_row_counts = guardian_duplication_group_row_counts.rename(
-        columns={"column": "column_y", "value": "group_row_counts"}
+        columns={"column": "column_y", "value": "group_row_counts", "variable": "variable_y"}
     )
     # Remove these rows from so we do not output them later
     melted_df = melted_df.loc[
@@ -753,11 +753,11 @@ def update_guardian_duplication_row_counts(melted_df: pd.DataFrame) -> pd.DataFr
     melted_df = melted_df.merge(
         guardian_duplication_group_row_counts,
         how="left",
-        on=["dataset", "state", "year", "noise_type"],
+        on=["dataset", "state", "year", "noise_type", "number_of_rows"],
     )
     # Swap number of rows with group row counts
     melted_df.loc[melted_df["column"] == "row_noise", "number_of_rows"] = melted_df.loc[
         melted_df["column"] == "row_noise", "group_row_counts"
     ]
-    melted_df = melted_df.drop(columns=["column_y", "group_row_counts"])
+    melted_df = melted_df.drop(columns=["column_y", "group_row_counts", "variable_y"])
     return melted_df
