@@ -577,9 +577,13 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             "row_noise.row_probability_in_households_under_18": "group_rows.row_probability_in_households_under_18",
             "row_noise.row_probability_in_college_group_quarters_under_24": "group_rows.row_probability_in_college_group_quarters_under_24",
         }
-        denominator_columns = list(denominator_columns_mapper.values()) + [
-            data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS
-        ]
+
+        denominator_columns = (
+            list(denominator_columns_mapper.values())
+            + [data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS]
+            if set(denominator_columns).issubset(dataset_metadata.columns)
+            else [data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS]
+        )
         numerator_columns = [
             col
             for col in dataset_metadata.columns
