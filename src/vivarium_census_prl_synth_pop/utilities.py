@@ -578,12 +578,9 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             "row_noise.row_probability_in_college_group_quarters_under_24": "group_rows.row_probability_in_college_group_quarters_under_24",
         }
 
-        denominator_columns = (
-            list(denominator_columns_mapper.values())
-            + [data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS]
-            if set(denominator_columns_mapper.values()).issubset(dataset_metadata.columns)
-            else [data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS]
-        )
+        denominator_columns = list(denominator_columns_mapper.values()) + [
+            data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS
+        ]
         numerator_columns = [
             col
             for col in dataset_metadata.columns
@@ -594,18 +591,14 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
                 column, data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS
             )
             # Calculate noise proportions - prevent divide by zero error caused by very
+            # small populations
             dataset_metadata[f"{column}.proportion"] = (
                 dataset_metadata[column] / dataset_metadata[denominator_column]
-            )
-            # This replaces nan caused by divide by zero with 0.0 in cases where there is really small
-            # population.
-            dataset_metadata.loc[
-                dataset_metadata[f"{column}.proportion"].isna(), f"{column}.proportion"
-            ] = 0.0
+            ).fillna(0.0)
 
         # Drop columns that are no longer needed
         dataset_metadata = dataset_metadata.drop(
-            columns=numerator_columns + denominator_columns
+            columns=numerator_columns + denominator_columns, errors="ignore"
         )
 
         # Calculate proportions for each dataset's location, year combination.
