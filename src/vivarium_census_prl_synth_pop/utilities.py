@@ -572,38 +572,53 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             dataset_metadata.groupby(groupby_cols)[aggregate_count_cols].sum().reset_index()
         )
 
+        # Denominator columns
+        denominator_columns_mapper = {
+            "row_noise.row_probability_in_households_under_18": "group_rows.row_probability_in_households_under_18",
+            "row_noise.row_probability_in_college_group_quarters_under_24": "group_rows.row_probability_in_college_group_quarters_under_24",
+        }
+        denominator_columns = list(denominator_columns_mapper.values()) + [
+            data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS
+        ]
+        numerator_columns = [
+            col
+            for col in dataset_metadata.columns
+            if col not in groupby_cols + denominator_columns
+        ]
+        for column in numerator_columns:
+            denominator_column = denominator_columns_mapper.get(
+                column, data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS
+            )
+            # Calculate noise proportions - prevent divide by zero error caused by very
+            dataset_metadata[f"{column}.proportion"] = (
+                dataset_metadata[column] / dataset_metadata[denominator_column]
+            )
+            # This replaces nan caused by divide by zero with 0.0 in cases where there is really small
+            # population.
+            dataset_metadata.loc[
+                dataset_metadata[f"{column}.proportion"].isna(), f"{column}.proportion"
+            ] = 0.0
+
+        # Drop columns that are no longer needed
+        dataset_metadata = dataset_metadata.drop(
+            columns=numerator_columns + denominator_columns
+        )
+
         # Calculate proportions for each dataset's location, year combination.
         # Reshape metadata to have dataset, year, state, column, noise_type
         # and proportion columns
-        melted_metadata = pd.melt(
-            dataset_metadata,
-            id_vars=["dataset", "state", "year", "number_of_rows"],
-        )
+        melted_metadata = pd.melt(dataset_metadata, id_vars=groupby_cols)
 
         # "Variable" column is created from melting and is all the different column and noise types
         # we have in the metadata and value is that original columns value
-        # Example age.copy_from_household_member is in variable.unique() and its "value"
+        # Example age.copy_from_household_member.proportion is in variable.unique() and its "value"
         # is the number of non-null rows we recorded in the original shard metadata
         # Column is either a column name or row noise and noise type is the column
         # or row noise type.
         melted_metadata["column"] = melted_metadata["variable"].str.split(".").str[0]
         melted_metadata["noise_type"] = melted_metadata["variable"].str.split(".").str[1]
-        # Swap in correct number of rows for guardian duplication to calculate proportions
-        if dataset in [
-            metadata.DatasetNames.CENSUS,
-            metadata.DatasetNames.ACS,
-            metadata.DatasetNames.CPS,
-        ]:
-            melted_metadata = update_guardian_duplication_row_counts(melted_metadata)
-        # Calculate noise proportions - prevent divide by zero error caused by very
-        # small populations
-        melted_metadata.loc[melted_metadata["value"] == 0.0, "proportion"] = 0.0
-        melted_metadata.loc[melted_metadata["proportion"].isna(), "proportion"] = (
-            melted_metadata["value"] / melted_metadata["number_of_rows"]
-        )
-        melted_metadata = melted_metadata.drop(
-            columns=["variable", "value", "number_of_rows"]
-        )
+        melted_metadata = melted_metadata.rename(columns={"value": "proportion"})
+        melted_metadata = melted_metadata.drop(columns="variable")
         dataset_metadata_dfs.append(melted_metadata)
 
     # Concatenate all datasets metadata
@@ -651,41 +666,25 @@ def get_guardian_duplication_row_counts(
     # lives in a different address from at least one of their guardians.
 
     # This is for depedents living in standard households under 18
+    live_separate_from_guardian_mask = (df["guardian_1"].notna()) & (
+        (df["household_id"] != df["guardian_1_household_id"])
+        | ((df["guardian_2"].notna()) & (df["household_id"] != df["guardian_2_household_id"]))
+    )
+    under_18_in_households_mask = (df["age"] < 18) & (df["housing_type"] == "Household")
     metadata_df["row_noise.row_probability_in_households_under_18"] = len(
-        df.loc[
-            (df["age"] < 18)
-            & (df["housing_type"] == "Household")
-            & (df["guardian_1"].notna())
-            & (
-                (df["household_id"] != df["guardian_1_household_id"])
-                | (
-                    (df["guardian_2"].notna())
-                    & (df["household_id"] != df["guardian_2_household_id"])
-                )
-            )
-        ]
+        df.loc[under_18_in_households_mask & live_separate_from_guardian_mask]
     )
-    metadata_df["group_rows.row_probability_in_households_under_18"] = len(
-        df.loc[(df["age"] < 18) & (df["housing_type"] == "Household")]
-    )
+    metadata_df[
+        "group_rows.row_probability_in_households_under_18"
+    ] = under_18_in_households_mask.sum()
     # This is for depedents living in college group quarters under 24
+    college_group_quarters_mask = (df["age"] < 24) & (df["housing_type"] == "College")
     metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
-        df.loc[
-            (df["age"] < 24)
-            & (df["housing_type"] == "College")
-            & (df["guardian_1"].notna())
-            & (
-                (df["household_id"] != df["guardian_1_household_id"])
-                | (
-                    (df["guardian_2"].notna())
-                    & (df["household_id"] != df["guardian_2_household_id"])
-                )
-            )
-        ]
+        df.loc[college_group_quarters_mask & live_separate_from_guardian_mask]
     )
-    metadata_df["group_rows.row_probability_in_college_group_quarters_under_24"] = len(
-        df.loc[(df["age"] < 24) & (df["housing_type"] == "College")]
-    )
+    metadata_df[
+        "group_rows.row_probability_in_college_group_quarters_under_24"
+    ] = college_group_quarters_mask.sum()
 
     return metadata_df
 
@@ -735,43 +734,3 @@ def _get_metadata_counts(
                     df[column_name].isin(nicknames.index).sum()
                 )
     return metadata_df
-
-
-def update_guardian_duplication_row_counts(melted_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Update guardian duplication row counts to make number of rows match anticipated
-    conditional probability
-    """
-
-    # This will be the number of rows where a dependent is in the group (the denominator)
-    # for the conditional probability
-    guardian_duplication_group_row_counts = melted_df.loc[melted_df["column"] == "group_rows"]
-    guardian_duplication_group_row_counts = guardian_duplication_group_row_counts.rename(
-        columns={"column": "column_y", "value": "group_row_counts", "variable": "variable_y"}
-    )
-    # Remove these rows from so we do not output them later
-    melted_df = melted_df.loc[
-        melted_df.index.difference(guardian_duplication_group_row_counts.index)
-    ]
-    # Merge two dataframes
-    melted_df = melted_df.merge(
-        guardian_duplication_group_row_counts,
-        how="left",
-        on=[
-            data_keys.METADATA_COLUMNS.DATASET,
-            data_keys.METADATA_COLUMNS.STATE,
-            data_keys.METADATA_COLUMNS.YEAR,
-            data_keys.METADATA_COLUMNS.NOISE_TYPE,
-            data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS,
-        ],
-    )
-    # Swap number of rows with group row counts
-    melted_df.loc[
-        melted_df[data_keys.METADATA_COLUMNS.COLUMN] == "row_noise",
-        data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS,
-    ] = melted_df.loc[
-        melted_df[data_keys.METADATA_COLUMNS.COLUMN] == "row_noise",
-        data_keys.METADATA_COLUMNS.GROUP_ROW_COUNTS,
-    ]
-    melted_df = melted_df.drop(columns=["column_y", "group_row_counts", "variable_y"])
-    return melted_df
