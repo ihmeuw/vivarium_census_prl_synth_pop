@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
-from pseudopeople.constants.metadata import COPY_HOUSEHOLD_MEMBER_COLS
 from pseudopeople.schema_entities import COLUMNS, DATASETS
 from scipy import stats
 from vivarium.framework.engine import Builder
@@ -563,6 +562,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             pd.read_csv(shard_metadata_file) for shard_metadata_file in shard_metadata_files
         ]
         dataset_metadata = pd.concat(metadata_dfs)
+
         # Sum count values
         groupby_cols = ["dataset", "state", "year"]
         aggregate_count_cols = [
@@ -572,28 +572,50 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
             dataset_metadata.groupby(groupby_cols)[aggregate_count_cols].sum().reset_index()
         )
 
+        # Denominator columns
+        denominator_columns_mapper = {
+            "row_noise.row_probability_in_households_under_18": "group_rows.row_probability_in_households_under_18",
+            "row_noise.row_probability_in_college_group_quarters_under_24": "group_rows.row_probability_in_college_group_quarters_under_24",
+        }
+
+        denominator_columns = list(denominator_columns_mapper.values()) + [
+            data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS
+        ]
+        numerator_columns = [
+            col
+            for col in dataset_metadata.columns
+            if col not in groupby_cols + denominator_columns
+        ]
+        for column in numerator_columns:
+            denominator_column = denominator_columns_mapper.get(
+                column, data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS
+            )
+            # Calculate noise proportions - prevent divide by zero error caused by very
+            # small populations
+            dataset_metadata[f"{column}.proportion"] = (
+                dataset_metadata[column] / dataset_metadata[denominator_column]
+            ).fillna(0.0)
+
+        # Drop columns that are no longer needed
+        dataset_metadata = dataset_metadata.drop(
+            columns=numerator_columns + denominator_columns, errors="ignore"
+        )
+
         # Calculate proportions for each dataset's location, year combination.
         # Reshape metadata to have dataset, year, state, column, noise_type
         # and proportion columns
-        melted_metadata = pd.melt(
-            dataset_metadata,
-            id_vars=["dataset", "state", "year", "number_of_rows"],
-        )
+        melted_metadata = pd.melt(dataset_metadata, id_vars=groupby_cols)
+
         # "Variable" column is created from melting and is all the different column and noise types
         # we have in the metadata and value is that original columns value
-        # Example age.copy_from_household_member is in variable.unique() and its "value"
+        # Example age.copy_from_household_member.proportion is in variable.unique() and its "value"
         # is the number of non-null rows we recorded in the original shard metadata
         # Column is either a column name or row noise and noise type is the column
         # or row noise type.
         melted_metadata["column"] = melted_metadata["variable"].str.split(".").str[0]
         melted_metadata["noise_type"] = melted_metadata["variable"].str.split(".").str[1]
-        # Calculate noise proportions
-        melted_metadata["proportion"] = (
-            melted_metadata["value"] / melted_metadata["number_of_rows"]
-        )
-        melted_metadata = melted_metadata.drop(
-            columns=["variable", "value", "number_of_rows"]
-        )
+        melted_metadata = melted_metadata.rename(columns={"value": "proportion"})
+        melted_metadata = melted_metadata.drop(columns="variable")
         dataset_metadata_dfs.append(melted_metadata)
 
     # Concatenate all datasets metadata
@@ -641,35 +663,25 @@ def get_guardian_duplication_row_counts(
     # lives in a different address from at least one of their guardians.
 
     # This is for depedents living in standard households under 18
+    live_separate_from_guardian_mask = (df["guardian_1"].notna()) & (
+        (df["household_id"] != df["guardian_1_household_id"])
+        | ((df["guardian_2"].notna()) & (df["household_id"] != df["guardian_2_household_id"]))
+    )
+    under_18_in_households_mask = (df["age"] < 18) & (df["housing_type"] == "Household")
     metadata_df["row_noise.row_probability_in_households_under_18"] = len(
-        df.loc[
-            (df["age"] < 18)
-            & (df["housing_type"] == "Household")
-            & (df["guardian_1"].notna())
-            & (
-                (df["household_id"] != df["guardian_1_household_id"])
-                | (
-                    (df["guardian_2"].notna())
-                    & (df["household_id"] != df["guardian_2_household_id"])
-                )
-            )
-        ]
+        df.loc[under_18_in_households_mask & live_separate_from_guardian_mask]
     )
+    metadata_df[
+        "group_rows.row_probability_in_households_under_18"
+    ] = under_18_in_households_mask.sum()
     # This is for depedents living in college group quarters under 24
+    college_group_quarters_mask = (df["age"] < 24) & (df["housing_type"] == "College")
     metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
-        df.loc[
-            (df["age"] < 24)
-            & (df["housing_type"] == "College")
-            & (df["guardian_1"].notna())
-            & (
-                (df["household_id"] != df["guardian_1_household_id"])
-                | (
-                    (df["guardian_2"].notna())
-                    & (df["household_id"] != df["guardian_2_household_id"])
-                )
-            )
-        ]
+        df.loc[college_group_quarters_mask & live_separate_from_guardian_mask]
     )
+    metadata_df[
+        "group_rows.row_probability_in_college_group_quarters_under_24"
+    ] = college_group_quarters_mask.sum()
 
     return metadata_df
 
@@ -677,6 +689,18 @@ def get_guardian_duplication_row_counts(
 def _get_metadata_counts(
     observer: str, df: pd.DataFrame, location: str, year: int
 ) -> pd.DataFrame:
+    # FIXME: import this from pseudopeople after release
+    COPY_HOUSEHOLD_MEMBER_COLS = {
+        "age": "copy_age",
+        "date_of_birth": "copy_date_of_birth",
+        "ssn": "copy_ssn",
+        "spouse_ssn": "spouse_copy_ssn",
+        "dependent_1_ssn": "dependent_1_copy_ssn",
+        "dependent_2_ssn": "dependent_2_copy_ssn",
+        "dependent_3_ssn": "dependent_3_copy_ssn",
+        "dependent_4_ssn": "dependent_4_copy_ssn",
+    }
+
     # This function should only be used for writing shard metadata in post-processing
     # and no where else.
     metadata_df = pd.DataFrame(index=[location])
