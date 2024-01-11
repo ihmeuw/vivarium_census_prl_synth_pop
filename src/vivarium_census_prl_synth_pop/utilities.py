@@ -581,7 +581,7 @@ def record_metadata_proportions(final_output_dir: Path) -> None:
         denominator_columns = (
             list(denominator_columns_mapper.values())
             + [data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS]
-            if set(denominator_columns).issubset(dataset_metadata.columns)
+            if set(denominator_columns_mapper.values()).issubset(dataset_metadata.columns)
             else [data_keys.METADATA_COLUMNS.NUMBER_OF_ROWS]
         )
         numerator_columns = [
