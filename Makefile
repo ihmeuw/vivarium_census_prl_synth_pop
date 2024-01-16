@@ -79,7 +79,7 @@ integration: $(MAKE_SOURCES) # Run the unit tests
 
 unit: $(MAKE_SOURCES) # Run unit tests
 	export COVERAGE_FILE=./output/.coverage.unit_${PYTHON_VERSION}
-	pytest -m --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION} tests/
+	pytest --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION} tests/
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 clean: # Delete build artifacts and do any custom cleanup such as spinning down services
