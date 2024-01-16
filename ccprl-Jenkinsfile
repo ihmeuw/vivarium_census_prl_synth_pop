@@ -152,14 +152,6 @@ pipeline {
         }
       }
     }
-
-    stage("Build") {
-        stage("Build Package") {
-          steps {
-            sh "${ACTIVATE} && make build-package"
-          }
-        }
-    }
   }
 
   post {
