@@ -2,7 +2,7 @@ this_makefile := $(lastword $(MAKEFILE_LIST)) # Used to automatically list targe
 .DEFAULT_GOAL := list # If someone runs "make", run "make list"
 
 # Source files to format, lint, and type check.
-LOCATIONS=src tests
+LOCATIONS=src integration tests
 
 # Unless overridden, build conda environment using the package name.
 PACKAGE_NAME = vivarium_census_prl_synth_pop
@@ -59,8 +59,8 @@ install: # Install setuptools, install this package in editable mode
 	pip install -e .[DEV]
 
 format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and import sorter
-	black $(LOCATIONS)
-	isort $(LOCATIONS)
+	-black $(LOCATIONS)
+	-isort $(LOCATIONS)
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 lint: .flake8 .bandit $(MAKE_SOURCES) # Run the code linter and package security vulnerability checker
