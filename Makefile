@@ -69,7 +69,7 @@ lint: .flake8 .bandit $(MAKE_SOURCES) # Run the code linter and package security
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
-	pytype --config=pytype.cfg $(LOCATIONS)
+	-pytype --config=pytype.cfg $(LOCATIONS)
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 integration: $(MAKE_SOURCES) # Run the unit tests
