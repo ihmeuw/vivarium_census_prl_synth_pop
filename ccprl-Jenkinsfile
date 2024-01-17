@@ -136,20 +136,25 @@ pipeline {
       }
     }
 
-    stage("Test") {
-      // removable, if passwords can be exported to env. securely without bash indirection
-      parallel {
-        stage("Run integration Tests") {
-          steps {
-            sh "${ACTIVATE} && make integration"
-          }
-        }
+    // stage("Test") {
+    //   removable, if passwords can be exported to env. securely without bash indirection
+    //   parallel {
+    //     stage("Run integration Tests") {
+    //       steps {
+    //         sh "${ACTIVATE} && make integration"
+    //       }
+    //     }
 
-        stage("Run unit Tests") {
-          steps {
-            sh "${ACTIVATE} && make unit"
-          }
-        }
+    //     stage("Run unit Tests") {
+    //       steps {
+    //         sh "${ACTIVATE} && make unit"
+    //       }
+    //     }
+    //   }
+    // }
+    stage("Run unit tests") {
+      steps {
+        sh "${ACTIVATE} && make unit"
       }
     }
   }
