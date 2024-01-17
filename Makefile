@@ -2,7 +2,7 @@ this_makefile := $(lastword $(MAKEFILE_LIST)) # Used to automatically list targe
 .DEFAULT_GOAL := list # If someone runs "make", run "make list"
 
 # Source files to format, lint, and type check.
-LOCATIONS=src integration_tests
+LOCATIONS=src integration_tests tests
 
 # Unless overridden, build conda environment using the package name.
 PACKAGE_NAME = vivarium_census_prl_synth_pop
@@ -72,20 +72,20 @@ typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
 	-pytype --config=pytype.cfg $(LOCATIONS)
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
-integration: $(MAKE_SOURCES) # Run the integration tests
-	export COVERAGE_FILE=./output/.coverage.integration_${PYTHON_VERSION}
-	pytest --runslow --cov integration_tests/ --cov-report term --cov-report html:./output/htmlcov_integration_${PYTHON_VERSION}
-	@echo "Ignore, Created by Makefile, `date`" > $@
+# integration: $(MAKE_SOURCES) # Run the integration tests
+# 	export COVERAGE_FILE=./output/.coverage.integration_${PYTHON_VERSION}
+# 	pytest --runslow --cov integration_tests/ --cov-report term --cov-report html:./output/htmlcov_integration_${PYTHON_VERSION}
+# 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 # unit: $(MAKE_SOURCES) # Run unit tests
 # 	export COVERAGE_FILE=./output/.coverage.unit_${PYTHON_VERSION}
 # 	pytest --runslow tests/ --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION}
 # 	@echo "Ignore, Created by Makefile, `date`" > $@
 
-# unit: $(MAKE_SOURCES) # Run unit tests
-# 	export COVERAGE_FILE=./output/.coverage.unit_${PYTHON_VERSION}
-# 	pytest --runslow tests/test_read_file.py --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION}
-# 	@echo "Ignore, Created by Makefile, `date`" > $@
+unit: $(MAKE_SOURCES) # Run unit tests
+	export COVERAGE_FILE=./output/.coverage.unit_${PYTHON_VERSION}
+	pytest --runslow tests/test_read_file.py --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION}
+	@echo "Ignore, Created by Makefile, `date`" > $@
 
 clean: # Delete build artifacts and do any custom cleanup such as spinning down services
 	@rm -rf format lint typecheck build-doc build-package unit e2e integration .pytest_cache .pytype

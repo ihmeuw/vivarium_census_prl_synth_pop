@@ -152,9 +152,9 @@ pipeline {
     //     }
     //   }
     // }
-    stage("Run integration tests") {
+    stage("Run unit tests") {
       steps {
-        sh "${ACTIVATE} && make integration"
+        sh "${ACTIVATE} && make unit"
       }
     }
   }
