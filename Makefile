@@ -2,7 +2,7 @@ this_makefile := $(lastword $(MAKEFILE_LIST)) # Used to automatically list targe
 .DEFAULT_GOAL := list # If someone runs "make", run "make list"
 
 # Source files to format, lint, and type check.
-LOCATIONS=src integration tests
+LOCATIONS=src tests
 
 # Unless overridden, build conda environment using the package name.
 PACKAGE_NAME = vivarium_census_prl_synth_pop
