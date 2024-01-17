@@ -3,12 +3,12 @@ from pathlib import Path
 import pytest
 from vivarium import Artifact
 
+from vivarium_census_prl_synth_pop.constants.paths import DEFAULT_ARTIFACT
+
 
 @pytest.fixture()
 def artifact(mocker):
-    artifact_path = Path(
-        "/mnt/team/simulation_science/priv/engineering/vivarium_census_prl_synth_pop/data/artifacts/united_states_of_america.hdf"
-    )
+    artifact_path = Path(DEFAULT_ARTIFACT)
     if artifact_path.exists():
         return Artifact(artifact_path)
     else:
