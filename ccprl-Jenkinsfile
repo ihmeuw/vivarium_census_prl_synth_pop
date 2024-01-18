@@ -137,7 +137,7 @@ pipeline {
     }
 
     stage("Test") {
-      removable, if passwords can be exported to env. securely without bash indirection
+      // removable, if passwords can be exported to env. securely without bash indirection
       parallel {
         stage("Run integration Tests") {
           steps {
