@@ -72,19 +72,14 @@ typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
 	-pytype --config=pytype.cfg $(LOCATIONS)
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
-# integration: $(MAKE_SOURCES) # Run the integration tests
-# 	export COVERAGE_FILE=./output/.coverage.integration_${PYTHON_VERSION}
-# 	pytest --runslow --cov integration_tests/ --cov-report term --cov-report html:./output/htmlcov_integration_${PYTHON_VERSION}
-# 	@echo "Ignore, Created by Makefile, `date`" > $@
-
-# unit: $(MAKE_SOURCES) # Run unit tests
-# 	export COVERAGE_FILE=./output/.coverage.unit_${PYTHON_VERSION}
-# 	pytest --runslow tests/ --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION}
-# 	@echo "Ignore, Created by Makefile, `date`" > $@
+integration: $(MAKE_SOURCES) # Run the integration tests
+	export COVERAGE_FILE=./output/.coverage.integration_${PYTHON_VERSION}
+	pytest --runslow --cov --cov-report term --cov-report html:./output/htmlcov_integration_${PYTHON_VERSION} integration_tests/
+	@echo "Ignore, Created by Makefile, `date`" > $@
 
 unit: $(MAKE_SOURCES) # Run unit tests
 	export COVERAGE_FILE=./output/.coverage.unit_${PYTHON_VERSION}
-	pytest --runslow tests/test_read_file.py --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION}
+	pytest --runslow --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION} tests/
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 clean: # Delete build artifacts and do any custom cleanup such as spinning down services
