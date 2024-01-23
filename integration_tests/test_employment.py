@@ -20,7 +20,7 @@ def test_military_gq_employment(sim, tracked_live_populations):
             & (
                 pop["age"]
                 >= data_values.WORKING_AGE
-                + sim._clock._step_size.days / utilities.DAYS_PER_YEAR
+                + sim.configuration.time.step_size / utilities.DAYS_PER_YEAR
             )
         ]
         assert (military_gq["employer_id"] == data_values.MILITARY.employer_id).all()
