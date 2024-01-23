@@ -1,8 +1,10 @@
+gq_into_gq_proportion_of_gq_movers: 0.11062047632537376
 household_migration_rate_per_year: 0.06865104510078264
 individual_migration_rate_per_year:
   gq_person: 0.010854666688840622
   new_household: 0.01978582439294686
   non_reference_person: 0.02348931693394372
+  non_reference_person_into_household_created_in_last_year: 0.0012404746246149417
 multiplicative_drift_per_year:
   lower_bound: 0.9
   upper_bound: 1.1

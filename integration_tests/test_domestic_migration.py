@@ -29,7 +29,20 @@ def target_migration_rates(sim):
         targets = yaml.safe_load(f)
 
     targets["individual_migration_rate_per_year"]["total"] = sum(
-        [v for v in targets["individual_migration_rate_per_year"].values()]
+        [
+            v
+            for k, v in targets["individual_migration_rate_per_year"].items()
+            if k != "non_reference_person_into_household_created_in_last_year"
+        ]
+    )
+
+    targets["individual_migration_rate_per_year"][
+        "non_reference_person_into_household_created_in_last_timestep"
+    ] = from_yearly(
+        targets["individual_migration_rate_per_year"][
+            "non_reference_person_into_household_created_in_last_year"
+        ],
+        pd.Timedelta(days=sim.configuration.time.step_size),
     )
 
     targets["household"] = from_yearly(
@@ -134,10 +147,13 @@ def test_individuals_move_into_new_households(
             "Domestic migration joining recently created households",
             observed_numerator=joining_recently_created_households.sum(),
             observed_denominator=len(joining_recently_created_households),
-            # This case -- people who joined a just-created household -- should be exceedingly rare.
-            target_proportion=(
-                (1 / 1_000_000_000),
-                0.001,
+            target_proportion=multiplicative_drifts_to_bounds_at_timestep(
+                target_migration_rates["individual"][
+                    "non_reference_person_into_household_created_in_last_timestep"
+                ],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
+                time_step,
             ),
             name_additional=f"Time step {time_step}",
         )
@@ -184,10 +200,13 @@ def test_individuals_move_into_new_households(
         "Domestic migration joining recently created households",
         observed_numerator=all_time_joining_recently_created_households.sum(),
         observed_denominator=len(all_time_joining_recently_created_households),
-        # This case -- people who joined a just-created household -- should be exceedingly rare.
-        target_proportion=(
-            (1 / 1_000_000_000),
-            0.001,
+        target_proportion=multiplicative_drifts_to_bounds_through_timestep(
+            target_migration_rates["individual"][
+                "non_reference_person_into_household_created_in_last_timestep"
+            ],
+            target_migration_rates["multiplicative_drift"]["lower_bound"],
+            target_migration_rates["multiplicative_drift"]["upper_bound"],
+            len(simulants_on_adjacent_timesteps),
         ),
         name_additional="All time steps",
     )
@@ -233,11 +252,11 @@ def test_individuals_move_into_group_quarters(
             "Domestic migration into GQ from GQ",
             observed_numerator=into_gq_from_gq.sum(),
             observed_denominator=len(into_gq_from_gq),
-            # Since this is sampled randomly from the population only based on demographics, it should
-            # be around 3%, with substantial leeway for demographics correlations
-            target_proportion=(
-                data_values.PROP_POPULATION_IN_GQ * 0.5,
-                data_values.PROP_POPULATION_IN_GQ * 5,
+            target_proportion=multiplicative_drifts_to_bounds_at_timestep(
+                target_migration_rates["gq_into_gq_proportion_of_gq_movers"],
+                target_migration_rates["multiplicative_drift"]["lower_bound"],
+                target_migration_rates["multiplicative_drift"]["upper_bound"],
+                time_step,
             ),
             name_additional=f"Time step {time_step}",
         )
@@ -273,11 +292,11 @@ def test_individuals_move_into_group_quarters(
         "Domestic migration into GQ from GQ",
         observed_numerator=all_time_into_gq_from_gq.sum(),
         observed_denominator=len(all_time_into_gq_from_gq),
-        # Since this is sampled randomly from the population only based on demographics, it should
-        # be around 3%, with substantial leeway for demographics correlations
-        target_proportion=(
-            data_values.PROP_POPULATION_IN_GQ * 0.5,
-            data_values.PROP_POPULATION_IN_GQ * 5,
+        target_proportion=multiplicative_drifts_to_bounds_through_timestep(
+            target_migration_rates["gq_into_gq_proportion_of_gq_movers"],
+            target_migration_rates["multiplicative_drift"]["lower_bound"],
+            target_migration_rates["multiplicative_drift"]["upper_bound"],
+            len(simulants_on_adjacent_timesteps),
         ),
         name_additional="All time steps",
     )
