@@ -46,6 +46,13 @@ jobs:
           else
             echo "upstream_vivarium_inputs_exist=false" >> $GITHUB_ENV
           fi
+      - name: check for upstream pseudopeople
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/pseudopeople.git ${GITHUB_HEAD_REF} == "0"; then
+            echo "upstream_pseudopeople_exist=true" >> $GITHUB_ENV
+          else
+            echo "upstream_pseudopeople_exist=false" >> $GITHUB_ENV
+          fi
       - name: print environment values
         run: |
           cat $GITHUB_ENV
@@ -74,6 +81,14 @@ jobs:
           echo "Cloning upstream vivarium_inputs branch: ${GITHUB_HEAD_REF}"
           git clone --branch=${GITHUB_HEAD_REF} https://github.com/ihmeuw/vivarium_inputs.git
           pushd vivarium_inputs
+          pip install .
+          popd
+      - name: Retrieve upstream pseudopeople
+        if: env.upstream_pseudopeople_exist == 'true'
+        run: |
+          echo "Cloning upstream pseudopeople branch: ${GITHUB_HEAD_REF}"
+          git clone --branch=${GITHUB_HEAD_REF} https://github.com/ihmeuw/pseudopeople.git
+          pushd pseudopeople
           pip install .
           popd
       - name: Install dependencies
