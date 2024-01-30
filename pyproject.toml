@@ -1,5 +1,11 @@
 [tool.black]
 line_length = 94
 
+[tool.coverage.run]
+source = ["vivarium_census_prl_synth_pop"]
+
+[tool.coverage.report]
+show_missing = true
+
 [tool.isort]
 profile = "black"

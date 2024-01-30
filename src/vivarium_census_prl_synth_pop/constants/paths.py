@@ -6,8 +6,8 @@ from vivarium_census_prl_synth_pop.constants import metadata
 REPO_DIR = Path(vivarium_census_prl_synth_pop.__file__).resolve().parent.parent.parent
 BASE_DIR = Path(vivarium_census_prl_synth_pop.__file__).resolve().parent
 
-PROJECT_ROOT = Path(f"/mnt/team/simulation_science/priv/engineering/{metadata.PROJECT_NAME}")
-ARTIFACT_ROOT = PROJECT_ROOT / "data/artifacts/"
+PROJECT_ROOT = Path(f"/mnt/team/simulation_science/pub/models/{metadata.PROJECT_NAME}")
+ARTIFACT_ROOT = PROJECT_ROOT / "artifacts/"
 MODEL_SPEC_DIR = BASE_DIR / "model_specifications"
 RAW_DATA_ROOT = BASE_DIR / "data" / "raw_data"
 
