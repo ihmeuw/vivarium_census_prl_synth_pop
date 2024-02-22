@@ -294,13 +294,18 @@ class FuzzyChecker:
         # with one of them (for all the assertions we do), we're good -- but this specific
         # list may not get us to convergence for future assertions we add.
         for first_guess_concentration in [10_000, 1_000, 100, 10, 1, 0.5]:
-            optimization_result = scipy.optimize.minimize(
-                objective,
-                x0=[
-                    np.log(uncertainty_interval_midpoint * first_guess_concentration),
-                    np.log((1 - uncertainty_interval_midpoint) * first_guess_concentration),
-                ],
-            )
+            try:
+                optimization_result = scipy.optimize.minimize(
+                    objective,
+                    x0=[
+                        np.log(uncertainty_interval_midpoint * first_guess_concentration),
+                        np.log(
+                            (1 - uncertainty_interval_midpoint) * first_guess_concentration
+                        ),
+                    ],
+                )
+            except:
+                continue
             # Sometimes it warns that it *may* not have found a good solution,
             # but the solution it found is very accurate.
             if optimization_result.success or optimization_result.fun < 1e-05:
