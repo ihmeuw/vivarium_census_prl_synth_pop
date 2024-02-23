@@ -59,7 +59,7 @@ if __name__ == "__main__":
         extras_require={
             "test": test_requirements,
             "data": data_requires,
-            "dev": test_requirements + data_requires,
+            "dev": test_requirements,
         },
         zip_safe=False,
         entry_points="""
