@@ -377,9 +377,9 @@ class FuzzyChecker:
                     # NOTE: The convergence of this method depends pretty crucially on this backoff
                     # constant. Without it, we don't converge at all in some cases.
                     # If it is too high, convergence is slow and sometimes runs out of iterations.
-                    # 1.75 worked well across a wide range of inputs in preliminary testing.
-                    concentration_max = min(concentration_max * 1.75, 1e40)
-                    concentration_min = max(concentration_min / 1.75, 1e-3)
+                    # 2 worked well across a wide range of inputs in preliminary testing.
+                    concentration_max = min(concentration_max * 2, 1e40)
+                    concentration_min = max(concentration_min / 2, 1e-3)
 
         assert (
             best_error < 0.1
