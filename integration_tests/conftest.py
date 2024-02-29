@@ -332,7 +332,7 @@ class FuzzyChecker:
                 lb_cdf = dist.cdf(lower_bound)
                 ub_cdf = dist.cdf(upper_bound)
 
-                error = self._ui_squared_error(concentration, mean, lower_bound, upper_bound)
+                error = self._ui_squared_error(dist, lower_bound, upper_bound)
                 if best_error is None or error < best_error:
                     best_error = error
                     best_concentration = concentration
@@ -397,12 +397,8 @@ class FuzzyChecker:
         return tuple(result)
 
     def _ui_squared_error(
-        self, concentration: float, mean: float, lower_bound: float, upper_bound: float
+        self, dist: scipy.stats.rv_continuous, lower_bound: float, upper_bound: float
     ) -> float:
-        a = mean * concentration
-        b = (1 - mean) * concentration
-        dist = scipy.stats.beta(a=a, b=b)
-
         squared_error_lower = self._quantile_squared_error(dist, lower_bound, 0.025)
         squared_error_upper = self._quantile_squared_error(dist, upper_bound, 0.975)
 
