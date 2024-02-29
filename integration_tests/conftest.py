@@ -272,50 +272,140 @@ class FuzzyChecker:
     def _fit_beta_distribution_to_uncertainty_interval(
         self, lower_bound: float, upper_bound: float
     ) -> Tuple[float, float]:
-        assert lower_bound > 0 and upper_bound < 1
+        """
+        Finds a and b parameters of a beta distribution that approximates the specified 95% UI.
+        The overall approach was inspired by https://stats.stackexchange.com/a/112671/.
 
-        # Inspired by https://stats.stackexchange.com/a/112671/
-        def objective(x):
-            # np.exp ensures they are always positive
-            a, b = np.exp(x)
-            dist = scipy.stats.beta(a=a, b=b)
+        SciPy optimization methods turned out not to be able to search such a large and unbounded
+        space of possibilities.
 
-            squared_error_lower = self._quantile_squared_error(dist, lower_bound, 0.025)
-            squared_error_upper = self._quantile_squared_error(dist, upper_bound, 0.975)
+        Additionally, they suffer from problems with floating-point precision, which can lead
+        to nonsensical results because those methods don't "know" what we know about how beta
+        distributions vary with their parameters, and numerical approximation of the derivatives
+        is inaccurate.
 
-            try:
-                return squared_error_lower + squared_error_upper
-            except FloatingPointError:
-                return np.finfo(float).max
+        An example of a substantial problem here is that very incorrect parameters will have
+        CDF values smaller than floating point error at our desired bounds, so they will be
+        indistinguishable from each other for derivative purposes, and the derivative might even go the wrong way.
 
-        # It is quite important to start with a reasonable guess.
-        uncertainty_interval_midpoint = (lower_bound + upper_bound) / 2
-        # TODO: Further refine these concentration values. As long as we get convergence
-        # with one of them (for all the assertions we do), we're good -- but this specific
-        # list may not get us to convergence for future assertions we add.
-        for first_guess_concentration in [10_000, 1_000, 100, 10, 1, 0.5]:
-            try:
-                optimization_result = scipy.optimize.minimize(
-                    objective,
-                    x0=[
-                        np.log(uncertainty_interval_midpoint * first_guess_concentration),
-                        np.log(
-                            (1 - uncertainty_interval_midpoint) * first_guess_concentration
-                        ),
-                    ],
+        To address these issues, we use a heuristic approach based on binary search
+        and knowledge about how beta distributions react to their parameters
+        (using the concentration-and-mean parameterization, since that has clearer behavior):
+        - Increasing concentration makes the bounds narrower
+        - Decreasing concentration makes the bounds wider
+        - Increasing mean increases both bounds
+        - Decreasing mean decreases both bounds
+
+        It is much harder to search for the correct concentration -- which is essentially unbounded
+        except for overflow limits -- than the correct mean.
+        Our strategy is based on this fact: we make mean more "sticky" (only update our best guess
+        when we find we must move mean to the left or right), and restart our mean search from scratch
+        each time we change the concentration.
+        We tried other strategies, but they didn't work consistently.
+
+        This method has been tested on a wide range of inputs and finds reasonable solutions even when
+        the bounds themselves (or the difference between them) are only a few orders of magnitude
+        larger than the floating point precision.
+        """
+        assert lower_bound > 0 and upper_bound < 1 and upper_bound > lower_bound
+
+        concentration_max = 1e40
+        concentration_min = 1e-3
+
+        mean_max = upper_bound
+        mean_min = lower_bound
+        mean = (upper_bound + lower_bound) / 2
+
+        best_error = None
+        best_concentration = None
+        best_mean = None
+
+        for _ in range(1_000):
+            with np.errstate(under="ignore"):
+                concentration = np.exp(
+                    (np.log(concentration_max) + np.log(concentration_min)) / 2
                 )
-            except:
-                continue
-            # Sometimes it warns that it *may* not have found a good solution,
-            # but the solution it found is very accurate.
-            if optimization_result.success or optimization_result.fun < 1e-05:
-                break
+                dist = scipy.stats.beta(
+                    a=mean * concentration,
+                    b=(1 - mean) * concentration,
+                )
+                lb_cdf = dist.cdf(lower_bound)
+                ub_cdf = dist.cdf(upper_bound)
 
-        assert optimization_result.success or optimization_result.fun < 1e-05
+                error = self._ui_squared_error(dist, lower_bound, upper_bound)
+                if best_error is None or error < best_error:
+                    best_error = error
+                    best_concentration = concentration
+                    best_mean = mean
+                if best_error < 1e-5:
+                    break
 
-        result = np.exp(optimization_result.x)
+                concentration_bounds_changed = False
+                mean_bounds_changed = False
+                if lb_cdf < 0.025 and ub_cdf > (1 - 0.025):
+                    # The distribution is too narrow, so we need to reduce our concentration.
+                    concentration_max = concentration
+                    concentration_bounds_changed = True
+                elif lb_cdf > 0.025 and ub_cdf < (1 - 0.025):
+                    # The distribution is too wide, so we need to increase concentration.
+                    concentration_min = concentration
+                    concentration_bounds_changed = True
+                elif ub_cdf >= lb_cdf > 0.025 and 1 >= ub_cdf > (1 - 0.025):
+                    # The distribution is high on both quantiles, so we need to decrease the mean.
+                    # mean_lower_bound = mean
+                    mean_min = mean
+                    mean_bounds_changed = True
+                elif lb_cdf <= ub_cdf < (1 - 0.025) and 0 <= lb_cdf < 0.025:
+                    # The distribution is low on both quantiles, so we need to increase the mean
+                    # mean_upper_bound = mean
+                    mean_max = mean
+                    mean_bounds_changed = True
+
+                if not concentration_bounds_changed and not mean_bounds_changed:
+                    break
+
+                if concentration_bounds_changed:
+                    # We have been optimizing mean with inaccurate concentration bounds; let's restart
+                    # our mean search (which is pretty small/cheap).
+                    mean_max = upper_bound
+                    mean_min = lower_bound
+
+                if mean_bounds_changed:
+                    mean = (mean_min + mean_max) / 2
+                    # We have been optimizing concentration with inaccurate mean bounds; let's back off
+                    # a bit to explore concentration more.
+                    # NOTE: The convergence of this method depends pretty crucially on this backoff
+                    # constant. Without it, we don't converge at all in some cases.
+                    # If it is too high, convergence is slow and sometimes runs out of iterations.
+                    # 2 worked well across a wide range of inputs in preliminary testing.
+                    concentration_max = min(concentration_max * 2, 1e40)
+                    concentration_min = max(concentration_min / 2, 1e-3)
+
+        assert (
+            best_error < 0.1
+        ), f"Beta distribution fitting for {lower_bound}, {upper_bound} failed with UI squared error {best_error}"
+        if best_error > 1e-5:
+            warnings.warn(
+                f"Didn't find a very good beta distribution for {lower_bound}, {upper_bound} -- using a best guess with UI squared error {best_error}"
+            )
+
+        result = (
+            best_mean * best_concentration,
+            (1 - best_mean) * best_concentration,
+        )
         assert len(result) == 2
         return tuple(result)
+
+    def _ui_squared_error(
+        self, dist: scipy.stats.rv_continuous, lower_bound: float, upper_bound: float
+    ) -> float:
+        squared_error_lower = self._quantile_squared_error(dist, lower_bound, 0.025)
+        squared_error_upper = self._quantile_squared_error(dist, upper_bound, 0.975)
+
+        try:
+            return squared_error_lower + squared_error_upper
+        except FloatingPointError:
+            return np.finfo(float).max
 
     def _quantile_squared_error(
         self, dist: scipy.stats.rv_continuous, value: float, intended_quantile: float
