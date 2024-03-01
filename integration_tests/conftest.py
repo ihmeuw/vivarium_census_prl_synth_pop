@@ -84,13 +84,16 @@ def pipeline_columns(sim, populations) -> List[str]:
     return pipeline_columns
 
 
+OUTPUT_DIR = "homes/albrja/scratch/prl"
+
+
 @pytest.fixture(scope="session")
-def fuzzy_checker() -> FuzzyChecker:
+def fuzzy_checker(OUTPUT_DIR) -> FuzzyChecker:
     checker = FuzzyChecker()
 
     yield checker
 
-    checker.save_diagnostic_output()
+    checker.save_diagnostic_output(OUTPUT_DIR)
 
 
 # Utilities for working with "multiplicative drifts" -- these are
