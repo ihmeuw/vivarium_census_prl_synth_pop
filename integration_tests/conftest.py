@@ -86,7 +86,7 @@ def pipeline_columns(sim, populations) -> List[str]:
 
 @pytest.fixture(scope="session")
 def output_directory() -> str:
-    OUTPUT_DIR = "homes/albrja/scratch/prl"
+    OUTPUT_DIR = "/ihme/homes/albrja/scratch/prl"
     return OUTPUT_DIR
 
 
