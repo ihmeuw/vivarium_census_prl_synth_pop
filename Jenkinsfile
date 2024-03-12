@@ -142,7 +142,6 @@ pipeline {
         stage("Run integration Tests") {
           steps {
             sh "${ACTIVATE} && make integration"
-          }
         }
 
         stage("Run unit Tests") {
@@ -192,6 +191,12 @@ pipeline {
       script {
         notifyBitbucket()
       }
+    }
+    failure {
+      slackSend channel: '#simsci-ci-status', 
+                message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n$BUILD_URL\n\n<!channel>",
+                teamDomain: 'ihme',
+                tokenCredentialId: 'eafd508b-f614-460d-bce5-3a5a43b7aa68'
     }
   }
 }
