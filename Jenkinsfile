@@ -142,6 +142,7 @@ pipeline {
         stage("Run integration Tests") {
           steps {
             sh "${ACTIVATE} && make integration"
+          }
         }
 
         stage("Run unit Tests") {
