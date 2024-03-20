@@ -28,7 +28,7 @@ pipeline {
   parameters {
     booleanParam(
       name: "IS_CRON",
-      defaultValue: false,
+      defaultValue: true,
       description: "Inidicates a recurring build. Used to skip deployment steps."
     )
     string(
