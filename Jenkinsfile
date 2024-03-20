@@ -1,3 +1,7 @@
+def pipeline_name="vivarium_census_prl_synth_pop"
+def conda_env_name="$pipeline_name-${BUILD_NUMBER}"
+def conda_env_path="/tmp/$conda_env_name"
+
 pipeline {
   // This agent runs as svc-ccomp on node cc-slurm-sbuild-p01.
   // It has access to standard IHME filesystems, and it doesn't have access to Docker.
@@ -27,6 +31,11 @@ pipeline {
       defaultValue: false,
       description: "Inidicates a recurring build. Used to skip deployment steps."
     )
+    string(
+      name: "SLACK_TO",
+      defaultValue: "simsci-ci-status",
+      description: "The slack channel to send notifications to."
+    )
   }
 
   environment {
@@ -39,8 +48,8 @@ pipeline {
 
     // Specify conda env by build number so that we don't have collisions if builds from
     // different branches happen concurrently.
-    CONDA_ENV_NAME = "vivarium_census_prl_synth_pop${BUILD_NUMBER}"
-    CONDA_ENV_PATH = "/tmp/${CONDA_ENV_NAME}"
+    CONDA_ENV_NAME = "$conda_env_name"
+    CONDA_ENV_PATH = "$conda_env_path"
 
     // Path to conda binaries.
     CONDA_BIN_PATH = "/ihme/code/svc-ccomp/miniconda3/bin"
