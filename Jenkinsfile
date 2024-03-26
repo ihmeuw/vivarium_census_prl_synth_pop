@@ -29,11 +29,6 @@ pipeline {
   }
 
   parameters {
-    booleanParam(
-      name: "IS_CRON",
-      defaultValue: true,
-      description: "Indicates a recurring build. Used to skip deployment steps."
-    )
     string(
       name: "SLACK_TO",
       defaultValue: "simsci-ci-status",
