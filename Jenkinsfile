@@ -24,8 +24,7 @@ pipeline {
 
   // This trigger enables Bitbucket integration.
   triggers {
-    pollSCM ""
-    parameterizedCron 'H H(0-6) * * * %IS_CRON=true'
+    pollSCM "H H(0-6) * * *"
   }
 
   parameters {
