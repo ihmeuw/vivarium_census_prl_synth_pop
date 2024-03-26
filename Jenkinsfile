@@ -1,11 +1,14 @@
-def pipeline_name="vivarium_census_prl_synth_pop"
-def conda_env_name="$pipeline_name-${BUILD_NUMBER}"
-def conda_env_path="/tmp/$conda_env_name"
+pipeline_name="vivarium_census_prl_synth_pop"
+conda_env_name="${pipeline_name}-${BUILD_NUMBER}"
+conda_env_path="/tmp/${conda_env_name}"
+// defaults for conda and pip are a local directory /svc-simsci for improved speed.
+// In the past, we used /ihme/code/* on the NFS (which is slower)
+shared_path="/svc-simsci"
 
 pipeline {
-  // This agent runs as svc-ccomp on node cc-slurm-sbuild-p01.
-  // It has access to standard IHME filesystems, and it doesn't have access to Docker.
-  agent { label "svc-ccomp" }
+  // This agent runs as svc-simsci on node simsci-slurm-sbuild-p01.
+  // It has access to standard IHME filesystems and singularity
+  agent { label "svc-simsci" }
 
   options {
     // Keep 100 old builds.
@@ -29,40 +32,32 @@ pipeline {
     booleanParam(
       name: "IS_CRON",
       defaultValue: true,
-      description: "Inidicates a recurring build. Used to skip deployment steps."
+      description: "Indicates a recurring build. Used to skip deployment steps."
     )
     string(
       name: "SLACK_TO",
       defaultValue: "simsci-ci-status",
-      description: "The slack channel to send notifications to."
+      description: "The Slack channel to send messages to."
     )
   }
 
   environment {
     // Get the branch being built and strip everything but the text after the last "/"
     BRANCH = sh(script: "echo ${GIT_BRANCH} | rev | cut -d '/' -f1 | rev", returnStdout: true).trim()
-
+    TIMESTAMP = sh(script: 'date', returnStdout: true)
     // Specify the path to the .condarc file via environment variable.
     // This file configures the shared conda package cache.
-    CONDARC = "/ihme/code/svc-ccomp/miniconda3/.condarc"
-
+    CONDARC = "${shared_path}/miniconda3/.condarc"
+    CONDA_BIN_PATH = "${shared_path}/miniconda3/bin"
     // Specify conda env by build number so that we don't have collisions if builds from
     // different branches happen concurrently.
-    CONDA_ENV_NAME = "$conda_env_name"
-    CONDA_ENV_PATH = "$conda_env_path"
-
-    // Path to conda binaries.
-    CONDA_BIN_PATH = "/ihme/code/svc-ccomp/miniconda3/bin"
-
+    CONDA_ENV_NAME = "${conda_env_name}"
+    CONDA_ENV_PATH = "${conda_env_path}"
+    // Set the Pip cache.
+    XDG_CACHE_HOME = "${shared_path}/pip-cache"
     // Jenkins commands run in separate processes, so need to activate the environment every
     // time we run pip, poetry, etc.
     ACTIVATE = "source ${CONDA_BIN_PATH}/activate ${CONDA_ENV_PATH} &> /dev/null"
-
-    // Set the Pip cache.
-    XDG_CACHE_HOME = "/ihme/code/svc-ccomp/pip-cache"
-
-    // Timestamp this build.
-    TIMESTAMP = sh(script: 'date', returnStdout: true)
   }
 
   stages {
@@ -112,7 +107,7 @@ pipeline {
         // here just to be safe.
         sh "rm -rf ${CONDA_ENV_PATH}"
         sh "${ACTIVATE_BASE} && make build-env"
-        // open permissions for cctest users to create file in workspace
+        // open permissions for test users to create file in workspace
         sh "chmod 777 ${WORKSPACE}"
       }
     }
@@ -148,15 +143,33 @@ pipeline {
     stage("Test") {
       // removable, if passwords can be exported to env. securely without bash indirection
       parallel {
-        stage("Run integration Tests") {
+        stage("Run Unit Tests") {
           steps {
-            sh "${ACTIVATE} && make integration"
+            sh "${ACTIVATE} && make unit"
+            publishHTML([
+              allowMissing: true,
+              alwaysLinkToLastBuild: false,
+              keepAll: true,
+              reportDir: "output/htmlcov_unit",
+              reportFiles: "index.html",
+              reportName: "Coverage Report - Unit Tests",
+              reportTitles: ''
+            ])
           }
         }
 
-        stage("Run unit Tests") {
+        stage("Run Integration Tests") {
           steps {
-            sh "${ACTIVATE} && make unit"
+            sh "${ACTIVATE} && make integration"
+            publishHTML([
+              allowMissing: true,
+              alwaysLinkToLastBuild: false,
+              keepAll: true,
+              reportDir: "output/htmlcov_integration",
+              reportFiles: "index.html",
+              reportName: "Coverage Report - Integration Tests",
+              reportTitles: ''
+            ])
           }
         }
       }
@@ -165,48 +178,27 @@ pipeline {
 
   post {
     always {
-      publishHTML([
-        allowMissing: true,
-        alwaysLinkToLastBuild: false,
-        keepAll: true,
-        reportDir: 'output/htmlcov_integration_',
-        reportFiles: 'index.html',
-        reportName: 'Coverage Report - Integration Tests',
-        reportTitles: ''
-      ])
-      publishHTML([
-        allowMissing: true,
-        alwaysLinkToLastBuild: false,
-        keepAll: true,
-        reportDir: 'output/htmlcov_unit_',
-        reportFiles: 'index.html',
-        reportName: 'Coverage Report - Unit tests',
-        reportTitles: ''
-      ])
-      junit([
-        testResults: "**/*_test_report.xml",
-        allowEmptyResults: true
-      ])
-
-      // Run any cleanup steps specified in the makefile.
       sh "${ACTIVATE} && make clean"
-
-      // Delete the conda environment used in this build.
       sh "rm -rf ${CONDA_ENV_PATH}"
-
       // Delete the workspace directory.
       deleteDir()
-
       // Tell BitBucket whether the build succeeded or failed.
       script {
         notifyBitbucket()
       }
     }
     failure {
-      slackSend channel: "#$SLACK_TO", 
-                message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n$BUILD_URL/console\n\n<!channel>",
+      slackSend channel: "#${params.SLACK_TO}", 
+                message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n${BUILD_URL}console\n\n<!channel>",
                 teamDomain: "ihme",
-                tokenCredentialId: "eafd508b-f614-460d-bce5-3a5a43b7aa68"
+                tokenCredentialId: "08c46d31-b3a1-49b0-b024-758c685fa8fb"
     }
+    // Uncomment the following block for slack notification debugging
+    // success {
+    //   slackSend channel: "#${params.SLACK_TO}", 
+    //             message: ":white_check_mark: (debugging) JOB SUCCESS: $JOB_NAME - $BUILD_ID\n\n${BUILD_URL}console",
+    //             teamDomain: "ihme",
+    //             tokenCredentialId: "08c46d31-b3a1-49b0-b024-758c685fa8fb"
+    // }
   }
 }
