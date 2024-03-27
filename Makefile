@@ -19,7 +19,9 @@ IHME_PYPI := https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-s
 # If CONDA_ENV_PATH is set (from a Jenkins build), use the -p flag when making Conda env in
 # order to make env at specific path. Otherwise, make a named env at the default path using
 # the -n flag.
-PYTHON_VERSION ?= 3.11  # TODO: Update when pytype supports >3.10
+# TODO: [MIC-4953] build w/ multiple python versions
+# TODO: Update when pytype supports >3.10
+PYTHON_VERSION ?= 3.10
 CONDA_ENV_NAME ?= ${PACKAGE_NAME}_py${PYTHON_VERSION}
 CONDA_ENV_CREATION_FLAG = $(if $(CONDA_ENV_PATH),-p ${CONDA_ENV_PATH},-n ${CONDA_ENV_NAME})
 
@@ -73,13 +75,13 @@ typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 integration: $(MAKE_SOURCES) # Run the integration tests
-	export COVERAGE_FILE=./output/.coverage.integration_${PYTHON_VERSION}
-	pytest --runslow --cov --cov-report term --cov-report html:./output/htmlcov_integration_${PYTHON_VERSION} integration_tests/
+	export COVERAGE_FILE=./output/.coverage.integration
+	pytest --runslow --cov --cov-report term --cov-report html:./output/htmlcov_integration integration_tests/
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 unit: $(MAKE_SOURCES) # Run unit tests
-	export COVERAGE_FILE=./output/.coverage.unit_${PYTHON_VERSION}
-	pytest --runslow --cov --cov-report term --cov-report html:./output/htmlcov_unit_${PYTHON_VERSION} tests/
+	export COVERAGE_FILE=./output/.coverage.unit
+	pytest --runslow --cov --cov-report term --cov-report html:./output/htmlcov_unit tests/
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 clean: # Delete build artifacts and do any custom cleanup such as spinning down services
