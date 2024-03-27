@@ -19,7 +19,7 @@ IHME_PYPI := https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-s
 # If CONDA_ENV_PATH is set (from a Jenkins build), use the -p flag when making Conda env in
 # order to make env at specific path. Otherwise, make a named env at the default path using
 # the -n flag.
-# TODO: [MIC-4953]build w/ multiple python versions
+# TODO: [MIC-4953] build w/ multiple python versions
 # TODO: Update when pytype supports >3.10
 PYTHON_VERSION ?= 3.10
 CONDA_ENV_NAME ?= ${PACKAGE_NAME}_py${PYTHON_VERSION}
