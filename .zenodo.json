@@ -3,11 +3,60 @@
     "title": "ihmeuw/vivarium_census_prl_synth_pop: Archival release",
     "upload_type": "software",
     "creators": [
-//        {
-//            "orcid": "0000-0000-0000-0000",
-//            "affiliation": "Institute for Health Metrics and Evaluation",
-//            "name": "TODO: Add authors names, affiliation, and orcid (if applicable) to `creators` array"
-//        }
+        {
+            "orcid": "0000-0002-5775-2719",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "James Albright"
+        },
+        {
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Beatrix Haddock"
+        },
+        {
+            "orcid": "0009-0004-6649-7010",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Steve Bachmeier"
+        },
+        {
+            "arcid": "0000-0003-2430-5661",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Matthew Kappel"
+        },
+        {
+            "orcid": "0009-0005-8666-7141",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Zeb Burke-Conte"
+        },
+        {
+            "orcid": "0009-0005-7858-0222",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Sylvia Lutze"
+        },
+        {
+            "orcid": "0000-0001-8397-4123",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Nathaniel Blair-Stahn"
+        },
+        {
+            "orcid": "0009-0009-1585-4766",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Alix Pletcher"
+        },
+        {
+            "orcid": "0009-0009-3789-5382",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Caroline Kinuthia"
+        },
+        {
+            "orcid": "0000-0001-8649-7561",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Rajan Mudambi"
+        },
+        {
+            "orcid": "0000-0001-6033-4713",
+            "affiliation": "Institute for Health Metrics and Evaluation",
+            "name": "Abraham Flaxman"
+        },
     ],
     "access_right": "open",
     "description": "<p>TODO: add description (e.g., Archival release of simulation software.)</p>"
