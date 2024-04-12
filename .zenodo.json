@@ -1,6 +1,6 @@
 {
     "license": "BSD-3-Clause",
-    "title": "ihmeuw/vivarium_census_prl_synth_pop: Archival release",
+    "title": "ihmeuw/vivarium_census_prl_synth_pop: Data release",
     "upload_type": "software",
     "creators": [
         {
@@ -56,7 +56,7 @@
             "orcid": "0000-0001-6033-4713",
             "affiliation": "Institute for Health Metrics and Evaluation",
             "name": "Abraham Flaxman"
-        },
+        }
     ],
     "access_right": "open",
     "description": "<p>Data Release</p>"
