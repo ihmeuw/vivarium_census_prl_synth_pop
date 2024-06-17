@@ -21,7 +21,7 @@ if __name__ == "__main__":
         "gbd_mapping>=3.0.6, <4.0.0",
         "jinja2",
         "loguru",
-        "numpy",
+        "numpy<2.0.0",
         "pandas>=1.0.0",
         "scipy",
         "tables",
