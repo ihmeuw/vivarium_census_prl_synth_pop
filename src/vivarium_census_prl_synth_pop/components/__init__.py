@@ -9,7 +9,7 @@ from vivarium_census_prl_synth_pop.components.household_migration import (
 )
 from vivarium_census_prl_synth_pop.components.immigration import Immigration
 from vivarium_census_prl_synth_pop.components.mortality import Mortality
-from vivarium_census_prl_synth_pop.components.observers import (
+from vivarium_census_prl_synth_pop.components.observers import (  # Tax1040Observer,; TaxDependentsObserver,; TaxW2Observer,
     DecennialCensusObserver,
     HouseholdSurveyObserver,
     SocialSecurityObserver,

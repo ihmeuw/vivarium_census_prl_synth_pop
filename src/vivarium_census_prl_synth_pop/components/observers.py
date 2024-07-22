@@ -1,21 +1,19 @@
 import datetime as dt
-from abc import abstractmethod
-from pathlib import Path
-from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
-from loguru import logger
 from vivarium import Component
+from vivarium import Observer
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.results.observation import ConcatenatingObservation
 from vivarium_public_health.utilities import DAYS_PER_YEAR
 
 from vivarium_census_prl_synth_pop import utilities
-from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
+from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 
-class BaseObserver(Component):
+class BaseObserver(Observer):
     """Base class for observing and recording relevant state table results. It
     maintains a separate dataset per concrete observation class and allows for
     recording/updating on some subset of timesteps (defaults to every time step)
@@ -36,6 +34,7 @@ class BaseObserver(Component):
     ]
     ADDITIONAL_COLUMNS_REQUIRED = []
     DEFAULT_OUTPUT_COLUMNS = [
+        "simulant_id",
         "household_id",  # Included in every dataset as a source of truth
         "first_name_id",
         "middle_name_id",
@@ -58,15 +57,9 @@ class BaseObserver(Component):
     ADDITIONAL_OUTPUT_COLUMNS = []
     INPUT_VALUES = []
 
-    CONFIGURATION_DEFAULTS = {"observer": {"file_extension": "hdf"}}
-
     ##############
     # Properties #
     ##############
-
-    @property
-    def configuration_defaults(self) -> Dict[str, Any]:
-        return {self.name: BaseObserver.CONFIGURATION_DEFAULTS["observer"]}
 
     @property
     def columns_required(self):
@@ -85,71 +78,10 @@ class BaseObserver(Component):
     #################
 
     def setup(self, builder: Builder):
-        # FIXME: move filepaths to data container
-        self.seed = builder.configuration.randomness.random_seed
-        self.file_extension = self.get_file_extension(builder)
-        self.output_dir = Path(builder.configuration.output_data.results_directory)
         self.responses = None
         self.pipelines = {
             pipeline: builder.value.get_value(pipeline) for pipeline in self.input_values
         }
-
-    def get_file_extension(self, builder: Builder) -> str:
-        extension = builder.configuration[self.name].file_extension
-        if extension not in metadata.SUPPORTED_EXTENSIONS:
-            raise ValueError(
-                f"Invalid file extension '{extension}' provided in configuration key "
-                f"'{self.name}.file-extension'. Supported extensions are: "
-                f"{metadata.SUPPORTED_EXTENSIONS}."
-            )
-        return extension
-
-    ########################
-    # Event-driven methods #
-    ########################
-
-    def on_collect_metrics(self, event: Event) -> None:
-        if self.to_observe(event):
-            observation = self.get_observation(event)
-            if not pd.Series(self.output_columns).isin(observation.columns).all():
-                raise RuntimeError(
-                    f"{self.name} missing required column(s): "
-                    f"{set(self.output_columns) - set(observation.columns)}"
-                )
-            if not pd.Series(observation.columns).isin(self.output_columns).all():
-                raise RuntimeError(
-                    f"{self.name} contains extra unexpected column(s): "
-                    f"{set(observation.columns) - set(self.output_columns)}"
-                )
-            if self.responses is None:
-                self.responses = observation
-            else:
-                self.responses = pd.concat([self.responses, observation])
-
-    def to_observe(self, event: Event) -> bool:
-        """If True, will make an observation. This defaults to always True
-        (ie record at every time step) and should be overwritten in each
-        concrete observer as appropriate.
-        """
-        return True
-
-    @abstractmethod
-    def get_observation(self, event: Event) -> pd.DataFrame:
-        """Define the observations in the concrete class"""
-        pass
-
-    def on_simulation_end(self, _: Event) -> None:
-        output_dir = utilities.build_output_dir(
-            self.output_dir / paths.RAW_RESULTS_DIR_NAME / self.output_name
-        )
-        if self.responses is None:
-            logger.info(f"No results to write ({self.output_name})")
-        else:
-            self.responses.index.names = ["simulant_id"]
-            utilities.write_to_disk(
-                self.responses,
-                output_dir / f"{self.output_name}_{self.seed}.{self.file_extension}",
-            )
 
     ##################
     # Helper methods #
@@ -233,31 +165,41 @@ class HouseholdSurveyObserver(BaseObserver):
             / data_values.US_POPULATION
         )
 
-    ########################
-    # Event-driven methods #
-    ########################
+    def get_configuration_name(self) -> str:
+        return "_".join(self.name.split("_observer_"))
 
-    def get_observation(self, event: Event) -> pd.DataFrame:
+    def register_observations(self, builder: Builder) -> None:
+        # While this is a concatenating observation, it is not registered as such
+        # because we need to modify the per-time-step results_gatherer method
+        # FIXME: Is tracked==True correct? We probably want to exclude households
+        # that are entirely untracked, but should we allow for simulants
+        # to, say, copy from household members that are now untracked?
+        builder.results.register_unstratified_observation(
+            name=self.output_name,
+            pop_filter='alive == "alive" and tracked == True',
+            requires_columns=self.columns_required,
+            results_gatherer=self.get_observation,
+            results_updater=ConcatenatingObservation.concatenate_results,
+        )
+
+    def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
         """Records the survey responses on this time step."""
-        new_responses = self.population_view.get(event.index, query='alive == "alive"')
         respondent_households = utilities.vectorized_choice(
-            options=list(new_responses["household_id"].unique()),
+            options=list(pop["household_id"].unique()),
             n_to_choose=self.samples_per_timestep,
             randomness_stream=self.randomness,
             additional_key="sampling_households",
         )
-        new_responses = new_responses[
-            new_responses["household_id"].isin(respondent_households)
-        ]
+        pop = pop[pop["household_id"].isin(respondent_households)]
         # copy from household member for relevant columns
-        new_responses = utilities.copy_from_household_member(new_responses, self.randomness)
-        # Must be a timestamp, not an actual `date` type, in order to save to HDF in table mode
-        new_responses["survey_date"] = pd.Timestamp(event.time.date())
-        new_responses = self.add_address(new_responses)
-        new_responses = utilities.add_guardian_address_ids(new_responses)
+        pop = utilities.copy_from_household_member(pop, self.randomness)
+        pop = pop.rename(columns={"event_time": "survey_date"})
+        pop = self.add_address(pop)
+        pop = utilities.add_guardian_address_ids(pop)
+        pop["simulant_id"] = pop.index
 
         # Apply column schema and concatenate
-        return new_responses[self.output_columns]
+        return pop[self.output_columns]
 
 
 class DecennialCensusObserver(BaseObserver):
@@ -285,22 +227,31 @@ class DecennialCensusObserver(BaseObserver):
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()  # in days
 
+    def register_observations(self, builder: Builder) -> None:
+        # While this is a concatenating observation, it is not registered as such
+        # because we need to modify the per-time-step results_gatherer method
+        builder.results.register_unstratified_observation(
+            name=self.output_name,
+            pop_filter='alive == "alive" and tracked == True',
+            requires_columns=self.columns_required,
+            results_gatherer=self.get_observation,
+            results_updater=ConcatenatingObservation.concatenate_results,
+            to_observe=self.to_observe,
+        )
+
     def to_observe(self, event: Event) -> bool:
         """Only observe if the census date falls during the time step"""
         census_year = 10 * (event.time.year // 10)
         census_date = dt.datetime(census_year, 4, 1)
         return self.clock() <= census_date < event.time
 
-    def get_observation(self, event: Event) -> pd.DataFrame:
-        pop = self.population_view.get(
-            event.index,
-            query="alive == 'alive'",  # census should include only living simulants
-        )
+    def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
         # copy from household member for relevant columns
         pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
         pop = utilities.add_guardian_address_ids(pop)
-        pop["year"] = event.time.year
+        pop["year"] = pop["event_time"].dt.year
+        pop["simulant_id"] = pop.index
 
         return pop[self.output_columns]
 
@@ -309,9 +260,7 @@ class WICObserver(BaseObserver):
     """Class for observing columns relevant to WIC administrative data."""
 
     INPUT_VALUES = ["income", "household_details"]
-    ADDITIONAL_COLUMNS_REQUIRED = [
-        "relationship_to_reference_person",
-    ]
+    ADDITIONAL_COLUMNS_REQUIRED = ["relationship_to_reference_person"]
     ADDITIONAL_OUTPUT_COLUMNS = [
         "year",
         "housing_type",
@@ -338,20 +287,29 @@ class WICObserver(BaseObserver):
         self.step_size = builder.time.step_size()  # in days
         self.randomness = builder.randomness.get_stream(self.name)
 
+    def register_observations(self, builder: Builder) -> None:
+        # While this is a concatenating observation, it is not registered as such
+        # because we need to modify the per-time-step results_gatherer method
+        builder.results.register_unstratified_observation(
+            name=self.output_name,
+            pop_filter='alive == "alive" and tracked == True',
+            requires_columns=self.columns_required,
+            results_gatherer=self.get_observation,
+            results_updater=ConcatenatingObservation.concatenate_results,
+            to_observe=self.to_observe,
+        )
+
     def to_observe(self, event: Event) -> bool:
         """Only observe if Jan 1 occurs during the time step"""
         survey_date = dt.datetime(event.time.year, 1, 1)
         return self.clock() <= survey_date < event.time
 
-    def get_observation(self, event: Event) -> pd.DataFrame:
-        pop = self.population_view.get(
-            event.index,
-            query="alive == 'alive'",  # WIC should include only living simulants
-        )
+    def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
         pop["income"] = self.pipelines["income"](pop.index)
 
         # add columns for output
-        pop["year"] = event.time.year
+        pop["simulant_id"] = pop.index
+        pop["year"] = pop["event_time"].dt.year
         # copy from household member for relevant columns
         pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
@@ -387,7 +345,7 @@ class WICObserver(BaseObserver):
 
         # first include some mothers
         pr_covered = data_values.COVERAGE_PROBABILITY_WIC["mothers"]
-        mother_covered_probability = pop_mothers.race_ethnicity.map(pr_covered)
+        mother_covered_probability = pop_mothers["race_ethnicity"].map(pr_covered)
         pop_included_mothers = self.randomness.filter_for_probability(
             pop_mothers, mother_covered_probability
         )
@@ -396,7 +354,7 @@ class WICObserver(BaseObserver):
         pop_included = {}  # this dict will hold a pd.DataFrame for each age group
         for age, pop_age in pop_1_to_5.groupby("nominal_age"):
             pr_covered = data_values.COVERAGE_PROBABILITY_WIC[age]
-            child_covered_pr = pop_age.race_ethnicity.map(pr_covered)
+            child_covered_pr = pop_age["race_ethnicity"].map(pr_covered)
             pop_included[age] = self.randomness.filter_for_probability(
                 pop_age, child_covered_pr
             )
@@ -411,28 +369,27 @@ class WICObserver(BaseObserver):
         )
         simplified_race_ethnicity[simplified_race_ethnicity.isnull()] = "Other"
 
+        # pr is 1.0 for infants with mother on WIC
         child_covered_pr = (
-            pop_u1.guardian_1.isin(pop_included_mothers.index)
-            | pop_u1.guardian_2.isin(pop_included_mothers.index)
-        ).astype(
-            float
-        )  # pr is 1.0 for infants with mother on WIC
+            pop_u1["guardian_1"].isin(pop_included_mothers["simulant_id"])
+            | pop_u1["guardian_2"].isin(pop_included_mothers["simulant_id"])
+        ).astype(float)
         for race_ethnicity in self.WIC_RACE_ETHNICITIES:
             race_eth_rows = simplified_race_ethnicity == race_ethnicity
-
-            N = np.sum(race_eth_rows)  # total number of infants in this race group
-            k = np.sum(
-                race_eth_rows & (child_covered_pr == 1)
-            )  # number included because their mother is on WIC
-            if k < N:
+            num_infants_total = np.sum(
+                race_eth_rows
+            )  # total number of infants in this race group
+            # number included because their mother is on WIC
+            num_infants_included = np.sum(race_eth_rows & (child_covered_pr == 1))
+            if num_infants_included < num_infants_total:
                 pr_covered = data_values.COVERAGE_PROBABILITY_WIC[0]
+                # keep pr of 1.0 for the num_infants_included infants with mother
+                # on WIC and rescale probability for the remaining individuals
+                # so that expected number of infants on WIC matches target
                 child_covered_pr[race_eth_rows] = np.maximum(
-                    child_covered_pr[
-                        race_eth_rows
-                    ],  # keep pr of 1.0 for the k infants with mother on WIC
-                    (pr_covered[race_ethnicity] * N - k)
-                    / (N - k)  # rescale probability for the remaining individuals
-                    # so that expected number of infants on WIC matches target
+                    child_covered_pr[race_eth_rows],
+                    (pr_covered[race_ethnicity] * num_infants_total - num_infants_included)
+                    / (num_infants_total - num_infants_included),
                 )
         pop_included[0] = self.randomness.filter_for_probability(pop_u1, child_covered_pr)
 
@@ -452,6 +409,7 @@ class SocialSecurityObserver(BaseObserver):
         "has_ssn",
     ]
     OUTPUT_COLUMNS = [
+        "simulant_id",
         "first_name_id",
         "middle_name_id",
         "last_name_id",
@@ -479,16 +437,34 @@ class SocialSecurityObserver(BaseObserver):
         self.start_time = dt.datetime(**builder.configuration.time.start)
         self.end_time = dt.datetime(**builder.configuration.time.end)
 
+    def register_observations(self, builder: Builder) -> None:
+        # builder.results.register_concatenating_observation(
+        #     name=self.output_name,
+        #     pop_filter="has_ssn == True",
+        #     requires_columns=self.columns_required,
+        #     results_formatter=self.format,
+        #     to_observe=self.to_observe,
+        # )
+        # While this is a concatenating observation, it is not registered as such
+        # because we need to modify the per-time-step results_gatherer method
+        builder.results.register_unstratified_observation(
+            name=self.output_name,
+            pop_filter="has_ssn == True",
+            requires_columns=self.columns_required,
+            results_gatherer=self.get_observation,
+            results_updater=ConcatenatingObservation.concatenate_results,
+            to_observe=self.to_observe,
+        )
+
     def to_observe(self, event: Event) -> bool:
         """Only observe if this is the final time step of the sim"""
         return self.clock() < self.end_time <= event.time
 
-    def get_observation(self, event: Event) -> pd.DataFrame:
-        pop = self.population_view.get(
-            event.index,
-            query="has_ssn == True",  # only include simulants with a SSN
-        )
+    # def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
+    def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
+        # pop = results.copy()
         # copy from household member for relevant columns
+        pop["simulant_id"] = pop.index
         pop = utilities.copy_from_household_member(pop, self.randomness)
 
         df_creation = pop.copy()
@@ -551,6 +527,7 @@ class TaxW2Observer(BaseObserver):
         "employer_id",
     ]
     OUTPUT_COLUMNS = [
+        "simulant_id",
         "household_id",
         "first_name_id",
         "middle_name_id",
@@ -637,14 +614,27 @@ class TaxW2Observer(BaseObserver):
             self.wages_last_year.name = "wages"
             self.wages_this_year = empty_wages_series()
 
+    def register_observations(self, builder: Builder) -> None:
+        # While this is a concatenating observation, it is not registered as such
+        # because we need to modify the per-time-step results_gatherer method
+        builder.results.register_unstratified_observation(
+            name=self.output_name,
+            pop_filter="",  # want to include untracked simulants
+            requires_columns=self.columns_required,
+            results_gatherer=self.get_observation,
+            results_updater=ConcatenatingObservation.concatenate_results,
+            to_observe=self.to_observe,
+        )
+
     def to_observe(self, event: Event) -> bool:
         """Observe if Jan 1 falls during this time step"""
         tax_date = dt.datetime(event.time.year, 1, 1)
         return self.clock() < tax_date <= event.time
 
-    def get_observation(self, event: Event) -> pd.DataFrame:
-        pop_full = self.population_view.get(event.index)
+    def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
         # copy from household member for relevant columns
+        pop_full = pop.copy()
+        pop_full["simulant_id"] = pop_full.index
         pop_full = utilities.copy_from_household_member(pop_full, self.vivarium_randomness)
         pop_full = self.add_address(pop_full)
 
@@ -654,7 +644,9 @@ class TaxW2Observer(BaseObserver):
 
         df_w2 = self.wages_last_year.reset_index()
         df_w2["wages"] = df_w2["wages"].round().astype(int)
-        df_w2["tax_year"] = event.time.year - 1
+        df_w2["tax_year"] = (
+            pop_full.loc[pop_full.index.isin(df_w2.index), "event_time"].dt.year - 1
+        )
 
         # merge in simulant columns based on simulant id
         for col in [
@@ -723,7 +715,7 @@ class TaxW2Observer(BaseObserver):
             ],
             additional_key="type_of_form",
         )
-        return df_w2[self.output_columns]
+        return df_w2.reset_index()[self.output_columns]
 
 
 class TaxDependentsObserver(BaseObserver):
@@ -743,6 +735,7 @@ class TaxDependentsObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
     ADDITIONAL_COLUMNS_REQUIRED = ["alive", "in_united_states", "tracked", "has_ssn"]
     OUTPUT_COLUMNS = [
+        "simulant_id",
         "household_id",
         "guardian_id",
         "dependent_id",
@@ -783,13 +776,25 @@ class TaxDependentsObserver(BaseObserver):
         self.clock = builder.time.clock()
         self.randomness = builder.randomness.get_stream(self.name)
 
+    def register_observations(self, builder: Builder) -> None:
+        # While this is a concatenating observation, it is not registered as such
+        # because we need to modify the per-time-step results_gatherer method
+        builder.results.register_unstratified_observation(
+            name=self.output_name,
+            requires_columns=self.columns_required,
+            results_gatherer=self.get_observation,
+            results_updater=ConcatenatingObservation.concatenate_results,
+            to_observe=self.to_observe,
+        )
+
     def to_observe(self, event: Event) -> bool:
         """Observe if Jan 1 falls during this time step"""
         tax_date = dt.datetime(event.time.year, 1, 1)
         return self.clock() < tax_date <= event.time
 
-    def get_observation(self, event: Event) -> pd.DataFrame:
-        pop_full = self.population_view.get(event.index)
+    def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
+        pop_full = pop.copy()
+        pop_full["simulant_id"] = pop_full.index
         # copy from household member for relevant columns
         pop_full = utilities.copy_from_household_member(pop_full, self.randomness)
         pop_full = self.add_address(pop_full)
@@ -846,7 +851,7 @@ class TaxDependentsObserver(BaseObserver):
 
         df = df_eligible_dependents
         df["dependent_id"] = df.index
-        df["tax_year"] = event.time.year - 1
+        df["tax_year"] = pop_full.loc[pop_full.index.isin(df.index), "event_time"].dt.year - 1
 
         return df[self.OUTPUT_COLUMNS]
 
@@ -867,6 +872,7 @@ class Tax1040Observer(BaseObserver):
         "relationship_to_reference_person",
     ]
     OUTPUT_COLUMNS = [
+        "simulant_id",
         "household_id",
         "first_name_id",
         "middle_name_id",
@@ -908,27 +914,41 @@ class Tax1040Observer(BaseObserver):
         self.clock = builder.time.clock()
         self.randomness = builder.randomness.get_stream(self.name)
 
+    def register_observations(self, builder: Builder) -> None:
+        # While this is a concatenating observation, it is not registered as such
+        # because we need to modify the per-time-step results_gatherer method
+        builder.results.register_unstratified_observation(
+            name=self.output_name,
+            pop_filter="",  # want to include untracked simulants
+            requires_columns=self.columns_required,
+            results_gatherer=self.get_observation,
+            results_updater=ConcatenatingObservation.concatenate_results,
+            to_observe=self.to_observe,
+        )
+
     def to_observe(self, event: Event) -> bool:
         """Observe if April 15 falls during this time step"""
         tax_date = dt.datetime(event.time.year, 4, 15)
         return self.clock() < tax_date <= event.time
 
-    def get_observation(self, event: Event) -> pd.DataFrame:
-        pop = self.population_view.get(event.index)
+    # def get_observation(self, event: Event) -> pd.DataFrame:
+    #     pop = self.population_view.get(event.index)
+    def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
         # Sample who files taxes
+        pop["simulant_id"] = pop.index
         # TODO: Update with income sampling
         tax_filers_idx = self.randomness.filter_for_probability(
             pop.index,
             data_values.Taxes.PROBABILITY_OF_FILING_TAXES,
             "1040_filing_sample",
         )
-        pop = pop.loc[tax_filers_idx]
+        pop = pop[pop.index.isin(tax_filers_idx)]
         # copy from household member for relevant columns
         pop = utilities.copy_from_household_member(pop, self.randomness)
         pop = self.add_address(pop)
 
         # add derived columns
-        pop["tax_year"] = event.time.year - 1
+        pop["tax_year"] = pop["event_time"].dt.year - 1
         partners = [
             "Opposite-sex spouse",
             "Same-sex spouse",
