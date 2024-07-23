@@ -83,11 +83,11 @@ def test_get_observation(
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2
     # FIXME: Having dtype with with datime64[s] and [ns] causes pd.testing.assert_frame_equal to fail
     expected["survey_date"] = expected["survey_date"].astype(observation["survey_date"].dtype)
-    expected[
-        ["housing_type", "address_id", "state_id", "puma"]
-    ] = mocked_household_details_pipeline("dummy")[
-        ["housing_type", "address_id", "state_id", "puma"]
-    ]
+    expected[["housing_type", "address_id", "state_id", "puma"]] = (
+        mocked_household_details_pipeline("dummy")[
+            ["housing_type", "address_id", "state_id", "puma"]
+        ]
+    )
     expected["copy_age"] = [-1, -2]
     expected["copy_date_of_birth"] = [-1, -2]
     pd.testing.assert_frame_equal(expected[observer.output_columns], observation)
