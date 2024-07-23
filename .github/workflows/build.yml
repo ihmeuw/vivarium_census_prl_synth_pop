@@ -25,30 +25,37 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      - name: get upstream branch name
+        run: |
+          if "${{ github.event_name == 'pull_request' }}" ; then
+            echo "branch_name=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
+          else
+            echo "branch_name=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
       - name: check for upstream vivarium
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_HEAD_REF} == "0"; then
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${branch_name} == "0"; then
             echo "upstream_vivarium_exist=true" >> $GITHUB_ENV
           else
             echo "upstream_vivarium_exist=false" >> $GITHUB_ENV
           fi
       - name: check for upstream vivarium_public_health
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium_public_health.git ${GITHUB_HEAD_REF} == "0"; then
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium_public_health.git ${branch_name} == "0"; then
             echo "upstream_vivarium_public_health_exist=true" >> $GITHUB_ENV
           else
             echo "upstream_vivarium_public_health_exist=false" >> $GITHUB_ENV
           fi
       - name: check for upstream vivarium_inputs
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium_inputs.git ${GITHUB_HEAD_REF} == "0"; then
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium_inputs.git ${branch_name} == "0"; then
             echo "upstream_vivarium_inputs_exist=true" >> $GITHUB_ENV
           else
             echo "upstream_vivarium_inputs_exist=false" >> $GITHUB_ENV
           fi
       - name: check for upstream pseudopeople
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/pseudopeople.git ${GITHUB_HEAD_REF} == "0"; then
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/pseudopeople.git ${branch_name} == "0"; then
             echo "upstream_pseudopeople_exist=true" >> $GITHUB_ENV
           else
             echo "upstream_pseudopeople_exist=false" >> $GITHUB_ENV
