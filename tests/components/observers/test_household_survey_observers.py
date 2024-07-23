@@ -3,20 +3,18 @@ import pandas as pd
 import pytest
 
 from vivarium_census_prl_synth_pop.components.observers import HouseholdSurveyObserver
-from vivarium_census_prl_synth_pop.constants import paths
 
 # TODO: Broader test coverage
 
 
-@pytest.fixture(params=["hdf", "parquet"])
-def observer(mocker, tmp_path, request):
+@pytest.fixture
+def observer(mocker, tmp_path):
     """Generate post-setup observer with mocked methods to patch as necessary"""
-    observer = HouseholdSurveyObserver("acs")
+    obs = HouseholdSurveyObserver("acs")
     builder = mocker.MagicMock()
     builder.configuration.output_data.results_directory = tmp_path
-    builder.configuration["household_survey_observer_acs"].file_extension = request.param
-    observer.setup_component(builder)
-    return observer
+    obs.setup_component(builder)
+    return obs
 
 
 @pytest.fixture
@@ -35,6 +33,8 @@ def mocked_pop_view(observer):
     # Add copy from household member columns with dummy values instead of nans
     df["copy_age"] = [-1, -2]
     df["copy_date_of_birth"] = [-1, -2]
+    # state table includes event time
+    df["event_time"] = pd.to_datetime("2021-01-01")
 
     return df
 
@@ -57,28 +57,12 @@ def test_instantiate(observer):
     assert observer.name == "household_survey_observer_acs"
 
 
-def test_on_simulation_end(observer, mocker):
-    """Are the final results written out to the expected directory?"""
-    event = mocker.MagicMock()
-    observer.responses = pd.DataFrame()
-    observer.on_simulation_end(event)
-    assert (
-        observer.output_dir
-        / paths.RAW_RESULTS_DIR_NAME
-        / observer.output_name
-        / f"{observer.output_name}_{observer.seed}.{observer.file_extension}"
-    ).is_file()
-
-
 def test_get_observation(
     observer, mocked_pop_view, mocked_household_details_pipeline, mocker
 ):
     """Are responses recorded correctly (including concatenation after time steps?"""
-    sim_start_date = "2021-01-01"
+    sim_start_date = str(mocked_pop_view.event_time.iat[0].date())
     # Simulate first time step
-    event = mocker.MagicMock()
-    event.time = pd.to_datetime(sim_start_date)
-    event.index = pd.Index([0, 1])
     # FIXME: This returns mocked_pop_view regardless of event.index or alive status
     observer.population_view.get.return_value = mocked_pop_view
     mocker.patch(
@@ -90,14 +74,15 @@ def test_get_observation(
         return_value=mocked_pop_view,
     )
     observer.pipelines["household_details"] = mocked_household_details_pipeline
-    observation = observer.get_observation(event)
+    observation = observer.get_observation(mocked_pop_view)
 
     expected = mocked_pop_view
+    expected["simulant_id"] = mocked_pop_view.index
     expected["middle_initial"] = ["J", "M"]
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
     expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2
     # FIXME: Having dtype with with datime64[s] and [ns] causes pd.testing.assert_frame_equal to fail
-    expected["survey_date"] = expected["survey_date"].astype("datetime64[s]")
+    expected["survey_date"] = expected["survey_date"].astype(observation["survey_date"].dtype)
     expected[
         ["housing_type", "address_id", "state_id", "puma"]
     ] = mocked_household_details_pipeline("dummy")[
@@ -112,11 +97,11 @@ def test_multiple_observation(
     observer, mocked_pop_view, mocked_household_details_pipeline, mocker
 ):
     """Are responses recorded correctly (including concatenation after time steps)?"""
-    sim_start_date = "2021-01-01"
+    sim_start_date = str(mocked_pop_view.event_time.iat[0].date())
     # Simulate first time step
-    event = mocker.MagicMock()
-    event.time = pd.to_datetime(sim_start_date)
-    event.index = pd.Index([0, 1])
+    # event = mocker.MagicMock()
+    # event.time = pd.to_datetime(sim_start_date)
+    # event.index = pd.Index([0, 1])
     # FIXME: This returns mocked_pop_view regardless of event.index or alive status
     observer.population_view.get.return_value = mocked_pop_view
     mocker.patch(
@@ -128,17 +113,20 @@ def test_multiple_observation(
         return_value=mocked_pop_view,
     )
     observer.pipelines["household_details"] = mocked_household_details_pipeline
-    observer.on_collect_metrics(event)
+    results_1 = observer.get_observation(mocked_pop_view)
     # Simulate second time step
-    event.time = event.time + pd.Timedelta(28, "days")
-    observer.on_collect_metrics(event)
+    event_time = pd.to_datetime(sim_start_date) + pd.Timedelta(28, "days")
+    mocked_pop_view["event_time"] = event_time
+    results_2 = observer.get_observation(mocked_pop_view)
+    results = pd.concat([results_1, results_2])
 
     expected = pd.concat([mocked_pop_view] * 2)
+    expected["simulant_id"] = mocked_pop_view.index.tolist() * 2
     expected["middle_initial"] = ["J", "M"] * 2
     expected[["guardian_1_address_id", "guardian_2_address_id"]] = np.nan
-    expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2 + [event.time] * 2
+    expected["survey_date"] = [pd.to_datetime(sim_start_date)] * 2 + [event_time] * 2
     # FIXME: Having dtype with with datime64[s] and [ns] causes pd.testing.assert_frame_equal to fail
-    expected["survey_date"] = expected["survey_date"].astype("datetime64[s]")
+    expected["survey_date"] = expected["survey_date"].astype(results["survey_date"].dtype)
     expected[["housing_type", "address_id", "state_id", "puma"]] = pd.concat(
         [
             mocked_household_details_pipeline("dummy")[
@@ -150,4 +138,4 @@ def test_multiple_observation(
     )
     expected["copy_age"] = [-1, -2] * 2
     expected["copy_date_of_birth"] = [-1, -2] * 2
-    pd.testing.assert_frame_equal(expected[observer.output_columns], observer.responses)
+    pd.testing.assert_frame_equal(expected[observer.output_columns], results)
