@@ -2,8 +2,7 @@ import datetime as dt
 
 import numpy as np
 import pandas as pd
-from vivarium import Component
-from vivarium import Observer
+from vivarium import Component, Observer
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.results.observation import ConcatenatingObservation
