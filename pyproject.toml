@@ -9,3 +9,5 @@ show_missing = true
 
 [tool.isort]
 profile = "black"
+skip = ["vivarium", "vivarium_public_health"]
+known_third_parth = ["vivarium", "vivarium_public_health"]
