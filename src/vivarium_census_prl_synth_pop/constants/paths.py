@@ -7,18 +7,19 @@ REPO_DIR = Path(vivarium_census_prl_synth_pop.__file__).resolve().parent.parent.
 BASE_DIR = Path(vivarium_census_prl_synth_pop.__file__).resolve().parent
 
 PROJECT_ROOT = Path(f"/mnt/team/simulation_science/pub/models/{metadata.PROJECT_NAME}")
-ARTIFACT_ROOT = PROJECT_ROOT / "artifacts/"
+ARTIFACT_ROOT = PROJECT_ROOT / "artifacts"
 MODEL_SPEC_DIR = BASE_DIR / "model_specifications"
 RAW_DATA_ROOT = BASE_DIR / "data" / "raw_data"
 
-RAW_RESULTS_DIR_NAME = Path("raw_results")
-FINAL_RESULTS_DIR_NAME = Path("final_results")
+RAW_RESULTS_DIR_NAME = "results"
+FINAL_RESULTS_DIR_NAME = "final_results"
 
-BEST_DIR_NAME = Path("best")
-LATEST_DIR_NAME = Path("latest")
+PROCESSED_RESULTS_DIR_NAME_BASE = "pseudopeople_input_data_usa"
+BEST_SYMLINK_NAME = "best"
+LATEST_SYMLINK_NAME = "latest"
 
-HOUSEHOLDS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
-PERSONS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States/"
+HOUSEHOLDS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States"
+PERSONS_DATA_DIR = PROJECT_ROOT / "data/raw_data/current/United_States"
 
 INDIVIDUAL_DOMESTIC_MIGRATION_RATES_PATH = (
     RAW_DATA_ROOT / "individual_domestic_migration_rates.csv"
@@ -35,7 +36,7 @@ HOUSEHOLD_EMIGRATION_RATES_PATH = RAW_DATA_ROOT / "household_emigration_rates.cs
 
 BUSINESS_NAMES_DATA = PROJECT_ROOT / "data/raw_data/business_names.csv.bz2"
 BUSINESS_NAMES_DATA_ARTIFACT_INPUT_PATH = (
-    PROJECT_ROOT / "data/raw_data/business_names_generation/"
+    PROJECT_ROOT / "data/raw_data/business_names_generation"
 )
 
 HOUSEHOLDS_FILENAMES = [f"psam_hus{x}.csv" for x in ["a", "b", "c", "d"]]

@@ -451,24 +451,28 @@ def get_state_puma_options(builder: Builder) -> pd.DataFrame:
 
 
 def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
-    raw_results_files = list(
-        chain(*[raw_output_dir.rglob(f"*.{ext}") for ext in metadata.SUPPORTED_EXTENSIONS])
-    )
-
-    return sorted(list(set([x.name.split(".")[0].split("_")[-1] for x in raw_results_files])))
+    """Read the seeds from the either the finished_sim_metadata.csv if a
+    parallel simulation or the metadata.yaml if a single simulation
+    """
+    single_sim_metadata = raw_output_dir.parent / "metadata.yaml"
+    parallel_sim_metadata = raw_output_dir.parent / "finished_sim_metadata.csv"
+    if single_sim_metadata.exists():
+        with open(single_sim_metadata, "r") as file:
+            seeds = [str(yaml.safe_load(file)["random_seed"])]
+    elif parallel_sim_metadata.exists():
+        seeds = list(
+            pd.read_csv(parallel_sim_metadata)[
+                "run_configuration.run_key.random_seed"
+            ].astype(str)
+        )
+    return sorted(seeds)
 
 
 def write_to_disk(data: pd.DataFrame, path: Path):
     """Write dataset to file at output path"""
     # Convert object dtypes to categorical for effiency
     data = convert_objects_to_categories(data)
-    if ".parquet" == path.suffix:
-        data.to_parquet(path)
-    else:
-        raise ValueError(
-            f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
-            f"{path.suffix[1:]} was provided."
-        )
+    data.to_parquet(path)
 
 
 def convert_objects_to_categories(data: pd.DataFrame) -> pd.DataFrame:
@@ -529,10 +533,10 @@ def copy_from_household_member(
 
 
 def write_metadata_file(final_output_dir: Path, label_version: str) -> None:
-    metadata = {"data_version": label_version}
+    data = {"data_version": label_version}
     outpath = final_output_dir / "metadata.yaml"
     with open(outpath, "w") as file:
-        yaml.dump(metadata, file)
+        yaml.dump(data, file)
 
 
 def load_nicknames_data():

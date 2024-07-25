@@ -145,6 +145,11 @@ def format_columns(data: pd.DataFrame) -> pd.DataFrame:
     ) in COLUMN_FORMATTERS.items():
         if set(required_columns).issubset(set(data.columns)):
             data[output_column] = column_formatter(data[required_columns])
+    # Drop psimulate-specific columns that are not needed
+    drop_cols = ["input_draw", "scenario"]
+    for col in drop_cols:
+        if col in data.columns:
+            data = data.drop(columns=[col])
     return data
 
 

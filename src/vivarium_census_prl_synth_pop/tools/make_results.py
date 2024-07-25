@@ -1,7 +1,7 @@
 from itertools import chain
 from pathlib import Path
 from shutil import copyfile
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -11,7 +11,6 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.randomness.index_map import IndexMap
 
 from vivarium_census_prl_synth_pop.constants import data_keys, metadata
-from vivarium_census_prl_synth_pop.constants.metadata import SUPPORTED_EXTENSIONS
 from vivarium_census_prl_synth_pop.results_processing import formatter
 from vivarium_census_prl_synth_pop.results_processing.addresses import (
     get_address_id_maps,
@@ -262,21 +261,19 @@ PUBLIC_SAMPLE_ADDRESS_PARTS = {
 def build_results(
     raw_output_dir: Path,
     final_output_dir: Path,
-    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: str,
 ) -> None:
     logger.info("Performing post-processing")
     perform_post_processing(
-        raw_output_dir, final_output_dir, extension, seed, artifact_path, public_sample
+        raw_output_dir, final_output_dir, seed, artifact_path, public_sample
     )
 
 
 def perform_post_processing(
     raw_output_dir: Path,
     final_output_dir: Path,
-    extension: str,
     seed: str,
     artifact_path: str,
     public_sample: bool,
@@ -396,66 +393,33 @@ def perform_post_processing(
             obs_dir = build_output_dir(final_output_dir, subdir=observer)
             seed_ext = f"_{seed}" if seed != "" else ""
             write_shard_metadata(observer, obs_data, obs_dir, seed_ext)
-            write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.{extension}")
+            write_to_disk(obs_data.copy(), obs_dir / f"{observer}{seed_ext}.parquet")
 
 
 def load_data(raw_results_dir: Path, seed: str) -> Dict[str, pd.DataFrame]:
-    # Loads in all observer outputs and stores them in a dict with observer name as keys.
+    """Loads in all observer outputs and stores them in a dict with observer name as keys."""
     observers_results = {}
     for observer in FINAL_OBSERVERS:
-        obs_dir = raw_results_dir / observer
-        if seed == "":
-            logger.info(f"Loading {obs_dir.name} data ")
-            obs_files = sorted(
-                list(chain(*[obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
-            )
-            obs_data = []
-            for file in obs_files:
-                df = read_datafile(file)
-                df["random_seed"] = file.name.split(".")[0].split("_")[-1]
-                df = formatter.format_columns(df)
-                obs_data.append(df)
-            obs_data = pd.concat(obs_data)
-        else:
-            obs_files = list(
-                chain(*[obs_dir.glob(f"*_{seed}.{ext}") for ext in SUPPORTED_EXTENSIONS])
-            )
-            if len(obs_files) > 1:
-                raise FileExistsError(
-                    f"Too many files found with the given seed {seed} for observer {observer}"
-                    f" - {obs_files}."
-                )
-            elif len(obs_files) == 0:
-                raise FileNotFoundError(
-                    f"No file found with the seed {seed} for observer {observer}."
-                )
-            obs_file = obs_files[0]
-            logger.info(f"Loading data for {obs_file.name}")
-            obs_data = read_datafile(obs_file)
-            obs_data["random_seed"] = seed
-            obs_data = formatter.format_columns(obs_data)
-
-        observers_results[obs_dir.name] = obs_data
+        logger.info(f"Loading data for {observer}")
+        obs_data = read_datafile(raw_results_dir / f"{observer}.parquet", seed=seed)
+        obs_data = formatter.format_columns(obs_data)
+        observers_results[observer] = obs_data
 
     return observers_results
 
 
-def read_datafile(file: Path, reset_index: bool = True, state: str = None) -> pd.DataFrame:
-    state_column = "mailing_address_state" if "tax" in file.parent.name else "state"
-    if ".hdf" == file.suffix:
-        state_filter = [f"{state_column} == {state}."] if state else None
-        with pd.HDFStore(str(file), mode="r") as hdf_store:
-            df = hdf_store.select("data", where=state_filter)
-    elif ".parquet" == file.suffix:
-        state_filter = [(state_column, "==", state)] if state else None
-        df = pq.read_table(file, filters=state_filter).to_pandas()
-    else:
-        raise ValueError(
-            f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
-            f"{file.suffix[1:]} was provided."
-        )
+def read_datafile(
+    file: Path, reset_index: bool = True, state: Optional[str] = None, seed: str = ""
+) -> pd.DataFrame:
+    state_column = "mailing_address_state" if "tax" in file.name else "state"
+    state_filter = (state_column, "==", state) if state else None
+    seed_filter = ("random_seed", "==", int(seed)) if seed else None
+    filters = None
+    if seed_filter or state_filter:
+        filters = [filter for filter in [state_filter, seed_filter] if filter]
+    df = pq.read_table(file, filters=filters).to_pandas()
     if reset_index:
-        df = df.reset_index()
+        df = df.reset_index(drop=True)
     return df
 
 
@@ -510,56 +474,41 @@ def generate_maps(
     return maps
 
 
-def subset_results_by_state(processed_results_dir: str, state: str) -> None:
+def subset_results_by_state(processed_results_dir: Path, state: str) -> None:
     # Loads final results and subsets those files to a provide state excluding the Social Security Observer
 
     abbrev_name_dict = {v: k for k, v in metadata.US_STATE_ABBRV_MAP.items()}
     state_name = sanitize_location(abbrev_name_dict[state.upper()])
-    processed_results_dir = Path(processed_results_dir)
-    directories = [x for x in processed_results_dir.iterdir() if x.is_dir()]
-    # Get USA results directory
-    for directory in directories:
-        if "pseudopeople_input_data_usa" in directory.name:
-            usa_results_dir = directory
-    # Parse version number if necessary
-    version = usa_results_dir.name.split("_")[-1]
-    if version != "usa":
-        state_dir = (
-            processed_results_dir
-            / "states"
-            / f"pseudopeople_input_data_{state_name}_{version}"
-        )
-    else:
-        state_dir = processed_results_dir / "states" / f"pseudopeople_input_data_{state_name}"
+    version = processed_results_dir.name.split("_")[-1]
+    state_dir = (
+        processed_results_dir.parent
+        / "states"
+        / f"pseudopeople_input_data_{state_name}_{version}"
+    )
 
     for observer in FINAL_OBSERVERS:
         logger.info(f"Processing {observer} data")
-        usa_obs_dir = usa_results_dir / observer
-        usa_obs_files = sorted(
-            list(chain(*[usa_obs_dir.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS]))
-        )
+        obs_files = sorted(list((processed_results_dir / observer).glob("*.parquet")))
         state_observer_dir = state_dir / observer
         build_output_dir(state_observer_dir)
-        for usa_obs_file in usa_obs_files:
-            output_file_path = state_observer_dir / usa_obs_file.name
+        for obs_file in obs_files:
+            output_file_path = state_observer_dir / obs_file.name
             if output_file_path.exists():
                 continue
             if observer == metadata.DatasetNames.SSA:
                 state_filter_val = None
             else:
                 state_filter_val = state
-            state_data = read_datafile(
-                usa_obs_file, reset_index=False, state=state_filter_val
-            )
+            state_data = read_datafile(obs_file, reset_index=False, state=state_filter_val)
             write_to_disk(state_data, output_file_path)
         logger.info(f"Finished writing {observer} files for {state_name}.")
 
     # Update metadata and proportions files for state
-    metadata_proportions = pd.read_csv(usa_results_dir / "metadata_proportions.csv")
+    metadata_proportions = pd.read_csv(processed_results_dir / "metadata_proportions.csv")
     state_proportions = metadata_proportions.loc[metadata_proportions["state"] == state]
     state_proportions.to_csv(state_dir / "metadata_proportions.csv", index=False)
     # Copy over metadata file
-    metadata_path = usa_results_dir / "metadata.yaml"
+    metadata_path = processed_results_dir / "metadata.yaml"
     state_metadata_path = state_dir / "metadata.yaml"
     copyfile(metadata_path, state_metadata_path)
 
