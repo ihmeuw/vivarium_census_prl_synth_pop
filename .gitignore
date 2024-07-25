@@ -134,6 +134,7 @@ dmypy.json
 
 # Model specification files
 src/vivarium_census_prl_synth_pop/model_specifications/*.yaml
+src/vivarium_census_prl_synth_pop/model_specifications/branches/*.yaml
 
 # VSCode test cache
 **/.vscode/
