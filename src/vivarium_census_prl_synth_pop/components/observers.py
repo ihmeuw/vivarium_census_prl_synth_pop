@@ -375,9 +375,8 @@ class WICObserver(BaseObserver):
         ).astype(float)
         for race_ethnicity in self.WIC_RACE_ETHNICITIES:
             race_eth_rows = simplified_race_ethnicity == race_ethnicity
-            num_infants_total = np.sum(
-                race_eth_rows
-            )  # total number of infants in this race group
+            # total number of infants in this race group
+            num_infants_total = np.sum(race_eth_rows)
             # number included because their mother is on WIC
             num_infants_included = np.sum(race_eth_rows & (child_covered_pr == 1))
             if num_infants_included < num_infants_total:
@@ -437,13 +436,6 @@ class SocialSecurityObserver(BaseObserver):
         self.end_time = dt.datetime(**builder.configuration.time.end)
 
     def register_observations(self, builder: Builder) -> None:
-        # builder.results.register_concatenating_observation(
-        #     name=self.output_name,
-        #     pop_filter="has_ssn == True",
-        #     requires_columns=self.columns_required,
-        #     results_formatter=self.format,
-        #     to_observe=self.to_observe,
-        # )
         # While this is a concatenating observation, it is not registered as such
         # because we need to modify the per-time-step results_gatherer method
         builder.results.register_unstratified_observation(
@@ -459,9 +451,7 @@ class SocialSecurityObserver(BaseObserver):
         """Only observe if this is the final time step of the sim"""
         return self.clock() < self.end_time <= event.time
 
-    # def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
     def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
-        # pop = results.copy()
         # copy from household member for relevant columns
         pop["simulant_id"] = pop.index
         pop = utilities.copy_from_household_member(pop, self.randomness)
@@ -632,10 +622,9 @@ class TaxW2Observer(BaseObserver):
 
     def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
         # copy from household member for relevant columns
-        pop_full = pop.copy()
-        pop_full["simulant_id"] = pop_full.index
-        pop_full = utilities.copy_from_household_member(pop_full, self.vivarium_randomness)
-        pop_full = self.add_address(pop_full)
+        pop["simulant_id"] = pop.index
+        pop = utilities.copy_from_household_member(pop, self.vivarium_randomness)
+        pop = self.add_address(pop)
 
         ### create dataframe of all person/employment pairs
         # start with wages to date, which has simulant_id and employer_id as multi-index
@@ -643,9 +632,7 @@ class TaxW2Observer(BaseObserver):
 
         df_w2 = self.wages_last_year.reset_index()
         df_w2["wages"] = df_w2["wages"].round().astype(int)
-        df_w2["tax_year"] = (
-            pop_full.loc[pop_full.index.isin(df_w2.index), "event_time"].dt.year - 1
-        )
+        df_w2["tax_year"] = pop.loc[pop.index.isin(df_w2.index), "event_time"].dt.year - 1
 
         # merge in simulant columns based on simulant id
         for col in [
@@ -667,20 +654,20 @@ class TaxW2Observer(BaseObserver):
             "race_ethnicity",
             "po_box",
         ]:
-            df_w2[col] = df_w2["simulant_id"].map(pop_full[col])
+            df_w2[col] = df_w2["simulant_id"].map(pop[col])
 
         # Tracked, US population to be dependents or get their SSNs borrowed
-        pop = pop_full[
-            (pop_full["alive"] == "alive")
-            & pop_full["tracked"]
-            & pop_full["in_united_states"]
+        tracked_us_pop = pop[
+            (pop["alive"] == "alive") & pop["tracked"] & pop["in_united_states"]
         ]
 
         # for simulants without ssn, record a simulant_id for a random household
         # member with an ssn, if one exists
         simulants_wo_ssn = df_w2.loc[~df_w2["has_ssn"], "address_id"]
         household_members_w_ssn = (
-            pop[pop["has_ssn"]].groupby("address_id").apply(lambda df_g: list(df_g.index))
+            tracked_us_pop[tracked_us_pop["has_ssn"]]
+            .groupby("address_id")
+            .apply(lambda df_g: list(df_g.index))
         )
         household_members_w_ssn = simulants_wo_ssn.map(household_members_w_ssn).dropna()
         # Note the np_randomness is generated once during setup. TODO for RT to determine which
@@ -792,19 +779,16 @@ class TaxDependentsObserver(BaseObserver):
         return self.clock() < tax_date <= event.time
 
     def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
-        pop_full = pop.copy()
-        pop_full["simulant_id"] = pop_full.index
+        pop["simulant_id"] = pop.index
         # copy from household member for relevant columns
-        pop_full = utilities.copy_from_household_member(pop_full, self.randomness)
-        pop_full = self.add_address(pop_full)
+        pop = utilities.copy_from_household_member(pop, self.randomness)
+        pop = self.add_address(pop)
 
         # Tracked, US population to be dependents
-        pop = pop_full[
-            (
-                pop_full["alive"] == "alive"
-            )  # really should include people who died in last year
-            & pop_full["tracked"]  # ??? should we include untracked, too?
-            & pop_full[
+        tracked_us_pop = pop[
+            (pop["alive"] == "alive")  # really should include people who died in last year
+            & pop["tracked"]  # ??? should we include untracked, too?
+            & pop[
                 "in_united_states"
             ]  # and if they were in usa in last year, maybe they still count
         ]
@@ -814,8 +798,12 @@ class TaxDependentsObserver(BaseObserver):
         # create lists of dependent ids and dependent address ids
         df_eligible_dependents = pd.concat(
             [
-                pop[pop["guardian_1"] != -1].eval("guardian_id=guardian_1"),
-                pop[pop["guardian_2"] != -1].eval("guardian_id=guardian_2"),
+                tracked_us_pop[tracked_us_pop["guardian_1"] != -1].eval(
+                    "guardian_id=guardian_1"
+                ),
+                tracked_us_pop[tracked_us_pop["guardian_2"] != -1].eval(
+                    "guardian_id=guardian_2"
+                ),
             ]
         )
 
@@ -850,7 +838,7 @@ class TaxDependentsObserver(BaseObserver):
 
         df = df_eligible_dependents
         df["dependent_id"] = df.index
-        df["tax_year"] = pop_full.loc[pop_full.index.isin(df.index), "event_time"].dt.year - 1
+        df["tax_year"] = pop.loc[pop.index.isin(df.index), "event_time"].dt.year - 1
 
         return df[self.OUTPUT_COLUMNS]
 
@@ -930,8 +918,6 @@ class Tax1040Observer(BaseObserver):
         tax_date = dt.datetime(event.time.year, 4, 15)
         return self.clock() < tax_date <= event.time
 
-    # def get_observation(self, event: Event) -> pd.DataFrame:
-    #     pop = self.population_view.get(event.index)
     def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
         # Sample who files taxes
         pop["simulant_id"] = pop.index

@@ -477,7 +477,6 @@ def copy_from_household_member(
 ) -> pd.DataFrame:
     # Creates copy_age, copy_date_of_birth, and copy_ssn from household members
     # Note: copy value can be original value but copies from another household member
-    pop = pop.copy()
     copy_cols = metadata.COPY_HOUSEHOLD_MEMBER_COLS
     for col in [column for column in copy_cols.keys() if column in pop.columns]:
         copy_col = copy_cols[col]

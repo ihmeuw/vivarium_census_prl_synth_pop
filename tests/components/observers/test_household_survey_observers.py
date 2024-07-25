@@ -99,9 +99,6 @@ def test_multiple_observation(
     """Are responses recorded correctly (including concatenation after time steps)?"""
     sim_start_date = str(mocked_pop_view.event_time.iat[0].date())
     # Simulate first time step
-    # event = mocker.MagicMock()
-    # event.time = pd.to_datetime(sim_start_date)
-    # event.index = pd.Index([0, 1])
     # FIXME: This returns mocked_pop_view regardless of event.index or alive status
     observer.population_view.get.return_value = mocked_pop_view
     mocker.patch(
