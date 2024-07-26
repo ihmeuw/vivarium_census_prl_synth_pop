@@ -459,10 +459,9 @@ def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
 
 
 def write_to_disk(data: pd.DataFrame, path: Path):
-    """Converts all object dtypes to categorical and then writes to file to output path"""
-    for column in data.columns:
-        if data[column].dtype.name == "object":
-            data[column] = data[column].astype("category")
+    """Write dataset to file at output path"""
+    # Convert object dtypes to categorical for effiency
+    data = convert_objects_to_categories(data)
     if ".parquet" == path.suffix:
         data.to_parquet(path)
     else:
@@ -470,6 +469,14 @@ def write_to_disk(data: pd.DataFrame, path: Path):
             f"Supported extensions are {metadata.SUPPORTED_EXTENSIONS}. "
             f"{path.suffix[1:]} was provided."
         )
+
+
+def convert_objects_to_categories(data: pd.DataFrame) -> pd.DataFrame:
+    """Convert all object dtypes to categorical"""
+    for column in data.columns:
+        if data[column].dtype.name == "object":
+            data[column] = data[column].astype("category")
+    return data
 
 
 def copy_from_household_member(
@@ -656,17 +663,17 @@ def get_guardian_duplication_row_counts(
     metadata_df["row_noise.row_probability_in_households_under_18"] = len(
         df.loc[under_18_in_households_mask & live_separate_from_guardian_mask]
     )
-    metadata_df[
-        "group_rows.row_probability_in_households_under_18"
-    ] = under_18_in_households_mask.sum()
+    metadata_df["group_rows.row_probability_in_households_under_18"] = (
+        under_18_in_households_mask.sum()
+    )
     # This is for depedents living in college group quarters under 24
     college_group_quarters_mask = (df["age"] < 24) & (df["housing_type"] == "College")
     metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
         df.loc[college_group_quarters_mask & live_separate_from_guardian_mask]
     )
-    metadata_df[
-        "group_rows.row_probability_in_college_group_quarters_under_24"
-    ] = college_group_quarters_mask.sum()
+    metadata_df["group_rows.row_probability_in_college_group_quarters_under_24"] = (
+        college_group_quarters_mask.sum()
+    )
 
     return metadata_df
 

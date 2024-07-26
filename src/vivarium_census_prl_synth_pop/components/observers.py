@@ -92,6 +92,13 @@ class BaseObserver(Observer):
         df[cols_to_add] = self.pipelines["household_details"](df.index)[cols_to_add]
         return df
 
+    @staticmethod
+    def convert_to_categories(measure: str, results: pd.DataFrame) -> pd.DataFrame:
+        """Wrapper to call utilities function conversion function right before
+        writing the final dataset
+        """
+        return utilities.convert_objects_to_categories(results)
+
 
 class HouseholdSurveyObserver(BaseObserver):
     INPUT_VALUES = ["household_details"]
@@ -179,6 +186,7 @@ class HouseholdSurveyObserver(BaseObserver):
             requires_columns=self.columns_required,
             results_gatherer=self.get_observation,
             results_updater=ConcatenatingObservation.concatenate_results,
+            results_formatter=self.convert_to_categories,
         )
 
     def get_observation(self, pop: pd.DataFrame) -> pd.DataFrame:
@@ -236,6 +244,7 @@ class DecennialCensusObserver(BaseObserver):
             results_gatherer=self.get_observation,
             results_updater=ConcatenatingObservation.concatenate_results,
             to_observe=self.to_observe,
+            results_formatter=self.convert_to_categories,
         )
 
     def to_observe(self, event: Event) -> bool:
@@ -296,6 +305,7 @@ class WICObserver(BaseObserver):
             results_gatherer=self.get_observation,
             results_updater=ConcatenatingObservation.concatenate_results,
             to_observe=self.to_observe,
+            results_formatter=self.convert_to_categories,
         )
 
     def to_observe(self, event: Event) -> bool:
@@ -445,6 +455,7 @@ class SocialSecurityObserver(BaseObserver):
             results_gatherer=self.get_observation,
             results_updater=ConcatenatingObservation.concatenate_results,
             to_observe=self.to_observe,
+            results_formatter=self.convert_to_categories,
         )
 
     def to_observe(self, event: Event) -> bool:
@@ -613,6 +624,7 @@ class TaxW2Observer(BaseObserver):
             results_gatherer=self.get_observation,
             results_updater=ConcatenatingObservation.concatenate_results,
             to_observe=self.to_observe,
+            results_formatter=self.convert_to_categories,
         )
 
     def to_observe(self, event: Event) -> bool:
@@ -771,6 +783,7 @@ class TaxDependentsObserver(BaseObserver):
             results_gatherer=self.get_observation,
             results_updater=ConcatenatingObservation.concatenate_results,
             to_observe=self.to_observe,
+            results_formatter=self.convert_to_categories,
         )
 
     def to_observe(self, event: Event) -> bool:
@@ -911,6 +924,7 @@ class Tax1040Observer(BaseObserver):
             results_gatherer=self.get_observation,
             results_updater=ConcatenatingObservation.concatenate_results,
             to_observe=self.to_observe,
+            results_formatter=self.convert_to_categories,
         )
 
     def to_observe(self, event: Event) -> bool:
