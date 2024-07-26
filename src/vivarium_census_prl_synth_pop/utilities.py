@@ -459,24 +459,10 @@ def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
 
 
 def write_to_disk(data: pd.DataFrame, path: Path):
-    """
-    Converts all object dtypes to categorical and then writes to file to output
-    path. If writing to an hdf file, bzip2 compression is used. Alternately can
-    write to a parquet file.
-    """
-    for column in data.columns:
-        if data[column].dtype.name == "object":
-            data[column] = data[column].astype("category")
-    if ".hdf" == path.suffix:
-        data.to_hdf(
-            path,
-            "data",
-            format="table",
-            complib="bzip2",
-            complevel=9,
-            data_columns=data_values.DATA_COLUMNS,
-        )
-    elif ".parquet" == path.suffix:
+    """Write dataset to file at output path"""
+    # Convert object dtypes to categorical for effiency
+    data = convert_objects_to_categories(data)
+    if ".parquet" == path.suffix:
         data.to_parquet(path)
     else:
         raise ValueError(
@@ -485,15 +471,23 @@ def write_to_disk(data: pd.DataFrame, path: Path):
         )
 
 
+def convert_objects_to_categories(data: pd.DataFrame) -> pd.DataFrame:
+    """Convert all object dtypes to categorical"""
+    for column in data.columns:
+        if data[column].dtype.name == "object":
+            data[column] = data[column].astype("category")
+    return data
+
+
 def copy_from_household_member(
     pop: pd.DataFrame, randomness_stream: RandomnessStream
 ) -> pd.DataFrame:
     # Creates copy_age, copy_date_of_birth, and copy_ssn from household members
     # Note: copy value can be original value but copies from another household member
-
     copy_cols = metadata.COPY_HOUSEHOLD_MEMBER_COLS
     for col in [column for column in copy_cols.keys() if column in pop.columns]:
-        pop[copy_cols[col]] = np.nan
+        copy_col = copy_cols[col]
+        pop[copy_col] = pd.Series(dtype=pop[col].dtype)
         if col == "has_ssn":
             # Subset to rows that have SSN so we do not try and map nans.
             households = (
@@ -509,7 +503,7 @@ def copy_from_household_member(
         ]
         if households.empty:
             # Save as object type - current pandas defaults to dtype float with future warning
-            pop[copy_cols[col]] = pd.Series(np.nan, index=pop.index, dtype=object)
+            pop[copy_col] = pd.Series(np.nan, index=pop.index, dtype=object)
             continue
 
         simulants_and_household_members = pop["household_id"].map(households).dropna()
@@ -527,11 +521,9 @@ def copy_from_household_member(
         seed = get_hash(randomness_stream._key(additional_key=col))
         copy_ids = simulant_ids_to_copy.map(np.random.default_rng(seed).choice)
         if col == "has_ssn":
-            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids
+            pop.loc[copy_ids.index, copy_col] = copy_ids
         else:
-            pop.loc[copy_ids.index, copy_cols[col]] = copy_ids.map(
-                pop.loc[copy_ids.index, col]
-            )
+            pop.loc[copy_ids.index, copy_col] = copy_ids.map(pop.loc[copy_ids.index, col])
 
     return pop
 

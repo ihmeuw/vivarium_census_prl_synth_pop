@@ -1,3 +1,7 @@
+**1.5.0 - 07/15/24**
+
+ - Update to new results processing system
+
 **1.4.2 - 07/28/23**
 
  - Resolve symlinks
