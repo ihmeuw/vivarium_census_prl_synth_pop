@@ -667,17 +667,17 @@ def get_guardian_duplication_row_counts(
     metadata_df["row_noise.row_probability_in_households_under_18"] = len(
         df.loc[under_18_in_households_mask & live_separate_from_guardian_mask]
     )
-    metadata_df["group_rows.row_probability_in_households_under_18"] = (
-        under_18_in_households_mask.sum()
-    )
+    metadata_df[
+        "group_rows.row_probability_in_households_under_18"
+    ] = under_18_in_households_mask.sum()
     # This is for depedents living in college group quarters under 24
     college_group_quarters_mask = (df["age"] < 24) & (df["housing_type"] == "College")
     metadata_df["row_noise.row_probability_in_college_group_quarters_under_24"] = len(
         df.loc[college_group_quarters_mask & live_separate_from_guardian_mask]
     )
-    metadata_df["group_rows.row_probability_in_college_group_quarters_under_24"] = (
-        college_group_quarters_mask.sum()
-    )
+    metadata_df[
+        "group_rows.row_probability_in_college_group_quarters_under_24"
+    ] = college_group_quarters_mask.sum()
 
     return metadata_df
 
