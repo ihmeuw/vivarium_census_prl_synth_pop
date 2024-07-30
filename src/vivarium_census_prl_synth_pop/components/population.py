@@ -63,11 +63,11 @@ class Population(Component):
     def columns_required(self) -> List[str]:
         return ["state_id_for_lookup"]
 
-    #####################
-    # Lifecycle Methods #
-    #####################
-
-    def setup(self, builder: Builder):
+        #####################
+        # Lifecycle Methods #
+        #####################
+        # Failing code
+        # def setup(self, builder: Builder):
         self.config = builder.configuration.population
         self.seed = builder.configuration.randomness.random_seed
         self.randomness = builder.randomness.get_stream("household_sampling")
