@@ -66,8 +66,8 @@ class Population(Component):
     #####################
     # Lifecycle Methods #
     #####################
-
-    def setup(self, builder: Builder):
+    # Make test/buiols fail
+    # def setup(self, builder: Builder):
         self.config = builder.configuration.population
         self.seed = builder.configuration.randomness.random_seed
         self.randomness = builder.randomness.get_stream("household_sampling")
