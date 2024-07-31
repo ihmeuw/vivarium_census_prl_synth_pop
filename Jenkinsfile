@@ -179,7 +179,7 @@ pipeline {
       // Tell BitBucket whether the build succeeded or failed.
       script {
         notifyBitbucket()
-      // Set up new pipeline in Jenkins
+      // Test comment
       }
     }
     failure {
