@@ -454,8 +454,8 @@ def get_all_simulation_seeds(raw_output_dir: Path) -> List[str]:
     """Read the seeds from the either the finished_sim_metadata.csv if a
     parallel simulation or the metadata.yaml if a single simulation
     """
-    single_sim_metadata = raw_output_dir.parent / "metadata.yaml"
-    parallel_sim_metadata = raw_output_dir.parent / "finished_sim_metadata.csv"
+    single_sim_metadata = raw_output_dir.parent / paths.SINGLE_SIM_METADATA_FILENAME
+    parallel_sim_metadata = raw_output_dir.parent / paths.PARALLEL_SIM_METADATA_FILENAME
     if single_sim_metadata.exists():
         with open(single_sim_metadata, "r") as file:
             seeds = [str(yaml.safe_load(file)["random_seed"])]
