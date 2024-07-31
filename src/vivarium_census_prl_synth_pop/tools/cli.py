@@ -90,14 +90,6 @@ def make_artifacts(
     help="Skips updating the 'latest' symlink with this version of results.",
 )
 @click.option(
-    "-x",
-    "--extension",
-    type=click.Choice(["hdf", "parquet"]),
-    default="parquet",
-    show_default=True,
-    help="File type to write results out as. Supported file types are hdf and " "parquet.",
-)
-@click.option(
     "--public-sample",
     is_flag=True,
     help="Generates results for the small-scale public sample data.",
@@ -165,7 +157,6 @@ def make_results(
     with_debugger: bool,
     mark_best: bool,
     test_run: bool,
-    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: str,
@@ -174,9 +165,10 @@ def make_results(
     peak_memory: int,
     max_runtime: str,
 ) -> None:
-    """Create final results datasets from the raw results output by observers
-
-    :param output_dir: Directory where the raw results are stored
+    """Create final results datasets from the raw results found in the OUTPUT_DIR
+    and store them in a time-stamped and versioned directory structure using LABEL_VERSION.
+    \f
+    :param output_dir: Directory where the raw results are stored.
     :param label_version: Version for final results and metadata file. This should be of format '#.#.#'
     :param verbose: Configure logging verbosity.
     :param with_debugger: Drop into python debugger if an error occurs.
@@ -226,7 +218,6 @@ def make_results(
     status = main(
         raw_output_dir,
         final_output_dir,
-        extension,
         public_sample,
         seed,
         artifact_path,
@@ -241,14 +232,6 @@ def make_results(
 @click.argument("raw_output_dir", type=click.Path(exists=True))
 @click.argument("final_output_dir", type=click.Path(exists=True))
 @click.option("-v", "verbose", count=True, help="Configure logging verbosity.")
-@click.option(
-    "-x",
-    "--extension",
-    type=click.Choice(["hdf", "parquet"]),
-    default="hdf",
-    show_default=True,
-    help="File type to write results out as. Supported file types are hdf and parquet.",
-)
 @click.option(
     "--public-sample",
     is_flag=True,
@@ -269,7 +252,6 @@ def jobmon_make_results_runner(
     raw_output_dir: str,
     final_output_dir: str,
     verbose: int,
-    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: str,
@@ -281,7 +263,6 @@ def jobmon_make_results_runner(
     main(
         Path(raw_output_dir),
         Path(final_output_dir),
-        extension,
         public_sample,
         seed,
         artifact_path,
@@ -308,13 +289,37 @@ def jobmon_make_results_runner(
     "abbreviation.",
 )
 def make_state_results(
-    processed_results_dir: Path,
+    processed_results_dir: str,
     verbose: int,
     with_debugger: bool,
     state: str,
 ) -> None:
+    """Subset the processed results found in PROCESSED_RESULTS_DIR to a specific STATE.
+    \f
+    :param processed_results_dir: Directory where the already-processed results exist.
+    :param verbose: Configure logging verbosity.
+    :param with_debugger: Drop into python debugger if an error occurs.
+    :param state: The state to subset to. This should be the two letter postal abbreviation.
+    """
+    resolved_results_dir = Path(processed_results_dir).resolve()
+    # Ensure only a single expected results directory exists
+    resolved_results_dir = [
+        p
+        for p in list(resolved_results_dir.glob("**"))
+        if f"{paths.PROCESSED_RESULTS_DIR_NAME_BASE}" in p.name
+    ]
+    if len(resolved_results_dir) < 1:
+        raise ValueError(
+            f"The subdirectory '{paths.PROCESSED_RESULTS_DIR_NAME_BASE}_<VERSION>' "
+            "is expected but does not exist at the location provided."
+        )
+    if len(resolved_results_dir) > 1:
+        raise ValueError(
+            f"Multiple subdirectories '{paths.PROCESSED_RESULTS_DIR_NAME_BASE}_<VERSION>' "
+            "exist at the location provided when only one is expected."
+        )
     configure_logging_to_terminal(verbose)
     main = handle_exceptions(
         func=subset_results_by_state, exceptions_logger=logger, with_debugger=with_debugger
     )
-    main(processed_results_dir, state)
+    main(resolved_results_dir[0], state)

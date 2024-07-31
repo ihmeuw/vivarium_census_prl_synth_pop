@@ -1,5 +1,4 @@
 import shutil
-import sys
 import uuid
 from pathlib import Path
 
@@ -15,7 +14,6 @@ from vivarium_census_prl_synth_pop.utilities import (
 def run_make_results_workflow(
     raw_output_dir: Path,
     final_output_dir: Path,
-    extension: str,
     public_sample: bool,
     seed: str,
     artifact_path: str,
@@ -29,12 +27,11 @@ def run_make_results_workflow(
     """
     logger.info(
         "Starting jobmon 'make_results' workflow. Results will be written to "
-        f"{final_output_dir} with output format {extension}."
+        f"{final_output_dir}."
     )
     wf_uuid = uuid.uuid4()
 
     # Format arguments to be cli-friendly
-    extension_arg = f"--extension {extension}" if extension != "" else ""
     public_sample_arg = "--public-sample" if public_sample else ""
     verbose_arg = "-" + "v" * verbose if verbose else ""
     seed_arg = f"--seed {seed}" if seed != "" else ""
@@ -65,7 +62,6 @@ def run_make_results_workflow(
             "{raw_output_dir} "
             "{final_output_dir} "
             "{verbose} "
-            "{extension} "
             "{public_sample} "
             "{seed} "
             "--artifact-path {artifact_path} "
@@ -74,7 +70,6 @@ def run_make_results_workflow(
         task_args=[
             "raw_output_dir",
             "final_output_dir",
-            "extension",
             "public_sample",
             "artifact_path",
         ],
@@ -93,7 +88,6 @@ def run_make_results_workflow(
             raw_output_dir=str(raw_output_dir),
             final_output_dir=str(final_output_dir),
             verbose=verbose_arg,
-            extension=extension_arg,
             public_sample=public_sample_arg,
             seed=seed_args,
             artifact_path=artifact_path,
@@ -106,7 +100,6 @@ def run_make_results_workflow(
             raw_output_dir=str(raw_output_dir),
             final_output_dir=str(final_output_dir),
             verbose=verbose_arg,
-            extension=extension_arg,
             public_sample=public_sample_arg,
             seed=seed_arg,
             artifact_path=artifact_path,

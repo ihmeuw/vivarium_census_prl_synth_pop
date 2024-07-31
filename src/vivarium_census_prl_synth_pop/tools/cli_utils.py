@@ -63,8 +63,8 @@ def build_final_results_directory(
     results_dir: str,
     version: str,
 ) -> Tuple[Path, Path]:
-    tmp = paths.FINAL_RESULTS_DIR_NAME / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    subdir = tmp / f"pseudopeople_input_data_usa_{version}"
+    tmp = Path(paths.FINAL_RESULTS_DIR_NAME) / datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    subdir = tmp / f"{paths.PROCESSED_RESULTS_DIR_NAME_BASE}_{version}"
     final_output_dir = build_output_dir(
         Path(results_dir),
         subdir=subdir,
@@ -89,13 +89,13 @@ def finish_post_processing(final_output_dir: Path, test_run: bool, mark_best: bo
     if test_run:
         logger.info("Test run - not marking results as latest.")
     else:
-        _create_results_link(final_output_dir, paths.LATEST_DIR_NAME)
+        _create_results_link(final_output_dir, paths.LATEST_SYMLINK_NAME)
 
     if mark_best:
-        _create_results_link(final_output_dir, paths.BEST_DIR_NAME)
+        _create_results_link(final_output_dir, paths.BEST_SYMLINK_NAME)
 
 
-def _create_results_link(output_dir: Path, link_name: Path) -> None:
+def _create_results_link(output_dir: Path, link_name: str) -> None:
     output_dir = output_dir.resolve()
     final_results_dir = output_dir.parent.parent
     parent_dir = final_results_dir.parent.parent
