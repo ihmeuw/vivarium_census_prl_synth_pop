@@ -70,34 +70,38 @@ jobs:
         if: env.upstream_vivarium_exist == 'true'
         run: |
           echo "Cloning vivarium upstream branch: ${branch_name}"
+          pushd ..
           git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium.git
           pushd vivarium
           pip install .
-          popd
+          popd && popd
       - name: Retrieve upstream vivarium_public_health
         if: env.upstream_vivarium_public_health_exist == 'true'
         run: |
           echo "Cloning vivarium_public_health upstream branch: ${branch_name}"
+          pushd ..
           git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium_public_health.git
           pushd vivarium_public_health
           pip install .
-          popd
+          popd && popd
       - name: Retrieve upstream vivarium_inputs
         if: env.upstream_vivarium_inputs_exist == 'true'
         run: |
           echo "Cloning upstream vivarium_inputs branch: ${branch_name}"
+          pushd ..
           git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium_inputs.git
           pushd vivarium_inputs
           pip install .
-          popd
+          popd && popd
       - name: Retrieve upstream pseudopeople
         if: env.upstream_pseudopeople_exist == 'true'
         run: |
           echo "Cloning upstream pseudopeople branch: ${branch_name}"
+          pushd ..
           git clone --branch=${branch_name} https://github.com/ihmeuw/pseudopeople.git
           pushd pseudopeople
           pip install .
-          popd
+          popd && popd
       - name: Install dependencies
         run: |
           pip install .[test]
