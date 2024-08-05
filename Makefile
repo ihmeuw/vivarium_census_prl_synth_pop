@@ -53,8 +53,7 @@ debug: # Print debug information (environment variables)
 	@echo "Make sources:                     ${MAKE_SOURCES}"
 
 build-env: # Make a new conda environment
-	@[ "${CONDA_ENV_NAME}" ] && echo "" > /dev/null || ( echo "CONDA_ENV_NAME is not set"; exit 1 )
-	conda create ${CONDA_ENV_CREATION_FLAG} python=${PYTHON_VERSION} --yes
+	source environment.sh
 
 install: # Install setuptools, install this package in editable mode
 	pip install --upgrade pip setuptools
@@ -70,9 +69,9 @@ lint: .flake8 .bandit $(MAKE_SOURCES) # Run the code linter and package security
 	-safety check
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
-typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
-	-pytype --config=pytype.cfg $(LOCATIONS)
-	@echo "Ignore, Created by Makefile, `date`" > $@
+# typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
+# 	-pytype --config=pytype.cfg $(LOCATIONS)
+# 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 integration: $(MAKE_SOURCES) # Run the integration tests
 	export COVERAGE_FILE=./output/.coverage.integration

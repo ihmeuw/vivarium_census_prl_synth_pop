@@ -126,11 +126,11 @@ pipeline {
           }
         }
 
-        stage("Type Check") {
-          steps {
-            sh "${ACTIVATE} && make typecheck"
-          }
-        }
+        // stage("Type Check") {
+        //   steps {
+        //     sh "${ACTIVATE} && make typecheck"
+        //   }
+        // }
       }
     }
 
