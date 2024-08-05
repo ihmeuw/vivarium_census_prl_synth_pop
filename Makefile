@@ -1,7 +1,5 @@
 this_makefile := $(lastword $(MAKEFILE_LIST)) # Used to automatically list targets
 .DEFAULT_GOAL := list # If someone runs "make", run "make list"
-# Make shell bash so we can create environment
-SHELL := /bin/bash
 
 # Source files to format, lint, and type check.
 LOCATIONS=src integration_tests tests
@@ -22,8 +20,7 @@ IHME_PYPI := https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-s
 # order to make env at specific path. Otherwise, make a named env at the default path using
 # the -n flag.
 # TODO: [MIC-4953] build w/ multiple python versions
-# TODO: Update when pytype supports >3.10
-PYTHON_VERSION ?= 3.10
+PYTHON_VERSION ?= 3.11`
 CONDA_ENV_NAME ?= ${PACKAGE_NAME}_py${PYTHON_VERSION}
 CONDA_ENV_CREATION_FLAG = $(if $(CONDA_ENV_PATH),-p ${CONDA_ENV_PATH},-n ${CONDA_ENV_NAME})
 
@@ -55,11 +52,13 @@ debug: # Print debug information (environment variables)
 	@echo "Make sources:                     ${MAKE_SOURCES}"
 
 build-env: # Make a new conda environment
-	source environment.sh
+	@[ "${CONDA_ENV_NAME}" ] && echo "" > /dev/null || ( echo "CONDA_ENV_NAME is not set"; exit 1 )
+	conda create ${CONDA_ENV_CREATION_FLAG} python=${PYTHON_VERSION} --yes
 
 install: # Install setuptools, install this package in editable mode
 	pip install --upgrade pip setuptools
 	pip install -e .[DEV]
+	pip install -r requirements.txt
 
 format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and import sorter
 	-black $(LOCATIONS)
@@ -70,10 +69,6 @@ lint: .flake8 .bandit $(MAKE_SOURCES) # Run the code linter and package security
 	-flake8 $(LOCATIONS)
 	-safety check
 	@echo "Ignore, Created by Makefile, `date`" > $@
-
-# typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
-# 	-pytype --config=pytype.cfg $(LOCATIONS)
-# 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 integration: $(MAKE_SOURCES) # Run the integration tests
 	export COVERAGE_FILE=./output/.coverage.integration
