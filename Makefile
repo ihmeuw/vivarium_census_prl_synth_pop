@@ -53,7 +53,7 @@ debug: # Print debug information (environment variables)
 	@echo "Make sources:                     ${MAKE_SOURCES}"
 
 build-env: # Make a new conda environment
-	source environment.sh
+	@source environment.sh
 
 install: # Install setuptools, install this package in editable mode
 	pip install --upgrade pip setuptools
