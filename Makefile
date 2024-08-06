@@ -20,8 +20,7 @@ IHME_PYPI := https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-s
 # order to make env at specific path. Otherwise, make a named env at the default path using
 # the -n flag.
 # TODO: [MIC-4953] build w/ multiple python versions
-# TODO: Update when pytype supports >3.10
-PYTHON_VERSION ?= 3.10
+PYTHON_VERSION ?= 3.11
 CONDA_ENV_NAME ?= ${PACKAGE_NAME}_py${PYTHON_VERSION}
 CONDA_ENV_CREATION_FLAG = $(if $(CONDA_ENV_PATH),-p ${CONDA_ENV_PATH},-n ${CONDA_ENV_NAME})
 
@@ -59,6 +58,7 @@ build-env: # Make a new conda environment
 install: # Install setuptools, install this package in editable mode
 	pip install --upgrade pip setuptools
 	pip install -e .[DEV]
+	pip install -r requirements.txt
 
 format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and import sorter
 	-black $(LOCATIONS)
@@ -68,10 +68,6 @@ format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and imp
 lint: .flake8 .bandit $(MAKE_SOURCES) # Run the code linter and package security vulnerability checker
 	-flake8 $(LOCATIONS)
 	-safety check
-	@echo "Ignore, Created by Makefile, `date`" > $@
-
-typecheck: pytype.cfg $(MAKE_SOURCES) # Run the type checker
-	-pytype --config=pytype.cfg $(LOCATIONS)
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 integration: $(MAKE_SOURCES) # Run the integration tests
