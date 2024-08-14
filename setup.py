@@ -33,7 +33,10 @@ if __name__ == "__main__":
 
     # use "pip install -e .[dev]" to install required components + extra components
     data_requirements = ["vivarium_inputs[data]==4.1.0"]
-    cluster_requirements = ["jobmon_installer_ihme==10.6.2", "vivarium_cluster_tools>=2.0.0, <3.0.0"]
+    cluster_requirements = [
+        "jobmon_installer_ihme==10.6.2",
+        "vivarium_cluster_tools>=2.0.0, <3.0.0",
+    ]
     test_requirements = [
         "pytest",
         "pytest-cov",
