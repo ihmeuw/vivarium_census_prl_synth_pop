@@ -201,7 +201,7 @@ def test_update_to_reference_person_and_relationships(mocker, fake_population):
 
     # Setup class methods we need to update fake state table
     pop_component.start_time = pd.Timestamp("2020-04-01 00:00:00")
-    pop_component.population_view = mocker.MagicMock()
+    pop_component._population_view = mocker.MagicMock()
     pop_component.population_view.get = lambda idx, query: fake_population.loc[idx]
 
     # This is a series with household_id as the index and the new reference person as the value
