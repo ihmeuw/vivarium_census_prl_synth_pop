@@ -65,7 +65,7 @@ def test_immigration_into_gq(
         rounded_up.append(len(gq_immigrants) == math.ceil(target_per_timestep))
 
     fuzzy_checker.fuzzy_assert_proportion(
-        "GQ immigration stochastic rounding",
+        name="GQ immigration stochastic rounding",
         observed_numerator=sum(rounded_up),
         observed_denominator=len(rounded_up),
         target_proportion=target_per_timestep % 1,
@@ -142,7 +142,7 @@ def test_immigration_into_existing_households(
         )
 
     fuzzy_checker.fuzzy_assert_proportion(
-        "Non-reference-person immigration stochastic rounding",
+        name="Non-reference-person immigration stochastic rounding",
         observed_numerator=sum(rounded_up),
         observed_denominator=len(rounded_up),
         target_proportion=target_per_timestep % 1,
@@ -209,7 +209,7 @@ def test_immigration_into_new_households(
         rounded_up.append(household_immigration_events == math.ceil(target_per_timestep))
 
     fuzzy_checker.fuzzy_assert_proportion(
-        "Household immigration stochastic rounding",
+        name="Household immigration stochastic rounding",
         observed_numerator=sum(rounded_up),
         observed_denominator=len(rounded_up),
         target_proportion=target_per_timestep % 1,

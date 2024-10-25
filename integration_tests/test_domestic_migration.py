@@ -79,7 +79,7 @@ def test_individuals_move(
     for time_steps, (before, after) in enumerate(simulants_on_adjacent_timesteps):
         individual_movers = before["household_id"] != after["household_id"]
         fuzzy_checker.fuzzy_assert_proportion(
-            "Individual migration rate",
+            name="Individual migration rate",
             observed_numerator=individual_movers.sum(),
             observed_denominator=len(individual_movers),
             target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -99,7 +99,7 @@ def test_individuals_move(
 
     all_time_individual_movers = pd.concat(all_time_individual_movers, ignore_index=True)
     fuzzy_checker.fuzzy_assert_proportion(
-        "Individual migration rate",
+        name="Individual migration rate",
         observed_numerator=all_time_individual_movers.sum(),
         observed_denominator=len(all_time_individual_movers),
         target_proportion=multiplicative_drifts_to_bounds_through_timestep(
@@ -144,7 +144,7 @@ def test_individuals_move_into_new_households(
             ~new_household_movers
         )
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration joining recently created households",
+            name="Domestic migration joining recently created households",
             observed_numerator=joining_recently_created_households.sum(),
             observed_denominator=len(joining_recently_created_households),
             target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -161,7 +161,7 @@ def test_individuals_move_into_new_households(
             joining_recently_created_households
         )
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration creating new households",
+            name="Domestic migration creating new households",
             observed_numerator=new_household_movers.sum(),
             observed_denominator=len(new_household_movers),
             target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -197,7 +197,7 @@ def test_individuals_move_into_new_households(
         all_time_new_household_movers, ignore_index=True
     )
     fuzzy_checker.fuzzy_assert_proportion(
-        "Domestic migration joining recently created households",
+        name="Domestic migration joining recently created households",
         observed_numerator=all_time_joining_recently_created_households.sum(),
         observed_denominator=len(all_time_joining_recently_created_households),
         target_proportion=multiplicative_drifts_to_bounds_through_timestep(
@@ -211,7 +211,7 @@ def test_individuals_move_into_new_households(
         name_additional="All time steps",
     )
     fuzzy_checker.fuzzy_assert_proportion(
-        "Domestic migration creating new households",
+        name="Domestic migration creating new households",
         observed_numerator=all_time_new_household_movers.sum(),
         observed_denominator=len(all_time_new_household_movers),
         target_proportion=multiplicative_drifts_to_bounds_through_timestep(
@@ -235,7 +235,7 @@ def test_individuals_move_into_group_quarters(
             after["household_details.housing_type"] != "Household"
         )
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration into GQ",
+            name="Domestic migration into GQ",
             observed_numerator=gq_movers.sum(),
             observed_denominator=len(gq_movers),
             target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -249,7 +249,7 @@ def test_individuals_move_into_group_quarters(
         all_time_gq_movers.append(gq_movers)
         into_gq_from_gq = before[gq_movers]["household_details.housing_type"] != "Household"
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration into GQ from GQ",
+            name="Domestic migration into GQ from GQ",
             observed_numerator=into_gq_from_gq.sum(),
             observed_denominator=len(into_gq_from_gq),
             target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -277,7 +277,7 @@ def test_individuals_move_into_group_quarters(
     all_time_into_gq_from_gq = pd.concat(all_time_into_gq_from_gq, ignore_index=True)
 
     fuzzy_checker.fuzzy_assert_proportion(
-        "Domestic migration into GQ",
+        name="Domestic migration into GQ",
         observed_numerator=all_time_gq_movers.sum(),
         observed_denominator=len(all_time_gq_movers),
         target_proportion=multiplicative_drifts_to_bounds_through_timestep(
@@ -289,7 +289,7 @@ def test_individuals_move_into_group_quarters(
         name_additional="All time steps",
     )
     fuzzy_checker.fuzzy_assert_proportion(
-        "Domestic migration into GQ from GQ",
+        name="Domestic migration into GQ from GQ",
         observed_numerator=all_time_into_gq_from_gq.sum(),
         observed_denominator=len(all_time_into_gq_from_gq),
         target_proportion=multiplicative_drifts_to_bounds_through_timestep(
@@ -329,7 +329,7 @@ def test_individual_movers_have_correct_relationship(
             & (after["household_id"].isin(before["household_id"]))
         )
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration into existing households",
+            name="Domestic migration into existing households",
             observed_numerator=non_reference_person_movers.sum(),
             observed_denominator=len(non_reference_person_movers),
             target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -372,7 +372,7 @@ def test_individual_movers_have_correct_relationship(
         all_time_non_reference_person_movers, ignore_index=True
     )
     fuzzy_checker.fuzzy_assert_proportion(
-        "Domestic migration into existing households",
+        name="Domestic migration into existing households",
         observed_numerator=all_time_non_reference_person_movers.sum(),
         observed_denominator=len(all_time_non_reference_person_movers),
         target_proportion=multiplicative_drifts_to_bounds_through_timestep(
@@ -396,7 +396,7 @@ def test_households_move(
         )
         household_moves = household_movers.groupby(before["household_id"]).first()
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration of households",
+            name="Domestic migration of households",
             observed_numerator=household_moves.sum(),
             observed_denominator=len(household_moves),
             target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -438,7 +438,7 @@ def test_households_move(
 
     all_time_household_moves = pd.concat(all_time_household_moves, ignore_index=True)
     fuzzy_checker.fuzzy_assert_proportion(
-        "Domestic migration of households",
+        name="Domestic migration of households",
         observed_numerator=all_time_household_moves.sum(),
         observed_denominator=len(all_time_household_moves),
         target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -618,7 +618,7 @@ def test_addresses_during_moves(
 
         if unit_id_col == "employer_id":
             fuzzy_checker.fuzzy_assert_proportion(
-                "Domestic migration of businesses",
+                name="Domestic migration of businesses",
                 observed_numerator=mask_moved_units.sum(),
                 observed_denominator=len(mask_moved_units),
                 target_proportion=from_yearly(
@@ -629,7 +629,7 @@ def test_addresses_during_moves(
             )
         else:
             fuzzy_checker.fuzzy_assert_proportion(
-                "Domestic migration of households",
+                name="Domestic migration of households",
                 observed_numerator=mask_moved_units.sum(),
                 observed_denominator=len(mask_moved_units),
                 target_proportion=multiplicative_drifts_to_bounds_at_timestep(
@@ -654,7 +654,7 @@ def test_addresses_during_moves(
             != after_units.loc[mask_moved_units, state_id_col]
         )
         fuzzy_checker.fuzzy_assert_proportion(
-            f"Domestic migration: proportion {unit_id_col} moving into a new state",
+            name=f"Domestic migration: proportion {unit_id_col} moving into a new state",
             observed_numerator=new_state_movers.sum(),
             observed_denominator=len(new_state_movers),
             target_proportion=(1 - true_proportion_moving_within_state),
@@ -667,7 +667,7 @@ def test_addresses_during_moves(
             == after_units.loc[mask_moved_units, [state_id_col, puma_col]]
         ).all(axis=1)
         fuzzy_checker.fuzzy_assert_proportion(
-            f"Domestic migration: proportion {unit_id_col} moving into a new PUMA",
+            name=f"Domestic migration: proportion {unit_id_col} moving into a new PUMA",
             observed_numerator=new_puma_movers.sum(),
             observed_denominator=len(new_puma_movers),
             target_proportion=(1 / len(state_puma_options)),
@@ -678,7 +678,7 @@ def test_addresses_during_moves(
     all_time_moved = pd.concat(all_time_moved, ignore_index=True)
     if unit_id_col == "employer_id":
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration of businesses",
+            name="Domestic migration of businesses",
             observed_numerator=all_time_moved.sum(),
             observed_denominator=len(all_time_moved),
             target_proportion=from_yearly(
@@ -689,7 +689,7 @@ def test_addresses_during_moves(
         )
     else:
         fuzzy_checker.fuzzy_assert_proportion(
-            "Domestic migration of households",
+            name="Domestic migration of households",
             observed_numerator=all_time_moved.sum(),
             observed_denominator=len(all_time_moved),
             target_proportion=multiplicative_drifts_to_bounds_through_timestep(
@@ -714,7 +714,7 @@ def test_po_box(tracked_live_populations, fuzzy_checker: FuzzyChecker):
         )
         no_po_box = po_box_values == data_values.NO_PO_BOX
         fuzzy_checker.fuzzy_assert_proportion(
-            "Proportion without PO box",
+            name="Proportion without PO box",
             observed_numerator=no_po_box.sum(),
             observed_denominator=len(no_po_box),
             target_proportion=data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
@@ -746,7 +746,7 @@ def test_po_box(tracked_live_populations, fuzzy_checker: FuzzyChecker):
     ].first()
 
     fuzzy_checker.fuzzy_assert_proportion(
-        "Proportion without PO box",
+        name="Proportion without PO box",
         observed_numerator=all_time_no_po_box.sum(),
         observed_denominator=len(all_time_no_po_box),
         target_proportion=data_values.PROBABILITY_OF_SAME_MAILING_PHYSICAL_ADDRESS,
