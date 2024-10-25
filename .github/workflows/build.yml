@@ -17,3 +17,4 @@ jobs:
     with:
       dependencies: "vivarium,vivarium_public_health,gbd_mapping,vivarium_cluster_tools"
       use_mypy: false
+      install_type: "test"
