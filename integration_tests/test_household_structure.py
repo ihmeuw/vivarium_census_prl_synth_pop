@@ -218,7 +218,7 @@ def test_state_population_proportions(
             # An upside is that it is a more stringent check -- we not only have one household from each state,
             # but about the right *number*.
             fuzzy_checker.fuzzy_assert_proportion(
-                f"State proportion for {state_id}",
+                name=f"State proportion for {state_id}",
                 observed_numerator=(household_states == state_id).sum(),
                 observed_denominator=len(household_states),
                 # Relative size of states can change over time in the sim due to differential immigration, emigration,
