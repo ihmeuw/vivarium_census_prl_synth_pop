@@ -7,115 +7,22 @@
     push:
     pull_request:
     workflow_dispatch:
-    schedule: 
+    schedule:
       - cron: "0 8 * * *"
-  
+    
   jobs:
     build:
-      runs-on: ubuntu-latest
       strategy:
         matrix:
           python-version: ["3.9", "3.10", "3.11"]
-      defaults:
-        run:
-          shell: bash -le {0}
-      steps:
-        - uses: actions/checkout@v3
-        - name: Set up Python ${{ matrix.python-version }}
-          uses: actions/setup-python@v4
-          with:
-            python-version: ${{ matrix.python-version }}
-        - name: get upstream branch name
-          run: |
-            if "${{ github.event_name == 'pull_request' }}" ; then
-              echo "branch_name=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
-            else
-              echo "branch_name=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-            fi
-        - name: check for upstream vivarium
-          run: |
-            if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${branch_name} == "0"; then
-              echo "upstream_vivarium_exist=true" >> $GITHUB_ENV
-            else
-              echo "upstream_vivarium_exist=false" >> $GITHUB_ENV
-            fi
-        - name: check for upstream vivarium_public_health
-          run: |
-            if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium_public_health.git ${branch_name} == "0"; then
-              echo "upstream_vivarium_public_health_exist=true" >> $GITHUB_ENV
-            else
-              echo "upstream_vivarium_public_health_exist=false" >> $GITHUB_ENV
-            fi
-        - name: check for upstream vivarium_inputs
-          run: |
-            if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium_inputs.git ${branch_name} == "0"; then
-              echo "upstream_vivarium_inputs_exist=true" >> $GITHUB_ENV
-            else
-              echo "upstream_vivarium_inputs_exist=false" >> $GITHUB_ENV
-            fi
-        - name: check for upstream pseudopeople
-          run: |
-            if git ls-remote --exit-code --heads https://github.com/ihmeuw/pseudopeople.git ${branch_name} == "0"; then
-              echo "upstream_pseudopeople_exist=true" >> $GITHUB_ENV
-            else
-              echo "upstream_pseudopeople_exist=false" >> $GITHUB_ENV
-            fi
-        - name: print environment values
-          run: |
-            cat $GITHUB_ENV
-        - name: Update pip
-          run: |
-            python -m pip install --upgrade pip
-        - name: Retrieve upstream vivarium
-          if: env.upstream_vivarium_exist == 'true'
-          run: |
-            echo "Cloning vivarium upstream branch: ${branch_name}"
-            pushd ..
-            git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium.git
-            pushd vivarium
-            pip install .
-            popd && popd
-        - name: Retrieve upstream vivarium_public_health
-          if: env.upstream_vivarium_public_health_exist == 'true'
-          run: |
-            echo "Cloning vivarium_public_health upstream branch: ${branch_name}"
-            pushd ..
-            git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium_public_health.git
-            pushd vivarium_public_health
-            pip install .
-            popd && popd
-        - name: Retrieve upstream vivarium_inputs
-          if: env.upstream_vivarium_inputs_exist == 'true'
-          run: |
-            echo "Cloning upstream vivarium_inputs branch: ${branch_name}"
-            pushd ..
-            git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium_inputs.git
-            pushd vivarium_inputs
-            pip install .
-            popd && popd
-        - name: Retrieve upstream pseudopeople
-          if: env.upstream_pseudopeople_exist == 'true'
-          run: |
-            echo "Cloning upstream pseudopeople branch: ${branch_name}"
-            pushd ..
-            git clone --branch=${branch_name} https://github.com/ihmeuw/pseudopeople.git
-            pushd pseudopeople
-            pip install .
-            popd && popd
-        - name: Install dependencies
-          run: |
-            pip install .[test]
-  
-        - name: Lint
-          run: |
-            pip install black==22.3.0 isort
-            isort . --check -v
-            black . --check -v
-        - name: Test
-          run: |
-            if github.event_name == 'schedule'; then
-              pytest --runslow ./tests
-            else
-              pytest ./tests
-            fi
+      uses: 
+        ihmeuw/vivarium_build_utils/.github/workflows/build.yml@main
+      with:
+        dependencies: "layered_config_tree,vivarium,vivarium_public_health"
+        install_type: "test"
+        skip_mypy: true
+        skip_docs: true
+      secrets:
+        NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        NOTIFY_PASSWORD: ${{ secrets.NOTIFY_PASSWORD }}
   
