@@ -19,7 +19,7 @@
         ihmeuw/vivarium_build_utils/.github/workflows/build.yml@main
       with:
         dependencies: "layered_config_tree,vivarium,vivarium_public_health"
-        install_type: "test"
+        install_type: "[test]"
         skip_mypy: true
         skip_docs: true
       secrets:
