@@ -21,9 +21,9 @@ scheduled_branches = "main"
 CRON_SETTINGS = scheduled_branches.split(',').collect{it.trim()}.contains(BRANCH_NAME) ? 'H H(20-23) * * *' : ''
 
 pipeline {
-  // This agent runs as svc-simsci on node simsci-jenkinsagent-ci-p01..
+  // This agent runs as svc-simsci on slurm node.
   // It has access to standard IHME filesystems and singularity
-  agent { label "matrix-tasks" }
+  agent { label "slurm" }
 
   options {
     // Keep 100 old builds.
