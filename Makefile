@@ -72,6 +72,7 @@ lint: .flake8 .bandit $(MAKE_SOURCES) # Run the code linter and package security
 
 integration: $(MAKE_SOURCES) # Run the integration tests
 	export COVERAGE_FILE=./output/.coverage.integration
+	ulimit -v 4194304
 	pytest --runslow --cov --cov-report term --cov-report html:./output/htmlcov_integration integration_tests/
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
