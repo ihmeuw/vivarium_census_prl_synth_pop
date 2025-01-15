@@ -14,12 +14,14 @@ from vivarium_testing_utils import FuzzyChecker
 
 from vivarium_census_prl_synth_pop.constants import paths
 
+SIMULATION_POPULATION_SIZE = 250_000
+SIMULATION_STEP_SIZE = 28
 
-@pytest.fixture(scope="session")
-def sim() -> InteractiveContext:
+
+def initialize_sim() -> InteractiveContext:
     """Initialize a simulation for use in tests"""
     simulation = InteractiveContext(paths.MODEL_SPEC_DIR / "model_spec.yaml", setup=False)
-    simulation.configuration.population.population_size = 250_000
+    simulation.configuration.population.population_size = SIMULATION_POPULATION_SIZE
     simulation.setup()
     return simulation
 
@@ -28,8 +30,9 @@ TIME_STEPS_TO_TEST = [0, 1, 10]
 
 
 @pytest.fixture(scope="session")
-def populations(sim) -> List[pd.DataFrame]:
+def populations() -> List[pd.DataFrame]:
     population_states = []
+    sim = initialize_sim()
     for _ in range(max(TIME_STEPS_TO_TEST) + 1):
         pop = sim.get_population(untracked=True).assign(time=sim.current_time)
         pipelines = sim.list_values()
@@ -72,7 +75,8 @@ def tracked_live_populations(tracked_populations) -> List[pd.DataFrame]:
 
 
 @pytest.fixture(scope="session")
-def pipeline_columns(sim, populations) -> List[str]:
+def pipeline_columns(populations) -> List[str]:
+    sim = initialize_sim()
     pipelines = sim.list_values()
     sample_pop = populations[0]
     pipeline_columns = [

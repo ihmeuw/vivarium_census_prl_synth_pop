@@ -10,6 +10,7 @@ from vivarium.framework.utilities import from_yearly
 from vivarium_census_prl_synth_pop.constants import data_values, metadata
 
 from .conftest import (
+    SIMULATION_STEP_SIZE,
     FuzzyChecker,
     from_yearly_multiplicative_drift,
     multiplicative_drifts_to_bounds_at_timestep,
@@ -17,7 +18,7 @@ from .conftest import (
 
 
 @pytest.fixture(scope="module")
-def target_state_proportions(sim):
+def target_state_proportions():
     assert (
         metadata.UNITED_STATES_LOCATIONS == []
     ), "Integration tests do not support subsets by US state"
@@ -34,11 +35,11 @@ def target_state_proportions(sim):
     result["multiplicative_drift"] = {
         "lower_bound": from_yearly_multiplicative_drift(
             targets["multiplicative_drift_per_year"]["lower_bound"],
-            time_step_days=sim.configuration.time.step_size,
+            time_step_days=SIMULATION_STEP_SIZE,
         ),
         "upper_bound": from_yearly_multiplicative_drift(
             targets["multiplicative_drift_per_year"]["upper_bound"],
-            time_step_days=sim.configuration.time.step_size,
+            time_step_days=SIMULATION_STEP_SIZE,
         ),
     }
 
