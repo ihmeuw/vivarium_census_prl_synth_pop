@@ -2,13 +2,14 @@ import pandas as pd
 
 from vivarium_census_prl_synth_pop.constants import metadata
 
+from .conftest import SIMULATION_POPULATION_SIZE
+
 
 # TODO: Broader test coverage
-def test_initial_population_size(sim, populations):
-    pop_size = sim.configuration.population.population_size
+def test_initial_population_size(populations):
     pop = populations[0]
 
-    assert pop.index.size == pop_size
+    assert pop.index.size == SIMULATION_POPULATION_SIZE
     assert pop["tracked"].all()
     assert (pop["alive"] == "alive").all()
 

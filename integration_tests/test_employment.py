@@ -5,10 +5,12 @@ from vivarium_public_health import utilities
 
 from vivarium_census_prl_synth_pop.constants import data_values, paths
 
+from .conftest import SIMULATION_STEP_SIZE
+
 # TODO: Broader test coverage
 
 
-def test_military_gq_employment(sim, tracked_live_populations):
+def test_military_gq_employment(tracked_live_populations):
     for pop in tracked_live_populations:
         # All people in military group quarters are employed by the military if working age
         # Note: We initialize simulants into group quarters that are < 18 so they will remain unemployed.
@@ -19,8 +21,7 @@ def test_military_gq_employment(sim, tracked_live_populations):
             )
             & (
                 pop["age"]
-                >= data_values.WORKING_AGE
-                + sim.configuration.time.step_size / utilities.DAYS_PER_YEAR
+                >= data_values.WORKING_AGE + SIMULATION_STEP_SIZE / utilities.DAYS_PER_YEAR
             )
         ]
         assert (military_gq["employer_id"] == data_values.MILITARY.employer_id).all()

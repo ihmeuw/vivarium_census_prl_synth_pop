@@ -3,11 +3,13 @@ import pytest
 from integration_tests.conftest import TIME_STEPS_TO_TEST
 from vivarium_census_prl_synth_pop.constants import data_values
 
+from .conftest import SIMULATION_POPULATION_SIZE
+
 # TODO: Broader test coverage
 
 
-def test_gq_proportion(sim, tracked_live_populations):
-    pop_size = sim.configuration.population.population_size
+def test_gq_proportion(tracked_live_populations):
+    pop_size = SIMULATION_POPULATION_SIZE
     pop = tracked_live_populations[0]
     expected_gq_population = pop_size * data_values.PROP_POPULATION_IN_GQ
     min_gq_population = expected_gq_population - (data_values.MAX_HOUSEHOLD_SIZE - 1)

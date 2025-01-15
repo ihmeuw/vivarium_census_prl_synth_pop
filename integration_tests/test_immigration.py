@@ -10,11 +10,11 @@ from vivarium.framework.utilities import from_yearly
 
 from vivarium_census_prl_synth_pop.constants import metadata
 
-from .conftest import FuzzyChecker
+from .conftest import SIMULATION_POPULATION_SIZE, SIMULATION_STEP_SIZE, FuzzyChecker
 
 
 @pytest.fixture(scope="module")
-def target_immigration_events(sim):
+def target_immigration_events():
     assert (
         metadata.UNITED_STATES_LOCATIONS == []
     ), "Automated V&V does not support subsets by US state"
@@ -28,8 +28,8 @@ def target_immigration_events(sim):
         targets_rescaled[
             k.replace("_immigration_events_per_10k_starting_pop", "")
         ] = from_yearly(
-            targets[k] * (sim.configuration.population.population_size / 10_000),
-            pd.Timedelta(days=sim.configuration.time.step_size),
+            targets[k] * (SIMULATION_POPULATION_SIZE / 10_000),
+            pd.Timedelta(days=SIMULATION_STEP_SIZE),
         )
 
     return targets_rescaled
@@ -72,7 +72,7 @@ def test_immigration_into_gq(
     )
 
 
-def test_immigration_into_gq(immigrants_by_timestep, sim):
+def test_immigration_into_gq(immigrants_by_timestep):
     all_time_gq_immigrants = pd.concat(
         [
             immigrants[immigrants["household_details.housing_type"] != "Household"]
@@ -81,7 +81,7 @@ def test_immigration_into_gq(immigrants_by_timestep, sim):
     )
 
     # GQ immigration is so rare we can't put a lower bound on it even at 20k population
-    population_size = sim.configuration.population.population_size
+    population_size = SIMULATION_POPULATION_SIZE
     assert 0 < len(all_time_gq_immigrants) < (population_size * 0.05)
 
 

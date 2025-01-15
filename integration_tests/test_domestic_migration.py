@@ -10,6 +10,7 @@ from vivarium.framework.utilities import from_yearly
 from vivarium_census_prl_synth_pop.constants import data_values, metadata, paths
 
 from .conftest import (
+    SIMULATION_STEP_SIZE,
     FuzzyChecker,
     from_yearly_multiplicative_drift,
     multiplicative_drifts_to_bounds_at_timestep,
@@ -18,7 +19,7 @@ from .conftest import (
 
 
 @pytest.fixture(scope="module")
-def target_migration_rates(sim):
+def target_migration_rates():
     assert (
         metadata.UNITED_STATES_LOCATIONS == []
     ), "Integration tests do not support subsets by US state"
@@ -42,29 +43,29 @@ def target_migration_rates(sim):
         targets["individual_migration_rate_per_year"][
             "non_reference_person_into_household_created_in_last_year"
         ],
-        pd.Timedelta(days=sim.configuration.time.step_size),
+        pd.Timedelta(days=SIMULATION_STEP_SIZE),
     )
 
     targets["household"] = from_yearly(
         targets["household_migration_rate_per_year"],
-        pd.Timedelta(days=sim.configuration.time.step_size),
+        pd.Timedelta(days=SIMULATION_STEP_SIZE),
     )
 
     targets["individual"] = {}
     for k in targets["individual_migration_rate_per_year"].keys():
         targets["individual"][k] = from_yearly(
             targets["individual_migration_rate_per_year"][k],
-            pd.Timedelta(days=sim.configuration.time.step_size),
+            pd.Timedelta(days=SIMULATION_STEP_SIZE),
         )
 
     targets["multiplicative_drift"] = {
         "lower_bound": from_yearly_multiplicative_drift(
             targets["multiplicative_drift_per_year"]["lower_bound"],
-            time_step_days=sim.configuration.time.step_size,
+            time_step_days=SIMULATION_STEP_SIZE,
         ),
         "upper_bound": from_yearly_multiplicative_drift(
             targets["multiplicative_drift_per_year"]["upper_bound"],
-            time_step_days=sim.configuration.time.step_size,
+            time_step_days=SIMULATION_STEP_SIZE,
         ),
     }
 
@@ -583,7 +584,6 @@ def test_addresses_during_moves(
     address_id_col,
     state_id_col,
     puma_col,
-    sim,
     target_migration_rates,
     fuzzy_checker: FuzzyChecker,
 ):
@@ -623,7 +623,7 @@ def test_addresses_during_moves(
                 observed_denominator=len(mask_moved_units),
                 target_proportion=from_yearly(
                     data_values.BUSINESS_MOVE_RATE_YEARLY,
-                    pd.Timedelta(days=sim.configuration.time.step_size),
+                    pd.Timedelta(days=SIMULATION_STEP_SIZE),
                 ),
                 name_additional=f"Time step {time_step}",
             )
@@ -683,7 +683,7 @@ def test_addresses_during_moves(
             observed_denominator=len(all_time_moved),
             target_proportion=from_yearly(
                 data_values.BUSINESS_MOVE_RATE_YEARLY,
-                pd.Timedelta(days=sim.configuration.time.step_size),
+                pd.Timedelta(days=SIMULATION_STEP_SIZE),
             ),
             name_additional="All time steps",
         )
