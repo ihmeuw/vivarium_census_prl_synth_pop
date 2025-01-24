@@ -8,20 +8,12 @@ else
 endif
 
 PACKAGE_NAME = vivarium_census_prl_synth_pop
-IHME_PYPI := https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/
 
 .PHONY: install
 install: ## Install setuptools, package, and build utilities
 	pip install --upgrade pip setuptools 
 	pip install -e .[DEV]
-	@echo "----------------------------------------"
-	@if [ ! -d "../vivarium_build_utils" ]; then \
-		# Clone the build utils repo if it doesn't exist. \
-		git clone https://github.com/ihmeuw/vivarium_build_utils.git ../vivarium_build_utils; \
-	else \
-		echo "vivarium_build_utils already exists. Skipping clone."; \
-	fi
 
 # Include the makefiles
--include $(MAKE_INCLUDES)/base.mk
--include $(MAKE_INCLUDES)/test.mk
+include $(MAKE_INCLUDES)/base.mk
+include $(MAKE_INCLUDES)/test.mk
