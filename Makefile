@@ -9,11 +9,11 @@ endif
 
 PACKAGE_NAME = vivarium_census_prl_synth_pop
 
+# Include the makefiles
+include $(MAKE_INCLUDES)/base.mk
+include $(MAKE_INCLUDES)/test.mk
+
 .PHONY: install
 install: ## Install setuptools, package, and build utilities
 	pip install --upgrade pip setuptools 
 	pip install -e .[DEV]
-
-# Include the makefiles
-include $(MAKE_INCLUDES)/base.mk
-include $(MAKE_INCLUDES)/test.mk
