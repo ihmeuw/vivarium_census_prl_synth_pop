@@ -8,6 +8,7 @@ else
 endif
 
 PACKAGE_NAME = vivarium_census_prl_synth_pop
+IHME_PYPI := https://artifactory.ihme.washington.edu/artifactory/api/pypi/pypi-shared/
 
 .PHONY: install
 install: ## Install setuptools, package, and build utilities
