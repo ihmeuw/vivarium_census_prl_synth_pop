@@ -43,6 +43,10 @@ if __name__ == "__main__":
         "pytest-mock",
         "vivarium_testing_utils",
     ]
+    lint_requirements = [
+        "black==22.3.0",
+        "isort",
+    ]
 
     setup(
         name=about["__title__"],
@@ -61,7 +65,7 @@ if __name__ == "__main__":
             "test": test_requirements,
             "cluster": cluster_requirements,
             "data": data_requirements + cluster_requirements,
-            "dev": test_requirements + cluster_requirements,
+            "dev": test_requirements + cluster_requirements + lint_requirements,
         },
         zip_safe=False,
         entry_points="""
