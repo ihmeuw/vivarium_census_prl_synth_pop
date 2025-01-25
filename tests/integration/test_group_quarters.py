@@ -1,7 +1,8 @@
 import pytest
-from integration_tests.conftest import TIME_STEPS_TO_TEST
 
 from vivarium_census_prl_synth_pop.constants import data_values
+
+from .conftest import TIME_STEPS_TO_TEST
 
 # TODO: Broader test coverage
 
