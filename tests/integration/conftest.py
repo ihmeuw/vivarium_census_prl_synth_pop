@@ -15,6 +15,18 @@ from vivarium_testing_utils import FuzzyChecker
 from vivarium_census_prl_synth_pop.constants import paths
 
 
+## Mark all tests in the integration directory as slow for CI
+def pytest_collection_modifyitems(items):
+    """
+    Automatically mark all tests in the integration directory as slow
+    """
+    integration_dir = Path(__file__).parent
+
+    for item in items:
+        if integration_dir in Path(item.fspath).parents:
+            item.add_marker(pytest.mark.slow)
+
+
 @pytest.fixture(scope="session")
 def sim() -> InteractiveContext:
     """Initialize a simulation for use in tests"""
