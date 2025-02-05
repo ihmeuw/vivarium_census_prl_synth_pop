@@ -1,3 +1,7 @@
+**1.5.1 - 02/05/25**
+
+ - Add python versions file
+
 **1.5.0 - 07/15/24**
 
  - Update to new results processing system
