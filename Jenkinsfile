@@ -1,5 +1,6 @@
 @Library("vivarium_build_utils") _
-reusable_pipeline(scheduled_branches: ["main"],
+reusable_pipeline(
+    scheduled_branches: ["main"],
     test_types: ["unit", "integration"],
     requires_slurm: true, 
     skip_doc_build: true,
