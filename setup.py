@@ -43,19 +43,13 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium>=3.0.0 , <4.0.0",
+        "vivarium_dependencies[numpy_lt_2,pandas,pyyaml,scipy,click,tables,loguru,pyarrow]",
+        "vivarium_build_utils>=2.0.1,<3.0.0",
+        "vivarium>=3.0.0 , <3.5.0",
         "vivarium_public_health>=3.0.0, <4.0.0",
-        "click",
         "gbd_mapping>=3.0.6, <4.0.0",
         "jinja2",
-        "loguru",
-        "numpy<2.0.0",
-        "pandas>=1.0.0",
-        "scipy",
-        "tables",
-        "pyyaml",
         "faker==13.6.0",
-        "pyarrow",
         "pseudopeople",
     ]
 

@@ -1,3 +1,7 @@
+**1.5.2 - 09/17/25**
+
+ - Update to use vivarium_build_utils and vivarium_dependencies
+
 **1.5.1 - 02/05/25**
 
  - Add python versions file
