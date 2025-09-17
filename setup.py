@@ -45,7 +45,7 @@ if __name__ == "__main__":
     install_requirements = [
         "vivarium_dependencies[numpy_lt_2,pandas,pyyaml,scipy,click,tables,loguru,pyarrow]",
         "vivarium_build_utils>=2.0.1,<3.0.0",
-        "vivarium>=3.0.0 , <4.0.0",
+        "vivarium>=3.0.0 , <3.5.0",
         "vivarium_public_health>=3.0.0, <4.0.0",
         "gbd_mapping>=3.0.6, <4.0.0",
         "jinja2",
