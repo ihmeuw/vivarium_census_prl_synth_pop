@@ -1,3 +1,7 @@
+**1.5.3 - 03/25/26**
+
+ - Remove upstream_repos from Jenkinsfile
+
 **1.5.2 - 09/17/25**
 
  - Update to use vivarium_build_utils and vivarium_dependencies
